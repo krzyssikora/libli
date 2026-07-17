@@ -114,13 +114,22 @@ The doc says teachers create collections from **My groups → Collections**.
 **14**. The drift is purely *additive omission* — nothing documented was deleted
 or renamed.
 
+> **Not everything in this section is an omission.** Three items here are *wrong
+> prose*, which makes them Class-1 defects owned by slice 1a regardless of sitting
+> in this section — the slice boundary is **defect type, not findings-section
+> number**. They are tagged **[1a]** below. Everything else in §2 is pure additive
+> omission, owned by slice 1b.
+
 - Claim: `docs/help/course-admin/content-editors.md:24-58` documents six content
   types (Text, Image, Video, Iframe, Math, HTML); `quiz-editors.md:19-75`
   documents nine question types.
-- Truth: `templates/courses/manage/editor/_add_menu.html` renders **four** palette
-  groups, not the two the doc claims (`content-editors.md:6-7`):
-  Content (`:13`), Interactive (`:28`, gated `{% if not unit_is_quiz %}` at `:27`),
-  Questions (`:42`), Structure (`:56`).
+- **[1a]** Truth: `templates/courses/manage/editor/_add_menu.html` renders **four**
+  palette groups, and the doc's claim that it is "split into a **Content** group
+  and a **Questions** group" (`content-editors.md:6-7`, +PL `:6-8`) is **false
+  prose, not an omission**: Content (`:13`), Interactive (`:28`, gated
+  `{% if not unit_is_quiz %}` at `:27`), Questions (`:42`), Structure (`:56`).
+  1a corrects the group count and names the four groups; enumerating their
+  contents is 1b.
 
 Missing, by palette group:
 
@@ -131,14 +140,20 @@ Missing, by palette group:
 | Questions (2) | Matrix question, Multi-select grid |
 | Structure (1) | Slide break |
 
-Also undocumented: per-option MCQ feedback (`courses/models.py:1477`
-`Choice.feedback`; editor at
+Also undocumented (**1b**, pure omission): per-option MCQ feedback
+(`courses/models.py:1477` `Choice.feedback`; editor at
 `templates/courses/manage/editor/_edit_choicequestion.html:41-42`).
 
-Nesting/gating the docs omit: Questions/Structure/Tabs/Columns are hidden when
-nested inside a container (`_add_menu.html:24,25,41`).
+Nesting/gating (**1b**, pure omission): Questions/Structure/Tabs/Columns are
+hidden when nested inside a container (`_add_menu.html:24,25,41`).
 
-**This is authoring, not correction** — a distinct body of work from §3.
+**[1a]** `content-editors.md:6-7` group count (above) — wrong prose.
+**[1a]** `quiz-editors.md:6` "Every question shares a few common fields" — the
+marking fields are quiz-only (`_marking_fields.html:2`); tracked as a §3.2 bullet.
+
+**Ownership:** the 17 element types + MCQ feedback + nesting/gating = **slice 1b**
+(authoring, a distinct body of work). The **[1a]** items above are corrections and
+belong to slice 1a.
 
 ---
 
@@ -150,17 +165,32 @@ Fix these once, everywhere, rather than per-topic:
 
 1. **`Manage` → `Studio`.** `templates/base.html:79` renders `{% trans "Studio" %}`;
    PL msgstr is literally "Studio" (`django.po:3482-3483`, untranslated by design).
-   Affects `create-a-course.md:3`, `export-import.md:22`, `subjects.md:20-21`
-   (+PL). PL docs saying "**Zarządzaj**" are actively wrong — that word now
-   survives only as the Groups sub-tab (`templates/_groups_tabs.html:7`).
+   Affects **only** the *nav entry*, in `create-a-course.md:3`,
+   `export-import.md:22`, `subjects.md:20-21` (+PL). PL docs saying
+   "**Zarządzaj**" for the nav are actively wrong.
+
+   > **NOT a token sweep — "Manage" survives in the product.** Do not rewrite:
+   > `Manage courses` is still the course-list `head_title` and `<h1>`
+   > (`templates/courses/manage/course_list.html:3,7`) and is still reachable via
+   > the **All courses** subtle-link (`home.html:57`); **Manage** is still the
+   > Groups sub-tab (`templates/_groups_tabs.html:7`, PL "Zarządzaj",
+   > `django.po:3148-3150`). Confine the edit to the three cited files.
 2. **PL docs invented field names instead of quoting the catalog.** The single
    biggest systematic failure (≈20 findings). The rule: *quote the rendered
-   msgstr, never translate the English afresh.*
-   | PL doc says | Product renders | Cite |
-   |---|---|---|
-   | etykiety | tagi | `django.po:3096-3097` |
-   | rocznik / roczniki | kohorta / kohorty | `grouping/group_form.html:26,28` |
-   | test (for quiz) | quiz | `my_tags.html:10` msgstr |
+   msgstr, never translate the English afresh.* Where the "Cite" column names a
+   **template** line, resolve the `{% trans %}` msgid on that line and look up
+   *its* msgstr — the catalog is always the final authority.
+
+   > **These are sense-scoped, not token sweeps.** Do NOT blanket-replace. Each
+   > row is wrong only where it renders the named product concept; several of
+   > these tokens are *correct* Polish elsewhere. Carve-outs are called out
+   > per row.
+
+   | PL doc says | Product renders | Cite | Scope / carve-out |
+   |---|---|---|---|
+   | etykiety | tagi | `django.po:3096-3097` | **ONLY** where it means the *tags* feature — i.e. `notes-tags.pl.md` (incl. its H1). `etykieta` is the product's correct PL for a generic **label** (`django.po:1407` "etykieta", `:1678` "etykieta kolumny", `:3959` "Poprawna etykieta:", `:4799` "Strefy i etykiety", `:4812` "Dodatkowe etykiety"). **Leave untouched:** `quiz-editors.pl.md:63,66,71,74,75` (drag-to-image, match pairs), `sso.pl.md:12`, `subjects.pl.md:33`. |
+   | rocznik / roczniki | kohorta / kohorty | `grouping/group_form.html:26,28` (msgid `Cohort`/`All cohorts`) | `groups-collections.pl.md:3,7,9,13,39`; `roster.pl.md:11,12,32,37` |
+   | test (for quiz) | quiz | msgid `You haven't created any tags yet. Open a lesson or quiz and add one.` → msgstr "…Otwórz lekcję lub **quiz** i dodaj tag." (rendered at `my_tags.html:10`) | PL docs only, and only for the *unit type*. **Leave untouched:** EN prose ("Send test event"), and PL "test" used in its ordinary sense. |
    | Branding | Wygląd | `django.po:6047-6048` |
    | Przesyłanie plików | Przesyłanie | `django.po:6051-6052` |
    | Kohort z samodzielnym zapisem | Kto może się zapisać | `django.po:580-581` |
@@ -192,6 +222,21 @@ Fix these once, everywhere, rather than per-topic:
 ### 3.2 Behavioural claims that are outright wrong
 
 These would burn a reader following them:
+
+- **The "My tags" page and its nav link do not exist** (finding **B00**). Claim
+  `notes-tags.md:38` "The **My tags** page — reachable from the nav link of the
+  same name". Truth: the nav link is **Tags & notes** → `notes:overview`
+  (`templates/base.html:77`); the page's `<h1>` is **Tags & notes**
+  (`tags/templates/tags/my_tags.html:7`) — "My tags" survives only as its
+  `head_title` (`:3`). The real path is nav **Tags & notes** → the **Manage tags**
+  tab (`templates/_tags_notes_tabs.html:5-6`; the other tab is **By course**).
+  Post-hub drift ([[tags-and-notes-hub-status]], PR #76). PL `notes-tags.pl.md:39`
+  says "**Moje etykiety** … z odnośnika nawigacji o tej samej nazwie" — wrong on
+  the term *and* the link *and* the page name.
+  *(This is the finding that triggered the whole audit. It was used as an
+  orienting anchor for the subagents and told to them as "already known — do not
+  re-report", which is exactly why it went unrecorded until spec-review round 1
+  caught the omission. Recorded here so the worklist is complete.)*
 
 - **Cohort deletion.** Claim `cohorts.md:21-22` "can only be deleted once it has
   no members." Truth: `grouping/services.py:121-124` — `delete_cohort` guards only
@@ -275,28 +320,67 @@ These would burn a reader following them:
   "deletion is refused". Truth: `_asset_cell.html:35-36` ships the button
   `disabled` while in use — the attempt cannot be made.
 
-### 3.3 Label/name corrections (MED/LOW)
+### 3.3 Label/name corrections (MED/LOW) — enumerated
 
-Per-topic detail lives in the agent reports; the pattern is uniform — a bolded
-string in the doc does not exist in any template. Representative:
-`Stem`→**Question** / **Prompt (optional)** / **Sentence with blanks** (varies by
-type); per-element `title`→**Label (optional)**; `Name`→**Display name**;
-`Server URL`→**Issuer / discovery URL**; `Enabled`→**Enable SSO**;
-`Explanation`→**Explanation (optional)**; `Feedback`→**Feedback (optional)**;
-`This matrix view`→**This matrix view (percentages)**; `back` link→**← Analytics**;
-`cherry-pick`→ tick rows then **Apply selection** (and there is no *unit* subset);
-`usage count`→**in use ×N** / **unused**; `course count`→"used by N courses";
-`Purge now` is a heading, the button is **Purge old notifications now**; the
-top-bar **Groups** link *is* My groups (they are tabs in one hub,
-`templates/_groups_tabs.html:4-7`), not two lists; `roster.md:4-6` **Edit** does
-not exist — the group *name* is the edit link (`group_list.html:13`), and
-`group_detail.html` has no edit control at all.
+The pattern is uniform: a bolded string in the doc exists in no template. Each row
+is one finding with an ID. **Every row applies to the `.pl.md` sibling too**
+(PL/EN parity, §4) — the PL fix is the `msgstr` of the same msgid, never a fresh
+translation.
 
-Also: `Slug` is listed under "Required fields" but `courses/forms.py:128` sets
-`required = False`; a subject has **two** title fields (`title_en`/`title_pl`) with
-the slug derived from the **English** one (`courses/forms.py:261-284`); the
-colour-configuration link mentioned at `drill-down.md:41-42` is invisible to
-teachers (`courses/views_analytics.py:98` gates it on `can_manage_course`).
+| ID | Topic | Doc claim | Truth (cite) |
+|---|---|---|---|
+| L01 | builder | "**Add unit**" (`builder.md:21`) | two chips `+ Lesson` / `+ Quiz` beside a **New title** field (`_add_affordance.html:15-24`) |
+| L02 | builder | deepen/shallow symmetry implied (`builder.md:16-17`) | going shallower is **blocked** while items exist at the removed level (`courses/forms.py:219-244`) |
+| L03 | content-editors | "Delete an element from its **editor form**" (`content-editors.md:18`) | form has only Save/Cancel (`_host_form.html:23-26`); delete is 🗑 on the row (`_element_row_controls.html:11-18`) |
+| L04 | content-editors | author-only "**title**" (`content-editors.md:20-21`) | **Label (optional)**, placeholder "Shown in the element list" (`_host_form.html:18-20`); PL "Etykieta (opcjonalnie)" (`django.po:5246`) |
+| L05 | content-editors | PL "**Matematyka**" (`content-editors.pl.md:51,67`) | palette renders **Wzór** (`django.po:929-933`) |
+| L06 | content-editors | PL "**Ramka (iframe)**" (`content-editors.pl.md:43`) | Iframe→**Iframe** (`django.po:2210-2213`); **Ramka** is the PL name of *Callout* (`django.po:1058-1062`) |
+| L07 | content-editors | "outline on the left" (`content-editors.md:4-5`) | it is the **Editor** pane of a two-pane grid with an **Editor/Split/Preview** toggle (`_editor_scope.html:2-18`, `editor.html:68-75`) |
+| L08 | quiz-editors | "**Stem**" (`quiz-editors.md:8`) | internal field name; rendered label is **Question**, **Prompt (optional)**, or **Sentence with blanks** by type (`_edit_choicequestion.html:5`, `_edit_matchpairquestion.html:3`, `_edit_fillblankquestion.html:3`) |
+| L09 | quiz-editors | "**Explanation**" (`quiz-editors.md:9`) | **Explanation (optional)** (`_edit_choicequestion.html:52` +7 siblings) |
+| L10 | quiz-editors | PL headings nominalized (`quiz-editors.pl.md:30,40,46,54,61,69,78`) | palette uses imperatives: Krótki tekst / Liczba / Uzupełnij luki / Przeciągnij słowa / Dopasuj pary / Przeciągnij na obraz / Rozszerzona odpowiedź (`django.po:2217,2222,2228,2233,2238,782,2248`) |
+| L11 | media-manager | "**usage count**" (`media-manager.md:20`) | renders **in use ×N** (expands to a unit list) or **unused** (`_asset_cell.html:19,21-28,31`) |
+| L12 | media-manager | "deletion is **refused**" (`media-manager.md:28-30`) | button ships `disabled` while in use — the attempt cannot be made (`_asset_cell.html:35-36`) |
+| L13 | sso | "**Name**" (`sso.md:11`) | **Display name** (`accounts/forms.py:176-181`); PL "Nazwa wyświetlana" (`django.po:23-24`) |
+| L14 | sso | "**Server URL**" (`sso.md:12`) | **Issuer / discovery URL** (`accounts/forms.py:182-191`); PL "Adres wydawcy / discovery" (`django.po:77-78`) |
+| L15 | sso | "**Enabled**" (`sso.md:17,29`) | **Enable SSO** (`accounts/forms.py:175`, `_sso_fields.html:8`); PL "Włącz logowanie SSO" (`django.po:69-70`) |
+| L16 | sso | PL leaves "Client ID"/"Client secret" English (`sso.pl.md:14`) | **Identyfikator klienta** / **Sekret klienta** (`django.po:91-96`) |
+| L17 | subjects | "**Add subject**" (`subjects.md:6`) | **New subject** (`subject_list.html:8`); PL "Nowy przedmiot" (`django.po:5639-5640`) |
+| L18 | subjects | "a name and a slug" (`subjects.md:6-7`) | **two** title fields `title_en`/`title_pl`; slug derives from the **English** title (`courses/forms.py:261-284`) |
+| L19 | subjects | "**course count**" (`subjects.md:10-11`) | renders "used by {{ n }} courses" as a filter link (`subject_list.html:19`) |
+| L20 | create-a-course | Slug under "## Required fields" (`create-a-course.md:7,10`) | `courses/forms.py:128` sets `required = False` |
+| L21 | invitations | "use **Invite**" (`invitations.md:3-4`) | always-visible form; button is **Send invitation** (`invitations.html:13-19`); PL "Wyślij zaproszenie" (`django.po:3336-3337`) |
+| L22 | notifications | "the scheduled `flush`/purge job" (`notifications.md:31-32`) | job is `purge_notifications`; `flush_webhooks` is the SIS outbox; bare `flush` is Django's **DB-wiping** builtin |
+| L23 | notifications | "Use **Purge now**" (`notifications.md:29-30`) | *Purge now* is the `<h2>`; the button is **Purge old notifications now** (`_notifications_tab.html:22,25`) |
+| L24 | notifications | PL "**okno retencji**" (`notifications.pl.md:27`) | **Okno przechowywania (dni)** (`django.po:2434-2435`) |
+| L25 | users-roles | Role select "on a user's row" (`users-roles.md:28-29`) | row has only **Edit** (`people.html:53-55`); the select is on the edit page (`user_form.html:15`). The row's "Role" select is a **filter** (`people.html:18-25`) |
+| L26 | users-roles | "**Deactivate** on the user's row" (`users-roles.md:36-37`) | activation buttons are on the edit page (`user_form.html:32-39`) |
+| L27 | users-roles | PL "Administrator **P**latformy/**K**ursu" (`users-roles.pl.md:3,19-22`) | "Administrator platformy" / "Administrator kursu" — lowercase (`django.po:2477-2482`) |
+| L28 | branding-settings | tabs list omits Notifications (`branding-settings.md:3-5`) | `_tabs.html:11-12` renders a sixth tab with its own topic (`core/help.py:215-220`) |
+| L29 | export-import | bolded flow-step names (`export-import.md:16-17,26-29`) | real strings: **Export — missing media** / **Export anyway** (`export_preview.html:6,24`), **Upload and preview** (`import_course.html:29`), **Confirm import** (`import_preview.html:51`) |
+| L30 | integrations | "A delivery is queued" (`integrations.md:22`) | **one delivery per group** the student is in; review-pending submissions emit only after review (`integrations/services.py:75-85`) |
+| L31 | first-run-wizard | "Each step can be **skipped**" (`first-run-wizard.md:19`) | Team has no Skip — only Invite another/Back/**Next** (`setup/team.html:21-41`); Next does skip (`views_setup.py:168-170`) |
+| L32 | analytics | "**cherry-pick** filter … students **or units**" (`analytics.md:36-37`) | tick student rows then **Apply selection** (`analytics_matrix.html:176-177`); checkboxes are `name="student"` only (`:141`); **no unit subset exists**; "cherry-pick" is in no template |
+| L33 | drill-down | "press **Apply**" (`drill-down.md:29`) | **Apply selection** (`analytics_matrix.html:176`); PL **Zastosuj wybór** |
+| L34 | drill-down | PL "**3 zaznaczonych**" (`drill-down.pl.md:36`) | renders "Zaznaczono: 3" (`%(n)s selected` msgstr, `analytics_matrix.html:179`). EN `drill-down.md:34` is correct |
+| L35 | drill-down | "the **back** link" (`drill-down.md:46-47`) | **← Analytics** / **← Analityka** (`analytics_student.html:9`) |
+| L36 | drill-down | colour-config link listed for teachers (`drill-down.md:41-42`) | gated `can_edit_bands` = `can_manage_course` (`views_analytics.py:98`, `analytics_matrix.html:8-11`) — invisible to teachers |
+| L37 | gradebook-export | "**This matrix view**" (`gradebook-export.md:19`) | **This matrix view (percentages)** (`analytics_matrix.html:24`) |
+| L38 | gradebook-export | PL "**Dziennik testów (punkty surowe)**" (`gradebook-export.pl.md:21`) | **Dziennik quizów (surowe wyniki)** (`analytics_matrix.html:26`) |
+| L39 | groups-collections | "top-bar **Groups** list (or **My groups**)" (`groups-collections.md:23-24`) | one hub, two tabs — the top-bar "Groups" link **is** My groups (`base.html:81-83`, `_groups_tabs.html:4-7`) |
+| L40 | groups-collections | "Create a group with **New**" (`groups-collections.md:24`) | **New group** (`group_list.html:6`); PL "Nowa grupa" |
+| L41 | groups-collections | PL "**Domyślny** … *(domyślny)*" (`groups-collections.pl.md:12`) | seeded name is the literal "Default" (`grouping/migrations/0002_default_cohort_backfill.py:12`), rendered "Default (**domyślna**)" (`grouping/models.py:50-55`) |
+| L42 | roster | "press **Edit** … or **New**" (`roster.md:4-6`) | no Edit button — the group **name** is the edit link (`group_list.html:13`); rows have only Archive/Delete (`:18,20`); `group_detail.html` has **no edit control at all**; "New" is **New group** (`group_list.html:6`) |
+| L43 | roster | PL "**Szukaj po nazwisku**" (`roster.pl.md:14`) | **Szukaj wg nazwiska** (`group_form.html:14,33`) |
+| L44 | roster | PL "**Przydziel uczniów**" (`roster.pl.md:35`) | **Przypisz uczniów** (`cohort_form.html:19,23`) |
+| L45 | quiz-review | "**Awaiting review**" PL (`quiz-review.pl.md:12`) | **Oczekuje na ocenę** (`review_queue.html:10`) |
+| L46 | quiz-review | PL "**Wymuś wysłanie**" (`quiz-review.pl.md:16,39`) | **Wymuś przesłanie** (`review_queue.html:33`). But `:44`'s "Wymuś wysłanie wszystkich (N)" **is** correct — the product itself is inconsistent; quote each label as-is |
+| L47 | quiz-review | "each with a count" (`quiz-review.md:23`) | *Reviewed* has no count (`review_submission.html:39-40,44-45,49`) |
+| L48 | quiz-review | "**Feedback** box" (`quiz-review.md:27`) | **Feedback (optional)** (`review_submission.html:103`) |
+| L49 | notes-tags | PL "**test**" for quiz (`notes-tags.pl.md:26,43`) | product says **quiz** — `:43` paraphrases the very string whose msgstr reads "Otwórz lekcję lub quiz" (`my_tags.html:10`) |
+| L50 | groups-collections | PL "sprawdzanie **testów**" (`groups-collections.pl.md:21`) | product's PL word is **quiz** (see L49) |
+
+**§3.3 total: 50 findings.**
 
 ### 3.4 SUSPECTED (1 of 103)
 
