@@ -58,8 +58,10 @@ def _val_markdone(element, obj, payload):
     return {"items": checked} if checked else EMPTY
 
 
-def _val_revealgate(element, obj, payload):
-    """{"open": True} -- monotone.
+def _val_open_gate(element, obj, payload):
+    """{"open": True} -- monotone. Shared by every answered/clicked reveal gate
+    (plain, fill, switch): a correct answer or a click is the whole gesture, and
+    the blob has exactly one reachable value.
 
     A false/absent `open` is a well-formed "nothing to restore" -> EMPTY (drop the key),
     never REJECT (which would preserve a stale key on a well-formed request).
@@ -70,11 +72,13 @@ def _val_revealgate(element, obj, payload):
 
 
 # Keyed by content_type.model (the ELEMENT_MODELS namespace) -- NOT the form key
-# ("markdone") and NOT the transfer key ("mark_done"). Those three namespaces have
-# been a recurring trap; the registry does not add a fourth.
+# and NOT the transfer key. Those three namespaces have been a recurring trap; the
+# registry does not add a fourth.
 VALIDATORS = {
     "markdoneelement": _val_markdone,
-    "revealgateelement": _val_revealgate,
+    "revealgateelement": _val_open_gate,
+    "fillgateelement": _val_open_gate,
+    "switchgateelement": _val_open_gate,
 }
 
 
