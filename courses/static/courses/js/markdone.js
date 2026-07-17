@@ -7,13 +7,26 @@
     return m ? m[1] : "";
   }
 
+  function boxes(root) {
+    return root.querySelectorAll('input[type="checkbox"][name="item"]');
+  }
+
+  // Last-known-persisted as a {checkboxValue: bool} map over EVERY box -- deliberately
+  // the DOM's shape, not the server's ({"items": [...]}), because paint() consumes it.
+  // Adoption therefore TRANSLATES the echoed array into this shape; it is not an
+  // assignment.
   function persisted(root) {
-    // last-known state = checkboxes' checked at init time
     var s = {};
-    root.querySelectorAll('input[type="checkbox"][name="item"]').forEach(function (cb) {
-      s[cb.value] = cb.checked;
-    });
+    boxes(root).forEach(function (cb) { s[cb.value] = cb.checked; });
     return s;
+  }
+
+  function paint(root, map) {
+    boxes(root).forEach(function (cb) {
+      cb.checked = !!map[cb.value];
+      var li = cb.closest(".markdone__item");
+      if (li) li.classList.toggle("on", cb.checked);
+    });
   }
 
   function initOne(root) {
@@ -27,26 +40,47 @@
     if (!url) return;              // preview/empty-URL: nothing to auto-save
     var elInput = root.querySelector('input[name="element"]');
     var last = persisted(root);
+    // Sequence guard. Adoption re-renders the widget from the echo, so without this a
+    // burst (tick A -> tick B) lets A's echo {"items":[A]} arrive last and UNTICK B --
+    // a regression this rewrite would otherwise introduce (the old client ignored the
+    // response body entirely). Only the newest request may paint.
+    var seq = 0;
 
-    root.querySelectorAll('input[type="checkbox"][name="item"]').forEach(function (cb) {
+    boxes(root).forEach(function (cb) {
       cb.addEventListener("change", function () {
         var li = cb.closest(".markdone__item");
         if (li) li.classList.toggle("on", cb.checked);
         var items = [];
         root.querySelectorAll('input[type="checkbox"][name="item"]:checked')
           .forEach(function (c) { items.push(parseInt(c.value, 10)); });
+        var mine = ++seq;
         fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
-          body: JSON.stringify({ element: parseInt(elInput.value, 10), items: items }),
+          body: JSON.stringify({
+            element: parseInt(elInput.value, 10),
+            state: { items: items },
+          }),
           keepalive: true,
         })
           .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-          .then(function () { last[cb.value] = cb.checked; })
+          .then(function (data) {
+            if (mine !== seq) return;   // stale echo: a newer save is in flight
+            // ADOPT the echo -- do not compare-and-revert. The server normalizes
+            // (an empty selection DROPS the key and echoes {}), so a comparing
+            // client would re-tick the box the student just unticked.
+            var blob = (data && data.state) || {};
+            var arr = Array.isArray(blob.items) ? blob.items : [];
+            var next = {};
+            arr.forEach(function (pk) { next[String(pk)] = true; });
+            last = next;
+            paint(root, last);
+          })
           .catch(function () {
-            // save failed: revert the toggle + on-class to last-known-persisted
-            cb.checked = last[cb.value];
-            if (li) li.classList.toggle("on", cb.checked);
+            if (mine !== seq) return;
+            // Mark-done is REVERSIBLE, so a failed save reverts the DOM to
+            // last-known-persisted. (Monotone types must NOT: slice 2.)
+            paint(root, last);
             if (saveBtn) saveBtn.hidden = false;
           });
       });
