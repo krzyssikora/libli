@@ -28,8 +28,8 @@ najczęstsza przyczyna nieudanego uwierzytelnienia.
 ## Wdrażanie
 
 Zapisz formularz, aby utrwalić konfigurację; jeśli chcesz przygotować
-dostawcę bez udostępniania go użytkownikom, zostaw **Włącz logowanie SSO**
-niezaznaczone.
+dostawcę bez udostępniania go użytkownikom, zostaw opcję **Włącz logowanie SSO**
+niezaznaczoną.
 [Kreator pierwszego uruchomienia](first-run-wizard) oferuje ten sam krok
 SSO dla świeżej instalacji — można go pominąć i skonfigurować później
 właśnie tutaj.
