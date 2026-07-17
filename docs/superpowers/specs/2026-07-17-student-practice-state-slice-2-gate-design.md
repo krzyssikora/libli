@@ -123,17 +123,32 @@ registering the key **is** the entire server-side wiring. No endpoint change.
 
 ```python
 def _val_revealgate(element, obj, payload):
-    """{"open": True} -- monotone. See the spec for why EMPTY, not REJECT, on a false/absent key."""
+    """{"open": True} -- monotone.
+
+    A false/absent `open` is a well-formed "nothing to restore" -> EMPTY (drop the key),
+    never REJECT (which would preserve a stale key on a well-formed request).
+    """
     if not isinstance(payload, dict):
         return REJECT
     return {"open": True} if payload.get("open") else EMPTY
 
 
+# Keyed by content_type.model (the ELEMENT_MODELS namespace) -- NOT the form key
+# ("markdone") and NOT the transfer key ("mark_done"). Those three namespaces have
+# been a recurring trap; the registry does not add a fourth.
+#   ^ EXISTING comment at state.py:61-63 -- it STAYS. Only the one new key is added.
 VALIDATORS = {
     "markdoneelement": _val_markdone,
-    "revealgateelement": _val_revealgate,
+    "revealgateelement": _val_revealgate,   # NEW -- the only line this slice adds here
 }
 ```
+
+**The docstring states its rule inline rather than saying "see the spec"**, matching
+`_val_markdone`'s (`"-- intersected with THIS element's items."`). A shipped source file must not
+defer to a design doc the reader may not have. **And the namespace comment above the dict is not
+optional context — it is the one note preventing exactly the mistake `"revealgateelement"` invites**
+(the form key is `reveal_gate`, the transfer key `reveal_gate`; only the content-type `model` string
+is correct here). An implementer copying the snippet must not drop it.
 
 **The EMPTY case is non-obvious and therefore stated.** The gate is monotone, so the client never
 sends a close — but `{"open": false}`, or a payload with no `open` key at all, is **EMPTY, not
@@ -183,11 +198,16 @@ element this slice exists to prove. `django.utils.html.json_script` is not an al
 the attribute and the browser un-escapes it before `dataset.state`, so `data-state="{{ mine_json }}"`
 round-trips and is safe. This is asserted by a test (see *Testing*), not assumed.
 
-**The five overrides carry `mine_json` without using it.** That is intended and costs one
-`json.dumps({})` per leaf render. It is not dead code — `ElementBase.render` builds its context from
-this helper, and the gate is base-rendered, so the helper's first consumer ships in this slice. What
-the five carry is an unused context variable, which is the price of the seam being uniform and of
-point 1 above.
+**Every element render pays one `json.dumps(mine)`; only the gate consumes it in this slice.** The
+cost is not confined to the five overrides — `ElementBase.render` (`:365`) also calls
+`_state_context`, so every base-rendered type (text, spoiler, callout, stepper, slide-break,
+mark-done, …) carries an unused `mine_json` too: roughly twenty types per lesson, not five.
+
+That is intended, and it is not dead code — the gate is base-rendered, so the helper's first consumer
+ships in this slice. `json.dumps({})` on an already-resolved dict is negligible against the
+`render_to_string` it sits inside, and the alternative (computing it only in the branch that needs it)
+re-opens the per-leaf drift that point 1 above closes. An unused context variable on twenty types is
+the price of the seam being uniform.
 
 ### 3. The ambient context key: `state` → `element_state`
 
@@ -484,43 +504,50 @@ the grouping, and both loop headers are given explicitly, because a flat single 
 reads like one.
 
 ```js
-var BARRIER    = "[data-reveal-gate]";                  // all three families
+// RESTORABLE REPLACES initRevealGates's inline `sel` (reveal.js:139), which holds this
+// exact literal today. ONE definition of "what a plain gate is", read by both init and
+// restore -- two copies could drift, and the failure would be silent (a gate that is
+// bound but never restored, or vice versa).
+var BARRIER    = "[data-reveal-gate]";                   // all three families
 var RESTORABLE = "button.reveal-gate[data-reveal-gate]"; // the plain gate only
 
 function restoreGates(root) {
-  var scope = root || document;
+  // `ctx`, NOT `scope`: in this file "scope" means scopeOf()'s return (a .slide /
+  // [data-tab-panel]) -- see reveal.js:11-16 -- and BOTH meanings coexist here.
+  // (initRevealGates:138 gets away with `var scope = root || document` because it has
+  // no per-gate scope to confuse it; this function does.)
+  var ctx = root || document;
 
   // 1. ENUMERATE every barrier, in document order (querySelectorAll guarantees it).
-  var gates = Array.prototype.slice.call(scope.querySelectorAll(BARRIER));
+  var gates = Array.prototype.slice.call(ctx.querySelectorAll(BARRIER));
 
   // 2. GROUP by scopeOf. Parallel arrays, not a Map: this file is ES5-idiomatic
   //    (var, function, Array.prototype.forEach.call) and must stay so.
-  //    Each gate lands in EXACTLY ONE bucket -- scopeOf returns one node (or null),
+  //    Each gate lands in EXACTLY ONE bucket -- scopeOf returns one node (or null) --
   //    so buckets partition `gates`; a gate can never be walked twice.
-  //    The null-scope bucket is DISCARDED, never walked (see (b)).
+  //    Null-scope gates are DROPPED HERE and never bucketed (see (b)).
   var scopes = [], buckets = [];
   gates.forEach(function (gate) {
-    var s = scopeOf(gate);
-    if (!s) return;                                     // (b) null-scope: discard
-    var i = scopes.indexOf(s);
-    if (i === -1) { scopes.push(s); buckets.push([gate]); }
+    var scope = scopeOf(gate);
+    if (!scope) return;                                  // (b) null-scope: never bucketed
+    var i = scopes.indexOf(scope);
+    if (i === -1) { scopes.push(scope); buckets.push([gate]); }
     else { buckets[i].push(gate); }
   });
 
   // 3. WALK each bucket independently. `break` ends ONLY this bucket's loop;
   //    every other scope is untouched, which is the per-scope rule.
   buckets.forEach(function (bucket, bi) {
-    var s = scopes[bi];
+    var scope = scopes[bi];
     for (var j = 0; j < bucket.length; j++) {
       var gate = bucket[j];
       try {
-        var wrapper = ownWrapper(gate, s);
-        if (!isGateWrapper(wrapper, s)) continue;       // (a) mis-scoped: next gate IN THIS SCOPE
-        if (!gate.matches(RESTORABLE)) break;           // fill/switch gate: a real barrier
-        if (!storedOpen(gate)) break;                   // closed plain gate: prefix-closure stops here
+        if (!isGateWrapper(ownWrapper(gate, scope), scope)) continue;  // (a) mis-scoped
+        if (!gate.matches(RESTORABLE)) break;            // fill/switch gate: a real barrier
+        if (!storedOpen(gate)) break;                    // closed gate: prefix-closure stops here
         cascadeFrom(gate, { hideWrapper: true, focus: false });
       } catch (e) {
-        break;                                          // unknown state: stop THIS scope only (5c)
+        break;                                           // unknown state: stop THIS scope only (5c)
       }
     }
   });
@@ -587,13 +614,24 @@ The same shape is why a stored-open column gate must not restore either: `ownWra
 `cascadeFrom(..., {hideWrapper: true})` would **hide the whole two-column element on load**, with no
 gesture at all.
 
-##### (b) Null-scope gates are skipped, not walked
+##### (b) Null-scope gates are dropped during bucketing and never walked
 
-`scopeOf` returns `null` outside any `.slide` / `[data-tab-panel]`. `ownWrapper(el, null)` then climbs
-until `node.parentElement !== null` — i.e. to `<html>` — after which `isGateWrapper(html, null)` calls
-`scope.matches(...)` on `null` and **throws**. `if (!scope) continue;` is required before any other
-check. Such a gate could not restore regardless: `cascadeFrom` already returns early at `:74` when
-`scopeOf` is falsy.
+`scopeOf` returns `null` outside any `.slide` / `[data-tab-panel]`. **The discard happens at grouping
+time** (step 2's `if (!scope) return;`), so a null-scope gate is never bucketed and the walk never
+sees it. There is deliberately **no** `if (!scope) continue;` inside the walk — one guard, one place.
+
+Without the discard, `ownWrapper(el, null)` climbs until `node.parentElement !== null` — i.e. to
+`<html>` — after which `isGateWrapper(html, null)` calls `scope.matches(...)` on `null` and throws.
+Such a gate could not restore regardless: `cascadeFrom` already returns early at `:74` when `scopeOf`
+is falsy.
+
+**This guard is defensive-only and is deliberately EXEMPT from the falsification rule** (see
+*Testing*). Step 3's per-gate `try`/`catch` already backstops it: with the discard deleted, the
+`isGateWrapper(html, null)` throw lands in that `catch` and `break`s the null bucket — nothing escapes
+the IIFE and nothing cascades, so no test could go red. The discard is therefore worth having for
+**clarity and for not routing normal control flow through an exception**, not because anything
+observable depends on it. Saying so is the point: an unfalsifiable guard presented as a tested one is
+how vacuous tests get written.
 
 This is reachable in the editor preview, which renders outside any `.slide`.
 
@@ -714,7 +752,7 @@ reveal.js IIFE (defer: after parse, before DOMContentLoaded; after gallery.js + 
 | Save returns 200 echoing `{}` (REJECT) | Ignored. Re-rendering from `{}` would **close the gate on a success response**. |
 | Gate nested in a two-column column | Restore: skipped by the walk — **neither restores nor vetoes**. Save: **not** guarded; it still POSTs (see *Explicitly not fixed*). |
 | Fill/switch gate nested in a column | Same restore guard, same reason — it gates nothing at slide level |
-| Gate with no `.slide` / `[data-tab-panel]` scope | Skipped before any other check (else `isGateWrapper` throws on `null`) |
+| Gate with no `.slide` / `[data-tab-panel]` scope | **Never bucketed** — dropped at grouping time, so the walk never sees it (else `isGateWrapper` would throw on `null`). Defensive-only: the per-gate `catch` backstops it, so it is exempt from falsification. |
 | Stored-open gate behind a closed gate (same scope) | Ignored for this render, **left in storage** — re-earnable, and valid again after a reorder |
 | Editor preview, initial load | `editor.html:144` loads reveal.js unconditionally, so restore **does run once** over the preview. Inert via `data-state="{}"` (no `element_state` in the editor context) — plus the null-scope guard for gates outside any `.slide`/`[data-tab-panel]`. For a **tab-nested** preview gate the scope is non-null, so `data-state="{}"` is the **sole** guard. |
 | Editor preview, after a fragment swap | `editor.js:77` re-runs `libliInitRevealGates` only; `restoreGates` is not on `window`, so a re-cascade is structurally impossible |
@@ -740,21 +778,53 @@ Per the `falsify-tests-not-run-them` lesson (four vacuous tests shipped past rev
 of them inside the fixes for the previous one), a grep is not evidence.
 
 **Falsification is required, not optional.** Every walk test is falsified on the way in: delete the
-guard it covers, confirm **RED**, restore. This is cheap here because the guards are single lines
-(`continue`, `break`, `if (!scope)`). A test that stays green with its guard deleted is deleted.
+guard it covers, confirm **RED**, restore. This is cheap here because the guards are single lines. **A
+test that stays green with its guard deleted is deleted.**
+
+**But that rule only applies to guards something observable depends on — and two of this slice's
+guards do not qualify.** Defence-in-depth and falsifiability are in direct tension: a guard that is
+correctly backstopped by another guard is, by construction, unfalsifiable. Left unsaid, that tension
+resolves the wrong way — an implementer writes a test that cannot fail, and it ships looking like
+coverage. So the split is stated up front:
+
+| Guard | Falsifiable? | How to falsify / why not |
+|---|---|---|
+| `if (!storedOpen(gate)) break;` (prefix-closure) | **Yes** | Remove the `break` → the prefix-closure e2e goes RED |
+| `if (!gate.matches(RESTORABLE)) break;` (barrier) | **Yes** | Remove → a fill-gate stops stopping the walk → RED |
+| `if (!isGateWrapper(...)) continue;` (mis-scope) | **Yes** | Change `continue` → `break` → the column-nested fill-gate veto test goes RED; remove the check entirely → the two-column test goes RED |
+| per-gate `catch { break; }` | **Yes** | Rethrow instead of `break` → the per-gate-throw test goes RED |
+| `blob.open === true` (strict shape) | **Yes** | Relax to truthiness → a seeded `{"open": "yes"}` restores → RED |
+| `opts.focus !== false` | **Yes** | Default it to `false` → the real-click focus test goes RED |
+| **`if (!scope) return;` (null-scope discard)** | **No** | The per-gate `catch` backstops it: the `isGateWrapper(html, null)` throw is caught and `break`s the null bucket, so nothing observable changes. **Defensive-only, exempt.** |
+| **`storedOpen`'s `try`/`catch` around `JSON.parse`** | **No** | `mine_json` is always `json.dumps(<dict>)` and the gate is base-rendered, so no server path can emit a non-JSON `data-state`. `JSON.parse` never throws. **Defensive-only, exempt** — kept for hand-edited rows and for future leaves that may emit `data-state` by another route. |
+
+The two exempt guards are **kept** — they are one line each and they keep normal control flow out of
+an exception path — but no test claims to cover them, and no test may be written that pretends to.
 
 ### Server-side (fast, pytest) — carry what a browser is not needed for
 
-- **Validator, four cases:** `{"open": true}` → `{"open": True}`; `{"open": false}` → EMPTY;
+- **Validator, five cases:** `{"open": true}` → `{"open": True}`; `{"open": false}` → EMPTY;
   no `open` key → EMPTY; non-dict → REJECT; `{"open": true, "x": 1}` → `{"open": True}` (extra keys
   normalized away).
 - **Endpoint round-trip:** a gate POST stores `{"open": True}` under the join-row pk and echoes it;
   an EMPTY drops the key.
-- **`data-state` parses as JSON** — `json.loads()` the rendered attribute. This catches the
-  `repr`-vs-JSON serializer bug (`{'open': True}`) **without a browser**, and guards the
-  no-`|safe`/autoescape round-trip.
+- **`data-state` round-trips through parse — and the attribute must be UNESCAPED first, or the test
+  fails on correct code.** Django renders `data-state="{&quot;open&quot;: true}"`; calling
+  `json.loads` on that raw text raises `JSONDecodeError` **on a correct implementation** (verified).
+  So the test must read the attribute the way a browser does: parse the response with an HTML parser
+  and take the attribute *value*, or `html.unescape()` a regex capture, **then** `json.loads`.
+  The unescape step is not incidental — it **is** the round-trip being tested.
+  **Falsification (this is what makes it worth writing):** add `|safe` to the template. An HTML
+  parser then truncates the attribute value at the first `"` — yielding `{` — and `json.loads` goes
+  RED. It also catches the `repr`-vs-JSON serializer bug (`{'open': True}`), without a browser.
 - **`data-state` renders `{}`** when nothing is stored.
-- **The attributes land on the `<button>`** and no wrapper element is introduced.
+- **No wrapper element is introduced — assert the CHAIN, not the attributes.** Asserting the three
+  attributes are on the `<button>` passes **identically** with or without a wrapper `<div>` around it,
+  so it cannot detect the thing §4 spends its longest passage forbidding. Render a full lesson, parse
+  it, and require the **direct-child** chains that `isGateWrapper` and the prepaint CSS actually
+  match: `.lesson-block__body > button[data-reveal-gate]` top-level, and
+  `.tabs__child > button[data-reveal-gate]` in a tab-nested fixture. Falsify by wrapping the button
+  in a `<div>` and requiring RED.
 - **`eid` provenance:** the emitted `data-eid` equals the passed join row's pk.
 - **The rename:** the lesson context binds `element_state` (not `state`), and the existing render-seam
   and lesson tests stay green.
@@ -785,6 +855,15 @@ test** via script: never click, type, or toggle through `page.evaluate`.
 - **Across scopes:** gate closed in tab panel 1, gate stored open in panel 2 → **panel 2's restores**.
 - **Non-default tab:** a stored-open gate in a tab that is not the default-active one → **restores**
   (guards the `hidden`-panel misreading; `tabs.js:101` runs before `reveal.js`).
+
+  **Both of these must assert on `.reveal-shown`, NOT on visibility — `to_be_visible()` gives a false
+  RED.** `tabs.js:101` sets the `hidden` attribute on every inactive panel before reveal.js runs (the
+  same fact the "Do NOT restate this as…" rule above depends on), so a correctly-restored gate in
+  panel 2 is **inside a hidden panel** at assert time. An implementer reaching for `to_be_visible()`
+  sees red on correct code and may "fix" the walk to chase it. Assert `.reveal-shown` class presence
+  on panel 2's `.tabs__child` elements *while the panel is still hidden* — the discipline the
+  prefix-closure bullet already uses — or click through to the tab first and *then* assert
+  visibility.
 - **Two-column:** a stored-open gate inside a column → the two-column element is **not** hidden, and a
   top-level stored-open gate later in the slide **still restores**.
 - **Column-nested fill-gate does not veto** a later top-level stored-open gate — the (a) case above.
@@ -801,6 +880,12 @@ test** via script: never click, type, or toggle through `page.evaluate`.
   rethrow and requiring RED.
 - **A gallery behind a restored gate measures correctly** (`libli:reveal` fires on restore).
 - **Drifted `data-state`** → gate live, content re-earnable, **content visible** rather than trapped.
+  **The fixture must seed `element_state = {str(join_pk): {"open": "yes"}}` directly** — that is the
+  **only reachable drift**. `data-state=""` and non-JSON `data-state` cannot occur (`mine_json` is
+  always `json.dumps(<dict>)` and the gate is base-rendered), and `{"open": "yes"}` cannot arrive
+  through the endpoint either, since `_val_revealgate` normalizes any truthy `open` to `True`. A
+  hand-written row is the one path in. **Falsification scopes to the `=== true` strictness** (relax it
+  → the drifted blob restores → RED), **not** to `storedOpen`'s `try`/`catch`, which is exempt above.
 - **JS blocked** → content visible; `test_watchdog_unhides_when_reveal_js_blocked` stays green.
 
 **Two editor-preview tests, not one — and the "same test" economy an earlier draft claimed is
@@ -812,8 +897,10 @@ never fires for it, leaving `data-state="{}"` as the only thing between an autho
 cascades itself on every load. So:
 
 1. **Null-scope / top-level preview gate:** neither throws nor cascades, on initial load **and**
-   across a fragment swap (pins `if (!scope) continue;`, the un-exported `restoreGates`, and
-   `editor.js:77`'s re-invocation constraint).
+   across a fragment swap. **It pins the un-exported `restoreGates` and `editor.js:77`'s
+   re-invocation constraint — it does NOT pin the null-scope discard**, which is exempt (see the
+   falsifiability table): deleting that discard leaves this test green, because the per-gate `catch`
+   swallows the resulting throw.
 2. **Tab-nested preview gate:** non-null scope, `data-state="{}"` → does not cascade. Falsify by
    defaulting `mine_json` to a stored-open blob and requiring RED.
 
