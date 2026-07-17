@@ -64,6 +64,31 @@ def units_in_order(course):
     return [n for n in _walk_preorder(course) if n.kind == ContentNode.Kind.UNIT]
 
 
+def units_under(node):
+    """Every unit ContentNode in the subtree rooted at `node`, inclusive.
+
+    A SET, not an ordered list: reset does not care about order, so the pre-order
+    subtlety _walk_preorder warns about (sibling `order` is only locally monotonic)
+    is irrelevant here and must not be cargo-culted in. _walk_preorder itself cannot
+    serve: it walks from parent_id=None over a WHOLE course and cannot start from an
+    arbitrary node.
+    """
+    if node.kind == ContentNode.Kind.UNIT:
+        return {node}
+    children = {}
+    for n in node.course.nodes.all():
+        children.setdefault(n.parent_id, []).append(n)
+    out = set()
+    stack = list(children.get(node.pk, []))
+    while stack:
+        cur = stack.pop()
+        if cur.kind == ContentNode.Kind.UNIT:
+            out.add(cur)
+        else:
+            stack.extend(children.get(cur.pk, []))
+    return out
+
+
 def is_obligatory_lesson(node):
     """A unit that counts toward Progress: an obligatory lesson unit. The SINGLE
     source for "counts toward required_total" — build_outline's rollup reuses it."""
