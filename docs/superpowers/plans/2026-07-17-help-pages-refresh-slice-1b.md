@@ -142,6 +142,17 @@ grep -Fc -e "(content-editors)" -e "(quiz-editors)" docs/help/course-admin/inter
 ```
   Expected: ≥1 for each slug in both files.
 
+  Then gate the H1 = registry-title invariant (DoD #4 / §3.5) — `test_help.py` has no
+  H1 check, so a drifted H1 (`# Interactive Elements`, or a PL H1 not matching the
+  authored msgstr) would ship green. Use `\r?$`, not `-Fx`, because the working tree
+  is CRLF and a bare exact-line match would never hit:
+
+```bash
+grep -cE '^# Interactive elements\r?$' docs/help/course-admin/interactive-elements.md
+grep -cE '^# Elementy interaktywne\r?$' docs/help/course-admin/interactive-elements.pl.md
+```
+  Expected: `1` from each (the H1 is exactly the registry title in that language).
+
 - [ ] **Step 5: Extract the new msgid into the catalog.**
 
 Run: `uv run python manage.py makemessages -l pl --no-obsolete`
