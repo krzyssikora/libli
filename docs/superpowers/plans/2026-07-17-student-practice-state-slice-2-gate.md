@@ -29,6 +29,7 @@ Spec: `docs/superpowers/specs/2026-07-17-student-practice-state-slice-2-gate-des
 |---|---|---|
 | `courses/state.py` | add `_val_revealgate`, register `"revealgateelement"` | 1 |
 | `courses/tests/test_state_module.py` (**EXISTS — append**, the `_val_markdone` test home) | reveal-gate validator cases | 1 |
+| `courses/tests/test_element_state_endpoint.py` (**EXISTS — append**) | endpoint round-trip test | 1 |
 | `courses/views.py:402` | `"state"` → `"element_state"` | 2 |
 | `courses/templatetags/courses_extras.py:67` | `context.get("state")` → `context.get("element_state")` | 2 |
 | `courses/models.py:1157`, `:1265` | container re-inject key rename | 2 |
