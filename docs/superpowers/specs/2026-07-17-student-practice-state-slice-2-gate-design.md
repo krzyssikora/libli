@@ -10,12 +10,21 @@
 > (merge `d0ad6af`). This spec builds on it and **corrects three of its predecessor's predictions**
 > that the shipped code has since overtaken — see *What slice 1 already paid for*.
 >
-> **Reading rule.** The fenced `⚠️ SLICE 2 RECORD` section of
-> `docs/superpowers/specs/2026-07-16-student-practice-state-design.md` (lines 724-988) is a
-> **record, not a spec**. Its review-corrected constraints are binding *input* to this spec; its
+> **Reading rule.** "**The record**" in this spec means **all slice-2 material in the predecessor**,
+> `docs/superpowers/specs/2026-07-16-student-practice-state-design.md` — which is **not confined to
+> the fence**, and saying so matters because this spec cites both regions:
+>
+> - the fenced `⚠️ SLICE 2 RECORD` block, **`:724-989`** (the next fence, `### Restore — questions …
+>   SLICE 3 RECORD`, opens at `:990`);
+> - **plus** the slice-2 predictions embedded in that spec's `### The render seam` (`:363-597`) —
+>   specifically `:440-441`, `:443-445`, `:499-508`, `:561-566` — and the `# revealgateelement —
+>   SLICE 2` validator block at `:245`.
+>
+> All of it is a **record, not a spec**. Its review-corrected constraints are binding *input*; its
 > predictions about what slice 2 would have to build are **not**, and several are stale. Where this
 > spec and the record disagree, **this spec wins**, and every such disagreement is called out
-> explicitly rather than silently resolved.
+> explicitly rather than silently resolved — which cuts both ways: a "correction" that turns out to
+> restate what the record already says gets downgraded to a sharpening (see §5d(a)).
 
 ## Purpose
 
@@ -154,19 +163,31 @@ VALIDATORS = {
 defer to a design doc the reader may not have. **And the namespace comment above the dict is not
 optional context — it is the one note preventing exactly the mistake `"revealgateelement"` invites.**
 
-**The reveal gate is the WORST possible type to get this wrong on, because it is the only type in the
-codebase where the form key and the transfer key diverge.** `builder.py:31-33` says so explicitly:
+**The gate carries THREE live strings, and only one of them belongs in `VALIDATORS`:** form key
+`revealgate`, transfer key `reveal_gate`, content-type model `revealgateelement`. That is what makes
+it easy to get wrong, and what the comment prevents.
 
-> *"Every type here coincides in both namespaces **except the reveal-gate**, whose transfer key
-> (`"reveal_gate"`) differs from its form key (`"revealgate"`); `resolve_scope()` below translates the
-> incoming form key before checking membership."*
+**It is NOT, however, the only type whose form and transfer keys diverge — seven do.**
+`_NESTABLE_FORM_KEY_ALIASES` (`builder.py:58-66`) maps all of them:
 
-— which is why `_NESTABLE_FORM_KEY_ALIASES` (`builder.py:58`) exists at all. So the gate has **three
-distinct strings**: form key `revealgate`, transfer key `reveal_gate`, content-type model
-`revealgateelement`. **Only the last is correct in `VALIDATORS`.** An implementer copying the snippet
-must not drop the comment. (An earlier draft of this paragraph said the form key was `reveal_gate` —
-collapsing the two keys in the one passage whose job is to keep three namespaces apart, on the one
-type where they actually differ.)
+```python
+{"fillgate": "fill_gate", "filltable": "fill_table", "guessnumber": "guess_number",
+ "markdone": "mark_done", "revealgate": "reveal_gate", "switchgate": "switch_gate",
+ "switchgrid": "switch_grid"}
+```
+
+**Do NOT cite `builder.py:31-33` as authority here — that comment is itself stale.** It reads *"Every
+type here coincides in both namespaces except the reveal-gate"*, which predates six of the seven
+aliases directly beneath it. This spec mandates fixing exactly this class of stale comment at
+`editor.html:142` and `reveal.js:7-8`; it does not get to lean on one three sections earlier. (Two
+successive drafts of this paragraph got it wrong in two different ways — first calling the form key
+`reveal_gate`, then calling the divergence unique while citing the stale comment as proof — which is
+itself the argument for the `state.py:61-63` comment staying put. The `VALIDATORS` snippet's own
+quoted text names `markdone` / `mark_done`, a second diverging type, fourteen lines above where the
+uniqueness claim stood.)
+
+`builder.py:31-33` is **out of scope to fix** — it is not in this slice's blast radius and would
+widen the diff for no functional gain. Noted for the tidy-up backlog.
 
 **The EMPTY case is non-obvious and therefore stated.** The gate is monotone, so the client never
 sends a close — but `{"open": false}`, or a payload with no `open` key at all, is **EMPTY, not
@@ -784,15 +805,23 @@ a hidden panel and would never restore.
 
 ##### (a) The `isGateWrapper` check must come FIRST — and it binds all three families
 
-**This is a correction to the record, derived during this design and not present in it.**
+**This SHARPENS the record; it does not correct it — and the distinction matters, because this spec's
+Reading rule promises that every spec-vs-record disagreement is a real one.** An earlier draft billed
+this as a correction. It is not. The record (`:561-562`) already says:
 
-The record (lines 561-566) frames the two-column skip as being about restoring a *stored-open column
-gate*, and places the rule with the restorables. The sharper case is a **fill-gate in a column**:
-under the record's ordering it is a barrier, so it would `break` the walk and **veto every stored-open
-top-level gate later in that slide** — silently discarding stored work, which is the hazard the
-Purpose exists to fix.
+> *"skip restore for **any gate** whose `ownWrapper(btn, scopeOf(btn))` does not itself satisfy
+> `isGateWrapper` — exactly the column case — **and exclude such gates from the prefix walk** so they
+> cannot veto."*
 
-It must not, and the CSS says why. `twocolumnelement.html:10-14` emits **neither** `[data-tab-panel]`
+That is already family-agnostic ("any gate") and already contains the anti-veto half, so the
+fill-gate-in-a-column veto is **not** a hazard the record leaves open. What this spec adds is
+narrower and still worth writing down:
+
+- **the ordering** — test `isGateWrapper` *before* dispatching on family, so one guard covers all
+  three families rather than three guards agreeing;
+- **the fill-gate illustration**, which is what makes the ordering's necessity legible.
+
+The reasoning below is independent of the record either way, and stands on its own. `twocolumnelement.html:10-14` emits **neither** `[data-tab-panel]`
 nor `.tabs__child` nor `.lesson-block__body`; the chain is
 `.slide > .lesson-block > .lesson-block__body > .el--twocolumn > .twocolumn__column > .twocolumn__child > [data-reveal-gate]`.
 The prepaint `:has(> .lesson-block__body > [data-reveal-gate])` therefore **never matches** the
@@ -902,9 +931,18 @@ blob that is one constructed boolean.
 **The gate ignores the response body entirely, and this is a deliberate, recorded deviation from the
 record.** The record's error table says a monotone type should *"record the echo as
 last-known-persisted"* (adoption effect 1) while never re-rendering from it (effect 2). Effect 2 is
-**forbidden** here and the record is emphatic about why: a REJECT or a skip echoes `{}`, and
-"re-render a reveal gate from `{}`" means **closing it** — re-hiding content the student just
-unlocked, on a **200**. There is no un-cascade in `reveal.js`.
+**forbidden** here, and the reason needs stating precisely, because the two outcomes echo differently
+(`views.py:717-720` vs `:732-734`):
+
+- **EMPTY** always echoes `{}` — the endpoint pops the key and sets `blob = {}` unconditionally.
+- **REJECT** echoes `_stored()`, i.e. the **currently stored** blob — `{"open": True}` for a gate that
+  is already stored open, and `{}` only for a fresh one.
+
+So the dangerous echo is `{}`, and it is reachable: a fresh gate that REJECTs, or any EMPTY.
+"Re-render a reveal gate from `{}`" means **closing it** — re-hiding content the student just
+unlocked, on a **200**. There is no un-cascade in `reveal.js`. (An earlier draft said "a REJECT or a
+skip echoes `{}`" flatly, contradicting this spec's own error table, which correctly says REJECT
+echoes the untouched stored blob.)
 
 Effect 1 is **provably dead for this type**: the blob has exactly one reachable value, the DOM only
 moves forward, and nothing ever reads last-known-persisted back. Writing it would be a variable with
@@ -976,7 +1014,7 @@ reveal.js IIFE (defer: after parse, before DOMContentLoaded; after gallery.js + 
 | A throw escapes the per-gate catch entirely | `initRevealGates` already ran → every gate live and clickable. Fails **fresh**, not closed. Belt, not the primary guard — and **not independently tested** (see §5c). |
 | Drifted blob already **stored** server-side | Slice 1's read guards drop it (`views.py:370-379`, `_state_context`'s non-dict → `{}`) → renders fresh, 200 |
 | Save fails (network / 4xx / 5xx) | DOM untouched, response ignored. **Monotone: never re-hide** — there is no un-cascade. |
-| Save returns 200 echoing `{}` (REJECT) | Ignored. Re-rendering from `{}` would **close the gate on a success response**. |
+| Save returns 200 echoing `{}` (EMPTY always; REJECT only on a **fresh** gate — `views.py:717-720` echoes `_stored()`) | Ignored. Re-rendering from `{}` would **close the gate on a success response**. |
 | Gate nested in a two-column column | Restore: skipped by the walk — **neither restores nor vetoes**. Save: **not** guarded; it still POSTs (see *Explicitly not fixed*). |
 | Fill/switch gate nested in a column | Same restore guard, same reason — it gates nothing at slide level |
 | Gate with no `.slide` / `[data-tab-panel]` scope | **Never bucketed** — dropped at grouping time, so the walk never sees it (else `isGateWrapper` would throw on `null`). Defensive-only: the per-gate `catch` backstops it, so it is exempt from falsification. |
@@ -1031,10 +1069,11 @@ coverage. So the split is stated up front:
 | **`storedOpen`'s `try`/`catch` around `JSON.parse`** | **No** | `mine_json` is always `json.dumps(<dict>)` and the gate is base-rendered, so no server path can emit a non-JSON `data-state`. `JSON.parse` never throws. **Defensive-only, exempt** — kept **only** for future leaves that may emit `data-state` by another route. (A hand-edited DB row is **not** a reason: it still passes `build_lesson_context`'s isinstance-dict drop at `views.py:372-378`, `_state_context`'s at `models.py:353-354`, and `json.dumps` — so it too always yields valid JSON. That is exactly why the drift e2e is scoped to `{"open": "yes"}` and falsified against `=== true`.) |
 | **`if (!gate.matches(RESTORABLE)) break;` (barrier)** | **No** | **Redundant with `storedOpen` today, and an earlier draft wrongly claimed otherwise.** This slice adds `data-state` to `revealgateelement.html` **only** — `fillgateelement.html:2` and the switchgate `format_html` (`courses_extras.py:265-266`) emit none — so for a fill/switch gate `btn.dataset.state` is `undefined`, `storedOpen`'s `if (!raw) return false;` fires, and the **next** line breaks the walk anyway. Deleting this line changes nothing observable. **Defensive-only, exempt** — kept because the slice that gives fill/switch gates their own `data-state` makes it load-bearing overnight, and re-deriving it then would be re-deriving §5d. |
 | **`libli:reveal` firing inside the restore cascade (`:85`)** | **No** | **`gallery.js`'s ResizeObserver independently covers the only listener we have.** `gallery.js:184` observes every `.gallery__item`, so a block going `display: none` → rendered re-measures the stage whether or not the event fires. Suppressing `dispatchEvent` leaves any gallery assertion GREEN. **Defensive-only, exempt** — the event stays because `reveal.js:82-84` documents it as a *contract* ("a gallery **or other enhancer**…"), and a future listener without an RO of its own would need it. See the dropped gallery e2e. |
+| **`keepalive: true`** | **No** | **A specified §5e behaviour with no test — stated rather than left implicit, since the `{hideWrapper: true}` row exists for exactly this reason.** The only failure it prevents is a save lost to an **immediate unload**, and the feature e2e deliberately serializes that away: `page.expect_response(...)` awaits the POST *before* reloading. So the test is green with `keepalive` deleted, and no non-flaky e2e can force the unload race. **Defensive-only, exempt** — and this row is what protects it from a later `simplify` pass reading it as noise. |
 | **`save()`'s `if (!eid) return;`** | **No** | `eid == 0` is unreachable through `render_element`, which always passes `element=element` (`courses_extras.py:64-69`); only `test_render_seam.py:66` constructs the `element=None` case directly. **Defensive-only, exempt** — it mirrors the convention `fillgateelement.html:5` already documents. Note this does **not** share `if (!url) return;`'s status, despite sitting on the adjacent line. |
 | **`restoreGates` being absent from `window`** | **No** | Falsify it by exporting `restoreGates` **and** calling it from `editor.js:77`'s block: every preview gate carries `data-state="{}"` (`storedOpen` → false), so none cascades and the editor tests stay **GREEN**. **Defensive-only, exempt** — belt for the day a preview context does carry state; `data-state="{}"` is what actually holds today. (`data-state="{}"` alone, **not** the null-scope discard: §5b establishes that a *tab-nested* preview gate has a **non-null** scope, so the discard covers top-level preview gates only. Overstating its reach here is exactly what §5b warns a future reader would cite to drop the guard it calls "sole".) |
 
-The six exempt entries are **kept** — each is one line, and they keep normal control flow out of
+The eight exempt entries are **kept** — each is one line, and they keep normal control flow out of
 exception paths and off future traps — but **no test claims to cover them, and no test may be written
 that pretends to.**
 
