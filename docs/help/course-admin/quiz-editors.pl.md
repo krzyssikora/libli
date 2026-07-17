@@ -33,6 +33,25 @@ kombinacja). Ocenianie jest ścisłe: przy wyborze wielokrotnym uczeń musi
 zaznaczyć *wszystkie* poprawne odpowiedzi i *żadnej* niepoprawnej, aby
 otrzymać punkty — częściowe zaznaczenia dają zero punktów.
 
+Każda odpowiedź może też mieć opcjonalną informację zwrotną dla tej opcji
+(**feedback**). Jak ujmuje to podpowiedź w edytorze: "Opcjonalna informacja
+zwrotna pojawia się, gdy uczeń pomyli się na opcji — wybierze złą albo
+pominie poprawną." Pozostaw pole puste, aby zrezygnować z informacji
+zwrotnej dla danej odpowiedzi.
+
+To zmienia, co pokazuje niepoprawna odpowiedź, i zależy od typu jednostki:
+
+- W **lekcji**, bez informacji zwrotnej dla opcji, niepoprawna odpowiedź
+  pokazuje tylko werdykt (Poprawnie/Niepoprawnie) — poprawna odpowiedź nigdy
+  nie jest ujawniana. Z informacją zwrotną dla opcji, odpowiedzi, w których
+  uczeń się pomylił (zła odpowiedź wybrana albo poprawna pominięta), są
+  oznaczane w treści pytania i pokazują swój tekst informacji zwrotnej — ale
+  tylko te oznaczone odpowiedzi; nie ma osobnej listy poprawnych odpowiedzi.
+- W **quizie** poprawne odpowiedzi są zawsze ujawniane, gdy uczeń wyczerpie
+  liczbę prób (przy ostatniej niepoprawnej próbie albo później, w wynikach/
+  przeglądzie) — niezależnie od tego, czy którakolwiek odpowiedź ma tekst
+  informacji zwrotnej.
+
 ## Krótki tekst
 
 Jednowierszowa odpowiedź w formie wolnego tekstu, oceniana przez porównanie
@@ -72,6 +91,23 @@ lub wybrania). Dodaj opcjonalne **dystraktory** — dodatkowe tokeny prawej
 strony bez odpowiadającej im etykiety po lewej — aby uniemożliwić
 odgadywanie przez eliminację.
 
+## Pytanie macierzowe
+
+Siatka **stwierdzeń** (wierszy) w zestawieniu ze wspólnym zbiorem
+**kolumn** (opcji odpowiedzi) — każde stwierdzenie jest oceniane przez
+wybór dokładnie jednej poprawnej kolumny. Dodawaj kolumny dowolnie, albo
+kliknij **Szablon Prawda/Fałsz**, aby od razu utworzyć te dwie kolumny.
+Każdy wiersz jest oceniany niezależnie (częściowe punkty), inaczej niż
+przy ścisłym, zero-jedynkowym ocenianiu opisanym wyżej.
+
+## Siatka wielokrotnego wyboru
+
+Podobnie jak Pytanie macierzowe — ta sama siatka **stwierdzeń** w
+zestawieniu z **kolumnami** — ale każde stwierdzenie może mieć *kilka*
+poprawnych kolumn: zaznacz każdą kolumnę, która pasuje w danym wierszu.
+Ocenianie jest zero-jedynkowe dla każdego wiersza: stwierdzenie liczy się
+jako poprawne tylko wtedy, gdy cały zestaw zaznaczonych kolumn się zgadza.
+
 ## Przeciągnij na obraz
 
 Uczeń przeciąga etykiety na oznaczone strefy na zdjęciu. Wybierz obraz z
@@ -99,6 +135,11 @@ Te same typy pytań działają w obu kontekstach:
 - W **quizie** odpowiedzi są zbierane i oceniane (lub kierowane do
   weryfikacji) w ramach ocenianego podejścia; zobacz instrukcję dotyczącą
   analityki, aby dowiedzieć się, jak wyniki są potem prezentowane.
+
+Lekcje oferują też zestaw widżetów samosprawdzających dostępnych tylko w
+lekcjach, nieocenianych — zobacz [Elementy interaktywne](interactive-elements)
+po rodzinę "Pokaż więcej"/"Uzupełnij i potwierdź"/"Wybierz i zatwierdź" oraz
+ich odpowiedniki, ćwiczeniowy odpowiednik pytań-jako-praktyki.
 
 ## Zobacz też
 

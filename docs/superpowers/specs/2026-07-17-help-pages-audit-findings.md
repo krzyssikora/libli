@@ -962,6 +962,71 @@ only.
 - **No product-code changes** — this task is additive documentation only
   (two existing markdown files edited, no new catalog msgid).
 
+---
+
+**Slice 1b, Task 3 (`quiz-editors`, Questions +2 / per-option MCQ feedback /
+cross-link).** Added two Questions-group paragraphs in palette order — Matrix
+question and Multi-select grid, inserted between Match pairs and Drag to
+image (confirmed against `_add_menu.html:50-53`: Match pairs → Matrix
+question → Multi-select grid → Drag to image) — each verified against its
+editor template (`_edit_choicegridquestion.html`, `_edit_multigridquestion.html`)
+before writing. Extended the existing `## Single / Multiple choice` section
+with per-option MCQ feedback, quoting the editor's own hint verbatim
+(`_edit_choicequestion.html:15`) and its PL msgstr, plus the lesson-vs-quiz
+reveal contrast. Added the `[Interactive elements](interactive-elements)`
+cross-link (PL: `[Elementy interaktywne](interactive-elements)`) to `##
+Where questions live` / `## Gdzie znajdują się pytania`. Mirrored in both
+`quiz-editors.md` and `.pl.md`.
+
+- **Lesson-vs-quiz reveal contrast, source-verified (not from memory).**
+  `ChoiceQuestionElement.mark()` (`courses/models.py:1409-1430`) computes
+  `annotated` as the choices carrying non-empty `feedback` whose selection
+  state is wrong (`c.feedback and ((c.pk in answer) != c.is_correct)`) —
+  empty feedback on every choice means an empty `annotated` set regardless of
+  correctness. `ChoiceQuestionElement.render()` (`:1477`) sets
+  `"reveal_template": None if mode == "lesson" else self.REVEAL_TEMPLATE` —
+  **unconditional** on mode, not on whether any choice has feedback — so the
+  lesson path never falls through to the bottom `_reveal_choice.html` list
+  (`_question_feedback.html:10` guards `{% if not mark_result.correct and
+  reveal_template %}`, and `reveal_template` is always `None` in lesson
+  mode). The choice template itself (`templates/courses/elements/choicequestion.html:18-25`)
+  only renders a marker + `{{ c.feedback }}` per choice when `mode ==
+  "lesson" and mark_result and c.pk in mark_result.annotated` — so a lesson
+  wrong answer with no per-option feedback shows only the verdict
+  (`_question_feedback.html:3-9`), confirming the plan's claim. For the quiz
+  side: `_quiz_question_feedback.html:36` includes `reveal_template` whenever
+  `locked` (last wrong attempt) regardless of feedback; more decisively,
+  `courses/views.py:1290-1337` (`_build_result_row`, quiz results/review)
+  unconditionally sets `row["reveal_template"] = question.REVEAL_TEMPLATE`
+  for every auto-marked question, and `templates/courses/quiz_results.html:43-44`
+  includes it whenever `row.outcome != "correct"` — independent of the
+  lesson-mode suppression logic, which lives entirely inside
+  `ChoiceQuestionElement.render()` and is never reached by the results-page
+  code path. `tests/test_choice_inline_feedback.py::test_lesson_render_suppresses_bottom_reveal_list`
+  confirms the lesson side end-to-end (inline feedback present, but
+  `"question__reveal" not in html`). Both halves of the plan's claim hold; no
+  contradiction found.
+- **PL msgstr verified, not invented.** `_edit_choicequestion.html:15`'s hint
+  ("Optional feedback shows when a student gets an option wrong — a wrong
+  pick, or a correct answer they missed.") resolves in
+  `locale/pl/LC_MESSAGES/django.po:4724-4730` to msgstr "Opcjonalna
+  informacja zwrotna pojawia się, gdy uczeń pomyli się na opcji — wybierze
+  złą albo pominie poprawną." — quoted verbatim in `quiz-editors.pl.md`.
+  Element names re-confirmed against the ground-truth table: `Matrix
+  question` → `Pytanie macierzowe` (`django.po:2250-2251`), `Multi-select
+  grid` → `Siatka wielokrotnego wyboru` (`django.po:1007-1008`).
+- **Self-review caught a grammatical-inflection drift.** A first PL draft
+  bolded `**szablonu Prawda/Fałsz**` (genitive-inflected) for the button
+  msgstr `"Szablon Prawda/Fałsz"` — the doc's established convention
+  (confirmed against existing sections, e.g. `**rozróżniaj wielkość liter**`
+  for msgstr `"Rozróżniaj wielkość liter"`) preserves the catalog string
+  as-is (at most a first-letter case change for sentence position), not
+  further grammatical inflection. Rewrote the sentence to keep the label in
+  its catalog nominative form (`kliknij **Szablon Prawda/Fałsz**`) before
+  commit.
+- **No product-code changes** — this task is additive documentation only
+  (two existing markdown files edited, no new catalog msgid).
+
 ### §3.1.2 row-by-row walk (Task 25, DoD #1a)
 
 > DoD #1 keys on "every finding **naming that topic**", but roughly half of
