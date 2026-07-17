@@ -505,12 +505,15 @@ def test_long_answer_not_clipped_after_reload(page, live_server):
     """Round-2 C1: the server must emit `size`, or width:auto clips a long answer
     to ~20ch on the restore path (the JS lock() that sets size never runs on boot)."""
     _student, unit = _new_unit("fg_persist_long")
-    add_element(unit, _fillgate("Largest city on the Bosphorus? {{Constantinople}}"))
+    add_element(
+        unit,
+        _fillgate("Mary Poppins' word? {{Supercalifragilisticexpialidocious}}"),
+    )
     add_element(unit, _text("<p>reward block</p>"))
     _login(page, live_server, "fg_persist_long")
     page.goto(_unit_url(live_server, unit))
 
-    _blank(page).fill("Constantinople")
+    _blank(page).fill("Supercalifragilisticexpialidocious")
     with page.expect_response(
         lambda r: "/state/" in r.url and r.request.method == "POST"
     ):
