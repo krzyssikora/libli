@@ -26,12 +26,16 @@ is a documentation problem.
 
 ---
 
-## §1 — Class 3: product gaps (NOT fixable by editing docs)
+## §1 — Class 3: product gaps
 
-These docs are *right*; the product never got there. The help docs have been
-serving as a de-facto spec that was never fully implemented. Each needs a product
-decision and its own branch — **out of scope for the docs PR** (decision:
-2026-07-17).
+**§1.1–1.5 are not fixable by editing docs.** These docs are *right*; the product
+never got there. The help docs have been serving as a de-facto spec that was never
+fully implemented. Each needs a product decision and its own branch — **out of
+scope for the docs PR** (decision: 2026-07-17).
+
+**§1.6 is the exception** — it is doc-fixable (delete the claim) and is grouped
+here only because, like the rest, it describes UI that never shipped rather than
+UI that drifted.
 
 ### 1.1 `grouping:collection_create` has no caller — HIGH
 
@@ -314,7 +318,14 @@ teachers (`courses/views_analytics.py:98` gates it on `can_manage_course`).
   `cohorts.pl.md:22` already says "Ustaw jako domyślną" where EN says "Promote".
 - **`django.po` is a merge-conflict hotspot.** Slice 1 touches it; the live
   `feat/student-practice-state` worktree may add strings. Sequence accordingly.
-- **The root cause is structural.** Docs hard-code UI labels and nav paths with no
-  test binding them to the templates they describe. Nothing failed when `Manage`
-  became `Studio`. Any refresh that does not address this will re-rot — worth a
-  design conversation of its own (see slice 2's freshness check).
+- **The root cause is structural, and we are deliberately not fixing it.** Docs
+  hard-code UI labels and nav paths with no test binding them to the templates
+  they describe. Nothing failed when `Manage` became `Studio`.
+  **Decision (2026-07-17): no anti-rot mechanism.** A banned-terms test and a
+  UI-label/catalog assertion were both considered and rejected: the app is close
+  to feature-complete, so the churn that produced these 103 findings is nearly
+  over, and a **re-audit is planned before release**. Re-running this audit costs
+  ~20 minutes (four parallel agents; see Method above) — cheaper than machinery
+  guarding against a recurrence that is not expected.
+- **This document is the re-audit's baseline.** When the pre-release audit runs,
+  diff against §3 here: anything that reappears means the fix did not stick.
