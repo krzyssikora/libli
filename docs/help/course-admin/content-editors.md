@@ -2,23 +2,28 @@
 
 A **lesson** unit is a sequence of content elements — text, media, and embeds —
 that students read top to bottom. Open a lesson from the builder to reach its
-**editor**; the outline on the left lists its elements in order, and the
-**+ Add element** button opens a type menu split into a **Content** group and a
-**Questions** group (see [Quiz editors](quiz-editors) for the latter).
+**editor**, a two-pane screen — Editor and live Preview, with an
+Editor/Split/Preview view toggle. The Editor pane's outline lists its elements
+in order, and its **Add element** button opens a type menu; at the top level
+of a lesson it shows four groups — Content, Interactive, Questions, and
+Structure (Interactive is absent when editing a quiz). See
+[Quiz editors](quiz-editors) for the Questions group.
 
 ## Working with elements
 
 Each element is added, edited, and saved independently:
 
-- Click **+ Add element** and pick a type card to insert a new element at the
+- Click **Add element** and pick a type card to insert a new element at the
   end of the unit.
 - Click an existing element in the outline to open its editor form in place.
 - Drag elements in the outline to reorder them; the reading order updates
   immediately.
-- Delete an element from its editor form when it's no longer needed.
+- Delete an element using the 🗑 button on its row; its editor form offers
+  only **Save** and **Cancel**.
 
-Every element also carries an optional author-only **title**, used only to
-label it in the outline — students never see it.
+Every element also carries an optional **Label (optional)** field (placeholder
+*Shown in the element list*), used only to label it in the outline — students
+never see it.
 
 ## Content element types
 
