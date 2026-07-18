@@ -44,9 +44,9 @@ A new `_val_stepper(element, obj, payload)` registered under the content-type ke
 `"stepperelement"` (the `ELEMENT_MODELS` namespace — **not** the form key
 `stepper`, not the transfer key; the three-namespace trap). The blob shape is a
 **count**, `{"shown": N}`, where N is the number of steps revealed (a fresh
-stepper is N=1: step 0 is always visible). It is the first non-flag (count-valued)
-blob in the registry; the existing `_val_open_gate` / `_val_markdone` are
-flag/list shaped.
+stepper is N=1: step 0 is always visible). It is the first **count-valued** blob
+in the registry; the existing `_val_open_gate` is flag-shaped (`{open:true}`) and
+`_val_markdone` is list-shaped (`{items:[...]}`).
 
 ```python
 def _val_stepper(element, obj, payload):
@@ -240,18 +240,33 @@ guard test must be shown to go RED when its guard is removed, not merely pass.
   `shown` → `REJECT`; `shown` clamped to `obj.steps.count()` (a stored value
   above the count stores the count, not the input — falsify by deleting the clamp
   and watching the `N > total` case go red); clamped `< 2` → `EMPTY`; happy path
-  → `{"shown": n}`.
+  → `{"shown": n}`. Because `_val_stepper` dereferences `obj.steps`, these tests
+  need a **DB-backed** `StepperElement` with a controlled number of `StepperStep`
+  rows (`pytest.mark.django_db`, the `_val_markdone` / `test_state_module._mk`
+  pattern) — not the `None`-obj shape the flag-validator tests use.
 - **Render** through the **lesson view** (str-keyed `UnitProgress` seed — never
   bare `obj.render()` with an int key; the int/str-key seam has bitten prior
   slices): assert `.stepper` emits `data-element-pk`, `data-state-url`, and a
-  `data-state` carrying the stored `{"shown": N}`.
+  `data-state` carrying the stored `{"shown": N}`. Django auto-escapes the `"` in
+  the attribute, so the assertion must `html.unescape` (then `json.loads`) the
+  captured `data-state` rather than substring-match the raw JSON — the
+  `test_filltable_restore` pattern.
 - **e2e** (`-m e2e`, real browser, real click path per `[[e2e-must-drive-real-ui]]`
   — never `page.evaluate`): the fixture lesson must contain a stepper **and nothing
   else** — no gate or self-check — so the change-4 `state.js` load gate is actually
   exercised (a lesson that also holds a gated element loads `state.js` regardless
-  and would mask a missing `has_stepper`). Walk two "Show next" clicks, reload,
-  assert the first three steps are visible and the button state is correct. Falsify
-  by confirming that without the restore code the reload shows only step 0.
+  and would mask a missing `has_stepper`). Pin the fixture to **more steps than are
+  revealed** (e.g. 4–5 steps, 2 clicks → 3 shown) so the mid-walk restore branch
+  (`shown < total` → button still visible) is asserted, not just the all-shown
+  branch — that mid-walk branch is what most directly distinguishes restore from
+  today's "step 0 only, button visible" regression. Because `saveFlag` is
+  fire-and-forget (`keepalive` + `.catch()`), the test must **await the final
+  `/state/` POST before reloading** — wrap the last "Show next" click in
+  `page.expect_response(<state-post matcher>)` (the `test_e2e_reveal_gate.py`
+  pattern); an immediate reload races the write and flakes. After reload assert
+  steps 1–3 (indices 0–2) are visible, the 4th step (index 3) stays hidden, **and**
+  the "Show next" button is still visible. Falsify by confirming that without the
+  restore code the reload shows only step 0.
 - **`state.js` inclusion** (guards change 4): assert the rendered lesson page for a
   stepper-only unit includes the `state.js` script tag. Falsify by removing
   `has_stepper` from the load condition and watching it go red.
