@@ -107,7 +107,9 @@
   font-weight: 600;
 }
 .question__choice-marker--wrong { color: var(--danger); }
-.question__choice-marker--missed { color: var(--success); }
+/* A correct option the student did NOT pick: amber "you missed this", never the
+   affirming green of --success (which reads as "you got it right"). */
+.question__choice-marker--missed { color: var(--warning); }
 
 /* Question element (2b): auto-markable types */
 .question__text-input,

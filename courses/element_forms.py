@@ -687,13 +687,6 @@ ChoiceFormSet = inlineformset_factory(
             }
         )
     },
-    help_texts={
-        "feedback": _(
-            "Shown to the student when they get this option wrong — either they "
-            "picked it (a distractor) or missed it (a correct option). Explain why "
-            "it is wrong, or why a correct option should be chosen."
-        )
-    },
     extra=2,
     can_delete=True,
 )
