@@ -101,8 +101,11 @@ both directions in slice 2). It is never `@pytest.mark.e2e`.
   **"Settings"**, or the **"Tags & notes"** nav link), present on *every* captured surface,
   and genuinely differ EN vs PL. It must **not** be a perm-gated label (Studio / Groups /
   Admin — absent on some roles → false failure) nor the lang-switch `EN`/`PL` codes
-  (locale-invariant → false green). Allow a **per-shot override** string for a surface that
-  legitimately lacks the common chrome (e.g. the wizard's minimal layout).
+  (locale-invariant → false green). All 23 captured surfaces extend `base.html` and render
+  this ungated chrome for an authenticated user — including the wizard, whose `_wizard.html`
+  overrides only `block content` — so the common chrome is present everywhere. Keep a
+  **per-shot override** string only as a defensive escape hatch (no known consumer in the
+  current shot set).
 - **Viewport / media:** 1280×800, `emulate_media(color_scheme="light",
   reduced_motion="reduce")`.
 - **MEDIA serving.** Lesson-consumption captures render `ImageElement`s whose `<img>`
@@ -150,7 +153,13 @@ discipline) — the command is run repeatedly by the harness and by other seed t
   covered by the freeze — notification `created_at` (`timesince`), invitation
   `created_at`/`expires_at` (`date`), course `updated` (`auto_now` `date`), user
   `last_login` (set at login) — and for any field the freeze cannot reach, seed it
-  explicitly or choose a state that reads e.g. "Never".
+  explicitly or choose a state that reads e.g. "Never". Note the freeze pins a timestamp's
+  *value* but not its *presence*: `last_login` is set only when a user actually logs in, and
+  only `demo_teacher`/`demo_admin` do, across two passes on a persistent DB — so whether the
+  people list shows a date vs. "Never" would otherwise depend on SHOTS order and pass. **Seed
+  `last_login` explicitly** (to the frozen instant) for the users that should read as
+  logged-in on the people list (`demo_teacher`, `demo_admin`), leaving the rest at "Never",
+  making the `people` shot order- and pass-independent.
 - **Per-surface state** so each PA/teacher page has something real to show:
   - a small set of **notifications** for `demo_admin` (the notifications topic is
     PA-gated, so its shot logs in as `demo_admin`) — covers the notifications topic + the
@@ -172,10 +181,13 @@ discipline) — the command is run repeatedly by the harness and by other seed t
     does), or the harness clears the cache after seeding, so chrome across all shots
     reflects the seeded branding;
   - a second **subject** if one example reads thin (subjects topic).
-  - a representative **interactive self-check element** on a lesson unit (e.g. a Switch
-    grid or a reveal-gate "Show more") for the interactive-elements topic — the seed
-    currently holds none of the self-check family (only callout/spoiler/table are
-    present), so the shot has nothing to show without this;
+  - a representative **interactive self-check element** (e.g. a Switch grid or a reveal-gate
+    "Show more") for the interactive-elements topic — the seed currently holds none of the
+    self-check family (only callout/spoiler/table are present), so the shot has nothing to
+    show without this. Place it on a unit **isolated from the "Core lesson"** (e.g. the
+    "Bonus lesson"), since the content-editors consumption shot captures `lesson_unit` on
+    Core lesson; keeping them on separate units lets each topic's `clip_selector` stay tight
+    and non-overlapping. Name the exact host unit + intended clip target in the plan;
   - an **`ImageElement` co-located on the content-rich lesson unit** (the "Core lesson"
     that holds text/math/iframe/video/callout/spoiler/table) so the content-editors
     consumption shot renders a MEDIA image and the broken-image tripwire is load-bearing.
@@ -204,7 +216,11 @@ discipline) — the command is run repeatedly by the harness and by other seed t
     `test_seed_quiz_group_populate_analytics`, which asserts exactly 3 group members).
     `reviewable_students` grants the course owner all *enrolled* students, so `demo_student`
     is reachable. Seed it idempotently, ordered so `finalize_submission` includes the REVIEW
-    element in `max_score`, and key the URL callable on `demo_student` + the quiz unit title
+    element in `max_score`, and key the URL callable on `demo_student` + the quiz unit title.
+    Note: the existing `_quiz` gates element creation behind `if not quiz.elements.exists()`,
+    so add the REVIEW question via **its own idempotent step** (a distinct
+    `get_or_create`/`_upsert` keyed apart from the two AUTO questions) that also upgrades an
+    already-seeded quiz — not inside that guard, which would skip it on a 2-element quiz
     (quiz-review topic).
   - Group + graded quiz + varied grades already exist from slice 2 (analytics,
     drill-down, roster, groups-collections, gradebook-export).
