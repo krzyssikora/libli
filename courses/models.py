@@ -908,6 +908,29 @@ class FillTableElement(ElementBase):
             "cells": cells,
         }
 
+    @property
+    def canonical_cells(self):
+        """Grid shaped exactly like normalize_data(self.data)["cells"]: static
+        cells pass through unchanged; each answer cell's `answer` is replaced by
+        its FIRST pipe-delimited alternative (courses.filltable.split_alternatives
+        ()[0]; no configured alternatives -> ""). Restore-only (mine.done); reads
+        self.data via normalize_data() but NEVER mutates it -- normalize_data()
+        already returns fresh cell dicts, not references into self.data."""
+        from courses.filltable import split_alternatives
+
+        cells = self.normalize_data(self.data)["cells"]
+        out = []
+        for row in cells:
+            out_row = []
+            for cell in row:
+                if cell.get("kind") == self.ANSWER:
+                    alts = split_alternatives(cell.get("answer", ""))
+                    out_row.append({**cell, "answer": alts[0] if alts else ""})
+                else:
+                    out_row.append(cell)
+            out.append(out_row)
+        return out
+
     @staticmethod
     def _sanitized_data(data):
         """Sanitise static-cell html and trim answer strings, in place, defensively."""

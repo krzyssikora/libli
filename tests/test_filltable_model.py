@@ -79,3 +79,46 @@ def test_save_preserves_math_in_static_cell():
     # comparison operator are preserved, just single-escaped. Same behaviour
     # as TableElement's static cells (shared sanitize_cell, unmodified here).
     assert r"\(x&lt;5\)" in el.data["cells"][0][0]["html"]
+
+
+def test_canonical_cells_uses_first_alternative_per_answer_cell():
+    el = FillTableElement(
+        data={
+            "cells": [
+                [
+                    {"kind": "static", "html": "x"},
+                    {"kind": "answer", "answer": "4 | four | IV"},
+                ]
+            ]
+        }
+    )
+    out = el.canonical_cells
+    assert out[0][0] == {
+        "kind": "static",
+        "html": "x",
+        "halign": "left",
+        "valign": "top",
+    }
+    assert out[0][1]["kind"] == "answer"
+    assert out[0][1]["answer"] == "4"
+
+
+def test_canonical_cells_no_alternatives_renders_empty_string():
+    el = FillTableElement(data={"cells": [[{"kind": "answer", "answer": ""}]]})
+    assert el.canonical_cells[0][0]["answer"] == ""
+    el2 = FillTableElement(data={"cells": [[{"kind": "answer", "answer": "|  |"}]]})
+    assert el2.canonical_cells[0][0]["answer"] == ""  # pipe-only -> zero alternatives
+
+
+def test_canonical_cells_shape_matches_normalize_data():
+    el = FillTableElement(
+        data={
+            "cells": [
+                [{"kind": "answer", "answer": "1"}],
+                [{"kind": "static", "html": "b"}],
+            ]
+        }
+    )
+    normalized = FillTableElement.normalize_data(el.data)
+    assert len(el.canonical_cells) == len(normalized["cells"])
+    assert [len(r) for r in el.canonical_cells] == [len(r) for r in normalized["cells"]]
