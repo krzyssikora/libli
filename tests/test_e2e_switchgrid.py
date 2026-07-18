@@ -136,7 +136,7 @@ def _option(cycler, i):
 #   cycler 0: options [A, B, C], answer index 2  (reach by 2 clicks from the default)
 #   cycler 1: options [X, Y],    answer index 1  (reach by 1 click from the default)
 def _seed_two_cycler_grid(unit):
-    add_element(
+    return add_element(
         unit,
         _switchgrid(
             "Set both:",
@@ -148,6 +148,166 @@ def _seed_two_cycler_grid(unit):
             ],
         ),
     )
+
+
+def _seed_state(student, unit, element_state):
+    """Seed UnitProgress.element_state DIRECTLY in the DB -- fixture SETUP (a
+    precondition of the reload gesture under test), not a bypassed gesture."""
+    from courses.models import UnitProgress
+
+    progress, _ = UnitProgress.objects.get_or_create(student=student, unit=unit)
+    progress.element_state = element_state
+    progress.save(update_fields=["element_state"])
+
+
+def _seed_tab1(unit, tab1_children):
+    """One TabsElement on `unit` (tabs 'First'/'Second'); `tab1_children` is a
+    list of concrete element objects placed, in order, nested under tab 1."""
+    from courses.models import Element
+    from courses.models import TabsElement
+
+    obj = TabsElement.objects.create(
+        data={
+            "tabs": [
+                {"id": "t000001", "label": "First"},
+                {"id": "t000002", "label": "Second"},
+            ]
+        }
+    )
+    join = Element.objects.create(unit=unit, content_object=obj)
+    for child in tab1_children:
+        Element.objects.create(
+            unit=unit, content_object=child, parent=join, tab_id="t000001"
+        )
+    return join
+
+
+@pytest.mark.django_db(transaction=True)
+def test_switchgrid_correct_choice_persists_across_reload(page, live_server):
+    """Real gesture: cycle both cyclers to correct, Check, await the state POST,
+    reload -> still locked/all-correct, Check gone, correct options shown."""
+    _student, unit = _new_unit("sgrid_persist")
+    _seed_two_cycler_grid(unit)
+    _login(page, live_server, "sgrid_persist")
+    page.goto(_unit_url(live_server, unit))
+
+    c0, c1 = _cycler(page, 0), _cycler(page, 1)
+    c0.click()
+    c0.click()
+    c1.click()
+    with page.expect_response(
+        lambda r: "/state/" in r.url and r.request.method == "POST"
+    ) as resp_info:
+        _confirm(page).click()
+    assert resp_info.value.ok
+
+    page.reload()
+    c0, c1 = _cycler(page, 0), _cycler(page, 1)
+    expect(_confirm(page)).to_have_count(0)
+    expect(c0).to_have_class(_LOCKED)
+    expect(c1).to_have_class(_LOCKED)
+    expect(_summary(page)).to_be_visible()
+    expect(_summary(page)).to_have_class(_SUCCESS)
+    expect(_option(c0, 2)).to_be_visible()
+    expect(_option(c1, 1)).to_be_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_switchgrid_wrong_attempt_persists_nothing(page, live_server):
+    """A wrong Check makes NO state POST; reload -> fresh, editable, unlocked."""
+    _student, unit = _new_unit("sgrid_wrong_nosave")
+    _seed_two_cycler_grid(unit)
+    _login(page, live_server, "sgrid_wrong_nosave")
+    page.goto(_unit_url(live_server, unit))
+
+    saw_state_post = {"hit": False}
+    page.on(
+        "request",
+        lambda r: saw_state_post.__setitem__(
+            "hit", saw_state_post["hit"] or "/state/" in r.url
+        ),
+    )
+    _confirm(page).click()  # both cyclers at default index 0 -> wrong
+    expect(_summary(page)).to_have_class(_RETRY)
+    assert saw_state_post["hit"] is False
+
+    page.reload()
+    expect(_confirm(page)).to_be_visible()
+    expect(_cycler(page, 0)).not_to_have_class(_LOCKED)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_switchgrid_isolation_no_pageerror_when_alone(page, live_server):
+    """libliState presence/isolation guard: a page with EXACTLY ONE new-family
+    element type -- no gate -- restores without a ReferenceError. Not alongside
+    a gate, which could mask a missing six-flag-OR bug."""
+    student, unit = _new_unit("sgrid_isolation")
+    row = _seed_two_cycler_grid(unit)
+    _seed_state(student, unit, {str(row.pk): {"done": True}})
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    _login(page, live_server, "sgrid_isolation")
+    page.goto(_unit_url(live_server, unit))
+
+    assert errors == []
+    expect(_confirm(page)).to_have_count(0)
+    expect(_cycler(page, 0)).to_have_class(_LOCKED)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_switchgrid_stored_done_typesets_math_on_load(page, live_server):
+    """.switchgrid is excluded from math.js's global renderInlineText list (like
+    .switchgate); on restore, switchgrid.js's OWN boot short-circuit must
+    typeset the correct option's math before returning."""
+    from courses import switchgrid
+    from courses.models import SwitchGridElement
+
+    student, unit = _new_unit("sgrid_math_restore")
+    token_stem, _n = switchgrid.parse_stem_multi("Operator: {{choice}}")
+    grid = SwitchGridElement.objects.create(
+        prompt="",
+        lines=[
+            {
+                "stem": token_stem,
+                "cyclers": [{"options": [r"\(+\)", "minus"], "answer": 0}],
+            }
+        ],
+    )
+    row = add_element(unit, grid)
+    _seed_state(student, unit, {str(row.pk): {"done": True}})
+    _login(page, live_server, "sgrid_math_restore")
+    page.goto(_unit_url(live_server, unit))
+
+    math_node = page.locator(".switchgrid__option .katex")
+    expect(math_node).to_have_count(1)
+    assert "\\(" not in page.locator(".switchgrid").inner_text()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_switchgrid_nested_in_tab_restores_after_reload(page, live_server):
+    """Switch grid is in NESTABLE_TYPE_KEYS -- nested inside a Tabs panel. The
+    widget JS's root-scoped dataset lookups and the server render must restore
+    correctly inside a tab panel exactly as at top level."""
+    from courses import switchgrid
+    from courses.models import Element
+    from courses.models import SwitchGridElement
+
+    student, unit = _new_unit("sgrid_tabs")
+    token_stem, _n = switchgrid.parse_stem_multi("Pick {{choice}}")
+    grid = SwitchGridElement.objects.create(
+        prompt="",
+        lines=[{"stem": token_stem, "cyclers": [{"options": ["a", "b"], "answer": 1}]}],
+    )
+    join = _seed_tab1(unit, [grid])
+    row = Element.objects.get(parent=join, content_type__model="switchgridelement")
+    _seed_state(student, unit, {str(row.pk): {"done": True}})
+    _login(page, live_server, "sgrid_tabs")
+    page.goto(_unit_url(live_server, unit))
+
+    page.wait_for_selector("[data-tabs].tabs--js")
+    c0 = _cycler(page, 0)
+    expect(c0).to_have_class(_LOCKED)
+    expect(_option(c0, 1)).to_be_visible()
 
 
 # ---------------------------------------------------------------------------

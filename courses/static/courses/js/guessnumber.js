@@ -17,6 +17,15 @@
     var pk = root.getAttribute("data-element-pk");
     var url = root.getAttribute("data-check-url");
     if (pk === "0" || !url) return; // unsaved editor preview: no-op
+
+    if (window.libliState.storedFlag(root, "done")) {
+      // Server already rendered the locked/correct appearance (readonly
+      // value, is-correct, success shown, Check omitted). No typeset call is
+      // needed here -- unlike .switchgrid/.filltable/.switchgate, .guessnumber
+      // IS in math.js's global renderInlineText list (math.js:31).
+      return;
+    }
+
     if (check) check.hidden = false; // arm Check now that JS is live
 
     var inFlight = false;
@@ -58,6 +67,7 @@
             input.readOnly = true;
             if (check) check.remove(); // Check is spent (as fillgate/switchgate do)
             root.classList.add("guessnumber--done");
+            window.libliState.saveFlag(root, { done: true });
           } else {
             input.classList.add("is-wrong");
             if (d.direction === "high" || d.direction === "low") {

@@ -718,6 +718,18 @@ class GuessNumberElement(ElementBase):
     success_message = models.TextField(blank=True)
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
 
+    @property
+    def canonical_target(self):
+        """Display-formatted target, reusing courses.guessnumber.format_target() --
+        NEVER a fresh Decimal.normalize() (that alone yields E-notation for round
+        numbers, e.g. 40401 -> '4.0401E+4', the exact defect format_target's own
+        docstring records already fixing once). Shown, readonly, on restore of a
+        correctly-answered guess: the student's exact within-tolerance guess is
+        not stored (monotone blob), so the canonical target is what is shown."""
+        from courses.guessnumber import format_target
+
+        return format_target(self.target)
+
     def save(self, *args, **kwargs):
         # success_message only: `stem` is sanitised form-side, in order
         # (sanitize_html -> strip_sentinel -> parse), so save() must not touch it.
@@ -908,6 +920,29 @@ class FillTableElement(ElementBase):
             "cells": cells,
         }
 
+    @property
+    def canonical_cells(self):
+        """Grid shaped exactly like normalize_data(self.data)["cells"]: static
+        cells pass through unchanged; each answer cell's `answer` is replaced by
+        its FIRST pipe-delimited alternative (courses.filltable.split_alternatives
+        ()[0]; no configured alternatives -> ""). Restore-only (mine.done); reads
+        self.data via normalize_data() but NEVER mutates it -- normalize_data()
+        already returns fresh cell dicts, not references into self.data."""
+        from courses.filltable import split_alternatives
+
+        cells = self.normalize_data(self.data)["cells"]
+        out = []
+        for row in cells:
+            out_row = []
+            for cell in row:
+                if cell.get("kind") == self.ANSWER:
+                    alts = split_alternatives(cell.get("answer", ""))
+                    out_row.append({**cell, "answer": alts[0] if alts else ""})
+                else:
+                    out_row.append(cell)
+            out.append(out_row)
+        return out
+
     @staticmethod
     def _sanitized_data(data):
         """Sanitise static-cell html and trim answer strings, in place, defensively."""
@@ -938,7 +973,16 @@ class FillTableElement(ElementBase):
         from django.template.loader import render_to_string
 
         ctx = self._state_context(element, state, slug, node_pk)
-        ctx["data"] = self.normalize_data(self.data)
+        if ctx["mine"].get("done"):
+            # Shallow-copied dict, NEVER `self.data["cells"] = ...` -- mutating
+            # self.data in place would silently overwrite the student's stored
+            # pipe-delimited alternatives in-memory for the rest of the request.
+            ctx["data"] = {
+                **self.normalize_data(self.data),
+                "cells": self.canonical_cells,
+            }
+        else:
+            ctx["data"] = self.normalize_data(self.data)
         return render_to_string("courses/elements/filltableelement.html", ctx)
 
     @property

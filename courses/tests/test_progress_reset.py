@@ -223,3 +223,39 @@ def test_stranger_denied(client):
     client.force_login(stranger)
     r = client.post(reverse("courses:progress_reset", args=[course.slug, unit.pk]))
     assert r.status_code == 403
+
+
+def test_post_clears_done_selfcheck_state_and_lesson_restores_fresh(client):
+    """[[student-practice-state-graded-selfchecks-restore]] Start-fresh must clear
+    a graded self-check's {"done": true} blob too -- mirrors the MarkDone
+    coverage above, extended through the lesson view to prove the WIDGET, not
+    just the row, comes back fresh."""
+    from courses import switchgrid
+    from courses.models import SwitchGridElement
+
+    course, unit = make_course_with_unit()
+    token_stem, _n = switchgrid.parse_stem_multi("Pick {{choice}}")
+    grid = SwitchGridElement.objects.create(
+        prompt="",
+        lines=[{"stem": token_stem, "cyclers": [{"options": ["a", "b"], "answer": 1}]}],
+    )
+    row = add_element(unit, grid)
+    student = make_verified_user(username="gsc_reset", email="gsc_reset@school.edu")
+    Enrollment.objects.create(student=student, course=course)
+    UnitProgress.objects.create(
+        student=student, unit=unit, element_state={str(row.pk): {"done": True}}
+    )
+    client.force_login(student)
+
+    r = client.post(reverse("courses:progress_reset", args=[course.slug, unit.pk]))
+    assert r.status_code == 302
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {}
+
+    body = client.get(
+        reverse("courses:lesson_unit", args=[course.slug, unit.pk])
+    ).content.decode()
+    assert 'data-state="{}"' in body
+    assert "switchgrid--locked" not in body
+    assert "switchgrid__confirm" in body
+    assert "data-switchgrid-cycler" in body  # cycler actually rendered, fresh

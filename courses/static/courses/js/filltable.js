@@ -54,7 +54,10 @@
       .then(function (data) {
         paint(root, data.cells || []);
         summarize(root, !!data.all_correct);
-        if (data.all_correct === true && (data.cells || []).length > 0) lock(root);
+        if (data.all_correct === true && (data.cells || []).length > 0) {
+          lock(root);
+          window.libliState.saveFlag(root, { done: true });
+        }
       })
       .catch(function () { /* fail-open: leave widget interactive */ });
   }
@@ -62,6 +65,14 @@
   function initOne(root) {
     if (root.dataset.filltableReady === "1") return;
     root.dataset.filltableReady = "1";
+    if (window.libliState.storedFlag(root, "done")) {
+      // Server rendered it locked; do NOT arm Check. Typeset THEN return --
+      // .el--filltable is excluded from math.js's global renderInlineText
+      // list, so this file's own call is the ONLY thing that typesets its
+      // static cells' math (mirrors switchgrid.js's boot short-circuit).
+      if (window.renderMathInElement) { try { window.renderMathInElement(root); } catch (e) {} }
+      return;
+    }
     var btn = root.querySelector(".filltable__confirm");
     if (btn) btn.addEventListener("click", function () { submit(root); });
     // KaTeX auto-render (mirror switchgrid.js's typeset call exactly)

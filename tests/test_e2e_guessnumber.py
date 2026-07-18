@@ -122,6 +122,16 @@ def _guessnumber(author_stem, tolerance=0, success_message=""):
     )
 
 
+def _seed_state(student, unit, element_state):
+    """Seed UnitProgress.element_state DIRECTLY in the DB -- fixture SETUP (a
+    precondition of the reload gesture under test), not a bypassed gesture."""
+    from courses.models import UnitProgress
+
+    progress, _ = UnitProgress.objects.get_or_create(student=student, unit=unit)
+    progress.element_state = element_state
+    progress.save(update_fields=["element_state"])
+
+
 def _seed_tab1_gn(unit, tab1_children):
     """One TabsElement on `unit` (tabs 'First'/'Second'); `tab1_children` is a list of
     concrete element objects placed, in order, nested under tab 1."""
@@ -436,4 +446,104 @@ def test_guessnumber_nested_in_tab_panel(page, live_server):
     _check(page).click()
 
     expect(_success(page)).to_be_visible()
+    expect(_root(page)).to_have_class(re.compile(r"\bguessnumber--done\b"))
+
+
+# ---------------------------------------------------------------------------
+# 11. Restore across reload (state persistence)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_correct_guess_persists_across_reload(page, live_server):
+    """Real gesture: guess correctly, await the state POST, reload -> input
+    still shows the canonical target, readonly, is-correct, done, Check gone."""
+    _student, unit = _new_unit("gn_persist")
+    add_element(unit, _guessnumber("<p>Guess: {{42}}</p>"))
+    _login(page, live_server, "gn_persist")
+    page.goto(_unit_url(live_server, unit))
+
+    expect(_check(page)).to_be_visible()
+    _input(page).fill("42")
+    with page.expect_response(
+        lambda r: "/state/" in r.url and r.request.method == "POST"
+    ) as resp_info:
+        _check(page).click()
+    assert resp_info.value.ok
+
+    page.reload()
+    expect(_input(page)).to_have_value("42")
+    expect(_input(page)).to_have_js_property("readOnly", True)
+    expect(_input(page)).to_have_class(re.compile(r"\bis-correct\b"))
+    expect(_root(page)).to_have_class(re.compile(r"\bguessnumber--done\b"))
+    expect(_check(page)).to_have_count(0)
+    expect(_success(page)).to_be_visible()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_wrong_guess_persists_nothing(page, live_server):
+    """A wrong guess makes NO state POST; reload -> fresh, editable, unlocked."""
+    _student, unit = _new_unit("gn_wrong_nosave")
+    add_element(unit, _guessnumber("<p>Guess: {{42}}</p>"))
+    _login(page, live_server, "gn_wrong_nosave")
+    page.goto(_unit_url(live_server, unit))
+
+    saw_state_post = {"hit": False}
+    page.on(
+        "request",
+        lambda r: saw_state_post.__setitem__(
+            "hit", saw_state_post["hit"] or "/state/" in r.url
+        ),
+    )
+    _input(page).fill("43")
+    _check(page).click()
+    expect(_hint(page)).to_be_visible()
+    assert saw_state_post["hit"] is False
+
+    page.reload()
+    expect(_check(page)).to_be_visible()
+    expect(_input(page)).to_have_value("")
+    expect(_input(page)).to_have_js_property("readOnly", False)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_restored_guessnumber_does_not_repost_on_enter(page, live_server):
+    """Skip-arm guard: a restored (already-done) element must not re-arm its
+    keydown-Enter submit path. Without the skip-arm branch, initOne's `done`
+    local starts false regardless of server state, so Enter would call submit()
+    again and fire a redundant check POST against an already-locked element."""
+    student, unit = _new_unit("gn_restore_enter")
+    row = add_element(unit, _guessnumber("<p>Guess: {{42}}</p>"))
+    _seed_state(student, unit, {str(row.pk): {"done": True}})
+    _login(page, live_server, "gn_restore_enter")
+    page.goto(_unit_url(live_server, unit))
+
+    expect(_input(page)).to_have_js_property("readOnly", True)
+    posts = []
+    page.on("request", lambda r: posts.append(r.url) if r.method == "POST" else None)
+    _input(page).focus()
+    _input(page).press("Enter")
+    page.wait_for_timeout(150)  # allow any (wrongly) queued POST to start
+    assert posts == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_guessnumber_nested_in_tab_restores_after_reload(page, live_server):
+    """Guess-the-number is in NESTABLE_TYPE_KEYS -- nested inside a Tabs panel.
+    The widget JS's root-scoped dataset lookups and the server render must
+    restore correctly inside a tab panel exactly as at top level (mirrors
+    test_switchgrid_nested_in_tab_restores_after_reload / test_filltable_nested_
+    in_tab_restores_after_reload in Tasks 8/9)."""
+    from courses.models import Element
+
+    student, unit = _new_unit("gn_tabs_restore")
+    join = _seed_tab1_gn(unit, [_guessnumber("<p>Guess: {{42}}</p>")])
+    row = Element.objects.get(parent=join, content_type__model="guessnumberelement")
+    _seed_state(student, unit, {str(row.pk): {"done": True}})
+    _login(page, live_server, "gn_tabs_restore")
+    page.goto(_unit_url(live_server, unit))
+
+    page.wait_for_selector("[data-tabs].tabs--js")
+    expect(_input(page)).to_have_value("42")
+    expect(_input(page)).to_have_class(re.compile(r"\bis-correct\b"))
     expect(_root(page)).to_have_class(re.compile(r"\bguessnumber--done\b"))

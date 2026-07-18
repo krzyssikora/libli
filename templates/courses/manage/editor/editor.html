@@ -147,6 +147,11 @@
   data-state="{}" is the only thing keeping it from cascading on load.
   {% endcomment %}
   <script src="{% static 'courses/js/reveal.js' %}" defer></script>
+  {% comment %}Shared window.libliState helper (storedFlag/saveFlag) used by the
+  fillgate/switchgate/switchgrid/filltable/guessnumber widgets below. Must load BEFORE
+  all of them: each self-inits over the preview at script-parse time and its initOne
+  dereferences window.libliState immediately. Mirrors lesson_unit.html's include.{% endcomment %}
+  <script src="{% static 'courses/js/state.js' %}" defer></script>
   {% comment %}The preview renders the student fill-gate, whose Confirm ships `hidden`
   (fillgate.js arms it) and whose check submit is inert without JS. Load after reveal.js
   (fillgate.js calls window.libliRevealCascade). editor.js re-runs libliInitFillGates

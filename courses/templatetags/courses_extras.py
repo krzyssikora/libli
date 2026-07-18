@@ -301,72 +301,114 @@ def render_switch_gate(el, eid, mine=None, mine_json="{}", save_url=""):
 
 
 @register.simple_tag
-def render_guess_number(el, eid):
+def render_guess_number(el, eid, mine=None, mine_json="{}", save_url=""):
     """Render the numeric input spliced into the stem at its U+FFFF-delimited token.
 
     NO <form>: implicit submission cannot be suppressed without JS, and a stray
     Enter reload would wipe reveal.js's in-memory cascade state (it persists
     nothing), re-hiding a gated element. Enter comes from a keydown listener
     instead. The <div> WRAPS the stem; only inline markup is spliced, because
-    the parser hoists block elements out of an enclosing <p>."""
+    the parser hoists block elements out of an enclosing <p>.
+
+    mine_json is passed pre-serialized from the template (courses_extras.py has
+    no json import). When mine.done (restore path), the input shows
+    el.canonical_target readonly + is-correct, Check is omitted entirely, and
+    the success block is un-hidden -- reproducing guessnumber.js's correct-
+    branch appearance server-side (its boot skip-arm does not re-run this).
+    See courses.guessnumber."""
     check_url = reverse("courses:guessnumber_check", args=[eid])
-    widget = format_html(
-        '<input data-guess-input type="text" inputmode="decimal" '
-        'aria-label="{}"><button data-guess-check type="button" hidden>{}</button>',
-        _("Your answer"),
-        _("Check"),
-    )
+    is_done = bool((mine or {}).get("done"))
+    if is_done:
+        widget = format_html(
+            '<input data-guess-input type="text" inputmode="decimal" '
+            'aria-label="{}" value="{}" readonly class="is-correct">',
+            _("Your answer"),
+            el.canonical_target,
+        )
+    else:
+        widget = format_html(
+            '<input data-guess-input type="text" inputmode="decimal" '
+            'aria-label="{}"><button data-guess-check type="button" hidden>{}</button>',
+            _("Your answer"),
+            _("Check"),
+        )
     body = guessnumber.render_stem(el.stem, widget)
     msg = el.success_message or ""
     has_text = bool(strip_tags(msg).strip())
     success = mark_safe(msg) if has_text else format_html("{}", _("Correct!"))  # noqa: S308 — sanitized at save()
+    done_class = mark_safe(" guessnumber--done") if is_done else ""
+    success_hidden = "" if is_done else mark_safe(" hidden")
     return format_html(
-        '<div class="guessnumber" data-guessnumber data-element-pk="{}" '
-        'data-check-url="{}" data-msg-high="{}" data-msg-low="{}">{}'
+        '<div class="guessnumber{}" data-guessnumber data-element-pk="{}" '
+        'data-check-url="{}" data-msg-high="{}" data-msg-low="{}" '
+        'data-state="{}" data-state-url="{}">{}'
         '<div data-guess-live aria-live="polite">'
         "<p data-guess-hint hidden></p>"
-        "<div data-guess-success hidden>{}</div></div></div>",
+        "<div data-guess-success{}>{}</div></div></div>",
+        done_class,
         eid,
         check_url,
         _("The number is too big, try again."),
         _("The number is too small, try again."),
+        mine_json,
+        save_url,
         body,
+        success_hidden,
         success,
     )
 
 
 @register.simple_tag
-def render_switch_grid(el, eid):
+def render_switch_grid(el, eid, mine=None, mine_json="{}", save_url=""):
     """Render the switch-grid self-check widget: one container per line (static
     lines included), cyclers spliced into each line's token stem.
 
-    See courses.switchgrid."""
+    mine_json is passed pre-serialized from the template (courses_extras.py has no
+    json import). When mine.done (restore path), each cycler shows its correct
+    option -- BOUNDS-SAFE: compared by index equality, never options[answer]
+    indexing, so an out-of-range author-set answer (a stray transfer/import) un-
+    hides nothing rather than 500ing -- carries switchgrid--locked + disabled;
+    the Confirm button is omitted; and the summary <p> is un-hidden with
+    switchgrid--success and the success text, reproducing lock()+summarize(root,
+    true). See courses.switchgrid."""
     from courses import switchgrid as _switchgrid
 
     check_url = reverse("courses:switchgrid_check", args=[eid])
+    is_done = bool((mine or {}).get("done"))
     line_html = []
     for i, line in enumerate(el.lines or []):
         widgets = {}
         for j, cyc in enumerate(line.get("cyclers", []) or []):
             options = cyc.get("options", []) or []
+            answer = cyc.get("answer")
+            valid_answer = (
+                isinstance(answer, int)
+                and not isinstance(answer, bool)
+                and 0 <= answer < len(options)
+            )
+            shown = (answer if valid_answer else -1) if is_done else 0
             option_spans = format_html_join(
                 "",
                 '<span class="switchgrid__option{}"{}>{}</span>',
                 (
                     (
-                        " switchgrid__option--current" if k == 0 else "",
-                        "" if k == 0 else mark_safe(" hidden"),
+                        " switchgrid__option--current" if k == shown else "",
+                        "" if k == shown else mark_safe(" hidden"),
                         mark_safe(o),  # noqa: S308 — options sanitized at save()
                     )
                     for k, o in enumerate(options)
                 ),
             )
+            cyc_locked = " switchgrid--locked" if is_done else ""
+            cyc_disabled = mark_safe(" disabled") if is_done else ""
             widgets[j] = format_html(
-                '<button type="button" class="switchgrid__cycler" '
+                '<button type="button" class="switchgrid__cycler{locked}" '
                 'data-switchgrid-cycler data-cycler="{j}" '
-                'aria-label="{label}">{opts}</button>',
+                'aria-label="{label}"{disabled}>{opts}</button>',
+                locked=cyc_locked,
                 j=j,
                 label=_("Cycle options"),
+                disabled=cyc_disabled,
                 opts=option_spans,
             )
         body = _switchgrid.render_stem_multi(line.get("stem", ""), widgets)
@@ -383,21 +425,38 @@ def render_switch_grid(el, eid):
         if el.prompt
         else ""
     )
+    confirm_html = (
+        ""
+        if is_done
+        else format_html(
+            '<button type="button" class="switchgrid__confirm">{}</button>',
+            _("Check"),
+        )
+    )
+    summary_class = mark_safe(" switchgrid--success") if is_done else ""
+    summary_hidden = "" if is_done else mark_safe(" hidden")
+    summary_text = _("Great!") if is_done else ""
     return format_html(
         '<div class="switchgrid" data-switchgrid data-element-pk="{pk}" '
-        'data-check-url="{url}">'
+        'data-check-url="{url}" data-state="{state}" data-state-url="{save_url}">'
         "{prompt}{lines}"
-        '<button type="button" class="switchgrid__confirm">{confirm}</button>'
-        '<p class="switchgrid__summary" data-switchgrid-summary '
-        'data-success-msg="{ok}" data-retry-msg="{retry}" hidden></p>'
+        "{confirm}"
+        '<p class="switchgrid__summary{summary_class}" data-switchgrid-summary '
+        'data-success-msg="{ok}" data-retry-msg="{retry}"{summary_hidden}>'
+        "{summary_text}</p>"
         "</div>",
         pk=eid,
         url=check_url,
+        state=mine_json,
+        save_url=save_url,
         prompt=prompt_html,
         lines=lines_joined,
-        confirm=_("Check"),
+        confirm=confirm_html,
+        summary_class=summary_class,
         ok=_("Great!"),
         retry=_("Try again"),
+        summary_hidden=summary_hidden,
+        summary_text=summary_text,
     )
 
 

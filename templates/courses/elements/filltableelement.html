@@ -1,13 +1,18 @@
 {% load i18n %}
+{% url 'courses:element_state_save' slug=slug node_pk=node_pk as save_url %}
 {% comment %}Student Fill-in table self-check. Static cells are pre-sanitised at
 save() and emitted |safe (math typeset client-side over .el--filltable). Answer
-cells emit an EMPTY input — the accepted answer is NEVER sent to the client.
-data-r/data-c are 0-based indices into normalize_data(data)["cells"].{% endcomment %}
+cells emit an EMPTY input — the accepted answer is NEVER sent to the client,
+UNLESS mine.done (restore path), when render() has already swapped data.cells for
+FillTableElement.canonical_cells and _filltable_cell.html renders each answer
+cell readonly + locked with its canonical value. data-r/data-c are 0-based
+indices into normalize_data(data)["cells"].{% endcomment %}
 <div class="filltable" data-filltable
      data-element-pk="{{ eid }}"
      data-check-url="{% url 'courses:filltable_check' eid %}"
      data-success-msg="{% trans 'Great!' %}"
-     data-retry-msg="{% trans 'Try again' %}">
+     data-retry-msg="{% trans 'Try again' %}"
+     data-state="{{ mine_json }}" data-state-url="{{ save_url }}">
   {% if data.prompt %}<p class="filltable__prompt">{{ data.prompt }}</p>{% endif %}
   <div class="el el--filltable el--filltable--border-{{ data.border }}"
        {% if data.header_row %}data-header-row{% endif %}
@@ -29,6 +34,6 @@ data-r/data-c are 0-based indices into normalize_data(data)["cells"].{% endcomme
       </table>
     </div>
   </div>
-  <button type="button" class="filltable__confirm btn btn--small">{% trans "Check" %}</button>
-  <p class="filltable__summary" data-filltable-summary hidden></p>
+  {% if not mine.done %}<button type="button" class="filltable__confirm btn btn--small">{% trans "Check" %}</button>{% endif %}
+  <p class="filltable__summary{% if mine.done %} filltable__summary--success{% endif %}" data-filltable-summary{% if not mine.done %} hidden{% endif %}>{% if mine.done %}{% trans "Great!" %}{% endif %}</p>
 </div>
