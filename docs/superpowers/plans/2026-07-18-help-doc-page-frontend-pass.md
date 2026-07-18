@@ -186,7 +186,14 @@ def _icon_or_literal(slug):
 
 def _sub_heading(m):
     level, attrs, run = m.group(1), m.group(2), m.group(3)
-    icons = "".join(_icon_or_literal(s) for s in _EL_TOKEN_RE.findall(run))
+    slugs = _EL_TOKEN_RE.findall(run)
+    # If no token in the run is a known slug, leave the whole match untouched so the
+    # literal tokens (and their original whitespace) survive byte-for-byte for the
+    # no-leak test — mirrors _sub_para's unknown-slug early return. When at least one
+    # slug is known, emit one <svg> per known token; unknown tokens re-emit literally.
+    if not any(s in ELEMENT_ICON_SLUGS for s in slugs):
+        return m.group(0)
+    icons = "".join(_icon_or_literal(s) for s in slugs)
     return f"<h{level}{attrs}>{icons}"
 
 
