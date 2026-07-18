@@ -207,9 +207,12 @@ Add a helper method on `Command`:
         return user
 ```
 
-In `handle()`, replace the existing `student, created = User.objects.get_or_create(... "demo_student" ...)` / `set_password` / `Enrollment.get_or_create` block with:
+In `handle()`, the user-seeding must run **before** any element/quiz/group call that depends on `self.teacher`/`self.group_students`/`self.course`. Do BOTH of the following:
+
+**(a)** Immediately after `course.subjects.add(subject)` (near the top of `handle()`, **before** the `_node` calls), insert:
 
 ```python
+        self.course = course
         seed_roles()  # ensure the 4 role auth-groups + perms exist before set_user_role
         teacher = self._user(
             "demo_teacher", "Demo Teacher",
@@ -224,11 +227,13 @@ In `handle()`, replace the existing `student, created = User.objects.get_or_crea
         s3 = self._user("demo_s3", "Cleo Demo", email="demo_s3@demo.example")
         for st in (student, s1, s2, s3):
             Enrollment.objects.get_or_create(student=st, course=course)
+        self.teacher = teacher              # consumed by Task 4
         self.group_students = [s1, s2, s3]  # consumed by Task 4
-        self.teacher = teacher  # consumed by Task 4
 ```
 
-Keep the existing `self.stdout.write(...SUCCESS...)` line at the very end of `handle()`.
+**(b)** DELETE the old student block near the end of `handle()` (the `student, created = User.objects.get_or_create(username="demo_student", ...)` / `set_password` / `Enrollment.objects.get_or_create(student=student, course=course)` lines) — it is fully replaced by (a).
+
+Keep the existing `self.stdout.write(...SUCCESS...)` line at the very end of `handle()`. After this task, `handle()`'s order is: subject/course → **users** (`self.course`/`self.teacher`/`self.group_students` set) → `_node` calls → element calls, so every later helper's dependencies already exist.
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -389,10 +394,12 @@ def test_seed_quiz_group_populate_analytics():
         assert sub.status == QuizSubmission.Status.SUBMITTED
         assert sub.max_score and sub.max_score > 0
 
-    matrix = build_results_matrix(course, students, expanded=set(), values="marks")
-    # at least one populated (non-"—") cell exists across the group×quiz grid
+    matrix = build_results_matrix(course, students, expanded=set(), values="percent")
+    # at least one populated cell exists across the group×quiz grid. Cells are dicts
+    # {"percent": .., "label": ..} (courses/rollups.py _cell); a populated cell has a
+    # non-None percent.
     flat = [c for row in matrix["rows"] for c in row["cells"]]
-    assert any(getattr(c, "value", None) not in (None, "—", "") for c in flat)
+    assert any(c["percent"] is not None for c in flat)
 
 
 @pytest.mark.django_db
@@ -405,7 +412,7 @@ def test_seed_quiz_group_idempotent():
     assert QuizSubmission.objects.count() == subs
 ```
 
-> Note: the exact shape of `build_results_matrix(...)`'s return (`rows`/`cells`/`.value`) is from `courses/rollups.py:578`. If the attribute names differ at implementation time, read that function and adjust the assertion to check "at least one populated cell"; do not weaken it to "a submission exists".
+> Note: `build_results_matrix(course, students, expanded=frozenset(), values="percent")` returns rows whose `cells` are dicts with a `percent` key (`courses/rollups.py`, `_cell`); it branches only on `values == "raw"` (any other value is percent mode). If the exact keys differ at implementation time, read that function and adjust the cell access, keeping "≥1 populated cell"; do not weaken it to "a submission exists".
 
 - [ ] **Step 2: Run to verify failure**
 
@@ -503,12 +510,14 @@ Add helper methods on `Command`:
         return group
 ```
 
-In `handle()`: first store `self.course = course` immediately after the course is created (so helpers can read it). Then, after the leaf-element calls from Task 3, add:
+In `handle()`, after the leaf-element calls from Task 3 (which run after Task 2's user-seeding block, so `self.teacher`/`self.group_students`/`self.course` are already set), add:
 
 ```python
         quiz = self._quiz(chapter)
         self._group(quiz)
 ```
+
+`chapter` is the node created near the top of `handle()` and is in scope here. Do **not** re-add `self.course = course` — Task 2 already sets it.
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -697,7 +706,10 @@ def test_capture_help_screenshots(live_server, page):
     page.set_viewport_size({"width": 1280, "height": 800})
     page.emulate_media(color_scheme="light", reduced_motion="reduce")
 
-    # Fail loudly if any image on the captured page fails to load (no broken image).
+    # Tripwire: fail if any image request on the captured page returns >= 400. The
+    # builder tree renders no MEDIA image (the demo image is exercised only in lesson
+    # views — slice 3), so today this guards static assets and future MEDIA-rendering
+    # captures; the Task 5 image fix is validated by the seed test, not here.
     bad_images = []
 
     def _on_response(resp):
@@ -745,13 +757,18 @@ def _collect(args):
 
 
 def test_capture_not_collected_by_bare_run():
-    # Bare collection over tests/ (mirrors the unit CI job's auto-collection).
+    # One full walk of tests/ (mirrors the unit CI job's bare auto-collection). The
+    # capture file is not test_-prefixed, so it is absent. This is the ONLY check that
+    # walks the whole tree; keep the timeout generous.
     out = _collect(["tests"])
     assert CAP_NODE not in out
 
 
-def test_capture_not_collected_by_e2e_selector():
-    out = _collect(["-m", "e2e", "tests"])
+def test_capture_deselected_under_e2e_marker():
+    # Even on an explicit path, -m e2e deselects the unmarked capture fn (cheap: one
+    # file, no tree walk). The `e2e` marker is registered in pyproject.toml (no
+    # strict-markers), so `-m e2e` does not error.
+    out = _collect(["-m", "e2e", CAP])
     assert CAP_NODE not in out
 
 
@@ -861,5 +878,5 @@ git commit -m "feat(help): illustrate the builder topic with a committed screens
 - `static:` sentinel rewrite, manifest-safe — Task 1. Coverage scan on pre-rewrite image nodes — Task 7 `test_all_topics_static_refs_resolve`.
 - Deterministic capture harness (viewport/theme/locale/motion/slug/element-clip/repo-root path) + response-listener broken-image guard — Task 6. MEDIA-serving intentionally out of scope: the builder page renders the structural tree only and requests no MEDIA image (spec case ii); the §1.5 fix is validated by Task 5's seed test. If a future capture targets a MEDIA-rendering view, add MEDIA serving then.
 - Isolation via non-`test_` filename, verified both directions via subprocess `--collect-only` — Task 6, with the marker fallback spelled out in Step 3.
-- PoC proof test bridging URL→disk via `finders.find` on the raw sentinel — Task 7. Tests are red until the PNG is committed (expected falsifiable signal) — resolved in Task 7 Step 5.
+- PoC proof test bridging URL→disk via `finders.find` on the raw sentinel — Task 7. `finders.find` resolves against the app **source** static dir, so these tests go green as soon as the PNG exists **on disk** (Task 6 Step 4), not at commit time (Task 7 Step 5) — the expected red→green transition happens at Step 4. (If Task 7's tests are written before Step 4 produces the PNG, they are red — the desired falsifiable signal.)
 - Existing seed shape/count assertions: `tests/test_seed_demo_course.py`'s original test uses `>= 5` and equality-on-rerun, both still hold; no exact-count assertion elsewhere references the demo seed (verify with `grep -rn "seed_demo_course" tests/` during execution and update any exact-count assertion found).
