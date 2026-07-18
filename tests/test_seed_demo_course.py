@@ -85,6 +85,7 @@ def test_seeded_ca_can_open_builder(client):
 
 @pytest.mark.django_db
 def test_seed_quiz_group_populate_analytics():
+    from courses.models import ContentNode
     from courses.models import Course
     from courses.models import QuizSubmission
     from courses.rollups import build_results_matrix
@@ -96,8 +97,12 @@ def test_seed_quiz_group_populate_analytics():
     course = Course.objects.get(slug="demo-course")
 
     quizzes = list(quiz_units_in_order(course))
-    assert len(quizzes) == 1
-    quiz = quizzes[0]
+    # Task 2 (slice-3 seed enrichment) added a second quiz unit ("Practice quiz")
+    # to host the REVIEW flow separately from "Demo quiz" — see the seed's
+    # handle() comment. Select "Demo quiz" explicitly by title below since
+    # quiz_units_in_order's ordering between the two is not guaranteed.
+    assert len(quizzes) == 2
+    quiz = ContentNode.objects.get(course=course, title="Demo quiz")
     assert quiz.unit_type == "quiz"
 
     group = Group.objects.get(name="Demo Group", course=course)
@@ -113,18 +118,13 @@ def test_seed_quiz_group_populate_analytics():
         assert sub.max_score and sub.max_score > 0
 
     matrix = build_results_matrix(course, students, expanded=set(), values="percent")
-    # Task 2 (slice-3 seed enrichment) added a REVIEW-marked
-    # ExtendedResponseQuestionElement to this same "Demo quiz" so the review
-    # queue has an awaiting entry, and deliberately leaves demo_student's
-    # response to it unreviewed. submission_is_counted() (courses/rollups.py)
-    # treats ANY unit with an unreviewed [R] element as awaiting for EVERY
-    # submission on that unit, not just the one that answered it — so the
-    # group members' otherwise-fully-graded submissions are now excluded from
-    # the percent matrix (neutral, not populated) as long as that review is
-    # pending. Their own rows are still SUBMITTED with a frozen max_score>0
-    # (asserted above); the matrix-level cells are the ones that flip to None.
+    # "Demo quiz" is AUTO-only (the REVIEW question now lives on the separate
+    # "Practice quiz"), so the group's fully-graded submissions populate the
+    # percent matrix: at least one populated cell exists across the group×quiz
+    # grid. Cells are dicts {"percent": .., "label": ..} (courses/rollups.py
+    # _cell); a populated cell has a non-None percent.
     flat = [c for row in matrix["rows"] for c in row["cells"]]
-    assert all(c["percent"] is None for c in flat)
+    assert any(c["percent"] is not None for c in flat)
 
 
 @pytest.mark.django_db
@@ -171,12 +171,15 @@ def test_seed_creates_pa_and_review_and_collection():
     admin = User.objects.get(username="demo_admin")
     assert admin.is_staff  # last_login is stamped at capture-time login, not seeded
 
-    quiz = ContentNode.objects.get(title="Demo quiz")
+    # The REVIEW question + demo_student's unreviewed submission live on the
+    # separate "Practice quiz" unit, not "Demo quiz" (kept AUTO-only so its
+    # analytics populate — see seed's handle() comment).
+    review_quiz = ContentNode.objects.get(title="Practice quiz")
     assert Element.objects.filter(
-        unit=quiz, content_type__model="extendedresponsequestionelement"
+        unit=review_quiz, content_type__model="extendedresponsequestionelement"
     ).exists()
     student = User.objects.get(username="demo_student")
-    sub = QuizSubmission.objects.get(student=student, unit=quiz)
+    sub = QuizSubmission.objects.get(student=student, unit=review_quiz)
     assert sub.status == QuizSubmission.Status.SUBMITTED
 
     assert Collection.objects.filter(name="Demo Collection").count() == 1

@@ -157,7 +157,14 @@ class Command(BaseCommand):
         self._note(teacher, lesson)
         self._tag(teacher, lesson)
         self._collection(course, teacher)
-        self._review_flow(quiz, student)
+        # REVIEW question + demo_student's unreviewed submission live on a SEPARATE
+        # quiz unit. submission_is_counted() (courses/rollups.py) treats ANY unit
+        # with an unreviewed [R] element as awaiting for EVERY submission on that
+        # unit — so putting the review flow on "Demo quiz" itself would blank out
+        # the group's otherwise-fully-graded percent matrix. Keep "Demo quiz"
+        # AUTO-only so its analytics/drill-down/gradebook shots stay populated.
+        review_quiz = self._node(course, chapter, "unit", "Practice quiz", "quiz")
+        self._review_flow(review_quiz, student)
         self._sso_config()
         self._webhook()
         self._cohort()
