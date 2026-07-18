@@ -62,8 +62,10 @@ def _val_stepper(element, obj, payload):
 Semantics, consistent with the existing validators' REJECT/EMPTY contract:
 
 - Non-dict payload → `REJECT` (leave any stored key untouched).
-- `shown` absent or non-integer → `REJECT` (malformed; never silently wipe prior
-  good state).
+- `shown` absent or non-numeric (not `int()`-coercible) → `REJECT` (malformed;
+  never silently wipe prior good state). A numeric **float** is floored by `int()`
+  (`2.9 → 2`) and takes the store path, consistent with `_val_markdone` — it is not
+  rejected.
 - `shown` clamped to `[−∞, obj.steps.count()]`, then: clamped value `≥ 2` →
   store `{"shown": n}`; clamped value `< 2` → `EMPTY` (drop the key — only step 0
   would show, which is the default render, so there is nothing to restore).
@@ -201,8 +203,9 @@ stepper's blob with everything else. No new work.
 ## Error handling
 
 - **REJECT vs EMPTY** (the substrate's data-loss guard): a malformed payload
-  (non-dict, or non-integer `shown`) returns `REJECT` and leaves the stored blob
-  untouched — a garbage POST never wipes a student's good state. A well-formed
+  (non-dict, or a non-numeric / non-`int()`-coercible `shown`) returns `REJECT`
+  and leaves the stored blob untouched — a garbage POST never wipes a student's
+  good state. A well-formed
   "nothing to restore" (clamped N < 2) returns `EMPTY` and drops the key. These
   are deliberately distinct sentinels.
 - **Author edits after the fact:** the `min(n, obj.steps.count())` clamp
@@ -227,6 +230,15 @@ stepper's blob with everything else. No new work.
   `stepper-armed` style plus the `__stepperBooted` DOMContentLoaded watchdog fail
   open (all steps show) if `stepper.js` never boots. Restore adds no new hard-hide
   path; the server still never renders a step with a `hidden` attribute.
+- **Restore reflow (accepted cosmetic cost):** the render-blocking `stepper-armed`
+  style shows only step 0 (`:first-child`) pre-boot, so a returning student's page
+  paints step 0 and then expands to their N restored steps once `stepper.js` runs —
+  a one-time reflow on reload that fresh steppers don't have (a fresh stepper's
+  post-boot state equals the pre-boot paint). This is accepted, mirroring the
+  reveal gate's `reveal-armed` flash tradeoff; it is the deliberate cost of the
+  chosen client-rehydrate approach over server-rendering `stepper-shown` on the
+  first N steps (which would paint with no reflow but thread the count into the
+  render seam — the rejected alternative).
 - **No new user-facing strings:** the validator returns sentinels/dicts and adds
   no `gettext` messages, so the project-wide PO-catalog fuzzy gotcha does not
   apply to this slice.
@@ -236,8 +248,9 @@ stepper's blob with everything else. No new work.
 Falsifiability is the governing doctrine (`[[falsify-tests-not-run-them]]`): every
 guard test must be shown to go RED when its guard is removed, not merely pass.
 
-- **Validator units** (`courses/state.py`): non-dict → `REJECT`; non-integer
-  `shown` → `REJECT`; `shown` clamped to `obj.steps.count()` (a stored value
+- **Validator units** (`courses/state.py`): non-dict → `REJECT`; non-numeric /
+  non-`int()`-coercible `shown` → `REJECT` (a float is *floored*, not rejected —
+  do not assert `2.9 → REJECT`); `shown` clamped to `obj.steps.count()` (a stored value
   above the count stores the count, not the input — falsify by deleting the clamp
   and watching the `N > total` case go red); clamped `< 2` → `EMPTY`; happy path
   → `{"shown": n}`. Because `_val_stepper` dereferences `obj.steps`, these tests
