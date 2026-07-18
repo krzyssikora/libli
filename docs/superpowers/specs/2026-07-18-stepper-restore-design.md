@@ -32,7 +32,7 @@ persisted state and nothing else.
 
 ## Architecture / components
 
-Four small, well-bounded changes. The merged substrate (PR #140/#150) already
+Five small, well-bounded changes. The merged substrate (PR #140/#150) already
 does the heavy lifting: `StepperElement` uses the default `ElementBase.render`,
 so its template context already carries `eid`, `mine`, `mine_json`, `slug`,
 `node_pk` (`courses/models.py` `_state_context`) — the stepper template simply
@@ -73,9 +73,20 @@ stepper: reducing the step count clamps a too-large stored N down to the new
 total (all steps shown, button hidden); adding steps leaves the student mid-walk
 with the button available to continue.
 
-The blob is **monotone forward** — the button only ever walks open — so the save
-path is fire-and-forget with no adopt/revert and no server-echo handling, exactly
-like the gates.
+The blob is **monotone forward by construction** — the button only ever walks
+open — so the save path is fire-and-forget with no adopt/revert and no
+server-echo handling. Unlike the gates' idempotent `{open:true}`, the stepper
+stores a **count**, so writes are order-sensitive: two near-simultaneous
+`keepalive` POSTs (`{shown:2}` then `{shown:3}`) arriving reordered would leave
+the stored value at 2. `_val_stepper` clamps only the upper bound
+(`min(n, count)`) and does not compare against the stored value, so this race is
+**accepted, not prevented** — at human click cadence (reveal, read, reveal) the
+reorder window is negligible, the value is ungraded, and a student who lands on a
+stale-low count simply clicks once more. Making it order-insensitive would need
+`max(stored, n)`, but the `validate_state(element, obj, payload)` signature does
+not expose the stored value to the validator — a signature change not worth it
+here. So the parity-with-gates claim holds for the *save mechanism* (fire-and-
+forget, echo-ignored), not for write-order idempotence.
 
 ### 2. Template — `templates/courses/elements/stepperelement.html`
 
@@ -103,12 +114,22 @@ instead of only step 0; the "Show next" click handler saves the new count via th
 merged shared helper. Restore is **read-only** — booting never POSTs.
 
 - **Read (restore):** parse `root.dataset.state` (tiny inline `JSON.parse` in a
-  `try`), read `.shown`, clamp to `[1, steps.length]`. The shared reader
+  `try`), read `.shown`, clamp to `[1, steps.length]`. After a **successful**
+  parse, a missing or non-integer `.shown` must coerce to `1` (not only on a parse
+  *throw*): the common fresh/EMPTY case renders `data-state="{}"`, which parses
+  fine but has no `shown` key, and a naive `min(undefined, len)` yields `NaN` → a
+  reveal loop showing **zero** steps, hiding step 0 (a regression from today,
+  where step 0 is always visible). The shared reader
   `window.libliState.storedFlag(el, key)` is hardcoded to `blob[key] === true`
   (built for the `{open:true}`/`{done:true}` flags) and cannot read a count, so
   the stepper reads its own count inline. `state.js` is **not** modified.
 - **Reveal:** add `stepper-shown` to the first `shown` steps (was: step 0 only);
   add `is-stepping` to the wrapper as today; `btn.hidden = shown >= steps.length`.
+  Boot-time restore must **only** toggle classes / `hidden` — it must **not** call
+  `.focus()` or otherwise scroll. `.focus()` stays exclusive to user-initiated
+  clicks; if a shared `revealNext()` helper is factored for both boot and click, it
+  must not focus on the boot path, or a restored multi-step stepper would jump the
+  viewport to the last restored step on every page load.
 - **Save:** in the existing click handler, after revealing the next step, compute
   the new shown-count and call
   `window.libliState.saveFlag(root, { shown: newCount })`. `saveFlag` is generic
@@ -119,7 +140,22 @@ merged shared helper. Restore is **read-only** — booting never POSTs.
 The idempotency guard (`root.dataset.stepperReady`), the button-walk loop, the
 `tabindex`/`focus` handling, and the `steps.length < 2` early-out are preserved.
 
-### 4. Registry wiring
+### 4. Lesson-page script load — `templates/courses/lesson_unit.html`
+
+`state.js` (which defines `window.libliState`) is included on the lesson page only
+under a condition currently gated to the six elements that use it —
+`{% if has_reveal_gate or has_fill_gate or has_switch_gate or has_switch_grid or has_fill_table or has_guess_number %}`. `has_stepper` is **absent** from that
+list, so a lesson containing *only* a stepper loads `stepper.js` but not
+`state.js`, and at click time `window.libliState` is `undefined` — the click
+handler's `saveFlag(...)` throws a `TypeError`, nothing persists, and the feature
+silently fails with a console error.
+
+Add `has_stepper` to that `state.js` load condition (the flat `has_stepper` flag
+already exists in the lesson context — it drives the `stepper.js` include on the
+same page). The authoring editor is unaffected: `editor.html` already loads
+`state.js` unconditionally.
+
+### 5. Registry wiring
 
 Add `"stepperelement": _val_stepper` to `VALIDATORS` in `courses/state.py`. No
 route, view, or model migration change — `element_state_save` and
@@ -137,7 +173,8 @@ join-row pk.
 3. The view calls `validate_state(element, obj, {shown: K})` →
    `_val_stepper` clamps and returns `{shown: K}` (or EMPTY/REJECT).
 4. `{shown: K}` is stored in `UnitProgress.element_state[eid]`. Fire-and-forget;
-   the echo is ignored.
+   the echo is ignored. Writes are not sequenced — see the order-sensitivity note
+   in Architecture §1 (accepted at human click cadence).
 
 **Restore (student reloads):**
 
@@ -171,11 +208,16 @@ stepper's blob with everything else. No new work.
 - **Author edits after the fact:** the `min(n, obj.steps.count())` clamp
   self-heals a stored N that now exceeds the step count; the student simply sees
   all steps and no button. A stored N below the new count leaves the button
-  present to continue.
+  present to continue. Note the split: on the **read** path the server passes the
+  stale stored N through unchanged (the validator runs only on save), so it is the
+  **client** clamp to `[1, steps.length]` that corrects the render immediately; the
+  validator clamp only rewrites the persisted value lazily on the next save.
 - **Read-side fail-open:** `_state_context` already coerces a non-dict `mine` to
   `{}` (renders fresh, never 500). `stepper.js` wraps the `JSON.parse` in a
-  `try` and defaults `shown = 1` on any parse failure, so a corrupt `data-state`
-  degrades to the default render, never a JS throw that traps the widget.
+  `try` and defaults `shown = 1` whenever the parse throws OR yields a missing /
+  non-integer `shown` (e.g. the `{}` fresh case), so a corrupt or empty
+  `data-state` degrades to the default render (step 0 shown), never a JS throw or
+  a `NaN` reveal loop that traps the widget.
 - **Editor-preview inertness:** the preview passes real join rows but no
   `slug`/`node_pk`, so `save_url` is `""`; `saveFlag` no-ops on an empty URL, and
   a preview "Show next" click POSTs nothing. `editor.html` must load `state.js`
@@ -204,9 +246,15 @@ guard test must be shown to go RED when its guard is removed, not merely pass.
   slices): assert `.stepper` emits `data-element-pk`, `data-state-url`, and a
   `data-state` carrying the stored `{"shown": N}`.
 - **e2e** (`-m e2e`, real browser, real click path per `[[e2e-must-drive-real-ui]]`
-  — never `page.evaluate`): walk two "Show next" clicks, reload, assert the first
-  three steps are visible and the button state is correct. Falsify by confirming
-  that without the restore code the reload shows only step 0.
+  — never `page.evaluate`): the fixture lesson must contain a stepper **and nothing
+  else** — no gate or self-check — so the change-4 `state.js` load gate is actually
+  exercised (a lesson that also holds a gated element loads `state.js` regardless
+  and would mask a missing `has_stepper`). Walk two "Show next" clicks, reload,
+  assert the first three steps are visible and the button state is correct. Falsify
+  by confirming that without the restore code the reload shows only step 0.
+- **`state.js` inclusion** (guards change 4): assert the rendered lesson page for a
+  stepper-only unit includes the `state.js` script tag. Falsify by removing
+  `has_stepper` from the load condition and watching it go red.
 - **Editor-preview inertness e2e:** a preview "Show next" click sends no request
   (`save_url` is `""`); assert no POST and no page error (the shared-global
   regression class from PR #150).
