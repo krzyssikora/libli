@@ -146,7 +146,11 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-STATIC_URL = "static/"
+# Root-absolute (leading slash) so the configured value does not depend on
+# Django's script-prefix normalization. At a root deployment this is identical
+# to a relative value; the explicit slash states the intent and is robust if the
+# setting is ever read outside a request. See MEDIA_URL below (issue #153).
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
@@ -155,7 +159,12 @@ STORAGES = {
     },
 }
 
-MEDIA_URL = "media/"
+# Root-absolute (leading slash), matching STATIC_URL above (issue #153). NOTE: a
+# request STILL needs something serving /media/<path> — Django's `static()` route in
+# config/urls.py is DEBUG-gated and returns [] under DEBUG=False, so production must
+# serve MEDIA via the web server (nginx alias) or a cloud storage backend. The
+# leading slash does not change that; it only pins the URL as domain-root-absolute.
+MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 # --- Course transfer (export/import) — spec 2026-07-05. Deployment guardrails,
