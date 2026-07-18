@@ -3,8 +3,8 @@
 **Kreator kursu** to miejsce, w którym nadajesz kursowi strukturę i wypełniasz go
 lekcjami oraz quizami. Otwórz go z panelu **Studio** na pulpicie: kliknij tytuł
 kursu, aby przejść od razu do jego kreatora. (Każdy kurs znajduje się też na
-liście **Zarządzaj kursami** — dostępnej przez odnośnik **Wszystkie kursy** —
-gdzie każdy wiersz ma odnośnik **Buduj**.)
+pełnej liście **Studio** — dostępnej przez odnośnik **Wszystkie kursy** — gdzie
+każdy wiersz ma odnośnik **Buduj**.)
 
 ## Presety struktury
 

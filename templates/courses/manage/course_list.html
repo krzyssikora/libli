@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% load i18n %}
-{% block head_title %}{% trans "Manage courses" %} · libli{% endblock %}
+{% block head_title %}{% trans "Studio" %} · libli{% endblock %}
 {% block content %}
 <section class="manage">
   <header class="manage__head">
-    <h1 class="manage__title">{% trans "Manage courses" %}</h1>
+    <h1 class="manage__title">{% trans "Studio" %}</h1>
     {% if courses %}
       <span class="manage__count">{% blocktrans count n=courses|length %}{{ n }} course{% plural %}{{ n }} courses{% endblocktrans %}</span>
     {% endif %}

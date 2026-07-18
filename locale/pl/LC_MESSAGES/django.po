@@ -4448,11 +4448,6 @@ msgid ""
 msgstr ""
 "Trwale usuwa ten kurs wraz z całą jego zawartością, zapisami i postępami."
 
-#: .\templates\courses\manage\course_list.html:3
-#: .\templates\courses\manage\course_list.html:7
-msgid "Manage courses"
-msgstr "Zarządzaj kursami"
-
 #: .\templates\courses\manage\course_list.html:9
 #, python-format
 msgid "%(n)s course"

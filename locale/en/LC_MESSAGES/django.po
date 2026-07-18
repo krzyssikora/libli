@@ -4289,11 +4289,6 @@ msgid ""
 "progress."
 msgstr ""
 
-#: .\templates\courses\manage\course_list.html:3
-#: .\templates\courses\manage\course_list.html:7
-msgid "Manage courses"
-msgstr ""
-
 #: .\templates\courses\manage\course_list.html:9
 #, python-format
 msgid "%(n)s course"
