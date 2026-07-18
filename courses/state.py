@@ -85,6 +85,25 @@ def _val_done(element, obj, payload):
     return {"done": True} if payload.get("done") else EMPTY
 
 
+def _val_stepper(element, obj, payload):
+    """{"shown": N} -- how many steps the student has walked open (step 0 is always
+    visible, so a fresh stepper is N=1). The FIRST count-valued blob in the registry.
+
+    Clamped to obj.steps.count() so a later author edit that removes steps self-heals
+    (a too-large stored N -> all steps shown). N<2 is a well-formed "nothing to restore"
+    (only step 0, which is the default render) -> EMPTY, never REJECT. Writes are
+    order-sensitive (a count, not the gates' idempotent flag); the race is accepted at
+    human click cadence -- see the spec.
+    """
+    if not isinstance(payload, dict):
+        return REJECT
+    n = _int_or_none(payload.get("shown"))
+    if n is None:
+        return REJECT
+    n = min(n, obj.steps.count())
+    return {"shown": n} if n >= 2 else EMPTY
+
+
 # Keyed by content_type.model (the ELEMENT_MODELS namespace) -- NOT the form key
 # and NOT the transfer key. Those three namespaces have been a recurring trap; the
 # registry does not add a fourth.
@@ -96,6 +115,7 @@ VALIDATORS = {
     "switchgridelement": _val_done,
     "filltableelement": _val_done,
     "guessnumberelement": _val_done,
+    "stepperelement": _val_stepper,
 }
 
 
