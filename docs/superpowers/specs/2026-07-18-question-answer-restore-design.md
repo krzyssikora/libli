@@ -170,7 +170,20 @@ etc. Do not author a fresh `obj.render(...)` that drops them.
 
 Because the template gates on `element.pk == feedback_for_pk`, rendering the restored element
 with `feedback_for_pk = element.pk` makes it refill its input(s) and show the re-marked feedback
-— **identical** to the live-checked path. The five in-scope question templates need **no changes**.
+— **identical to the no-JS full-page check re-render**. That is the architecturally-equivalent
+path: restore, like the no-JS check, is a full `render_element` / `obj.render` pass, not a JS
+fragment. The five in-scope question templates need **no changes**.
+
+**One caveat — ExtendedResponse reveal.** The per-keyword ✓/✗ list in
+`_reveal_extendedresponse.html` is gated on an `answered` flag that **only**
+`ExtendedResponseQuestionElement.feedback_context` sets (the JS-fragment path). Base `obj.render`
+omits it, so a restored *incorrect* ExtendedResponse shows the neutral **"guide" reveal**
+(expected/avoid keyword list, no ✓/✗) — exactly what the **existing no-JS full-page re-render
+already shows**. This is not a regression this slice introduces; restore is faithful to the
+full-page render path. Threading `answered` into restore is deliberately **out of scope**: it would
+special-case one type and make restore *diverge* from the no-JS path in the opposite direction. The
+restored answer text and the verdict are always shown; only the incorrect-reveal *style* differs
+from the JS fragment, consistently with the no-JS path.
 
 **Why quiz and editor-preview renders are excluded** (note the two are excluded by *different*
 guards — do not conflate them):
@@ -211,8 +224,10 @@ previously-answered element on a full-page render.
 
 ### C5. Shared atomic-write helper
 
-Extract the slice-1 inline write (currently in `element_state_save`) into a module-level helper,
-e.g.:
+Extract the slice-1 inline write (currently in `element_state_save`) into a module-level helper in
+**`courses/views.py`** — alongside both callers (`check_answer` and `element_state_save`), reusing
+the existing `transaction` / `UnitProgress` imports there, so there is no new import to place and no
+cycle risk:
 
 ```python
 def save_element_state(user, unit, element_pk, blob):
@@ -235,7 +250,11 @@ def save_element_state(user, unit, element_pk, blob):
 ```
 
 Both `check_answer` (new caller) and `element_state_save` (refactored to call it for its
-EMPTY/store cases) use it, so the write path is single-sourced. Note this **improves** the delete
+EMPTY/store cases) use it, so the write path is single-sourced. **Only the atomic write moves into
+the helper** (which returns `None`): `element_state_save` keeps computing its own echo blob for
+`_resp` (`{}` on EMPTY, the validated `result` on store) and keeps its REJECT / echo / previewer
+semantics — the refactor swaps only the inline `with transaction.atomic(): …` block for a
+`save_element_state(...)` call. Note this **improves** the delete
 path: `element_state_save`'s current EMPTY branch `get_or_create`s then pops (spawning a row), which
 contradicts its own "a rejected/unknown save must not spawn a `UnitProgress` row for a passive
 previewer" intent (views.py:700-701). The helper's no-spawn-on-delete brings EMPTY into line with
@@ -251,6 +270,12 @@ would show a stale, pointless Check button. Add a small boot pass in `question.j
 question whose DOM already shows `.question__verdict.is-correct` on load, hide its Check/Submit
 button — mirroring the post-fetch behavior. Still no template change. A restored **incorrect**
 answer keeps its Check button (the student can retry), which is correct.
+
+**Scope the pass to forms.** `question.js` is also loaded by `quiz_results.html` and
+`review_submission.html`, which render `.question__verdict.is-correct` on **form-less**
+`[data-question]` blocks (no submit button). The boot pass must therefore be a **no-op where no
+`form` / `button[type=submit]` exists** — reuse the file's existing `if (!form) return;` guard — so
+it can only ever hide a live lesson Check button, never touch the results/review pages.
 
 ## Data flow
 
@@ -325,6 +350,12 @@ delete the guard and watch it go red). Each guard below names what to delete to 
   inputs), `FillBlank` (per-blank values). *Falsify:* remove the C4 restore block → inputs render
   blank, no verdict. **Also falsifies C1:** flip C4's lookup to the str key → restore misses the
   int-keyed map → inputs blank.
+- **ExtendedResponse reveal parity (pin the no-JS behavior):** seed an *incorrect* ExtendedResponse
+  answer, restore it via the view, and assert the reveal is the neutral **guide**
+  (`.question__reveal-guide`), **not** the per-keyword `.question__reveal-keywords` list — pinning
+  that restore reproduces the no-JS full-page reveal (the `answered` flag stays unset). Also assert
+  the textarea body is refilled and the verdict shown. *Falsify:* a future change threading
+  `answered=True` into restore flips this to the keyword list → RED.
 - **Editor-preview exclusion (guard 4 is the sole gate):** the editor preview renders questions in
   `mode="lesson"` but with no `element_state` in context, so an answered question must render
   **un-restored** there. *Falsify:* the meaningful anchor is that restore requires a non-empty
