@@ -8,6 +8,8 @@ each group card carries an **Analytics** link scoped to that group.
 Collection cards carry one too, when you can review that collection's
 course.
 
+![The gradebook export controls](static:core/img/help/gradebook-export.en.png)
+
 ## Opening the export panel
 
 Click **Export** to reveal a small panel of choices. Whatever you export always

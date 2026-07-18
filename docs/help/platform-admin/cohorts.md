@@ -5,6 +5,8 @@ one course — typically a year group or intake. Manage cohorts from
 **Admin → Cohorts** (Platform Admin only; Course Admins can see cohort
 names when picking students into a group, but not manage this list).
 
+![The cohorts list](static:core/img/help/cohorts.en.png)
+
 ## The Default cohort
 
 Every student who isn't otherwise assigned belongs to the **Default**

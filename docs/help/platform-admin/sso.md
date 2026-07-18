@@ -4,6 +4,8 @@
 identity provider so staff and students can sign in with your institution's
 existing accounts instead of a libli password.
 
+![The SSO (OIDC) settings tab](static:core/img/help/sso.en.png)
+
 ## Configuring a provider
 
 Fill in:

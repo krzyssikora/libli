@@ -24,6 +24,8 @@ stanie się z każdym problematycznym elementem, zależy od jego rodzaju:
 
 ## Import
 
+![Ekran importu kursu](static:core/img/help/import.pl.png)
+
 Otwórz **Studio** i kliknij **Importuj kurs**, aby wczytać plik `.zip` i
 utworzyć z niego nowy kurs, albo użyj **Importuj zawartość** wewnątrz
 kreatora danego kursu, aby wstawić fragment do tego kursu w wybranym

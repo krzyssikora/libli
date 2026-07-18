@@ -5,6 +5,8 @@ tożsamości OpenID Connect, dzięki czemu pracownicy i uczniowie mogą się
 logować przy użyciu już istniejących kont Twojej instytucji, zamiast hasła
 do libli.
 
+![Zakładka ustawień SSO (OIDC)](static:core/img/help/sso.pl.png)
+
 ## Konfigurowanie dostawcy
 
 Uzupełnij:

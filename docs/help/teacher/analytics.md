@@ -7,6 +7,8 @@ collections**, where each group card carries an **Analytics** link scoped
 to that group. Collection cards carry one too, when you can review that
 collection's course.
 
+![The analytics matrix of results](static:core/img/help/analytics-matrix.en.png)
+
 ## Reading the grid
 
 - **Rows** are students, one per line.

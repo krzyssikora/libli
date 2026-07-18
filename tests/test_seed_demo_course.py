@@ -85,6 +85,7 @@ def test_seeded_ca_can_open_builder(client):
 
 @pytest.mark.django_db
 def test_seed_quiz_group_populate_analytics():
+    from courses.models import ContentNode
     from courses.models import Course
     from courses.models import QuizSubmission
     from courses.rollups import build_results_matrix
@@ -96,8 +97,12 @@ def test_seed_quiz_group_populate_analytics():
     course = Course.objects.get(slug="demo-course")
 
     quizzes = list(quiz_units_in_order(course))
-    assert len(quizzes) == 1
-    quiz = quizzes[0]
+    # Task 2 (slice-3 seed enrichment) added a second quiz unit ("Practice quiz")
+    # to host the REVIEW flow separately from "Demo quiz" — see the seed's
+    # handle() comment. Select "Demo quiz" explicitly by title below since
+    # quiz_units_in_order's ordering between the two is not guaranteed.
+    assert len(quizzes) == 2
+    quiz = ContentNode.objects.get(course=course, title="Demo quiz")
     assert quiz.unit_type == "quiz"
 
     group = Group.objects.get(name="Demo Group", course=course)
@@ -113,9 +118,11 @@ def test_seed_quiz_group_populate_analytics():
         assert sub.max_score and sub.max_score > 0
 
     matrix = build_results_matrix(course, students, expanded=set(), values="percent")
-    # at least one populated cell exists across the group×quiz grid. Cells are dicts
-    # {"percent": .., "label": ..} (courses/rollups.py _cell); a populated cell has a
-    # non-None percent.
+    # "Demo quiz" is AUTO-only (the REVIEW question now lives on the separate
+    # "Practice quiz"), so the group's fully-graded submissions populate the
+    # percent matrix: at least one populated cell exists across the group×quiz
+    # grid. Cells are dicts {"percent": .., "label": ..} (courses/rollups.py
+    # _cell); a populated cell has a non-None percent.
     flat = [c for row in matrix["rows"] for c in row["cells"]]
     assert any(c["percent"] is not None for c in flat)
 
@@ -144,3 +151,81 @@ def test_seed_materializes_demo_image_idempotently(settings, tmp_path):
     call_command("seed_demo_course")  # rerun
     asset.refresh_from_db()
     assert asset.file.name == first_name  # stable name, no demo_<rand>.png
+
+
+@pytest.mark.django_db
+def test_seed_creates_pa_and_review_and_collection():
+    from django.contrib.auth import get_user_model
+
+    from courses.models import ContentNode
+    from courses.models import Element
+    from courses.models import QuizSubmission
+    from grouping.models import Cohort
+    from grouping.models import Collection
+    from notes.models import Note
+    from tags.models import Tag
+
+    call_command("seed_demo_course")
+    User = get_user_model()
+
+    admin = User.objects.get(username="demo_admin")
+    assert admin.is_staff  # last_login is stamped at capture-time login, not seeded
+
+    # The REVIEW question + demo_student's unreviewed submission live on the
+    # separate "Practice quiz" unit, not "Demo quiz" (kept AUTO-only so its
+    # analytics populate — see seed's handle() comment).
+    review_quiz = ContentNode.objects.get(title="Practice quiz")
+    assert Element.objects.filter(
+        unit=review_quiz, content_type__model="extendedresponsequestionelement"
+    ).exists()
+    student = User.objects.get(username="demo_student")
+    sub = QuizSubmission.objects.get(student=student, unit=review_quiz)
+    assert sub.status == QuizSubmission.Status.SUBMITTED
+
+    assert Collection.objects.filter(name="Demo Collection").count() == 1
+    assert Cohort.objects.filter(name="Autumn 2026").exists()
+    assert Note.objects.filter(author__username="demo_teacher").exists()
+    assert Tag.objects.filter(author__username="demo_teacher", name="Revision").exists()
+
+
+@pytest.mark.django_db
+def test_seed_review_submission_is_in_review_queue():
+    from django.contrib.auth import get_user_model
+
+    from courses.models import Course
+    from courses.review import pending_reviews_for
+
+    call_command("seed_demo_course")
+    User = get_user_model()
+    teacher = User.objects.get(username="demo_teacher")
+    course = Course.objects.get(slug="demo-course")
+    pending = pending_reviews_for(teacher, course)
+    assert pending["awaiting"], (
+        "expected an awaiting-review submission for the queue shot"
+    )
+
+
+@pytest.mark.django_db
+def test_seed_is_idempotent_second_run():
+    from django.contrib.auth import get_user_model
+
+    from accounts.models import Invitation
+    from grouping.models import Cohort
+    from grouping.models import Collection
+    from integrations.models import WebhookDelivery
+    from notes.models import Note
+    from tags.models import Tag
+
+    call_command("seed_demo_course")
+    call_command("seed_demo_course")  # must not raise / duplicate
+
+    assert Collection.objects.filter(name="Demo Collection").count() == 1
+    assert Note.objects.filter(author__username="demo_teacher").count() == 1
+    assert (
+        Tag.objects.filter(author__username="demo_teacher", name="Revision").count()
+        == 1
+    )
+    assert Cohort.objects.filter(name="Autumn 2026").count() == 1
+    assert WebhookDelivery.objects.filter(dedupe_key="demo-1").count() == 1
+    assert Invitation.objects.filter(email="invitee@demo.example").count() == 1
+    assert get_user_model().objects.filter(username="demo_admin").count() == 1

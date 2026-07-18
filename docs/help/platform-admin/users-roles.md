@@ -3,6 +3,8 @@
 The **People** page is where a Platform Admin manages every account on the
 platform. Open it from **Admin → People**.
 
+![The people management table](static:core/img/help/people.en.png)
+
 ## Adding a user
 
 Open the **Invitations** tab, where the invite form is always shown. Fill

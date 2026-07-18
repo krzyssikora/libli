@@ -4,6 +4,8 @@ libli powiadamia użytkowników w aplikacji (przez dzwonek w nagłówku) oraz
 e-mailem, dla niewielkiego zestawu zdarzeń. Zachowanie obejmujące całą
 platformę konfiguruje się z **Administracja → Ustawienia instytucji → Powiadomienia**.
 
+![Zakładka ustawień powiadomień](static:core/img/help/notifications.pl.png)
+
 ## Rodzaje powiadomień
 
 - **Quiz wymaga sprawdzenia** — wysyłane do nauczycieli/administratorów,

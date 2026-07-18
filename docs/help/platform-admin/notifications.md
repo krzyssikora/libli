@@ -4,6 +4,8 @@ libli notifies users in-app (via the bell in the header) and by email for a
 small set of events. Platform-wide behaviour is configured from
 **Admin → Institution settings → Notifications**.
 
+![The notifications settings tab](static:core/img/help/notifications.en.png)
+
 ## Notification kinds
 
 - **Quiz needs review** — sent to teachers/admins when a student's

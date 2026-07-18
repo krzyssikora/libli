@@ -5,6 +5,8 @@ wykorzystywanych wielokrotnie we wszystkich jego lekcjach i quizach. Otwórz
 ją z panelu **Studio** na pulpicie: kliknij tytuł kursu, aby otworzyć jego
 kreator, a następnie naciśnij **Biblioteka multimediów**.
 
+![Biblioteka mediów kursu](static:core/img/help/media-manager.pl.png)
+
 ## Przesyłanie pliku
 
 U góry biblioteki wybierz **rodzaj** (Obraz lub Wideo), wskaż **plik** (lub

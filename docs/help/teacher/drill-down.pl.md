@@ -8,6 +8,8 @@ kursie — albo z widoku **Moje grupy i kolekcje**, gdzie każda karta grupy ma
 odnośnik **Analityka** ograniczony do tej grupy. Karta kolekcji ma go
 również, jeśli możesz przeglądać kurs tej kolekcji.
 
+![Szczegółowe wyniki ucznia](static:core/img/help/drill-down.pl.png)
+
 ## Rozwijanie kolumny
 
 Każdy nagłówek kolumny, który ma elementy podrzędne, jest wyświetlany jako

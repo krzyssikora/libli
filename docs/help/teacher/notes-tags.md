@@ -5,6 +5,8 @@ are personal to you — never shared with students or other staff — and everyo
 with an account can use them, which makes them handy for marking up your own
 teaching or study.
 
+![The tags & notes hub](static:core/img/help/notes-hub.en.png)
+
 ## Personal notes
 
 Every content block on a lesson page has a small note handle, shown as an icon.
@@ -34,6 +36,8 @@ whatever helps you.
   then press **Add**.
 
 ## Managing your tags
+
+![Your personal tags](static:core/img/help/my-tags.en.png)
 
 Open **Tags & notes** from the nav, then switch to the **Manage tags** tab (its
 sibling **By course** tab groups your notes instead) to see every tag you have

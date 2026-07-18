@@ -6,7 +6,7 @@ course title to go straight into its builder. (Every course also appears in the
 full **Studio** list — reached via the **All courses** link — with a **Build**
 link per row.)
 
-![The course builder showing the demo course tree](static:core/img/help/builder-tree.png)
+![The course builder showing the demo course tree](static:core/img/help/builder-tree.en.png)
 
 ## Structure presets
 

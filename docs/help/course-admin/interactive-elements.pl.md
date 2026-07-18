@@ -10,6 +10,8 @@ ocenienia, a te elementy **nie przyznają punktów**. Podobnie jak [typy
 elementów treści](content-editors), można je zagnieżdżać wewnątrz Zakładek
 i Kolumn.
 
+![Lekcja z elementem interaktywnym „Pokaż więcej”](static:core/img/help/interactive.pl.png)
+
 ## Pokaż więcej
 
 Cienka bramka z polem **Tekst przycisku** (domyślnie *Pokaż więcej*,

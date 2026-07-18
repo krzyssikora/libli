@@ -10,6 +10,8 @@ Structure (Interactive is absent when editing a quiz). See
 [Quiz editors](quiz-editors) for the Questions group. See
 [Interactive elements](interactive-elements) for the Interactive group.
 
+![The lesson editor with content blocks](static:core/img/help/content-editor.en.png)
+
 ## Working with elements
 
 Each element is added, edited, and saved independently:
@@ -124,6 +126,8 @@ add-menu offers Content types only.
   the library — pick the existing asset from the media picker instead.
 - Preview the unit as a student would see it before publishing a course, to
   catch layout issues (long captions, oversized iframes) early.
+
+![A lesson page as students see it](static:core/img/help/content-consume.en.png)
 
 ## See also
 

@@ -4,6 +4,8 @@ Uczniowie są zorganizowani wokół trzech powiązanych pojęć: **kohort**,
 **grup** i **kolekcji**. Zrozumienie, czym się różnią, sprawia, że reszta
 nauczania na platformie staje się prosta.
 
+![Twoje grupy i kolekcje](static:core/img/help/groups.pl.png)
+
 ## Kohorty
 
 **Kohorta** to ogólnoplatformowy zbiornik, do którego należy każdy uczeń — i to
@@ -15,6 +17,8 @@ kohortami bezpośrednio; działają one cicho w tle, dbając, by każdy uczeń
 należał do dokładnie jednego naboru.
 
 ## Grupy
+
+![Strona szczegółów grupy](static:core/img/help/group-detail.pl.png)
 
 **Grupa** to lista uczniów wraz z ich nauczycielami, przypisana do **jednego
 konkretnego kursu**. Kurs wybiera się przy tworzeniu grupy i potem zostaje on
@@ -36,6 +40,8 @@ sprawdzić, co zostało zarchiwizowane. Pełne prawa do kolekcji należą jednak
 ciebie — więcej poniżej.
 
 ## Kolekcje
+
+![Strona szczegółów kolekcji](static:core/img/help/collection-detail.pl.png)
 
 **Kolekcja** to nazwana wiązka grup należących do tego samego kursu, której
 jesteś właścicielem. Użyj jej, aby oglądać kilka grup razem jako jedną wspólną

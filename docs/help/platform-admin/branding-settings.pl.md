@@ -6,6 +6,8 @@ Powiadomienia i Integracje mają swoje własne tematy.
 
 ## Wygląd
 
+![Zakładka ustawień wyglądu](static:core/img/help/branding.pl.png)
+
 Ustaw **nazwę** instytucji i **logo** (maks. 2 MB), kolory **główny** i
 **akcentu** używane w całym interfejsie (jako 6-cyfrowe kody hex, np.
 `#147E78`), **domyślny motyw** (**Jasny**, **Ciemny** lub **Automatyczny**

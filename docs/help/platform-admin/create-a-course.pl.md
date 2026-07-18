@@ -3,7 +3,11 @@
 Aby założyć kurs, otwórz **Studio** i kliknij **Nowy kurs**. Formularz na
 tej stronie tworzy szkielet kursu; treścią wypełniasz go później w kreatorze.
 
+![Lista kursów w Studio](static:core/img/help/course-list.pl.png)
+
 ## Pola podstawowe
+
+![Formularz tworzenia kursu](static:core/img/help/course-create.pl.png)
 
 - **Tytuł** — widoczny w całej platformie oraz w katalogu.
 - **końcówka URL (slug)** *(opcjonalne)* — fragment adresu URL; pozostaw

@@ -8,6 +8,8 @@ next to a course — or from **My groups & collections**, where each group
 card carries an **Analytics** link scoped to that group. Collection cards
 carry one too, when you can review that collection's course.
 
+![A per-student results breakdown](static:core/img/help/drill-down.en.png)
+
 ## Expanding a column
 
 Any column header that has children below it is shown as a link with a small

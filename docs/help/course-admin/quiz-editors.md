@@ -23,6 +23,8 @@ render them at all:
 The type-specific fields below are what makes each question type behave
 differently.
 
+![The quiz editor with questions](static:core/img/help/quiz-editor.en.png)
+
 ## Single / Multiple choice
 
 A list of **choices**, each flagged correct or incorrect. Single choice

@@ -7,6 +7,8 @@ strony Analityka. Otwórz ją z panelu **Nauczanie** na pulpicie — klikając
 każda karta grupy ma odnośnik **Analityka** ograniczony do tej grupy. Karta
 kolekcji ma go również, jeśli możesz przeglądać kurs tej kolekcji.
 
+![Opcje eksportu dziennika ocen](static:core/img/help/gradebook-export.pl.png)
+
 ## Otwieranie panelu eksportu
 
 Kliknij **Eksport**, aby odsłonić mały panel opcji. Cokolwiek eksportujesz,

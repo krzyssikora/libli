@@ -6,6 +6,8 @@ zgłoszenia trafiają do **kolejki sprawdzania** i czekają na ocenę. Otwiera j
 przycisk **Sprawdzanie quizów** w kreatorze kursu — dostęp tą drogą wymaga
 uprawnień do zarządzania kursem.
 
+![Kolejka sprawdzania quizów](static:core/img/help/review-queue.pl.png)
+
 ## Kolejka sprawdzania
 
 Strona kolejki ma dwie sekcje:
@@ -19,6 +21,8 @@ Strona kolejki ma dwie sekcje:
 Plakietka z liczbą przy każdej sekcji od razu pokazuje, ile pracy zostało.
 
 ## Ocenianie zgłoszenia
+
+![Sprawdzanie przesłanej odpowiedzi](static:core/img/help/review-submission.pl.png)
 
 Naciśnij **Sprawdź**, aby otworzyć zgłoszenie. Po lewej znajduje się lista
 **Zgłoszenia**, pogrupowana na *Do sprawdzenia*, *W toku* i *Sprawdzone*,

@@ -11,6 +11,8 @@ Interaktywne jest niedostępna w quizie). Grupę Pytania opisuje
 [Edytory quizów](quiz-editors). Grupę Interaktywne opisuje
 [Elementy interaktywne](interactive-elements).
 
+![Edytor lekcji z blokami treści](static:core/img/help/content-editor.pl.png)
+
 ## Praca z elementami
 
 Każdy element jest dodawany, edytowany i zapisywany niezależnie:
@@ -136,6 +138,8 @@ kontenera Zakładki lub Kolumny oferuje wyłącznie typy treści.
 - Przed publikacją kursu podejrzyj jednostkę tak, jak zobaczy ją uczeń, aby
   wcześnie wychwycić problemy z układem (zbyt długie podpisy, zbyt duże
   ramki).
+
+![Strona lekcji widziana przez uczniów](static:core/img/help/content-consume.pl.png)
 
 ## Zobacz też
 

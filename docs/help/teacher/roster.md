@@ -14,6 +14,8 @@ no edit control anywhere on it.
 The rest of this topic explains how a Course Admin builds that roster —
 worth knowing, since it explains what you're looking at.
 
+![A group roster of students](static:core/img/help/roster.en.png)
+
 ## Picking students
 
 The student picker a Course Admin fills in is a checkbox list — but it isn't

@@ -5,6 +5,8 @@ Zapraszanie e-mailem to standardowy sposób dodawania nowego konta — otwórz
 zawsze widoczny u góry zakładki. Wypełnij go, a **Wyślij zaproszenie**
 je wyśle.
 
+![Ekran zaproszeń](static:core/img/help/invitations.pl.png)
+
 ## Wysyłanie zaproszenia
 
 Podaj adres e-mail danej osoby i wybierz rolę, z jaką ma zacząć (co potrafi

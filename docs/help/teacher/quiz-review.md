@@ -6,6 +6,8 @@ land in the **review queue** waiting for a mark. The **Quiz review** button
 opens it from the course builder — reaching it that way needs course-manage
 access.
 
+![The quiz review queue](static:core/img/help/review-queue.en.png)
+
 ## The review queue
 
 The queue page has two sections:
@@ -19,6 +21,8 @@ The queue page has two sections:
 A count badge on each section tells you how much work is outstanding at a glance.
 
 ## Marking a submission
+
+![Reviewing a submitted answer](static:core/img/help/review-submission.en.png)
 
 Press **Review** to open a submission. On the left is a **Submissions** roster,
 grouped into *To review*, *In progress*, and *Reviewed*, the first two with a

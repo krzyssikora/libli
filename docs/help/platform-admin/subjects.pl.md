@@ -4,6 +4,8 @@ Przedmioty to taksonomia, którą oznaczane są kursy — decyduje ona o
 filtrowaniu w katalogu i grupowaniu w analityce. Zarządzaj nimi z
 **Administracja → Przedmioty**.
 
+![Lista przedmiotów](static:core/img/help/subjects.pl.png)
+
 ## Zarządzanie listą
 
 - **Nowy przedmiot** tworzy nowy przedmiot z polami: **Tytuł (angielski)**
