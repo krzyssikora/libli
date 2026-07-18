@@ -1,3 +1,4 @@
+import logging
 import re
 
 import pytest
@@ -256,6 +257,20 @@ def test_corrupt_blob_is_fail_open(client):
     resp = client.get(_lesson_url(unit))
     assert resp.status_code == 200
     assert 'value="paris"' not in resp.content.decode()  # rendered un-restored
+
+
+def test_corrupt_blob_logs_the_failure(client, caplog):
+    # The fail-open restore path must not be SILENT: a malformed stored blob that
+    # makes rehydrate/mark raise is logged (mirrors courses.state.validate_state's
+    # logger.exception convention). Falsifiable: delete the logger.exception in
+    # render_element's except and this goes RED.
+    student, course, unit = _enrolled(client)
+    obj = ShortTextQuestionElement.objects.create(stem="Q", accepted="paris")
+    _seed(unit, student, obj, {"answer": {"unexpected": "dict-not-a-str"}})
+    with caplog.at_level(logging.ERROR, logger="courses.templatetags.courses_extras"):
+        resp = client.get(_lesson_url(unit))
+    assert resp.status_code == 200
+    assert "practice-state restore failed" in caplog.text
 
 
 def test_deferred_hand_forged_blob_does_not_restore(client):
