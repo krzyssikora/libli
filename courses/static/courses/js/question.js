@@ -61,4 +61,17 @@
         .catch(function () { /* leave the form intact on network error */ });
     });
   });
+
+  // Boot pass: a restored (or server-rendered) correct answer already shows its
+  // verdict; hide its Check/Submit button so it matches the post-fetch behavior.
+  // Scoped to questions that HAVE a form (results/review pages render form-less
+  // [data-question] blocks and must be untouched).
+  questions.forEach(function (q) {
+    var form = q.querySelector("form");
+    if (!form) return;
+    if (form.querySelector(".question__verdict.is-correct")) {
+      var btn = form.querySelector("button[type='submit'], input[type='submit']");
+      if (btn) btn.hidden = true;
+    }
+  });
 })();

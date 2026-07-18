@@ -45,6 +45,31 @@ def render_element(
             obj.render(unit=element.unit, course=element.unit.course, theme=theme)
         )
     if isinstance(obj, QuestionElement):
+        # Practice-state restore (lesson full-page render only): if this in-scope
+        # question has a stored answer and is NOT the element being checked live,
+        # refill + re-mark it server-side. The live-checked element (feedback_for_pk)
+        # keeps its live answer. The context element_state map is INT-keyed.
+        if (
+            mode == "lesson"
+            and getattr(obj, "RESTORABLE_IN_LESSON", False)
+            and element.pk != feedback_for_pk
+        ):
+            blob = (context.get("element_state") or {}).get(element.pk)
+            if isinstance(blob, dict) and "answer" in blob:
+                try:
+                    from courses.quiz import answer_from_json
+                    from courses.quiz import rehydrate
+
+                    stored = blob["answer"]
+                    r_selected, r_submitted = rehydrate(obj, stored)
+                    r_result = obj.mark(answer_from_json(obj, stored))
+                except Exception:  # noqa: S110 — fail-open by design: fall through to the un-restored render
+                    pass
+                else:
+                    selected_ids = r_selected
+                    submitted_values = r_submitted
+                    mark_result = r_result
+                    feedback_for_pk = element.pk
         return mark_safe(  # noqa: S308 — templates escape user text; correctness never leaks
             obj.render(
                 element=element,

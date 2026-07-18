@@ -1337,6 +1337,12 @@ class QuestionElement(ElementBase):
     subclasses implement mark(); the server is the sole marking authority.
     """
 
+    # Practice-state (slice 3): does a lesson-mode answer to this type persist and
+    # restore across reload? Base default off; the five simple, server-refillable
+    # types opt in. Single source of truth for BOTH the save (check_answer) and the
+    # restore (render_element) sides.
+    RESTORABLE_IN_LESSON = False
+
     class MarkingMode(models.TextChoices):
         AUTO = "A", _("Auto-marked")
         NOT_MARKED = "N", _("Not marked")
@@ -1431,6 +1437,8 @@ class QuestionElement(ElementBase):
 
 class ChoiceQuestionElement(QuestionElement):
     """Single- (multiple=False) or multiple-choice (multiple=True) MCQ."""
+
+    RESTORABLE_IN_LESSON = True
 
     multiple = models.BooleanField(default=False)
     elements = GenericRelation(Element)
@@ -1565,6 +1573,8 @@ def _accepted_lines(blob):
 class ShortTextQuestionElement(QuestionElement):
     """Free-text answer marked by normalized comparison against >=1 accepted lines."""
 
+    RESTORABLE_IN_LESSON = True
+
     REVEAL_TEMPLATE = "courses/elements/_reveal_shorttext.html"
 
     accepted = models.TextField(blank=True)  # newline-delimited accepted answers
@@ -1592,6 +1602,8 @@ EXTENDED_RESPONSE_MAX_CHARS = 10_000
 class ExtendedResponseQuestionElement(QuestionElement):
     """Long free text: [A] auto-marked by required/forbidden keywords, or
     [R] human-reviewed (Phase 3 queue) / [N] recorded. Single-row, no sub-tables."""
+
+    RESTORABLE_IN_LESSON = True
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_extendedresponse.html"
     required_keywords = models.TextField(blank=True)
@@ -1622,6 +1634,8 @@ class ExtendedResponseQuestionElement(QuestionElement):
 class ShortNumericQuestionElement(QuestionElement):
     """Numeric answer marked correct iff within an absolute tolerance of value."""
 
+    RESTORABLE_IN_LESSON = True
+
     REVEAL_TEMPLATE = "courses/elements/_reveal_shortnumeric.html"
 
     value = models.DecimalField(max_digits=20, decimal_places=8)
@@ -1645,6 +1659,8 @@ class ShortNumericQuestionElement(QuestionElement):
 
 class FillBlankQuestionElement(QuestionElement):
     """Stem with ordered blank tokens; each gap text-matched against its own answers."""
+
+    RESTORABLE_IN_LESSON = True
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_fillblank.html"
 
