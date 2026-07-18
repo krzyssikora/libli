@@ -1,5 +1,7 @@
 """Management command: idempotently seed a demo course, tree, and enrolled student."""
 
+from decimal import Decimal
+
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
@@ -7,6 +9,8 @@ from django.db import transaction
 from accounts.emails import ensure_verified_primary_email
 from accounts.services import set_user_role
 from courses.models import CalloutElement
+from courses.models import Choice
+from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
@@ -15,12 +19,21 @@ from courses.models import IframeElement
 from courses.models import ImageElement
 from courses.models import MathElement
 from courses.models import MediaAsset
+from courses.models import QuestionElement
+from courses.models import QuestionResponse
+from courses.models import QuizSubmission
+from courses.models import ShortTextQuestionElement
 from courses.models import SpoilerElement
 from courses.models import Subject
 from courses.models import TableElement
 from courses.models import TextElement
 from courses.models import VideoElement
+from courses.quiz import finalize_submission
+from courses.scoring import earned_marks
+from courses.scoring import to_stored_fraction
 from courses.video_url import canonicalize_video_url
+from grouping.models import Group
+from grouping.models import GroupMembership
 from institution.roles import COURSE_ADMIN
 from institution.roles import seed_roles
 
@@ -92,6 +105,9 @@ class Command(BaseCommand):
         self._callout(lesson)
         self._spoiler(lesson)
         self._table(lesson)
+
+        quiz = self._quiz(chapter)
+        self._group(quiz)
 
         self.stdout.write(self.style.SUCCESS("Demo course seeded (idempotent)."))
 
@@ -183,6 +199,79 @@ class Command(BaseCommand):
                 }
             ),
         )
+
+    def _quiz(self, chapter):
+        quiz = self._node(self.course, chapter, "unit", "Demo quiz", "quiz")
+        if not quiz.elements.exists():
+            short = ShortTextQuestionElement.objects.create(
+                stem="What is 2 + 2?",
+                accepted="4",
+                marking_mode=QuestionElement.MarkingMode.AUTO,
+                max_marks=Decimal("1"),
+            )
+            self.q_short = Element.objects.create(unit=quiz, content_object=short)
+            choice = ChoiceQuestionElement.objects.create(
+                stem="Which are prime?",
+                multiple=True,
+                marking_mode=QuestionElement.MarkingMode.AUTO,
+                max_marks=Decimal("1"),
+            )
+            Choice.objects.create(question=choice, text="2", is_correct=True)
+            Choice.objects.create(question=choice, text="3", is_correct=True)
+            Choice.objects.create(question=choice, text="4", is_correct=False)
+            self.q_choice = Element.objects.create(unit=quiz, content_object=choice)
+        else:
+            self.q_short = quiz.elements.filter(
+                content_type__model="shorttextquestionelement"
+            ).first()
+            self.q_choice = quiz.elements.filter(
+                content_type__model="choicequestionelement"
+            ).first()
+        return quiz
+
+    def _respond(self, submission, element, answer):
+        question = element.content_object
+        f = to_stored_fraction(question.mark(answer).fraction)
+        QuestionResponse.objects.get_or_create(
+            submission=submission,
+            element=element,
+            defaults={
+                "fraction": f,
+                "earned_marks": earned_marks(f, question.max_marks),
+                "latest_answer": sorted(answer) if isinstance(answer, set) else answer,
+                "attempt_count": 1,
+            },
+        )
+
+    def _graded_submission(self, quiz, student, short_answer, choice_answer):
+        submission, _ = QuizSubmission.objects.get_or_create(
+            student=student,
+            unit=quiz,
+            defaults={"status": QuizSubmission.Status.IN_PROGRESS},
+        )
+        if submission.status == QuizSubmission.Status.SUBMITTED:
+            return  # already graded on a prior run — idempotent
+        self._respond(submission, self.q_short, short_answer)
+        correct_ids = set(
+            self.q_choice.content_object.choices.filter(is_correct=True).values_list(
+                "pk", flat=True
+            )
+        )
+        # choice_answer: "full" -> all correct, "partial" -> one correct only
+        picks = correct_ids if choice_answer == "full" else set(list(correct_ids)[:1])
+        self._respond(submission, self.q_choice, picks)
+        finalize_submission(quiz, submission)  # freezes score/max_score, SUBMITTED
+
+    def _group(self, quiz):
+        group, _ = Group.objects.get_or_create(name="Demo Group", course=self.course)
+        group.teachers.add(self.teacher)
+        for st in self.group_students:
+            GroupMembership.objects.get_or_create(group=group, student=st)
+        # varied but fixed scores across the three students
+        plans = [("4", "full"), ("4", "partial"), ("5", "partial")]
+        for st, (short_ans, choice_ans) in zip(self.group_students, plans, strict=True):
+            self._graded_submission(quiz, st, short_ans, choice_ans)
+        return group
 
     def _upsert(self, unit, model, **fields):
         """Idempotently ensure `unit` has exactly one element of `model`.

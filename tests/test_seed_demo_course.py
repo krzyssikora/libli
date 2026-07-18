@@ -76,3 +76,50 @@ def test_seeded_ca_can_open_builder(client):
     client.force_login(teacher)
     resp = client.get("/manage/courses/demo-course/build/")
     assert resp.status_code == 200
+
+
+@pytest.mark.django_db
+def test_seed_quiz_group_populate_analytics():
+    from courses.models import Course
+    from courses.models import QuizSubmission
+    from courses.rollups import build_results_matrix
+    from courses.rollups import quiz_units_in_order
+    from grouping.models import Group
+    from grouping.models import GroupMembership
+
+    call_command("seed_demo_course")
+    course = Course.objects.get(slug="demo-course")
+
+    quizzes = list(quiz_units_in_order(course))
+    assert len(quizzes) == 1
+    quiz = quizzes[0]
+    assert quiz.unit_type == "quiz"
+
+    group = Group.objects.get(name="Demo Group", course=course)
+    students = [m.student for m in GroupMembership.objects.filter(group=group)]
+    assert len(students) == 3
+    assert group.teachers.filter(username="demo_teacher").exists()
+
+    # Every group member has a SUBMITTED, scored submission on the course gradeable
+    # (the non-empty-intersection requirement — a populated matrix, not empty cells).
+    for st in students:
+        sub = QuizSubmission.objects.get(student=st, unit=quiz)
+        assert sub.status == QuizSubmission.Status.SUBMITTED
+        assert sub.max_score and sub.max_score > 0
+
+    matrix = build_results_matrix(course, students, expanded=set(), values="percent")
+    # at least one populated cell exists across the group×quiz grid. Cells are dicts
+    # {"percent": .., "label": ..} (courses/rollups.py _cell); a populated cell has a
+    # non-None percent.
+    flat = [c for row in matrix["rows"] for c in row["cells"]]
+    assert any(c["percent"] is not None for c in flat)
+
+
+@pytest.mark.django_db
+def test_seed_quiz_group_idempotent():
+    from courses.models import QuizSubmission
+
+    call_command("seed_demo_course")
+    subs = QuizSubmission.objects.count()
+    call_command("seed_demo_course")
+    assert QuizSubmission.objects.count() == subs
