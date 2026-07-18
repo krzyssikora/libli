@@ -505,8 +505,11 @@ def _u(name, **kwargs):
     if name == "manage_review_queue":
         return reverse("courses:manage_review_queue", kwargs={"slug": "demo-course"})
     if name == "manage_review_submission":
+        # The REVIEW question + demo_student's unreviewed submission live on a
+        # SEPARATE quiz ("Practice quiz") so "Demo quiz" stays AUTO-only and the
+        # analytics/drill-down/gradebook shots show real graded cells (Task 2 fix).
         sub = QuizSubmission.objects.get(student__username="demo_student",
-                                         unit=unit("Demo quiz"))
+                                         unit=unit("Practice quiz"))
         return reverse("courses:manage_review_submission",
                        kwargs={"slug": "demo-course", "submission_pk": sub.pk})
     if name == "my_groups":
