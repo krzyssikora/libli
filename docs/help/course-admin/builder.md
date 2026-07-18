@@ -3,8 +3,8 @@
 The **course builder** is where you shape a course's structure and fill it with
 lessons and quizzes. Open it from your dashboard's **Studio** panel: click a
 course title to go straight into its builder. (Every course also appears in the
-**Manage courses** list — reached via **All courses** — with a **Build** link per
-row.)
+full **Studio** list — reached via the **All courses** link — with a **Build**
+link per row.)
 
 ![The course builder showing the demo course tree](static:core/img/help/builder-tree.png)
 
