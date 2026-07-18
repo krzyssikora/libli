@@ -161,16 +161,34 @@ VALIDATORS = {
 }
 ```
 
+`_val_done` is deliberately a **separate small validator**, not a `_val_monotone_flag(key)` factory
+shared with `_val_open_gate`. This matches `state.py`'s existing convention of named per-family
+validators (`_val_markdone`, `_val_open_gate`), keeps each independently readable, and the duplication
+is two trivial lines — unlike the JS `storedFlag`/`saveFlag` case (§4), which was five near-identical
+copies with real drift risk and so is worth extracting. (A factory is an acceptable alternative if the
+plan prefers it; not required.)
+
 ### 2. Model helpers — the canonical completed answer, per element
 
 - **Switch grid**: already carries the correct index per cycler (`lines[i].cyclers[j].answer`). No new
   field; the render walks the existing structure. The un-hide is **bounds-safe** — compare index
-  equality, never `options[answer]` — so an out-of-range persisted `answer` renders nothing, not a 500.
-- **Fill-in table**: add a `canonical_cells` property mirroring `FillGateElement.canonical_answers`.
-  For each answer cell, the first pipe-delimited alternative (`courses/filltable.py:split_alternatives`
-  `[0]`); static cells pass through unchanged. Empty/absent alternatives render an empty locked cell.
-- **Guess-the-number**: a display-formatted `target` (normalized Decimal — trailing-zero-stripped so
-  `7.50000000` shows as `7.5`). A small `canonical_target` property or a template filter; the plan picks.
+  equality, never `options[answer]` — so an out-of-range **author-set** `answer` index (e.g. from an
+  edited `options` list or a transfer/import; **not** the `element_state` blob, which only ever holds
+  `{"done": true}`) renders nothing, not a 500.
+- **Fill-in table**: add a `canonical_cells` property that returns a grid the **same shape as
+  `normalize_data(data)["cells"]`** — static cells copied through unchanged; each answer cell's
+  `answer` replaced by its first pipe-delimited alternative (`courses/filltable.py:split_alternatives`
+  `[0]`; empty/absent → empty string). **Not** positional like `FillGateElement.canonical_answers`:
+  `filltableelement.html` is a real Django template iterating `{% for row in data.cells %}{% for cell
+  in row %}`, and Django cannot do runtime-variable 2-D indexing (`{{ grid.<r>.<c> }}` needs literal
+  digit indices) nor `zip`. So `render()` substitutes `canonical_cells` **wholesale** for
+  `ctx["data"]["cells"]` when `mine.done`, and the existing loop + `_filltable_cell.html` include run
+  unchanged, branching only on `mine.done` for the readonly/locked styling.
+- **Guess-the-number**: a display-formatted `target` via the **existing** helper
+  `courses.guessnumber.format_target()` (`format(Decimal(target).normalize(), "f")`) — **not** a fresh
+  normalizer. Bare `.normalize()` yields E-notation for round numbers (`100` → `1E+2`, `40401` →
+  `4.0401E+4`), the exact defect `format_target`'s docstring records already fixing once; the new
+  `canonical_target` property must reuse or thin-wrap `format_target`, never reinvent it.
 
 ### 3. Server-rendered "done" appearance (gated on `mine.done`)
 
@@ -184,11 +202,15 @@ VALIDATORS = {
   When `mine.done`: input filled with `canonical_target`, `readonly`, `guessnumber--done`,
   `success_message` shown, Check removed. The `.guessnumber` div gains `data-state`/`data-state-url`.
 - **Fill-in table** — real template `filltableelement.html` gains `data-state`/`data-state-url` on the
-  `[data-filltable]` div and a locked branch: when `mine.done`, each answer cell renders its
-  `canonical_cells` value into a `readonly` `filltable__input--correct` input, Confirm omitted,
-  `filltable__summary--success`. Unanswered path is byte-identical to today.
+  `[data-filltable]` div and a locked branch: when `mine.done`, `render()` feeds the template
+  `canonical_cells` in place of `data["cells"]` (see §2) and the existing cell loop renders each answer
+  cell `readonly` + `filltable__input--correct`, Confirm omitted, `filltable__summary--success`.
 
-All three keep their `data-element-pk`/`data-check-url` unchanged; the check endpoints are untouched.
+**Unanswered-path invariant (all three):** when `mine` is absent/false, the rendered markup is
+**byte-identical to today** — the new `mine=None`/`mine_json="{}"` tag params and the template's
+`{% if mine.done %}` branch must not perturb the existing unanswered output. The Testing section's
+`data-state="{}"` + "unanswered renders editable/unlocked" assertions guard this for each element. All
+three also keep their `data-element-pk`/`data-check-url` unchanged; the check endpoints are untouched.
 
 ### 4. `window.libliState` — the shared JS helper
 
@@ -260,6 +282,11 @@ the doctrine, before claiming a test is falsifiable, name the single guard whose
 - Wrong/partial attempt → **no** `/state/` POST → reload → fresh, editable, unlocked.
 - Guess-the-number: correct → reload → target value shown readonly, success message, done.
 - The shared-helper refactor does not regress the two gates (the gate e2e files stay green).
+- **Nested restore** (Switch grid + Fill-in table are in `NESTABLE_TYPE_KEYS` — nestable inside Tabs):
+  one e2e that a completed **nested** switch grid / fill-in table restores correctly after reload (the
+  widget JS `container`-scoped `dataset`/`closest` lookups and the server render must work inside a tab
+  panel exactly as at top level). If the existing tabs-nesting e2e suite already exercises these two
+  post-restore, cite it and fold it into the regression DoD instead of adding a new case.
 
 **Regression / DoD:** full non-e2e suite; the three new e2e files plus `test_e2e_fillgate.py` /
 `test_e2e_switchgate.py` (guarding the `libliState` refactor); ruff + format + `makemigrations --check`
