@@ -4,6 +4,8 @@ A brand-new installation opens into a guided **setup wizard** instead of the
 plain home page, walking a Platform Admin through the handful of settings
 worth deciding on day one.
 
+![The first-run setup wizard](static:core/img/help/wizard.en.png)
+
 ## The steps
 
 1. **Welcome** — an overview of what's ahead.

@@ -4,6 +4,8 @@ libli can push finalized quiz results to your school information system
 (SIS) or e-register via a signed webhook. Configure the endpoint under
 **Admin → Institution settings → Integrations**.
 
+![The integrations settings tab](static:core/img/help/integrations.en.png)
+
 ## Setting it up
 
 Live grade sync needs **four things**: an **Endpoint URL**, a **Signing

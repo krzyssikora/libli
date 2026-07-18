@@ -4,6 +4,8 @@
 zamiast zwykłej strony głównej, prowadząc Administratora platformy przez
 garść ustawień wartych podjęcia od razu pierwszego dnia.
 
+![Kreator pierwszego uruchomienia](static:core/img/help/wizard.pl.png)
+
 ## Kroki
 
 1. **Powitanie** — przegląd tego, co przed Tobą.

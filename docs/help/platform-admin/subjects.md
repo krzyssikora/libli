@@ -3,6 +3,8 @@
 Subjects are the taxonomy courses are tagged with — they drive catalog
 filtering and analytics grouping. Manage them from **Admin → Subjects**.
 
+![The subjects list](static:core/img/help/subjects.en.png)
+
 ## Managing the list
 
 - **New subject** creates a new subject with a **Title (English)** (required),

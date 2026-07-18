@@ -22,6 +22,8 @@ happens to each affected item depends on the problem:
 
 ## Importing
 
+![The course import screen](static:core/img/help/import.en.png)
+
 Use **Studio** and click **Import course** to upload a `.zip` and create a
 new course from it, or **Import content** inside a course's builder to
 insert a subtree into that course at a chosen point. Either way the flow

@@ -6,6 +6,8 @@ Notifications and Integrations each have their own topic.
 
 ## Branding
 
+![The branding settings tab](static:core/img/help/branding.en.png)
+
 Set the institution **name** and **logo** (2 MB max), the **primary** and
 **accent** colours used throughout the interface (as 6-digit hex codes,
 e.g. `#147E78`), the **default theme** (**Light**, **Dark** or **Auto** —

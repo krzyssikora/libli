@@ -4,6 +4,8 @@ Inviting someone by email is the usual way to add a new account — open
 **Admin → People → Invitations**, where the invite form is always shown at
 the top of the tab. Fill it in and **Send invitation** sends it.
 
+![The invitations screen](static:core/img/help/invitations.en.png)
+
 ## Sending an invite
 
 Enter the person's email and pick the role they should start with (see

@@ -3,6 +3,8 @@
 Strona **Osoby** to miejsce, w którym Administrator platformy zarządza wszystkimi
 kontami w systemie. Otwórz ją z menu **Administracja → Osoby**.
 
+![Tabela zarządzania użytkownikami](static:core/img/help/people.pl.png)
+
 ## Dodawanie użytkownika
 
 Otwórz zakładkę **Zaproszenia** — formularz zaproszenia jest zawsze

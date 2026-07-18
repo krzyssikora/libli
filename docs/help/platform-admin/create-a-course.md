@@ -4,7 +4,11 @@ Open **Studio** and click **New course** to create a course. The form on this
 page sets up the course shell; you fill it with content afterwards in the
 builder.
 
+![The course list in Studio](static:core/img/help/course-list.en.png)
+
 ## Core fields
+
+![The new-course form](static:core/img/help/course-create.en.png)
 
 - **Title** — shown throughout the platform and the catalog.
 - **Slug** *(optional)* — the URL segment; leave it blank and it is generated

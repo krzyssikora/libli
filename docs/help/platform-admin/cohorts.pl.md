@@ -6,6 +6,8 @@ konkretnego kursu — zwykle rocznik lub nabór. Zarządzaj kohortami z
 kursu widzą nazwy kohort przy wybieraniu uczniów do grupy, ale nie mają
 dostępu do tej listy).
 
+![Lista roczników](static:core/img/help/cohorts.pl.png)
+
 ## Kohorta domyślna
 
 Każdy uczeń, który nie został inaczej przypisany, należy do kohorty
