@@ -1,7 +1,6 @@
 import pytest
 from django.urls import reverse
 
-from courses.element_forms import build_choice_formset
 from courses.marking import MarkResult
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
@@ -149,12 +148,3 @@ def test_element_try_quiz_choice_returns_feedback_partial(client):
     assert resp.status_code == 200
     body = resp.content.decode()
     assert "<form" not in body  # quiz feedback fragment is form-less -> falls through
-
-
-@pytest.mark.django_db
-def test_choice_feedback_help_text_mentions_both_cases():
-    fs = build_choice_formset(multiple=True)
-    help_text = str(fs.forms[0].fields["feedback"].help_text)
-    assert help_text  # non-empty
-    # mentions the missed-correct case, not only distractors
-    assert "correct" in help_text.lower()

@@ -64,6 +64,15 @@ def answer_is_empty(answer):
     return not answer
 
 
+def selected_ids(answer):
+    """The choice-pk set from a build_answer() payload; empty for non-choice answers.
+
+    Only choice questions produce a set/frozenset; text/fill-blank/etc. payloads
+    (str, list, None) carry no selection, so they collapse to an empty frozenset.
+    """
+    return answer if isinstance(answer, (set, frozenset)) else frozenset()
+
+
 def answer_to_json(answer):
     """JSON-safe form of a build_answer() payload for QuestionResponse.latest_answer."""
     if isinstance(answer, (set, frozenset)):

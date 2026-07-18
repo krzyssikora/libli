@@ -1134,9 +1134,11 @@ def element_try(request, slug, pk):
 
     # Lesson: immediate feedback, exactly like the student lesson check.
     if el.unit.unit_type != ContentNode.UnitType.QUIZ:
+        from courses.quiz import selected_ids
+
         result = question.mark(answer)  # NOTHING is persisted
         if isinstance(question, ChoiceQuestionElement):
-            selected = answer if isinstance(answer, (set, frozenset)) else frozenset()
+            selected = selected_ids(answer)
             return HttpResponse(
                 question.render(
                     element=el,

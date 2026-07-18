@@ -394,16 +394,6 @@ msgstr ""
 msgid "Optional — shown if the student gets this option wrong"
 msgstr "Opcjonalne — pokazywane, gdy uczeń pomyli się na tej opcji"
 
-#: .\courses\element_forms.py:692
-msgid ""
-"Shown to the student when they get this option wrong — either they picked it "
-"(a distractor) or missed it (a correct option). Explain why it is wrong, or "
-"why a correct option should be chosen."
-msgstr ""
-"Wyświetlane studentowi, gdy błędnie oceni tę opcję — czy to ją wybrał (jako "
-"dystraktor), czy pominął (jako poprawną). Wyjaśnij, dlaczego jest błędna "
-"albo dlaczego należało wybrać poprawną opcję."
-
 #: .\courses\element_forms.py:739
 msgid "Add at least one accepted answer."
 msgstr "Dodaj co najmniej jedną akceptowaną odpowiedź."
@@ -4156,7 +4146,7 @@ msgstr "Zmień nazwę"
 #: .\templates\courses\manage\_roster_row.html:25
 #: .\templates\courses\manage\review_queue.html:33
 msgid "Force-submit"
-msgstr "Wymuś przesłanie"
+msgstr "Wymuś wysłanie"
 
 #: .\templates\courses\manage\_scope.html:6
 msgid "No children yet."

@@ -24,6 +24,16 @@ def test_answer_to_json_set_becomes_sorted_list():
     assert answer_to_json(["a", ""]) == ["a", ""]
 
 
+def test_selected_ids_returns_set_only_for_choice_payloads():
+    from courses.quiz import selected_ids
+
+    assert selected_ids({3, 1}) == {3, 1}  # choice payload passes through
+    assert selected_ids(frozenset({2})) == {2}
+    assert selected_ids("Paris") == frozenset()  # text -> empty
+    assert selected_ids(["x", "y"]) == frozenset()  # fill-blank list -> empty
+    assert selected_ids(None) == frozenset()
+
+
 @pytest.mark.django_db
 def test_rehydrate_choice_returns_selected_ids():
     q = ChoiceQuestionElement.objects.create(stem="s", multiple=True)

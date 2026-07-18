@@ -71,6 +71,7 @@ from courses.quiz import answer_is_empty  # noqa: F401
 from courses.quiz import answer_to_json  # noqa: F401
 from courses.quiz import quiz_feedback_context
 from courses.quiz import rehydrate  # noqa: F401
+from courses.quiz import selected_ids
 from courses.rollups import build_course_results
 from courses.rollups import build_outline
 from courses.rollups import build_unit_nav
@@ -790,7 +791,7 @@ def check_answer(request, slug, node_pk, element_pk):
             # Choice: return the full re-rendered element so inline per-option feedback
             # lands in the choices list (question.js swaps the form body). render() sets
             # reveal_template=None for lesson mode -> no duplicate bottom reveal list.
-            selected = answer if isinstance(answer, (set, frozenset)) else frozenset()
+            selected = selected_ids(answer)
             return HttpResponse(
                 question.render(
                     element=element,
@@ -807,7 +808,7 @@ def check_answer(request, slug, node_pk, element_pk):
         )
     # No-JS: re-render the whole lesson unit with this question's feedback inline.
     ctx = full_lesson_render_context(node, request.user)
-    selected = answer if isinstance(answer, (set, frozenset)) else frozenset()
+    selected = selected_ids(answer)
     submitted = None if isinstance(answer, (set, frozenset)) else answer
     ctx.update(
         feedback_for_pk=element.pk,
