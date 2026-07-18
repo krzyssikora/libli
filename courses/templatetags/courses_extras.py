@@ -301,36 +301,59 @@ def render_switch_gate(el, eid, mine=None, mine_json="{}", save_url=""):
 
 
 @register.simple_tag
-def render_guess_number(el, eid):
+def render_guess_number(el, eid, mine=None, mine_json="{}", save_url=""):
     """Render the numeric input spliced into the stem at its U+FFFF-delimited token.
 
     NO <form>: implicit submission cannot be suppressed without JS, and a stray
     Enter reload would wipe reveal.js's in-memory cascade state (it persists
     nothing), re-hiding a gated element. Enter comes from a keydown listener
     instead. The <div> WRAPS the stem; only inline markup is spliced, because
-    the parser hoists block elements out of an enclosing <p>."""
+    the parser hoists block elements out of an enclosing <p>.
+
+    mine_json is passed pre-serialized from the template (courses_extras.py has
+    no json import). When mine.done (restore path), the input shows
+    el.canonical_target readonly + is-correct, Check is omitted entirely, and
+    the success block is un-hidden -- reproducing guessnumber.js's correct-
+    branch appearance server-side (its boot skip-arm does not re-run this).
+    See courses.guessnumber."""
     check_url = reverse("courses:guessnumber_check", args=[eid])
-    widget = format_html(
-        '<input data-guess-input type="text" inputmode="decimal" '
-        'aria-label="{}"><button data-guess-check type="button" hidden>{}</button>',
-        _("Your answer"),
-        _("Check"),
-    )
+    is_done = bool((mine or {}).get("done"))
+    if is_done:
+        widget = format_html(
+            '<input data-guess-input type="text" inputmode="decimal" '
+            'aria-label="{}" value="{}" readonly class="is-correct">',
+            _("Your answer"),
+            el.canonical_target,
+        )
+    else:
+        widget = format_html(
+            '<input data-guess-input type="text" inputmode="decimal" '
+            'aria-label="{}"><button data-guess-check type="button" hidden>{}</button>',
+            _("Your answer"),
+            _("Check"),
+        )
     body = guessnumber.render_stem(el.stem, widget)
     msg = el.success_message or ""
     has_text = bool(strip_tags(msg).strip())
     success = mark_safe(msg) if has_text else format_html("{}", _("Correct!"))  # noqa: S308 — sanitized at save()
+    done_class = mark_safe(" guessnumber--done") if is_done else ""
+    success_hidden = "" if is_done else mark_safe(" hidden")
     return format_html(
-        '<div class="guessnumber" data-guessnumber data-element-pk="{}" '
-        'data-check-url="{}" data-msg-high="{}" data-msg-low="{}">{}'
+        '<div class="guessnumber{}" data-guessnumber data-element-pk="{}" '
+        'data-check-url="{}" data-msg-high="{}" data-msg-low="{}" '
+        'data-state="{}" data-state-url="{}">{}'
         '<div data-guess-live aria-live="polite">'
         "<p data-guess-hint hidden></p>"
-        "<div data-guess-success hidden>{}</div></div></div>",
+        "<div data-guess-success{}>{}</div></div></div>",
+        done_class,
         eid,
         check_url,
         _("The number is too big, try again."),
         _("The number is too small, try again."),
+        mine_json,
+        save_url,
         body,
+        success_hidden,
         success,
     )
 
