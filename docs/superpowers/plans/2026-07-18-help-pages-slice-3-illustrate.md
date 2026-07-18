@@ -767,8 +767,8 @@ and its `.pl.md`:
 
 - [ ] **Step 5: Verify these topics' refs resolve**
 
-Run: `uv run pytest "tests/test_help.py::test_all_topics_static_refs_resolve" tests/test_help.py::test_builder_topic_embeds_existing_screenshot -v`
-Expected: PASS (every referenced static path resolves; builder points at the renamed image).
+Run: `uv run pytest "tests/test_help.py::test_all_topics_static_refs_resolve" -v`
+Expected: PASS (every referenced static path resolves, including `builder.md` → `builder-tree.en.png`). The builder-specific test was deleted in Step 3, so it is not invoked here.
 
 - [ ] **Step 6: Commit**
 
