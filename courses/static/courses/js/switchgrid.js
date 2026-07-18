@@ -83,7 +83,10 @@
       .then(function (data) {
         paint(root, data.cells || []);
         summarize(root, !!data.correct);
-        if (data.correct) lock(root);
+        if (data.correct) {
+          lock(root);
+          window.libliState.saveFlag(root, { done: true });
+        }
       })
       .catch(function () { /* fail-open: leave widget interactive */ });
   }
@@ -91,6 +94,14 @@
   function initOne(root) {
     if (root.dataset.switchgridReady === "1") return;
     root.dataset.switchgridReady = "1";
+    if (window.libliState.storedFlag(root, "done")) {
+      // Server rendered it locked; do NOT arm cyclers/Confirm. Typeset THEN
+      // return -- .switchgrid is excluded from math.js's global
+      // renderInlineText list, so this file's own call is the ONLY thing
+      // that typesets its math (mirrors switchgate.js's boot short-circuit).
+      if (window.renderMathInElement) { try { window.renderMathInElement(root); } catch (e) {} }
+      return;
+    }
     root.querySelectorAll("[data-switchgrid-cycler]").forEach(function (cyc) {
       cyc.addEventListener("click", function () { advance(cyc); });
     });
