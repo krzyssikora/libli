@@ -1,0 +1,188 @@
+# Help doc-page frontend pass
+
+Design pass on the in-app `/help/` doc surface — the last piece of the help-pages
+refresh initiative (following PR #152, which illustrated every topic). Two goals:
+make the element-type **term/description** blocks scannable, and prefix each
+element-type entry with the **same monochrome icon** the course-admin sees in the
+add-element palette. Token-driven CSS only (light + dark), reusing the existing
+`#el-*` sprite; no product changes beyond the help/doc renderer.
+
+## Purpose
+
+The help topic pages render trusted repo markdown through `core/help.py`. Two
+readability problems remain after the screenshot initiative:
+
+1. **Wall of paragraphs.** `docs/help/course-admin/content-editors.md` lists the
+   ~12 content element types as `**Text** — …` bold-lead paragraphs. Rendered, they
+   are near-identical `<p>` blocks with no visual separation — you cannot scan for a
+   type. `doc-page.css` only styles base prose/headings/code/tables, so there is no
+   treatment for these term/description entries.
+
+2. **No icons.** The authoring palette (`templates/courses/manage/editor/_add_menu.html`)
+   shows each element type with a monochrome `#el-*` sprite icon. The docs show none,
+   so the manual does not visually mirror the tool it documents.
+
+Goal: a scannable term/description treatment for the element list, and a per-type
+icon on every element-type entry across the three element surfaces
+(content-editors list + interactive-elements/quiz-editors headings) — reusing the
+existing sprite, driven by design tokens, working in both themes.
+
+Out of scope (deferred to a separate follow-up slice, by user decision): re-pointing
+the roster screenshot at the group membership editor, and fixing the 16×16
+`demo.png` seed asset + re-capturing shots that include the media library.
+
+## Architecture / components
+
+### 1. Icon injection — token + render-time transform (`core/help.py`)
+
+Reusing the `#el-*` sprite requires `<svg><use href="#el-…"/></svg>` in the DOM;
+CSS alone cannot select a per-type icon. Authors mark each element-type entry with a
+stable, language-independent token `{el:SLUG}`, where `SLUG` is the sprite id minus
+its `el-` prefix (e.g. `{el:text}` → `#el-text`). A new transform in `core/help.py`,
+a sibling of the existing `resolve_static_srcs`, rewrites these tokens **after**
+`markdown.markdown()` renders:
+
+- **List entry** (paragraph form, content-editors):
+  `<p>{el:text} <strong>Text</strong> — …</p>`
+  → a `.doc-elref` row: an icon in a fixed gutter, the original paragraph content as
+  the body. The `<strong>` term lead is preserved (kept as a single row, not split
+  into `<dt>/<dd>` — splitting on the em-dash is fragile because descriptions contain
+  dashes).
+
+- **Heading** (interactive-elements, quiz-editors `##` per element):
+  `<h2>{el:revealgate} Show more</h2>`
+  → the heading with a leading inline icon injected right after the opening tag.
+
+The token grammar is `\{el:([a-z0-9-]+)\}`. Because python-markdown here runs only
+`fenced_code` + `tables` (no `attr_list`), `{…}` passes through as literal text and
+is safe to match in the rendered HTML.
+
+**Slug validation.** The set of valid slugs, `ELEMENT_ICON_SLUGS`, is derived once by
+parsing `templates/courses/manage/_icon_sprite.html` for `id="el-…"` symbol ids
+(stripping the `el-` prefix). The transform only rewrites a token whose slug is in
+that set; an unknown/typo'd slug is **left as literal text** (visible, and caught by
+tests — never a silent miss). Parsing the sprite (rather than hardcoding a list)
+keeps the docs and the palette from drifting apart.
+
+**Emitted markup** (illustrative):
+
+```html
+<!-- list entry -->
+<div class="doc-elref">
+  <svg class="ic" aria-hidden="true" focusable="false"><use href="#el-text"></use></svg>
+  <div class="doc-elref__body"><strong>Text</strong> — the workhorse block…</div>
+</div>
+
+<!-- heading -->
+<h2><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-revealgate"></use></svg>Show more</h2>
+```
+
+Icons are decorative (`aria-hidden="true" focusable="false"`), matching the palette;
+the element name in text carries the meaning for assistive tech.
+
+### 2. Sprite availability (`templates/help/doc.html`)
+
+`<use href="#el-…">` resolves against a symbol present in the same document. The
+sprite currently loads only on builder/editor pages, so `doc.html` gains
+`{% include "courses/manage/_icon_sprite.html" %}` (a hidden 0×0 `<svg>`). The help
+index page (`index.html`) does not need it. Cross-app include is fine — Django's
+template loader is app-agnostic; the mild coupling is noted, not refactored (moving
+the sprite would touch every editor template that includes it — out of scope).
+
+### 3. CSS (`core/static/core/css/doc-page.css`) — token-driven, both themes
+
+Dark mode is driven by the `[data-theme="dark"]` attribute on the token set in
+`core/static/core/css/tokens.css`; styling with tokens makes both themes work with
+no media queries.
+
+- **`.doc-elref` rows** — flex, an icon gutter, comfortable padding, a subtle
+  surface/border to separate entries and give a scannable rhythm; the `<strong>`
+  term stays emphasized. This is the goal-1 readability fix.
+- **`.doc-page .ic` sizing** — the palette's `.ic` rule lives in `editor.css`, which
+  is not loaded on help pages, so the icon box size is defined here (in the
+  `.doc-page` scope), plus `fill: currentColor` so icons inherit text color.
+- **Heading icons** — `.doc-page h2 .ic`, `.doc-page h3 .ic`: inline, vertically
+  aligned with the heading text, in a muted/accent color.
+- **Token correction** — `doc-page.css` currently references phantom tokens
+  `var(--surface-2, …)` and `var(--text-muted, …)` that do not exist in `tokens.css`,
+  so those rules silently use their hardcoded literal fallbacks instead of riding the
+  design system. Replace them with real tokens (`--surface-sunken`, `--text-tertiary`,
+  keeping `--border-default`) so the help surface is genuinely token-driven. This is
+  the "match the design system" half of goal 1.
+
+### 4. Content edits (EN + PL)
+
+Add `{el:SLUG}` tokens to every element-type entry, in both language files:
+
+- `docs/help/course-admin/content-editors.md` / `.pl.md` — ~12 list entries:
+  text, image, video, iframe, math, html, table, gallery, callout, tabs,
+  twocolumn (Columns), slidebreak (Slide break).
+- `docs/help/course-admin/interactive-elements.md` / `.pl.md` — 9 `##` headings:
+  revealgate (Show more), fillgate (Fill in & confirm), switchgate (Choose & confirm),
+  switchgrid (Switch grid), filltable (Fill-in table), spoiler, stepper (Step-by-step),
+  markdone (Checklist), guessnumber (Guess the number).
+- `docs/help/course-admin/quiz-editors.md` / `.pl.md` — ~10 `##` headings:
+  choice-single (Single / Multiple choice), shorttext (Short text),
+  shortnumeric (Short numeric), fillblank (Fill in the blanks), dragwords (Drag the
+  words), matchpairs (Match pairs), switchgrid (Matrix question),
+  switchgrid (Multi-select grid), dragimage (Drag to image), extended (Extended
+  response).
+
+Token placement: at the very start of the paragraph/heading line, before the bold
+term or heading text. Non-element sections ("See also", "Where questions live", prose)
+get no token and are untouched.
+
+## Data flow
+
+1. `help_topic` view → `render_markdown_doc(rel_path)`.
+2. `render_markdown_doc` reads the `.md`, runs `markdown.markdown(...)`, then applies
+   post-processors: `resolve_element_icons(html)` (new) and `resolve_static_srcs(html)`
+   (existing). Order is independent — icons touch `{el:…}` tokens, static touches
+   `src="static:…"`.
+3. Rendered HTML → `help/doc.html`, which now also includes the icon sprite, so the
+   `<use href="#el-…">` references resolve.
+4. Browser applies `doc-page.css`: `.doc-elref` rows + sized icons, both themes via
+   token variables.
+
+## Error handling
+
+- **Unknown slug.** A `{el:xyz}` with `xyz ∉ ELEMENT_ICON_SLUGS` is left as literal
+  text — no exception (help pages are trusted content, but a render-time raise could
+  500 a live page). Caught by the "no stray `{el:` survives render" test instead.
+- **Malformed token.** Anything not matching `\{el:[a-z0-9-]+\}` is ordinary text and
+  passes through untouched.
+- **Sprite parse.** `ELEMENT_ICON_SLUGS` is derived at import; if the sprite file is
+  unreadable that is a packaging bug and fails loud at import (consistent with
+  `core/help.py`'s existing fail-loud stance on missing files / duplicate slugs).
+- **Consistency with existing renderer.** `resolve_element_icons` follows the same
+  pure-function, regex-substitution shape as `resolve_static_srcs`; no new state.
+
+## Testing
+
+Falsifiable guards (each must be able to go red if the behavior it protects is
+removed — per the project's "falsify tests, don't run them" doctrine):
+
+1. **Token → real sprite id.** Parse every `{el:SLUG}` token across all `docs/help/`
+   markdown; assert each `SLUG` ∈ the sprite's `el-*` ids. Falsify: introduce a typo
+   token → red.
+2. **No literal leak.** For each element topic (content-editors, interactive-elements,
+   quiz-editors), render via `render_markdown_doc` and assert the output contains
+   **no** literal `{el:` substring. Falsify: skip the transform → red.
+3. **Icon injected.** Assert a rendered element topic contains `<use href="#el-text">`
+   (content-editors) and `<use href="#el-revealgate">` (interactive-elements), wrapped
+   per the emitted-markup contract (`.doc-elref` for the list entry; inside an
+   `<h2>` for the heading). Falsify: drop the emit → red.
+4. **Transform is targeted.** Assert `resolve_element_icons` leaves ordinary prose
+   paragraphs (no token) byte-for-byte unchanged. Falsify: an over-broad regex that
+   rewrites untokened text → red.
+5. **Sprite present on the page.** A view-level test (authenticated, permitted user)
+   for a topic page asserts the response includes the sprite symbol
+   (`id="el-text"`), i.e. `doc.html` includes the partial. Falsify: remove the
+   include → red.
+
+Extend the existing `tests/test_help.py` rather than adding a parallel module.
+
+**Manual verification.** Light + dark Playwright screenshots of the content-editors
+and interactive-elements topic pages before shipping, self-critiqued for icon
+alignment, row rhythm, and token-correct surfaces in both themes (per the project's
+screenshot-verification habit).
