@@ -8,6 +8,8 @@ commit button removed, so there is nothing to submit and nothing to grade —
 these elements record **no marks**. Like the [content element
 types](content-editors), they are nestable inside Tabs and Columns.
 
+![A lesson with a reveal-gate self-check](static:core/img/help/interactive.en.png)
+
 ## Show more
 
 A thin gate with a **Button text** field (default *Show more*, shown

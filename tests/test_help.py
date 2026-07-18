@@ -319,17 +319,6 @@ def test_help_ui_string_translated_to_polish(msgid):
         )
 
 
-def test_builder_topic_embeds_existing_screenshot():
-    from django.contrib.staticfiles import finders
-
-    from core.help import render_markdown_doc
-
-    html = render_markdown_doc("help/course-admin/builder.md")
-    assert 'src="/static/core/img/help/builder-tree.png"' in html  # rewrite applied
-    # bridge URL -> disk via the RAW sentinel rel path (not the rendered /static src)
-    assert finders.find("core/img/help/builder-tree.png") is not None
-
-
 def test_all_topics_static_refs_resolve():
     """Every `static:` image reference in every topic resolves to a real file.
     Scans the PRE-rewrite render (image nodes only), so a topic that merely

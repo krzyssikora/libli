@@ -24,6 +24,8 @@ nie renderuje:
 Poniższe pola specyficzne dla typu decydują o tym, czym różni się zachowanie
 poszczególnych rodzajów pytań.
 
+![Edytor quizu z pytaniami](static:core/img/help/quiz-editor.pl.png)
+
 ## Jednokrotny wybór / Wielokrotny wybór
 
 Lista **odpowiedzi**, z których każda jest oznaczona jako poprawna lub

@@ -6,6 +6,8 @@ kursu, aby przejść od razu do jego kreatora. (Każdy kurs znajduje się też n
 pełnej liście **Studio** — dostępnej przez odnośnik **Wszystkie kursy** — gdzie
 każdy wiersz ma odnośnik **Buduj**.)
 
+![Kreator kursu pokazujący drzewo kursu demo](static:core/img/help/builder-tree.pl.png)
+
 ## Presety struktury
 
 Każdy kurs korzysta z jednego z czterech presetów struktury albo z własnego,

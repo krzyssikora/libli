@@ -5,6 +5,8 @@ across all its lessons and quizzes. Open it from your dashboard's **Studio**
 panel: click a course title to open its builder, then press
 **Media library**.
 
+![The media library for a course](static:core/img/help/media-manager.en.png)
+
 ## Uploading a file
 
 At the top of the library, choose a **kind** (Image or Video), pick a **file**
