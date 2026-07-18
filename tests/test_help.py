@@ -1,13 +1,18 @@
+import re
+
 import pytest
 from django.contrib.auth.models import Permission
+from django.contrib.staticfiles import finders
 from django.urls import reverse
 from django.utils import translation
 
 from core import help as core_help
+from core.help import DOCS_ROOT
 from core.help import ROLE_FOLDER
 from core.help import TOPICS
 from core.help import get_topic
 from core.help import localized_doc_path
+from core.help import render_markdown_doc
 from core.help import topics_for
 from core.help import user_has_any_help
 from institution.roles import COURSE_ADMIN
@@ -319,19 +324,27 @@ def test_help_ui_string_translated_to_polish(msgid):
         )
 
 
-def test_all_topics_static_refs_resolve():
-    """Every `static:` image reference in every topic resolves to a real file.
-    Scans the PRE-rewrite render (image nodes only), so a topic that merely
-    documents the sentinel in prose/code produces no <img> and is not scanned."""
-    import re
+_IMG = re.compile(r'<img[^>]*\bsrc="static:([^"]+)"')
 
-    from django.contrib.staticfiles import finders
 
-    from core.help import TOPICS
-    from core.help import render_markdown_doc
+def _doc_images(rel_path):
+    html = render_markdown_doc(rel_path, resolve_static=False)
+    return _IMG.findall(html)
 
-    pat = re.compile(r'<img[^>]+src="static:([^"]+)"')
-    for topic in TOPICS:
-        raw = render_markdown_doc(topic.path, resolve_static=False)
-        for rel in pat.findall(raw):
-            assert finders.find(rel) is not None, f"{topic.slug}: missing {rel}"
+
+@pytest.mark.parametrize("topic", TOPICS, ids=lambda t: t.slug)
+def test_every_topic_illustrated_both_locales(topic):
+    for locale, suffix in (("en", ".en.png"), ("pl", ".pl.png")):
+        if locale == "en":
+            path = topic.path
+        else:
+            path = topic.path.removesuffix(".md") + ".pl.md"
+            # Do NOT use localized_doc_path (falls back to EN if the .pl.md is absent).
+            assert (DOCS_ROOT / path).exists(), f"missing PL doc: {path}"
+        images = _doc_images(path)
+        assert images, f"{path}: embeds no static: image"
+        for rel in images:
+            assert finders.find(rel) is not None, f"{path}: unresolved image {rel}"
+            assert rel.endswith(suffix), (
+                f"{path}: image {rel} lacks the {suffix} locale suffix"
+            )
