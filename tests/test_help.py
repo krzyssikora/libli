@@ -564,3 +564,14 @@ def test_pl_icon_sequence_matches_en(rel):
     pl_icons = _USE_SLUG.findall(render_markdown_doc(pl))
     assert en_icons, f"{rel}: no icons rendered"
     assert en_icons == pl_icons, f"{rel}: EN {en_icons} != PL {pl_icons}"
+
+
+def test_doc_page_css_uses_real_tokens_and_styles_elref():
+    from django.contrib.staticfiles import finders
+
+    css = open(finders.find("core/css/doc-page.css"), encoding="utf-8").read()
+    assert ".doc-elref" in css
+    assert ".doc-elref__body" in css
+    # phantom tokens corrected to real ones
+    assert "--surface-2" not in css
+    assert "--text-muted" not in css

@@ -3,7 +3,7 @@
 .doc-page { max-width: 52rem; margin: 0 auto; padding: 1rem 0 4rem; }
 .doc-page h2 { margin-top: 2.25rem; border-bottom: 1px solid var(--border-default);
   padding-bottom: .25rem; }
-.doc-page pre { background: var(--surface-2, rgba(127,127,127,.12));
+.doc-page pre { background: var(--surface-sunken);
   padding: 1rem; border-radius: .5rem; overflow-x: auto; }
 .doc-page code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .doc-page table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
@@ -15,7 +15,7 @@
 .help-index__group { margin-top: 2rem; }
 .help-index__list { list-style: none; padding: 0; margin: .5rem 0 0; }
 .help-index__list li { margin: .35rem 0; }
-.help-index__empty { color: var(--text-muted, #666); margin-top: 1.5rem; }
+.help-index__empty { color: var(--text-tertiary); margin-top: 1.5rem; }
 
 /* Topic layout: sidebar + article */
 .doc-layout { display: flex; gap: 2rem; align-items: flex-start;
@@ -24,12 +24,24 @@
 .doc-sidebar__back { display: inline-block; margin-bottom: 1rem; }
 .doc-sidebar__list { list-style: none; padding: 0; margin: 0; }
 .doc-sidebar__item { display: block; padding: .3rem .5rem; border-radius: .375rem; }
-.doc-sidebar__item.is-active { background: var(--surface-2, rgba(127,127,127,.12));
+.doc-sidebar__item.is-active { background: var(--surface-sunken);
   font-weight: 600; }
-.doc-breadcrumb { color: var(--text-muted, #666); margin-bottom: 1rem; }
+.doc-breadcrumb { color: var(--text-tertiary); margin-bottom: 1rem; }
 .doc-layout .doc-page { margin: 0; }
 
 @media (max-width: 48rem) {
   .doc-layout { flex-direction: column; }
   .doc-sidebar { flex-basis: auto; }
 }
+
+/* Element-type reference (content-editors list) + per-type icons (help/doc.html
+   includes the #el-* sprite). Sizes .ic locally since editor.css isn't loaded here. */
+.doc-page .ic { width: 1.15rem; height: 1.15rem; flex: 0 0 auto; fill: currentColor; }
+.doc-elref { display: flex; align-items: flex-start; gap: var(--space-3);
+  padding: var(--space-2) var(--space-3); margin: var(--space-2) 0;
+  background: var(--surface-sunken); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); }
+.doc-elref .ic { margin-top: .15rem; }
+.doc-elref__body { flex: 1; min-width: 0; }
+.doc-page :is(h2, h3) .ic { display: inline-block; vertical-align: -.12em;
+  margin-right: var(--space-2); color: var(--text-tertiary); }
