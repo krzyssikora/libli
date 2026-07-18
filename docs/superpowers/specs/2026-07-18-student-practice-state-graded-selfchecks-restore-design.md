@@ -242,10 +242,21 @@ window.libliState = {
 ```
 
 `fillgate.js` and `switchgate.js` are refactored onto it (`storedOpen(el)` → `libliState.storedFlag(el,
-"open")`; `saveOpen(c)` → `libliState.saveFlag(c, {open: true})`), removing their private copies. The
-plan resolves where `csrf` lives (the helper hosts it, or reads the existing per-file `csrf()`), and
-the include wiring so the helper is present whenever any consuming widget is (the `has_<type>` flag
-mechanism in `build_lesson_context`).
+"open")`; `saveOpen(c)` → `libliState.saveFlag(c, {open: true})`), removing their private copies.
+
+**`csrf` lives in `libliState`.** The helper hosts its own `csrf()` (self-contained); `saveFlag` calls
+it. A separately-loaded `libliState.js` **cannot** reach a per-file module-scoped `csrf()` across IIFE
+closures, so "read the existing per-file csrf" is not viable and is not an option. The widget files keep
+their own private `csrf()` for their existing `*_check` POSTs unchanged (the plan MAY later consolidate
+those onto `libliState.csrf()`, but this slice does not require it).
+
+**Load order is a hard requirement, pinned here (not punted to the plan).** `libliState.js` must be
+included on a lesson page **before** every widget script, whenever **any** consuming widget is present
+— gated on the OR of all six flags `has_revealgate ∨ has_fillgate ∨ has_switchgate ∨ has_switchgrid ∨
+has_filltable ∨ has_guessnumber` in `build_lesson_context`. If it is missing, every widget's boot-time
+`storedFlag` throws and restore (and the rest of `initOne`) breaks silently with no server-side signal.
+A test must therefore assert the helper is present and functional when **exactly one** new element type
+is on a page **in isolation** (not only alongside a gate, which could mask a missing-flag bug).
 
 ### 5. Widget JS — save on complete, skip-arm on boot
 
@@ -256,9 +267,11 @@ For each of `switchgrid.js`, `filltable.js`, `guessnumber.js`:
 - **Skip-arm on boot**: in `initOne`, after latching the ready flag, if `libliState.storedFlag(container,
   "done")`, do not arm Confirm/submit — the server already rendered the locked state — and return. This
   mirrors the gate boot short-circuit.
-- **Guess-the-number Enter guard**: `guessnumber.js` uses no `<form>` (deliberate — see
-  [[guess-number-status]]), so a restored input cannot implicitly submit/navigate on Enter. Confirm in
-  the plan; if that changes, add the gate's `preventDefault`-only guard.
+- **Guess-the-number Enter guard — not needed (settled).** `guessnumber.js` uses no `<form>`
+  (deliberate — see [[guess-number-status]]), so a restored input cannot implicitly submit/navigate on
+  Enter. **No `preventDefault` guard is added.** The plan performs one dependency check that
+  `guessnumber.js` still has no `<form>` at implementation time; only if that ever changed would the
+  gate's `preventDefault`-only guard be required.
 
 ## Testing / falsifiability
 
@@ -268,7 +281,9 @@ the doctrine, before claiming a test is falsifiable, name the single guard whose
 **Server-side / unit (fast, via the real lesson view — the str/int-key seam):**
 - `_val_done` registration for all three families and monotone behaviour (`{"done": true}` | EMPTY |
   REJECT on non-dict).
-- `FillTableElement.canonical_cells` (first alternative per answer cell; empty shapes; static passthrough).
+- `FillTableElement.canonical_cells` (first alternative per answer cell; an answer cell with **no
+  configured alternatives** renders the empty string, not an error; static cells pass through unchanged;
+  returned grid shape matches `normalize_data(data)["cells"]`).
 - Guess-the-number `canonical_target` formatting (trailing-zero strip).
 - Each element's server-rendered locked render **through `client.get` on the lesson view** (never
   `obj.render()` with a str key): `data-state` present + autoescaped, done classes, answers shown
@@ -281,6 +296,11 @@ the doctrine, before claiming a test is falsifiable, name the single guard whose
   Confirm/Check gone; the answers shown match the model.
 - Wrong/partial attempt → **no** `/state/` POST → reload → fresh, editable, unlocked.
 - Guess-the-number: correct → reload → target value shown readonly, success message, done.
+- **Start fresh (`progress_reset`)**: complete one self-check → trigger "Start fresh" → reload → the
+  widget is back to fresh/editable/unlocked (the reset clears `element_state`, so the `{"done": true}`
+  blob does not survive it). Mirrors how slice 1 exercised reset.
+- **`libliState` present in isolation**: a page with exactly one new element type (no gate) → its
+  boot-time `storedFlag` runs without a `ReferenceError` (guards the six-flag include wiring, §4).
 - The shared-helper refactor does not regress the two gates (the gate e2e files stay green).
 - **Nested restore** (Switch grid + Fill-in table are in `NESTABLE_TYPE_KEYS` — nestable inside Tabs):
   one e2e that a completed **nested** switch grid / fill-in table restores correctly after reload (the
