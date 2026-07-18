@@ -11,30 +11,6 @@
     return m ? m[1] : "";
   }
 
-  function storedOpen(el) {
-    try {
-      var raw = el && el.dataset.state;
-      if (!raw) return false;
-      var blob = JSON.parse(raw);
-      return !!(blob && blob.open === true); // strict shape, not truthiness
-    } catch (e) {
-      return false;
-    }
-  }
-
-  function saveOpen(container) {
-    var url = container.dataset.stateUrl;
-    if (!url) return; // editor preview: "" -> no-op
-    var eid = parseInt(container.dataset.elementPk, 10);
-    if (!eid) return; // pk 0 == content object with no join row
-    fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
-      body: JSON.stringify({ element: eid, state: { open: true } }),
-      keepalive: true, // survives unload
-    }).catch(function () {}); // monotone: keep the DOM, ignore the body
-  }
-
   function ring(cycler) {
     // ordered ring entries: placeholder first, then each option span
     var ph = cycler.querySelector(".switchgate__placeholder");
@@ -103,7 +79,7 @@
           if (window.libliRevealCascade) {
             window.libliRevealCascade(container, { hideWrapper: false });
           }
-          saveOpen(container); // NEW -- container is submit()'s own arg
+          window.libliState.saveFlag(container, { open: true }); // NEW -- container is submit()'s own arg
         } else {
           var fb = container.querySelector("[data-switchgate-feedback]");
           if (fb) fb.hidden = false;
@@ -121,7 +97,7 @@
   function initOne(container) {
     if (container.dataset.switchgateReady === "1") return;
     container.dataset.switchgateReady = "1";
-    if (storedOpen(container)) {
+    if (window.libliState.storedFlag(container, "open")) {
       typesetMath(container); // C1: switchgate math is JS-only; typeset THEN return
       return;
     }
