@@ -145,10 +145,7 @@ git commit -m "feat(help-capture): freezegun dep + capture urlconf serving MEDIA
 At the top of `seed_demo_course.py`, add:
 
 ```python
-import datetime
-
 from django.contrib.sites.models import Site
-from django.utils import timezone
 
 from accounts.models import Invitation
 from accounts.sso_config import save_sso_config
@@ -156,17 +153,17 @@ from courses.models import ExtendedResponseQuestionElement
 from courses.models import RevealGateElement
 from grouping.models import Cohort
 from grouping.models import Collection
+from institution.models import Institution
 from institution.roles import PLATFORM_ADMIN
 from institution.roles import STUDENT
 from integrations.models import WebhookDelivery
 from integrations.models import WebhookEndpoint
 from notes.models import Note
-from notifications.models import Notification  # noqa: F401 (kept for future bell shot; may be removed)
 from tags.models import Tag
 from tags.models import UnitTag
 ```
 
-(Drop the `Notification` import if the linter flags it unused — the notifications topic uses the settings tab, no rows needed.)
+(`TextElement` is already imported by the existing seed. No `Notification`/`timezone`/`datetime` imports — the notifications topic uses the settings tab, and `last_login` is stamped at login under the freeze, so neither backdating nor an explicit timestamp is seeded.)
 
 - [ ] **Step 2: Create the PA user and seed explicit last_login**
 
@@ -180,10 +177,11 @@ In `handle`, after the existing `student`/`s1`/`s2`/`s3` block and `course.owner
             role=PLATFORM_ADMIN,
         )
         self.admin = admin
-        # People list shows last_login|date else "Never". Seed it explicitly so the
-        # shot is order/pass-independent (the freeze pins value, not presence).
-        fixed_login = timezone.now() - datetime.timedelta(days=1)
-        User.objects.filter(pk__in=[teacher.pk, admin.pk]).update(last_login=fixed_login)
+        # NOTE: no explicit last_login seed. The harness logs in demo_teacher and
+        # demo_admin under the frozen clock, and Django's update_last_login receiver
+        # stamps last_login = frozen now on each login — so the people shot renders a
+        # deterministic date for exactly those two and "Never" for the rest. An explicit
+        # seed would be overwritten at login, so it is omitted.
 ```
 
 - [ ] **Step 3: Co-locate the shared demo image on the content-rich unit + add the interactive element**
@@ -195,8 +193,12 @@ In `handle`, after the existing content-element block (`self._table(lesson)`), a
         # so the broken-image tripwire is load-bearing. _image reuses the shared demo.png
         # MediaAsset (filter by course+filename), so no second asset is created.
         self._image(lesson, "core-image", "Worked example diagram")
-        # interactive-elements shot captures "Bonus lesson"; add a reveal-gate self-check.
+        # interactive-elements shot captures "Bonus lesson"; add a reveal-gate self-check
+        # FOLLOWED BY content so the "Show more" gate actually gates something (a reveal
+        # gate hides only the siblings that come after it — with nothing after, the shot
+        # would show a button that reveals nothing).
         self._reveal_gate(extra)
+        self._text(extra, "bonus-after", "<p>Here is the extra detail, now revealed.</p>")
 ```
 
 Add the helper method (near `_spoiler`):
@@ -211,8 +213,8 @@ Add the helper method (near `_spoiler`):
 In `handle`, after `self._group(quiz)`, add:
 
 ```python
-        self._note(student, lesson)
-        self._tag(student, lesson)
+        self._note(teacher, lesson)   # author = demo_teacher: notes-hub/my-tags shots log in as demo_teacher
+        self._tag(teacher, lesson)
         self._collection(course, teacher)
 ```
 
@@ -254,20 +256,19 @@ Add helpers (note: added AFTER `_group` so the 3 group submissions' frozen `max_
 
 ```python
     def _review_question(self, quiz):
-        er = ExtendedResponseQuestionElement.objects.filter(
-            element__unit=quiz
+        # ContentNode.elements is the reverse of Element.unit (related_name="elements").
+        existing = quiz.elements.filter(
+            content_type__model="extendedresponsequestionelement"
         ).first()
-        if er is None:
-            er = ExtendedResponseQuestionElement.objects.create(
-                stem="Explain your reasoning.",
-                marking_mode=QuestionElement.MarkingMode.REVIEW,
-                max_marks=Decimal("5"),
-            )
-            self.q_review = Element.objects.create(unit=quiz, content_object=er)
-        else:
-            self.q_review = Element.objects.get(
-                unit=quiz, content_type__model="extendedresponsequestionelement"
-            )
+        if existing is not None:
+            self.q_review = existing
+            return existing
+        er = ExtendedResponseQuestionElement.objects.create(
+            stem="Explain your reasoning.",
+            marking_mode=QuestionElement.MarkingMode.REVIEW,
+            max_marks=Decimal("5"),
+        )
+        self.q_review = Element.objects.create(unit=quiz, content_object=er)
         return self.q_review
 
     def _review_flow(self, quiz, student):
@@ -334,11 +335,8 @@ Add helpers:
         Cohort.objects.get_or_create(name="Autumn 2026")
 
     def _branding(self):
-        from core.services import get_site_config  # noqa: F401 (cache invalidated on save)
-        from institution.models import Institution
-
-        inst, _ = Institution.objects.get_or_create(pk=1)
-        inst.display_name = "Demo Academy"
+        inst = Institution.load()  # the singleton accessor
+        inst.name = "Demo Academy"  # the Branding tab renders Institution.name
         inst.save()  # post_save signal invalidates the get_site_config cache
 
     def _invitation(self, teacher):
@@ -348,7 +346,7 @@ Add helpers:
         )
 ```
 
-> Note: confirm `Institution`'s branding field name (`display_name` vs `name`/`brand_name`) against `institution/models.py` and the `_branding_tab.html` form before running; use whatever field the Branding tab renders. If the get_or_create(pk=1) pattern conflicts with an existing singleton accessor (e.g. `Institution.load()`), use that accessor instead.
+> Verified: `Institution.load()` is the singleton accessor (`institution/models.py:66`) and `name` is the branding field (`:23`). If the Branding tab also renders other fields (logo, colors) you want populated in the shot, set them here too.
 
 - [ ] **Step 7: Write/extend the seed tests**
 
@@ -366,7 +364,7 @@ def test_seed_creates_pa_and_review_and_collection():
     User = get_user_model()
 
     admin = User.objects.get(username="demo_admin")
-    assert admin.is_staff and admin.last_login is not None
+    assert admin.is_staff  # last_login is stamped at capture-time login, not seeded
 
     quiz = ContentNode.objects.get(title="Demo quiz")
     assert Element.objects.filter(
@@ -378,8 +376,8 @@ def test_seed_creates_pa_and_review_and_collection():
 
     assert Collection.objects.filter(name="Demo Collection").count() == 1
     assert Cohort.objects.filter(name="Autumn 2026").exists()
-    assert Note.objects.filter(author__username="demo_student").exists()
-    assert Tag.objects.filter(author__username="demo_student", name="Revision").exists()
+    assert Note.objects.filter(author__username="demo_teacher").exists()
+    assert Tag.objects.filter(author__username="demo_teacher", name="Revision").exists()
 
 
 def test_seed_review_submission_is_in_review_queue():
@@ -558,8 +556,8 @@ SHOTS = [
     ("groups",         "demo_teacher", ("my_groups", {}),                        ".dash-cards",           "section.manage"),
     ("group-detail",   "demo_teacher", ("group_detail", {}),                     ".manage__title",        "section.manage"),
     ("collection-detail","demo_teacher",("collection_detail", {}),              ".manage__title",         "section.manage"),
-    ("roster",         "demo_teacher", ("group_detail", {}),                     ".manage__title",        "section.manage"),
-    ("gradebook-export","demo_teacher",("manage_analytics", {}),                 ".analytics__matrix",    "section.manage"),
+    ("roster",         "demo_teacher", ("group_detail", {}),                     "ul.course-list",        "ul.course-list"),
+    ("gradebook-export","demo_teacher",("manage_analytics", {}),                 ".analytics__export",    "details.analytics__export"),
     ("notes-hub",      "demo_teacher", ("notes_overview", {}),                   "section.tnhub",         "section.tnhub"),
     ("my-tags",        "demo_teacher", ("my_tags", {}),                          "section.my-tags",       "section.my-tags"),
     # --- platform-admin (demo_admin) ---
@@ -656,18 +654,25 @@ def test_capture_help_screenshots(live_server, browser):
                     reduced_motion="reduce",
                 )
                 page = ctx.new_page()
-                _login(page, live_server, persona)
-
-                for name, _who, (route, args), wait_sel, clip_sel in persona_shots:
-                    bad_images = []
-                    page.on(
-                        "response",
-                        lambda r: bad_images.append((r.url, r.status))
+                # ONE response listener per context over a stable list, cleared before
+                # each shot. Avoids per-shot add/remove (Playwright Page has no public
+                # `listeners()` accessor) and the late-binding-closure trap. Invariant:
+                # a >=400 /media/ image request fails that shot.
+                bad_images = []
+                page.on(
+                    "response",
+                    lambda r: (
+                        bad_images.append((r.url, r.status))
                         if r.request.resource_type == "image"
                         and r.status >= 400
                         and "/media/" in r.url
-                        else None,
-                    )
+                        else None
+                    ),
+                )
+                _login(page, live_server, persona)
+
+                for name, _who, (route, args), wait_sel, clip_sel in persona_shots:
+                    bad_images.clear()  # reset the tripwire per shot
                     page.goto(live_server.url + _u(route, **args))
                     page.locator(wait_sel).first.wait_for(state="visible")
                     page.wait_for_load_state("networkidle")
@@ -679,13 +684,9 @@ def test_capture_help_screenshots(live_server, browser):
                     page.locator(clip_sel).first.screenshot(
                         path=str(OUT_DIR / f"{name}.{locale}.png")
                     )
-                    page.remove_listener("response", page.listeners("response")[-1]) \
-                        if page.listeners("response") else None
 
                 ctx.close()
 ```
-
-> The per-shot `response` listener add/remove is fiddly; an acceptable simpler alternative is to register one listener per context that appends to a per-shot list you clear before each `goto` (reset `bad_images` to a fresh list the listener closes over via a mutable holder). Keep whichever the implementer verifies works; the invariant is: **a >=400 `/media/` image request fails that shot.**
 
 - [ ] **Step 2: Run the self-check test (fast, no browser)**
 
@@ -861,6 +862,8 @@ In `tests/test_help.py`, delete `test_all_topics_static_refs_resolve` and `test_
 
 - [ ] **Step 2: Add the new gate**
 
+Merge the imports below into the file's existing import block (it already imports `pytest`; add `re`, `finders`, and the `core.help` names only if not already present — do not duplicate).
+
 ```python
 import re
 
@@ -923,8 +926,8 @@ git commit -m "test(help): dual-locale per-image on-disk coverage gate; drop sup
 - [ ] **Step 1: Regenerate all images from scratch (determinism check)**
 
 Run: `uv run pytest tests/capture_help_screenshots.py::test_capture_help_screenshots`
-Then: `git status --short core/static/core/img/help/`
-Expected: no diff (a re-run under the frozen clock reproduces byte-stable-enough images; if a handful differ trivially, inspect — large diffs indicate non-determinism to fix).
+Then: `git diff --stat core/static/core/img/help/`
+Expected: no **structural** diff. Headless-Chromium rasterization is not byte-identical across runs/machines, so small pixel deltas on re-render are acceptable and must NOT be recommitted; investigate only a diff that changes layout/content (wrong surface, missing image, EN chrome in a PL shot). Discard trivial re-renders with `git checkout -- core/static/core/img/help/`.
 
 - [ ] **Step 2: Full non-e2e suite**
 
@@ -958,4 +961,4 @@ git commit -m "chore(help): slice-3 final verification fixups"
 
 - **Spec coverage:** every spec component maps to a task — harness (T3), capture urlconf + freeze (T1), seed enrichment incl. REVIEW/collection/note/tag/interactive/image/last_login/PA-state (T2), doc embeds all 23 both locales (T4-6), coverage gate incl. supersede + locale suffix + PL-exists (T7), regeneration + DoD (T8).
 - **Spec deviations** are listed up front ("Corrections to the spec…") and grounded in code — plan-review should confirm each.
-- **Known soft spots for plan-review/implementer to verify against source before running:** the `Institution` branding field name + singleton accessor (T2 S6); `pending_reviews_for` return shape (T2 S7); exact `wait_selector`/`clip_selector` values per surface (T3 S3 — correct against the templates cited in T4-6 tables if a shot fails); the per-shot `response`-listener add/remove idiom (T3 S1 note). These are localized and self-correcting at run time (a wrong selector fails that shot loudly).
+- **Known soft spots for the implementer to verify against source before running:** `pending_reviews_for` return shape / key name (T2 S7 assertion); the exact `wait_selector`/`clip_selector` values per surface (T3 — correct against the templates cited in the T4-6 tables if a shot fails to wait or clips the wrong region). These are localized and self-correcting at run time (a wrong selector fails that shot loudly). The `Institution` field/accessor (T2 S6) and the tripwire listener idiom (T3) were verified and pinned during plan-review.
