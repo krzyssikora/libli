@@ -4,12 +4,15 @@ from decimal import Decimal
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
+from django.contrib.sites.models import Site
 from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from accounts.emails import ensure_verified_primary_email
+from accounts.models import Invitation
 from accounts.services import set_user_role
+from accounts.sso_config import save_sso_config
 from courses.models import CalloutElement
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
@@ -17,6 +20,7 @@ from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
 from courses.models import Enrollment
+from courses.models import ExtendedResponseQuestionElement
 from courses.models import IframeElement
 from courses.models import ImageElement
 from courses.models import MathElement
@@ -24,6 +28,7 @@ from courses.models import MediaAsset
 from courses.models import QuestionElement
 from courses.models import QuestionResponse
 from courses.models import QuizSubmission
+from courses.models import RevealGateElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SpoilerElement
 from courses.models import Subject
@@ -34,10 +39,20 @@ from courses.quiz import finalize_submission
 from courses.scoring import earned_marks
 from courses.scoring import to_stored_fraction
 from courses.video_url import canonicalize_video_url
+from grouping.models import Cohort
+from grouping.models import Collection
 from grouping.models import Group
 from grouping.models import GroupMembership
+from institution.models import Institution
 from institution.roles import COURSE_ADMIN
+from institution.roles import PLATFORM_ADMIN
+from institution.roles import STUDENT
 from institution.roles import seed_roles
+from integrations.models import WebhookDelivery
+from integrations.models import WebhookEndpoint
+from notes.models import Note
+from tags.models import Tag
+from tags.models import UnitTag
 
 User = get_user_model()
 
@@ -82,6 +97,19 @@ class Command(BaseCommand):
         self.teacher = teacher  # consumed by Task 4
         self.group_students = [s1, s2, s3]  # consumed by Task 4
 
+        admin = self._user(
+            "demo_admin",
+            "Demo Admin",
+            email="demo_admin@demo.example",
+            role=PLATFORM_ADMIN,
+        )
+        self.admin = admin
+        # NOTE: no explicit last_login seed. The harness logs in demo_teacher and
+        # demo_admin under the frozen clock, and Django's update_last_login receiver
+        # stamps last_login = frozen now on each login — so the people shot renders a
+        # deterministic date for exactly those two and "Never" for the rest. An explicit
+        # seed would be overwritten at login, so it is omitted.
+
         chapter = self._node(course, None, "chapter", "Chapter 1", None)
         intro = self._node(
             course, chapter, "unit", "Intro lesson", "lesson", obligatory=True
@@ -109,9 +137,32 @@ class Command(BaseCommand):
         self._callout(lesson)
         self._spoiler(lesson)
         self._table(lesson)
+        # content-editors consumption shot captures "Core lesson"; give it a MEDIA
+        # image so the broken-image tripwire is load-bearing. _image reuses the
+        # shared demo.png MediaAsset (filter by course+filename), so no second
+        # asset is created.
+        self._image(lesson, "core-image", "Worked example diagram")
+        # interactive-elements shot captures "Bonus lesson"; add a reveal-gate
+        # self-check FOLLOWED BY content so the "Show more" gate actually gates
+        # something (a reveal gate hides only the siblings that come after it —
+        # with nothing after, the shot would show a button that reveals nothing).
+        self._reveal_gate(extra)
+        self._text(
+            extra, "bonus-after", "<p>Here is the extra detail, now revealed.</p>"
+        )
 
         quiz = self._quiz(chapter)
         self._group(quiz)
+        # author = demo_teacher: notes-hub/my-tags shots log in as demo_teacher
+        self._note(teacher, lesson)
+        self._tag(teacher, lesson)
+        self._collection(course, teacher)
+        self._review_flow(quiz, student)
+        self._sso_config()
+        self._webhook()
+        self._cohort()
+        self._branding()
+        self._invitation(teacher)
 
         self.stdout.write(self.style.SUCCESS("Demo course seeded (idempotent)."))
 
@@ -189,6 +240,9 @@ class Command(BaseCommand):
             label="Show the answer",
             body="<p>42</p>",
         )
+
+    def _reveal_gate(self, unit):
+        self._upsert(unit, RevealGateElement, label="Show more")
 
     def _table(self, unit):
         self._upsert(
@@ -278,6 +332,102 @@ class Command(BaseCommand):
         for st, (short_ans, choice_ans) in zip(self.group_students, plans, strict=True):
             self._graded_submission(quiz, st, short_ans, choice_ans)
         return group
+
+    def _note(self, author, unit):
+        anchor = unit.elements.first()
+        Note.objects.get_or_create(
+            author=author,
+            unit=unit,
+            element=anchor,
+            defaults={"body": "My private note on this block."},
+        )
+
+    def _tag(self, author, unit):
+        tag, _ = Tag.objects.get_or_create(
+            author=author, name="Revision", defaults={"color": "amber"}
+        )
+        UnitTag.objects.get_or_create(tag=tag, unit=unit)
+
+    def _collection(self, course, owner):
+        col, _ = Collection.objects.get_or_create(
+            name="Demo Collection", course=course, defaults={"owner": owner}
+        )
+        group = Group.objects.get(name="Demo Group", course=course)
+        col.groups.add(group)
+
+    def _review_question(self, quiz):
+        # ContentNode.elements is the reverse of Element.unit (related_name="elements").
+        existing = quiz.elements.filter(
+            content_type__model="extendedresponsequestionelement"
+        ).first()
+        if existing is not None:
+            self.q_review = existing
+            return existing
+        er = ExtendedResponseQuestionElement.objects.create(
+            stem="Explain your reasoning.",
+            marking_mode=QuestionElement.MarkingMode.REVIEW,
+            max_marks=Decimal("5"),
+        )
+        self.q_review = Element.objects.create(unit=quiz, content_object=er)
+        return self.q_review
+
+    def _review_flow(self, quiz, student):
+        review_el = self._review_question(quiz)
+        submission, _ = QuizSubmission.objects.get_or_create(
+            student=student,
+            unit=quiz,
+            defaults={"status": QuizSubmission.Status.IN_PROGRESS},
+        )
+        if submission.status == QuizSubmission.Status.SUBMITTED:
+            return  # already finalized on a prior run — idempotent
+        QuestionResponse.objects.get_or_create(
+            submission=submission,
+            element=review_el,
+            defaults={
+                "latest_answer": "Because the discriminant is positive.",
+                "attempt_count": 1,
+            },  # reviewed_at stays None -> lands in the review queue
+        )
+        finalize_submission(quiz, submission)
+
+    def _sso_config(self):
+        save_sso_config(
+            name="Demo IdP",
+            server_url="https://idp.demo.example",
+            client_id="demo-client",
+            client_secret="demo-secret",  # noqa: S106
+            enabled=False,  # saved but disabled
+            site=Site.objects.get_current(),
+        )
+
+    def _webhook(self):
+        ep = WebhookEndpoint.load()
+        ep.enabled = True
+        ep.url = "https://sis.demo.example/hook"
+        ep.secret = "demo-hmac"  # noqa: S105
+        ep.save()
+        WebhookDelivery.objects.get_or_create(
+            dedupe_key="demo-1",
+            defaults={
+                "event": WebhookDelivery.Event.RESULT_FINALIZED,
+                "payload": {"submission_id": 1, "score": "2.00"},
+                "status": WebhookDelivery.Status.DELIVERED,
+            },
+        )
+
+    def _cohort(self):
+        Cohort.objects.get_or_create(name="Autumn 2026")
+
+    def _branding(self):
+        inst = Institution.load()  # the singleton accessor
+        inst.name = "Demo Academy"  # the Branding tab renders Institution.name
+        inst.save()  # post_save signal invalidates the get_site_config cache
+
+    def _invitation(self, teacher):
+        Invitation.objects.get_or_create(
+            email="invitee@demo.example",
+            defaults={"role": STUDENT, "invited_by": teacher},
+        )
 
     def _upsert(self, unit, model, **fields):
         """Idempotently ensure `unit` has exactly one element of `model`.
