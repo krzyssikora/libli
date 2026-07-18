@@ -25,7 +25,7 @@ differently.
 
 ![The quiz editor with questions](static:core/img/help/quiz-editor.en.png)
 
-## Single / Multiple choice
+## {el:choice-single}{el:choice-multi} Single / Multiple choice
 
 A list of **choices**, each flagged correct or incorrect. Single choice
 renders as radio buttons (exactly one answer); multiple choice renders as
@@ -50,20 +50,20 @@ This changes what a wrong answer shows, and it differs by unit type:
   locked out of further attempts (on the last wrong attempt, or afterwards at
   results/review) — independently of whether any choice has feedback text.
 
-## Short text
+## {el:shorttext} Short text
 
 A one-line free-text answer, marked by comparing the student's text against a
 list of **accepted answers** (one per line — add every spelling/phrasing
 variant you'll accept). Toggle **case sensitive** if capitalization must
 match exactly; by default matching ignores case and surrounding whitespace.
 
-## Short numeric
+## {el:shortnumeric} Short numeric
 
 A numeric answer, marked correct if it falls within a **tolerance** of the
 target **value** (tolerance 0 means an exact match). Use this for calculated
 answers where you want to accept small rounding differences.
 
-## Fill in the blanks
+## {el:fillblank} Fill in the blanks
 
 A stem with one or more inline gaps. Write the stem with each blank marked as
 `{{answer}}`, using `|` to separate accepted alternatives, e.g.
@@ -71,21 +71,21 @@ A stem with one or more inline gaps. Write the stem with each blank marked as
 into its own gap with its own accepted-answer list, and each gap is marked
 independently.
 
-## Drag the words
+## {el:dragwords} Drag the words
 
 Like Fill in the blanks, but the student drags word chips into the gaps
 instead of typing. Mark each gap the same way with `{{token}}` in the stem;
 add optional **distractors** (extra wrong chips shown alongside the correct
 ones) to make guessing harder.
 
-## Match pairs
+## {el:matchpairs} Match pairs
 
 A two-column matching question: a list of **left** labels (the fixed targets)
 each paired with its correct **right** token (the draggable/selectable
 answer). Add optional **distractors** — extra right-hand tokens with no
 matching left label — to prevent elimination-by-process-of-exclusion.
 
-## Matrix question
+## {el:switchgrid} Matrix question
 
 A grid of **statements** (rows) against a shared set of **columns** (the
 answer options) — each statement is marked by picking exactly one correct
@@ -93,14 +93,14 @@ column. Add columns freely, or use the **True/False preset** to seed the two
 columns instantly. Each row is scored independently (partial credit), unlike
 the exact-match, all-or-nothing marking above.
 
-## Multi-select grid
+## {el:switchgrid} Multi-select grid
 
 Like Matrix question — the same **statements**-against-**columns** grid —
 but each statement can have *several* correct columns: tick every column
 that applies per row. Marking is all-or-nothing per row: a statement counts
 correct only when its full set of ticked columns matches.
 
-## Drag to image
+## {el:dragimage} Drag to image
 
 The student drags labels onto marked zones over a picture. Pick an image from
 the media library, then use the **zone editor**: click-drag directly on the
@@ -108,7 +108,7 @@ image to draw a rectangular zone, and type the zone's correct label. Click an
 existing zone (or its row) to select, resize with the handles, or delete it.
 Add optional **distractor** labels the same way as the other drag types.
 
-## Extended response
+## {el:extended} Extended response
 
 A long free-text answer (essay-length). It can be marked automatically by
 **required** and **forbidden keyword** lists (one per line), or set to

@@ -462,3 +462,105 @@ def test_every_topic_illustrated_both_locales(topic):
             assert rel.endswith(suffix), (
                 f"{path}: image {rel} lacks the {suffix} locale suffix"
             )
+
+
+# --- Element-icon doc coverage ------------------------------------------------
+
+_EL_TOKEN_IN_DOC = re.compile(r"\{el:([a-z0-9-]+)\}")
+
+
+def _all_help_markdown_paths():
+    paths = []
+    for topic in TOPICS:
+        paths.append(topic.path)
+        pl = topic.path.removesuffix(".md") + ".pl.md"
+        if (DOCS_ROOT / pl).exists():
+            paths.append(pl)
+    return paths
+
+
+def test_every_doc_token_is_a_known_slug():
+    from core.help import ELEMENT_ICON_SLUGS
+
+    seen = 0
+    for rel in _all_help_markdown_paths():
+        text = (DOCS_ROOT / rel).read_text(encoding="utf-8")
+        for slug in _EL_TOKEN_IN_DOC.findall(text):
+            seen += 1
+            assert slug in ELEMENT_ICON_SLUGS, f"{rel}: unknown slug {slug!r}"
+    assert seen > 0, "no {el:} tokens found in any help doc"
+
+
+@pytest.mark.parametrize(
+    "rel", ["help/course-admin/content-editors.md",
+            "help/course-admin/interactive-elements.md",
+            "help/course-admin/quiz-editors.md"],
+)
+def test_element_topics_leak_no_literal_token(rel):
+    html = render_markdown_doc(rel)
+    assert "{el:" not in html
+
+
+# Element name -> expected sprite slug(s), sampled across all three surfaces,
+# including the switchgrid reuse and the dual-icon combined choice heading. The
+# oracle here is intentional (asserts the deliberate mapping); test_doc_icons_subset
+# _of_palette below adds the palette as an independent oracle.
+_ICON_EXPECTATIONS = {
+    "help/course-admin/content-editors.md": {
+        "Text": ["el-text"],          # a .doc-elref list entry
+        "Callout": ["el-callout"],
+        "Columns": ["el-twocolumn"],
+    },
+    "help/course-admin/interactive-elements.md": {
+        "Show more": ["el-revealgate"],  # a heading
+        "Switch grid": ["el-switchgrid"],
+    },
+    "help/course-admin/quiz-editors.md": {
+        "Single / Multiple choice": ["el-choice-single", "el-choice-multi"],  # dual
+        "Matrix question": ["el-switchgrid"],       # switchgrid reuse
+        "Multi-select grid": ["el-switchgrid"],     # switchgrid reuse
+    },
+}
+
+
+@pytest.mark.parametrize("rel", list(_ICON_EXPECTATIONS))
+def test_each_element_entry_has_its_expected_icon(rel):
+    html = render_markdown_doc(rel)
+    for name, slugs in _ICON_EXPECTATIONS[rel].items():
+        for slug in slugs:
+            assert f'<use href="#{slug}">' in html, f"{rel}: {name} missing #{slug}"
+
+
+def test_doc_icons_subset_of_palette():
+    """Palette is the oracle: every icon the docs use, the add-element palette shows."""
+    palette = (
+        DOCS_ROOT.parent / "templates/courses/manage/editor/_add_menu.html"
+    ).read_text(encoding="utf-8")
+    palette_slugs = set(re.findall(r"#el-([a-z0-9-]+)", palette))
+    doc_slugs = set()
+    for rel in _all_help_markdown_paths():
+        text = (DOCS_ROOT / rel).read_text(encoding="utf-8")
+        doc_slugs.update(_EL_TOKEN_IN_DOC.findall(text))
+    assert doc_slugs, "no doc tokens found"
+    assert doc_slugs <= palette_slugs, f"doc icons not in palette: {doc_slugs - palette_slugs}"
+
+
+_USE_SLUG = re.compile(r'<use href="#el-([a-z0-9-]+)">')
+
+
+@pytest.mark.parametrize(
+    "rel", ["help/course-admin/content-editors.md",
+            "help/course-admin/interactive-elements.md",
+            "help/course-admin/quiz-editors.md"],
+)
+def test_pl_icon_sequence_matches_en(rel):
+    """PL correctness without translated-name oracles: the EN and PL files list the
+    same elements in the same order, so their rendered icon sequences (document order)
+    must be identical. Catches a PL positional swap, a wrong PL slug, or a missing/
+    extra PL token that test_every_doc_token_is_a_known_slug (membership-only) misses."""
+    pl = rel.removesuffix(".md") + ".pl.md"
+    assert (DOCS_ROOT / pl).exists(), f"missing PL doc: {pl}"
+    en_icons = _USE_SLUG.findall(render_markdown_doc(rel))
+    pl_icons = _USE_SLUG.findall(render_markdown_doc(pl))
+    assert en_icons, f"{rel}: no icons rendered"
+    assert en_icons == pl_icons, f"{rel}: EN {en_icons} != PL {pl_icons}"

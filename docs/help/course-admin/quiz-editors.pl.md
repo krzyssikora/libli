@@ -26,7 +26,7 @@ poszczególnych rodzajów pytań.
 
 ![Edytor quizu z pytaniami](static:core/img/help/quiz-editor.pl.png)
 
-## Jednokrotny wybór / Wielokrotny wybór
+## {el:choice-single}{el:choice-multi} Jednokrotny wybór / Wielokrotny wybór
 
 Lista **odpowiedzi**, z których każda jest oznaczona jako poprawna lub
 niepoprawna. Wybór jednokrotny renderuje się jako przyciski radiowe
@@ -54,7 +54,7 @@ To zmienia, co pokazuje niepoprawna odpowiedź, i zależy od typu jednostki:
   przeglądzie) — niezależnie od tego, czy którakolwiek odpowiedź ma tekst
   informacji zwrotnej.
 
-## Krótki tekst
+## {el:shorttext} Krótki tekst
 
 Jednowierszowa odpowiedź w formie wolnego tekstu, oceniana przez porównanie
 odpowiedzi ucznia z listą **odpowiedzi akceptowanych** (po jednej w wierszu —
@@ -63,14 +63,14 @@ Włącz opcję **rozróżniaj wielkość liter**, jeśli wielkość liter musi s
 zgadzać dokładnie; domyślnie porównanie ignoruje wielkość liter i skrajne
 białe znaki.
 
-## Liczba
+## {el:shortnumeric} Liczba
 
 Odpowiedź liczbowa, uznawana za poprawną, jeśli mieści się w zadanej
 **tolerancji** od docelowej **wartości** (tolerancja 0 oznacza dopasowanie
 dokładne). Użyj tego typu dla odpowiedzi obliczeniowych, gdy chcesz
 akceptować niewielkie różnice zaokrągleń.
 
-## Uzupełnij luki
+## {el:fillblank} Uzupełnij luki
 
 Treść pytania z jedną lub kilkoma lukami wewnątrz tekstu. Zapisz treść,
 oznaczając każdą lukę jako `{{odpowiedź}}`, używając `|` do oddzielenia
@@ -78,14 +78,14 @@ akceptowanych wariantów, np. `Stolicą Francji jest {{Paryż|paryż}}.` —
 edytor zamienia każdy taki znacznik w osobną lukę z własną listą
 akceptowanych odpowiedzi, a każda luka jest oceniana niezależnie.
 
-## Przeciągnij słowa
+## {el:dragwords} Przeciągnij słowa
 
 Podobnie jak w pytaniach typu Uzupełnij luki, ale uczeń przeciąga fiszki ze
 słowami do luk zamiast je wpisywać. Oznacz każdą lukę tak samo, wpisując
 `{{token}}` w treści; dodaj opcjonalne **dystraktory** (dodatkowe błędne
 fiszki wyświetlane obok poprawnych), aby utrudnić zgadywanie.
 
-## Dopasuj pary
+## {el:matchpairs} Dopasuj pary
 
 Pytanie typu dopasowanie dwóch kolumn: lista etykiet **lewych** (stałe cele)
 z przypisanym poprawnym **prawym** tokenem (odpowiedzią do przeciągnięcia
@@ -93,7 +93,7 @@ lub wybrania). Dodaj opcjonalne **dystraktory** — dodatkowe tokeny prawej
 strony bez odpowiadającej im etykiety po lewej — aby uniemożliwić
 odgadywanie przez eliminację.
 
-## Pytanie macierzowe
+## {el:switchgrid} Pytanie macierzowe
 
 Siatka **stwierdzeń** (wierszy) w zestawieniu ze wspólnym zbiorem
 **kolumn** (opcji odpowiedzi) — każde stwierdzenie jest oceniane przez
@@ -102,7 +102,7 @@ kliknij **Szablon Prawda/Fałsz**, aby od razu utworzyć te dwie kolumny.
 Każdy wiersz jest oceniany niezależnie (częściowe punkty), inaczej niż
 przy ścisłym, zero-jedynkowym ocenianiu opisanym wyżej.
 
-## Siatka wielokrotnego wyboru
+## {el:switchgrid} Siatka wielokrotnego wyboru
 
 Podobnie jak Pytanie macierzowe — ta sama siatka **stwierdzeń** w
 zestawieniu z **kolumnami** — ale każde stwierdzenie może mieć *kilka*
@@ -110,7 +110,7 @@ poprawnych kolumn: zaznacz każdą kolumnę, która pasuje w danym wierszu.
 Ocenianie jest zero-jedynkowe dla każdego wiersza: stwierdzenie liczy się
 jako poprawne tylko wtedy, gdy cały zestaw zaznaczonych kolumn się zgadza.
 
-## Przeciągnij na obraz
+## {el:dragimage} Przeciągnij na obraz
 
 Uczeń przeciąga etykiety na oznaczone strefy na zdjęciu. Wybierz obraz z
 biblioteki mediów, a następnie użyj **edytora stref**: przeciągnij kursorem
@@ -119,7 +119,7 @@ poprawną etykietę. Kliknij istniejącą strefę (lub jej wiersz), aby ją
 zaznaczyć, zmienić rozmiar uchwytami lub usunąć. Dodaj opcjonalne etykiety
 **dystraktorów** w ten sam sposób, co w pozostałych typach przeciągania.
 
-## Rozszerzona odpowiedź
+## {el:extended} Rozszerzona odpowiedź
 
 Długa odpowiedź w formie wolnego tekstu (na długość eseju). Może być
 oceniana automatycznie na podstawie list słów kluczowych **wymaganych** i
