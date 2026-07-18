@@ -50,8 +50,19 @@ both directions in slice 2). It is never `@pytest.mark.e2e`.
 - **`SHOTS` registry:** a list of `Shot` descriptors. Each carries:
   - `name` — PNG stem (e.g. `analytics-matrix`); the harness appends `.<locale>.png`.
   - `login_as` — `"demo_teacher"` (course-admin owner + group teacher; covers all CA and
-    teacher topics) or `"demo_admin"` (platform-admin; covers the 11 PA topics).
-  - `url` — path to navigate to (built from a slug/pk against the fixed seed).
+    teacher topics) or `"demo_admin"` (platform-admin; covers the 11 PA topics). Caveat:
+    the seven TEACHER-role topics are shot as a CA who *owns* the course. For a teacher
+    topic whose surface differs between a plain teacher and an owner/CA (e.g. teacher
+    collection analytics vs. the owner's `manage_analytics`), the plan confirms the CA-owner
+    render matches the documented teacher view, or captures via the teacher-scoped route.
+  - `url` — a **callable resolved at capture time** (after seeding), not a static string:
+    it returns the path via `reverse(route_name, kwargs=...)` where the kwargs come from
+    objects looked up by **stable keys** (course slug, unit title, group name, username) —
+    never a hardcoded pk. Six target routes take an auto-increment `int` pk (`lesson_unit`,
+    `manage_editor`, `manage_review_submission`, `manage_analytics_student`, `group_detail`,
+    `collection_detail`); those pks are unknown at module-import time and are not stable
+    constants, so **no captured URL may embed a literal pk**. Slug-only routes may still use
+    a plain string.
   - `wait_selector` — element that must be visible before shooting.
   - `clip_selector` — element to element-clip (keeps shots tight and stable); `None`
     means full viewport.
@@ -125,11 +136,19 @@ discipline) — the command is run repeatedly by the harness and by other seed t
     "0 minutes ago"; backdate each row to a fixed offset before the frozen `now` via a
     **post-create `.update()`** (`auto_now_add` ignores create-time values), giving varied,
     realistic relative times;
-  - one **invitation** (invitations topic);
+  - one **invitation**, created **unaccepted** with `expires_at` strictly after the frozen
+    `now` — the `people_invitations` surface filters to pending, unexpired invites
+    (`accepted_at__isnull=True, expires_at__gt=now`), so it renders only if created under
+    the freeze (e.g. via `create_or_refresh_invitation`, whose default expiry then lands in
+    the future) (invitations topic);
   - a saved, **disabled OIDC/SSO config** (sso topic);
   - a **WebhookEndpoint** + one **WebhookDelivery** (integrations topic);
   - a **cohort** (cohorts topic);
-  - **branding** fields set on the institution (branding-settings topic);
+  - **branding** fields set on the institution (branding-settings topic) — `get_site_config()`
+    caches for 300s and drives nav/theme chrome, invalidated by a save signal; the seed
+    must write branding in a way that fires that invalidation (a plain model `.save()`
+    does), or the harness clears the cache after seeding, so chrome across all shots
+    reflects the seeded branding;
   - a second **subject** if one example reads thin (subjects topic).
   - a representative **interactive self-check element** on a lesson unit (e.g. a Switch
     grid or a reveal-gate "Show more") for the interactive-elements topic — the seed
@@ -143,9 +162,11 @@ discipline) — the command is run repeatedly by the harness and by other seed t
   - a personal **note** (on a lesson block) and a personal **tag** (on a unit) for
     `demo_teacher`, so the tags-and-notes hub (`overview`) and `my_tags` render populated
     rather than empty-state (notes-tags topic);
-  - a **Collection** containing the Demo Group, so collection-scoped surfaces
+  - a **Collection** (`owner=demo_teacher`, `course=demo-course`, `groups` ← Demo Group) —
+    `Collection.owner` and `course` are non-null FKs so both must be set; `demo_teacher`
+    owns demo-course so `collection_detail` is reachable — giving collection-scoped surfaces
     (`collection_detail`, and the teacher collection analytics if that is the surface the
-    analytics topic documents) have data (groups-collections topic);
+    analytics topic documents) data (groups-collections topic);
   - Group + graded quiz + varied grades already exist from slice 2 (analytics,
     drill-down, quiz-review, roster, groups-collections, gradebook-export).
 - **`onboarded`** needs no seeding or per-shot toggling. It defaults to **`False`**
@@ -195,6 +216,9 @@ a doc that references an un-regenerated image. Implementation notes:
 - For each locale, additionally assert the embedded image's stem carries the **matching
   locale suffix** (`.en.png` in `*.md`, `.pl.png` in `*.pl.md`), so a PL doc that reuses
   the EN image is caught — mechanically enforcing the "own PL-locale image" rule.
+- This new gate **supersedes** the existing `test_all_topics_static_refs_resolve` and
+  **absorbs** `test_builder_topic_embeds_existing_screenshot` in `tests/test_help.py` —
+  remove the superseded scans so two overlapping coverage tests don't drift apart.
 
 ### Component 5 — Regeneration workflow
 
@@ -218,10 +242,10 @@ verifies which surface the topic's prose actually describes** before wiring the 
 | interactive-elements | demo_teacher | a lesson/consumption view showing the seeded interactive self-check element(s) (added to a lesson unit by the seed — see Component 2) |
 | media-manager | demo_teacher | `manage_media` (library) — possibly + upload panel |
 | analytics | demo_teacher | analytics matrix (`manage_analytics` or the teacher collection analytics — plan verifies) |
-| drill-down | demo_teacher | `manage_analytics_student` / expanded matrix (`prep` expands a row) |
-| quiz-review | demo_teacher | `manage_review_queue` / `manage_review_submission` |
+| drill-down | demo_teacher | `manage_analytics_student` for `demo_s1` ("Ada Demo") / expanded matrix (`prep` expands that row) |
+| quiz-review | demo_teacher | `manage_review_queue` + `manage_review_submission` on the seeded manual-marking submission (see review-queue note) |
 | groups-collections | demo_teacher | `my_groups` / `group_detail` / `collection_detail` |
-| roster | demo_teacher | group roster surface (`group_detail` — plan verifies which is "roster") |
+| roster | demo_teacher | the roster/membership region of `group_detail` — a **distinct roster-focused clip** (own `clip_selector`/alt) from the groups-collections shot, which shares the same page; plan verifies which region is "roster" |
 | gradebook-export | demo_teacher | analytics page showing the export controls (`manage_analytics`; the export route itself streams a file) |
 | notes-tags | demo_teacher | `overview` (tags-and-notes hub) / `my_tags` |
 | create-a-course | demo_admin | `manage_course_list` / `manage_course_create` |
@@ -234,7 +258,7 @@ verifies which surface the topic's prose actually describes** before wiring the 
 | subjects | demo_admin | `manage_subject_list` |
 | cohorts | demo_admin | `cohort_list` — needs a cohort |
 | notifications | demo_admin | `list` — needs notifications seeded for `demo_admin` |
-| first-run-wizard | demo_admin | `setup` — `prep` sets `onboarded=False` |
+| first-run-wizard | demo_admin | `setup` (navigate directly; no prep, no `onboarded` toggle) |
 
 ## Error handling / edge cases
 
