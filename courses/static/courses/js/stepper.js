@@ -5,6 +5,26 @@
   // full chain shows (fail-open). Set at parse time, like reveal.js.
   window.__stepperBooted = true;
 
+  function shownCount(steps) {
+    var n = 0;
+    for (var i = 0; i < steps.length; i++) {
+      if (steps[i].classList.contains("stepper-shown")) n++;
+    }
+    return n;
+  }
+
+  function restoreCount(root, total) {
+    // Inline read of the {shown:N} blob -- storedFlag can't read a count. A missing
+    // or non-integer `shown` (the fresh `{}` case) stays 1: never NaN, never 0 steps.
+    var n = 1;
+    try {
+      var blob = JSON.parse(root.dataset.state || "{}");
+      var parsed = parseInt(blob.shown, 10);
+      if (parsed > 1) n = Math.min(parsed, total);
+    } catch (e) {}
+    return n;
+  }
+
   function initOne(root) {
     // Idempotent: the editor preview re-runs this after each fragment swap.
     if (root.dataset.stepperReady === "1") return;
@@ -13,13 +33,15 @@
       root.querySelectorAll("[data-stepper-step]")
     );
     if (!steps.length) return;
-    // Reveal step 0 + arm Layer B (courses.css hides steps without stepper-shown).
-    steps[0].classList.add("stepper-shown");
+    // Restore: reveal the first N steps (N>=1). Boot only toggles classes -- it must
+    // NOT call .focus()/scroll (that stays exclusive to user clicks below).
+    var shown = restoreCount(root, steps.length);
+    for (var i = 0; i < shown; i++) steps[i].classList.add("stepper-shown");
     root.classList.add("is-stepping");
     var btn = root.querySelector("[data-stepper-next]");
     if (!btn) return;
-    if (steps.length < 2) {
-      btn.hidden = true; // nothing to reveal
+    if (shown >= steps.length) {
+      btn.hidden = true; // nothing left to reveal
       return;
     }
     btn.hidden = false;
@@ -35,10 +57,10 @@
       next.classList.add("stepper-shown");
       if (!next.hasAttribute("tabindex")) next.setAttribute("tabindex", "-1");
       next.focus();
-      var remaining = steps.some(function (s) {
-        return !s.classList.contains("stepper-shown");
-      });
-      if (!remaining) btn.hidden = true;
+      var count = shownCount(steps);
+      // Fire-and-forget; no-ops in the editor preview (empty data-state-url).
+      window.libliState.saveFlag(root, { shown: count });
+      if (count >= steps.length) btn.hidden = true;
     });
   }
 
