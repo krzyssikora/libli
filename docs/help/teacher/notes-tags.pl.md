@@ -5,6 +5,8 @@ Są osobiste — nigdy nie udostępniane uczniom ani innym pracownikom — a mo�
 nich korzystać każdy, kto ma konto, co czyni je poręcznymi do oznaczania własnego
 nauczania czy nauki.
 
+![Centrum tagów i notatek](static:core/img/help/notes-hub.pl.png)
+
 ## Notatki osobiste
 
 Każdy blok treści na stronie lekcji ma mały uchwyt notatki w postaci ikony.
@@ -36,6 +38,8 @@ egzaminem", „świetne przykłady", cokolwiek ci pomaga.
   tagów jeszcze niebędących na tej jednostce, a następnie naciśnij **Dodaj**.
 
 ## Zarządzanie tagami
+
+![Twoje osobiste tagi](static:core/img/help/my-tags.pl.png)
 
 Otwórz **Tagi i notatki** z nawigacji, a następnie przejdź do zakładki
 **Zarządzaj tagami** (sąsiednia zakładka **Według kursu** grupuje zamiast tego

@@ -6,6 +6,8 @@ przy kursie — albo z widoku **Moje grupy i kolekcje**, gdzie każda karta grup
 ma odnośnik **Analityka** ograniczony do tej grupy. Karta kolekcji ma go
 również, jeśli możesz przeglądać kurs tej kolekcji.
 
+![Macierz wyników analitycznych](static:core/img/help/analytics-matrix.pl.png)
+
 ## Czytanie siatki
 
 - **Wiersze** to uczniowie, po jednym w każdej linii.

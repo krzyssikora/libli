@@ -4,6 +4,8 @@ Students are organised through three related ideas: **cohorts**, **groups**, and
 **collections**. Understanding how they differ makes the rest of teaching in
 the platform straightforward.
 
+![Your groups and collections](static:core/img/help/groups.en.png)
+
 ## Cohorts
 
 A **cohort** is a platform-wide bucket that every student belongs to — and to
@@ -14,6 +16,8 @@ menu — you don't interact with cohorts directly as a teacher; they work quietl
 in the background, keeping every student in exactly one intake.
 
 ## Groups
+
+![A group's detail page](static:core/img/help/group-detail.en.png)
 
 A **group** is a roster of students, together with their teachers, tied to **one
 specific course**. The course is chosen when the group is created and locked
@@ -33,6 +37,8 @@ everyone, though — feel free to use it yourself to check what's archived. Full
 rights over collections, by contrast, are yours — see below.
 
 ## Collections
+
+![A collection's detail page](static:core/img/help/collection-detail.en.png)
 
 A **collection** is a named bundle of groups that all sit on the same course,
 owned by you. Use one to view several groups together as a single combined

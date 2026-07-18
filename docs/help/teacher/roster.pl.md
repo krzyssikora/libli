@@ -16,6 +16,8 @@ Reszta tego tematu opisuje, jak administrator kursu buduje taką listę —
 warto to wiedzieć, bo tłumaczy to, co widzisz na swoim widoku tylko do
 odczytu.
 
+![Lista uczniów w grupie](static:core/img/help/roster.pl.png)
+
 ## Wybieranie uczniów
 
 Wybór uczniów, który wypełnia administrator kursu, to lista pól wyboru — ale
