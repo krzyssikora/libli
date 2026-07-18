@@ -6,6 +6,7 @@ from django.db import transaction
 
 from accounts.emails import ensure_verified_primary_email
 from accounts.services import set_user_role
+from courses.models import CalloutElement
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
@@ -14,7 +15,9 @@ from courses.models import IframeElement
 from courses.models import ImageElement
 from courses.models import MathElement
 from courses.models import MediaAsset
+from courses.models import SpoilerElement
 from courses.models import Subject
+from courses.models import TableElement
 from courses.models import TextElement
 from courses.models import VideoElement
 from courses.video_url import canonicalize_video_url
@@ -86,6 +89,9 @@ class Command(BaseCommand):
         )
         self._video(lesson, "core-video", "https://www.youtube.com/watch?v=psMMKgvpGfg")
         self._image(extra, "bonus-image", "Decorative diagram")
+        self._callout(lesson)
+        self._spoiler(lesson)
+        self._table(lesson)
 
         self.stdout.write(self.style.SUCCESS("Demo course seeded (idempotent)."))
 
@@ -144,6 +150,39 @@ class Command(BaseCommand):
                 original_filename="demo.png",
             )
         self._upsert(unit, ImageElement, media=asset, alt=alt)
+
+    def _callout(self, unit):
+        self._upsert(
+            unit,
+            CalloutElement,
+            kind="tip",
+            heading="Remember",
+            body="<p>Order of operations matters.</p>",
+        )
+
+    def _spoiler(self, unit):
+        self._upsert(
+            unit,
+            SpoilerElement,
+            label="Show the answer",
+            body="<p>42</p>",
+        )
+
+    def _table(self, unit):
+        self._upsert(
+            unit,
+            TableElement,
+            data=TableElement.normalize_data(
+                {
+                    "header_row": True,
+                    "border": "grid",
+                    "cells": [
+                        [{"html": "Symbol"}, {"html": "Meaning"}],
+                        [{"html": "π"}, {"html": "pi"}],
+                    ],
+                }
+            ),
+        )
 
     def _upsert(self, unit, model, **fields):
         """Idempotently ensure `unit` has exactly one element of `model`.

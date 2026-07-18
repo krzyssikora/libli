@@ -48,6 +48,23 @@ def test_seed_creates_verified_ca_owner_and_students():
 
 
 @pytest.mark.django_db
+def test_seed_has_diverse_leaf_elements():
+    from courses.models import CalloutElement
+    from courses.models import SpoilerElement
+    from courses.models import TableElement
+
+    call_command("seed_demo_course")
+    assert CalloutElement.objects.count() == 1
+    assert SpoilerElement.objects.count() == 1
+    assert TableElement.objects.count() == 1
+
+    call_command("seed_demo_course")  # idempotent: still one of each
+    assert CalloutElement.objects.count() == 1
+    assert SpoilerElement.objects.count() == 1
+    assert TableElement.objects.count() == 1
+
+
+@pytest.mark.django_db
 def test_seeded_ca_can_open_builder(client):
     # The whole PoC rests on the seeded CA being able to open the demo-course
     # builder. Pin it here (200, not 302/403) so a missing owner relationship
