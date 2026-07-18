@@ -322,14 +322,27 @@ def test_editor_preview_does_not_restore(client):
     assert 'value="paris"' not in body
 
 
-def test_live_check_wins_over_stale_blob_nojs(client):
-    # No-JS check re-render: the just-checked element uses the LIVE answer, other
-    # answered elements restore from their blob.
+def test_render_element_prefers_live_kwargs_over_stale_blob(client):
+    # Direct render_element call: the checked element's STORED blob says "STALE" but
+    # the live kwargs (as check_answer's no-JS path would pass them) say "paris".
+    # feedback_for_pk == row.pk marks this element as the one being checked live, so
+    # the restore branch must be skipped and the live kwargs must win. Unlike the
+    # end-to-end check_answer route, this bypasses save_element_state entirely, so a
+    # stale blob can genuinely differ from the live answer -- deleting the
+    # `element.pk != feedback_for_pk` guard makes this go RED (restore branch
+    # overwrites the live kwargs with "STALE").
+    from courses.templatetags.courses_extras import render_element
+
     student, course, unit = _enrolled(client)
     obj = ShortTextQuestionElement.objects.create(stem="Q", accepted="paris")
     row = Element.objects.create(unit=unit, content_object=obj)
-    UnitProgress.objects.create(
-        student=student, unit=unit, element_state={str(row.pk): {"answer": "STALE"}}
+    ctx = {"element_state": {row.pk: {"answer": "STALE"}}}
+    html = render_element(
+        ctx,
+        row,
+        feedback_for_pk=row.pk,
+        submitted_values="paris",
+        mark_result=obj.mark("paris"),
+        mode="lesson",
     )
-    body = client.post(_check_url(unit, row.pk), {"answer": "paris"}).content.decode()
-    assert 'value="paris"' in body and "STALE" not in body
+    assert "paris" in html and "STALE" not in html
