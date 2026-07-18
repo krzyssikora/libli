@@ -1,5 +1,6 @@
 """Template tags and filters rendering content elements and question inputs."""
 
+import logging
 from decimal import Decimal
 
 from django import template
@@ -15,6 +16,8 @@ from courses import switchgate as _switchgate
 from courses.models import HtmlElement
 from courses.models import QuestionElement
 from courses.sanitize import sanitize_html
+
+logger = logging.getLogger(__name__)
 
 register = template.Library()
 
@@ -56,15 +59,25 @@ def render_element(
         ):
             blob = (context.get("element_state") or {}).get(element.pk)
             if isinstance(blob, dict) and "answer" in blob:
-                try:
-                    from courses.quiz import answer_from_json
-                    from courses.quiz import rehydrate
+                # Imports sit ABOVE the try so an import-time error (e.g. a future
+                # circular import) surfaces loudly instead of being swallowed by the
+                # fail-open below — only rehydrate/mark data errors should fail open.
+                from courses.quiz import answer_from_json
+                from courses.quiz import rehydrate
 
+                try:
                     stored = blob["answer"]
                     r_selected, r_submitted = rehydrate(obj, stored)
                     r_result = obj.mark(answer_from_json(obj, stored))
-                except Exception:  # noqa: S110 — fail-open by design: fall through to the un-restored render
-                    pass
+                except Exception:
+                    # Fail-open by design: fall through to the un-restored render, but
+                    # log so a malformed blob or restore-path bug is not silent (mirrors
+                    # courses.state.validate_state's logger.exception convention).
+                    logger.exception(
+                        "practice-state restore failed for element pk=%s (%s)",
+                        element.pk,
+                        type(obj).__name__,
+                    )
                 else:
                     selected_ids = r_selected
                     submitted_values = r_submitted
