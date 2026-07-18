@@ -38,6 +38,37 @@ def test_missing_file_raises(tmp_path, monkeypatch):
         core_help.render_markdown_doc("nope.md")
 
 
+def test_resolve_static_srcs_rewrites_only_sentinel():
+    from core.help import resolve_static_srcs
+
+    html = (
+        '<img alt="a" src="static:core/img/help/x.png" />'
+        '<img alt="b" src="/already/abs.png" />'
+        '<img alt="c" src="https://ex.com/y.png" />'
+    )
+    out = resolve_static_srcs(html)
+    assert 'src="/static/core/img/help/x.png"' in out  # test uses plain storage
+    assert "static:core/img/help/x.png" not in out
+    assert 'src="/already/abs.png"' in out
+    assert 'src="https://ex.com/y.png"' in out
+
+
+def test_render_markdown_doc_can_skip_static_rewrite(tmp_path, monkeypatch):
+    import core.help as help_mod
+
+    monkeypatch.setattr(help_mod, "DOCS_ROOT", tmp_path)
+    (tmp_path / "d.md").write_text(
+        "![a](static:core/img/help/x.png)\n", encoding="utf-8"
+    )
+
+    resolved = help_mod.render_markdown_doc("d.md")
+    assert 'src="/static/core/img/help/x.png"' in resolved
+
+    raw = help_mod.render_markdown_doc("d.md", resolve_static=False)
+    assert "static:core/img/help/x.png" in raw
+    assert "/static/core/img/help/x.png" not in raw
+
+
 @pytest.mark.django_db
 def test_make_ca_holds_ca_marker(client):
     user = make_ca(client)
