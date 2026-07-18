@@ -15,6 +15,7 @@
 - **Blob shape:** exactly `{"answer": answer_to_json(build_answer(POST))}` — a **dict envelope** (bare list/str is dropped by `build_lesson_context`'s non-dict read filter).
 - **Key seam:** the DB row `UnitProgress.element_state` is **str-keyed** (`str(element.pk)`); the ambient context map is **int-keyed** (`{int(Element.pk): blob}`, views.py:371-378). Save writes the str key; restore looks up the int key.
 - **No stored verdict** — re-mark on every load. **No new migration** (`makemigrations --check` must stay clean). **No question-template edits.**
+- **Questions are non-nestable:** none of the five in-scope types are in `NESTABLE_TYPE_KEYS` (`courses/builder.py:34`), so they only ever render top-level via `_lesson_article.html` (which passes the feedback kwargs). There is no Tabs/TwoColumn nested-child render path to thread `feedback_for_pk`/`element_state` through — the restore seam in `render_element` sees every question at top level.
 - **Falsification rule:** for every guard, the test must go RED when the guard is deleted. A passing test proves nothing until falsified.
 - **Tooling:** run Python via `uv run` (pytest/ruff/manage.py are not on PATH). Test DB is isolated per worktree via `.env` `DATABASE_URL`.
 - Commit messages end with the repo's required Co-Authored-By / Claude-Session trailers.
@@ -308,20 +309,43 @@ def _enrolled(client):
     return student, course, unit
 
 
-def test_check_persists_shorttext_envelope(client):
+def test_check_persists_shorttext_envelope_fragment_path(client):
+    # JS-fragment path (X-Requested-With: fetch) — exercises the branch the lesson UI
+    # actually uses, pinning that the save runs before the _wants_fragment split.
     student, course, unit = _enrolled(client)
     obj = ShortTextQuestionElement.objects.create(stem="Q", accepted="paris")
     row = _add(unit, obj)
-    client.post(_check_url(unit, row.pk), {"answer": "paris"})
+    client.post(_check_url(unit, row.pk), {"answer": "paris"}, HTTP_X_REQUESTED_WITH="fetch")
     up = UnitProgress.objects.get(student=student, unit=unit)
     assert up.element_state == {str(row.pk): {"answer": "paris"}}
+
+
+def test_check_persists_fillblank_list_envelope(client):
+    from courses.models import Blank
+
+    student, course, unit = _enrolled(client)
+    obj = FillBlankQuestionElement.objects.create(stem="Cap is {{paris}}.")
+    Blank.objects.create(question=obj, order=1, accepted="paris")
+    row = _add(unit, obj)
+    client.post(_check_url(unit, row.pk), {"blank": ["paris"]})
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(row.pk): {"answer": ["paris"]}}
+
+
+def test_check_persists_shortnumeric_envelope(client):
+    student, course, unit = _enrolled(client)
+    obj = ShortNumericQuestionElement.objects.create(stem="Q", value=42, tolerance=0)
+    row = _add(unit, obj)
+    client.post(_check_url(unit, row.pk), {"answer": "42"})
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(row.pk): {"answer": "42"}}
 
 
 def test_check_persists_choice_sorted_pk_list(client):
     student, course, unit = _enrolled(client)
     obj = ChoiceQuestionElement.objects.create(stem="Q", multiple=True)
-    c1 = Choice.objects.create(element=obj, text="a", is_correct=True)
-    c2 = Choice.objects.create(element=obj, text="b", is_correct=True)
+    c1 = Choice.objects.create(question=obj, text="a", is_correct=True)
+    c2 = Choice.objects.create(question=obj, text="b", is_correct=True)
     row = _add(unit, obj)
     client.post(_check_url(unit, row.pk), {"choice": [str(c2.pk), str(c1.pk)]})
     up = UnitProgress.objects.get(student=student, unit=unit)
@@ -346,7 +370,8 @@ def test_deferred_type_persists_nothing(client):
     row = _add(unit, obj)
     # A generic POST; MatchPair build_answer yields its own shape. Regardless, the
     # scope gate must refuse to persist a deferred type.
-    client.post(_check_url(unit, row.pk), {"left": "1", "right": "2"})
+    resp = client.post(_check_url(unit, row.pk), {"left": "1", "right": "2"})
+    assert resp.status_code == 200  # isolate the scope-gate signal from any mark() error
     assert not UnitProgress.objects.filter(student=student, unit=unit).exists()
 
 
@@ -360,12 +385,12 @@ def test_nojs_path_also_persists(client):
     assert up.element_state == {str(row.pk): {"answer": "paris"}}
 ```
 
-> If `Choice`'s creation kwargs differ in this codebase, adjust to the real field names (verify against `ChoiceQuestionElement`/`Choice` in `courses/models.py`). The assertion shape (`{"answer": sorted pks}`) is what matters.
+> `Choice`'s FK to the question is `question` (related_name `choices`), verified against `courses/models.py:1542`. The assertion shape (`{"answer": sorted pks}`) is what matters.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest courses/tests/test_question_restore.py -q -k "persists or deletes or deferred or nojs"`
-Expected: FAIL (no `element_state` written — `check_answer` persists nothing today).
+Expected: FAIL because **no `element_state` is written** (assertion on `up.element_state` / `UnitProgress` fails) — `check_answer` persists nothing today. Confirm the failure is that assertion, NOT a `TypeError`/`NoReverseMatch`/collection error (which would mean a fixture identifier is wrong, not that the guard is being exercised) before implementing.
 
 - [ ] **Step 3: Insert the save into `check_answer`**
 
@@ -442,9 +467,12 @@ git commit -m "feat(question-restore): persist answer envelope on lesson check (
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `courses/tests/test_question_restore.py`:
+Append to `courses/tests/test_question_restore.py` (note the `import re` at the top — the restore-choice test uses it):
 
 ```python
+import re
+
+
 def _lesson_url(unit):
     return reverse(
         "courses:lesson_unit", kwargs={"slug": unit.course.slug, "node_pk": unit.pk}
@@ -471,8 +499,8 @@ def test_restore_shorttext_fills_value_and_verdict(client):
 def test_restore_choice_checks_inputs(client):
     student, course, unit = _enrolled(client)
     obj = ChoiceQuestionElement.objects.create(stem="Q", multiple=False)
-    c1 = Choice.objects.create(element=obj, text="a", is_correct=True)
-    Choice.objects.create(element=obj, text="b", is_correct=False)
+    c1 = Choice.objects.create(question=obj, text="a", is_correct=True)
+    Choice.objects.create(question=obj, text="b", is_correct=False)
     _seed(unit, student, obj, {"answer": [c1.pk]})
     body = client.get(_lesson_url(unit)).content.decode()
     # the correct choice's radio is checked
@@ -520,18 +548,16 @@ def test_restore_shortnumeric_fills_value(client):
 
 
 def test_restore_fillblank_fills_each_blank(client):
-    # Build a fill-blank with a single blank accepting "paris"; verify the stored
-    # per-blank list refills. Adjust blank creation to the real Blank model API.
-    student, course, unit = _enrolled(client)
-    obj = FillBlankQuestionElement.objects.create(stem="The capital is [[1]].")
-    # Create one blank accepting "paris" via the codebase's Blank model / helper.
-    # (Verify the model name + fields against courses/models.py FillBlank blanks.)
-    from courses.models import FillBlankBlank  # adjust to the real class name
+    # One blank accepting "paris"; the {{...}} token in the stem marks the gap
+    # (Blank.accepted is parsed from {{a|b}}, courses/models.py:1679).
+    from courses.models import Blank
 
-    FillBlankBlank.objects.create(element=obj, order=1, accepted="paris")
+    student, course, unit = _enrolled(client)
+    obj = FillBlankQuestionElement.objects.create(stem="The capital is {{paris}}.")
+    Blank.objects.create(question=obj, order=1, accepted="paris")
     _seed(unit, student, obj, {"answer": ["paris"]})
     body = client.get(_lesson_url(unit)).content.decode()
-    assert "paris" in body  # the blank input is refilled with the stored value
+    assert 'value="paris"' in body  # the blank input is refilled with the stored value
     assert "question__verdict is-correct" in body
 
 
@@ -541,27 +567,27 @@ def test_editor_preview_does_not_restore(client):
     # a stored answer FOR ANOTHER STUDENT; the preview context carries no
     # element_state, so nothing restores.
     author = make_student(client, "qr_author")
-    course, unit = make_course_with_unit(owner=author)  # verify make_course_with_unit owner kwarg
+    course, unit = make_course_with_unit(owner=author)
     obj = ShortTextQuestionElement.objects.create(stem="Q", accepted="paris")
     row = Element.objects.create(unit=unit, content_object=obj)
     other = make_verified_user()
     UnitProgress.objects.create(
         student=other, unit=unit, element_state={str(row.pk): {"answer": "paris"}}
     )
-    # GET the editor preview page (verify the URL name/args against courses/urls.py).
-    preview_url = reverse("courses:unit_editor", kwargs={"slug": course.slug, "node_pk": unit.pk})
+    # The editor｜preview page (courses/urls.py:207); its kwarg is `pk`, not node_pk.
+    preview_url = reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
     body = client.get(preview_url).content.decode()
     assert 'value="paris"' not in body  # author preview never restores another user's answer
 ```
 
-> The FillBlank blank model and the editor-preview URL name are codebase-specific: verify `FillBlankBlank` (the actual related model behind `obj.blanks`) and the editor route name/args against `courses/models.py` and `courses/urls.py`, and adjust. Keep the asserted behavior (refilled value / no restore in preview).
+> `Blank` (FK `question`, related_name `blanks`) and the `manage_editor` route (kwarg `pk`) are verified against `courses/models.py:1679` and `courses/urls.py:207`. If `render_fill_blanks` needs the gap token in a specific form, confirm the `{{paris}}` stem emits an `<input name="blank">` (courses/fillblank.py); keep the asserted behavior (refilled `value="paris"` / no restore in preview). The editor page may require the author to be logged in with build access — reuse whatever login the existing editor tests use if `make_student` is insufficient.
 
-> `import re` at the top of the test module (add if not present). Adjust `required_keywords` / `Choice` field names to the real schema if they differ; keep the asserted markers (`question__reveal-guide`, `value="paris"`, `checked`).
+> Adjust `required_keywords` / `Choice` field names to the real schema if they differ; keep the asserted markers (`question__reveal-guide`, `value="paris"`, `checked`).
 
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest courses/tests/test_question_restore.py -q -k restore`
-Expected: FAIL (inputs render blank — the question branch ignores `element_state` today).
+Expected: FAIL because **inputs render blank / verdict absent** (the body assertions fail) — the question branch ignores `element_state` today. Confirm each failure is the missing-value assertion, NOT a `TypeError`/`NoReverseMatch`/import error, before implementing.
 
 - [ ] **Step 3: Add the restore block**
 
