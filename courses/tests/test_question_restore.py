@@ -1,9 +1,12 @@
 import pytest
+from django.urls import reverse
 
+from courses.models import Choice
 from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
+from courses.models import Element
 from courses.models import Enrollment
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
@@ -15,6 +18,7 @@ from courses.models import ShortTextQuestionElement
 from courses.models import UnitProgress
 from courses.views import save_element_state
 from tests.factories import make_course_with_unit
+from tests.factories import make_student
 from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.django_db  # ensure module has DB access for the tests below
@@ -71,3 +75,125 @@ def test_save_helper_delete_does_not_spawn_a_row():
     # No UnitProgress row exists yet; deleting a key must NOT create one.
     save_element_state(user, unit, 7, None)
     assert not UnitProgress.objects.filter(student=user, unit=unit).exists()
+
+
+def _check_url(unit, element_pk):
+    return reverse(
+        "courses:check_answer",
+        kwargs={"slug": unit.course.slug, "node_pk": unit.pk, "element_pk": element_pk},
+    )
+
+
+def _add(unit, obj):
+    return Element.objects.create(unit=unit, content_object=obj)
+
+
+def _enrolled(client):
+    student = make_student(client, "qr_save")
+    course, unit = make_course_with_unit()
+    Enrollment.objects.create(student=student, course=course)
+    return student, course, unit
+
+
+def test_check_persists_shorttext_envelope_fragment_path(client):
+    # JS-fragment path (X-Requested-With: fetch) — exercises the branch the lesson UI
+    # actually uses, pinning that the save runs before the _wants_fragment split.
+    student, course, unit = _enrolled(client)
+    obj = ShortTextQuestionElement.objects.create(stem="Q", accepted="paris")
+    row = _add(unit, obj)
+    client.post(
+        _check_url(unit, row.pk), {"answer": "paris"}, HTTP_X_REQUESTED_WITH="fetch"
+    )
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(row.pk): {"answer": "paris"}}
+
+
+def test_check_persists_fillblank_list_envelope(client):
+    from courses.models import Blank
+
+    student, course, unit = _enrolled(client)
+    obj = FillBlankQuestionElement.objects.create(stem="Cap is {{paris}}.")
+    Blank.objects.create(question=obj, order=1, accepted="paris")
+    row = _add(unit, obj)
+    client.post(_check_url(unit, row.pk), {"blank": ["paris"]})
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(row.pk): {"answer": ["paris"]}}
+
+
+def test_check_persists_shortnumeric_envelope(client):
+    student, course, unit = _enrolled(client)
+    obj = ShortNumericQuestionElement.objects.create(stem="Q", value=42, tolerance=0)
+    row = _add(unit, obj)
+    client.post(_check_url(unit, row.pk), {"answer": "42"})
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(row.pk): {"answer": "42"}}
+
+
+def test_check_persists_choice_sorted_pk_list(client):
+    student, course, unit = _enrolled(client)
+    obj = ChoiceQuestionElement.objects.create(stem="Q", multiple=True)
+    c1 = Choice.objects.create(question=obj, text="a", is_correct=True)
+    c2 = Choice.objects.create(question=obj, text="b", is_correct=True)
+    row = _add(unit, obj)
+    client.post(_check_url(unit, row.pk), {"choice": [str(c2.pk), str(c1.pk)]})
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(row.pk): {"answer": sorted([c1.pk, c2.pk])}}
+
+
+def test_empty_answer_deletes_key(client):
+    student, course, unit = _enrolled(client)
+    obj = ShortTextQuestionElement.objects.create(stem="Q", accepted="paris")
+    row = _add(unit, obj)
+    UnitProgress.objects.create(
+        student=student, unit=unit, element_state={str(row.pk): {"answer": "paris"}}
+    )
+    client.post(_check_url(unit, row.pk), {"answer": "   "})
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert str(row.pk) not in up.element_state
+
+
+def test_deferred_type_persists_nothing(client):
+    student, course, unit = _enrolled(client)
+    obj = MatchPairQuestionElement.objects.create(stem="Q")
+    row = _add(unit, obj)
+    # POST a NON-empty answer for the deferred type: MatchPair.build_answer is
+    # post.getlist("slot") (models.py:1761), so {"slot": ["x"]} yields ["x"], not
+    # empty. This matters for falsification — with the scope gate deleted, an empty
+    # answer would still hit the delete branch and store nothing (false GREEN); a
+    # non-empty one takes the store branch and a row appears (true RED).
+    # Uses the fragment path (fetch header): the no-JS path calls
+    # full_lesson_render_context -> build_lesson_context, which unconditionally
+    # get_or_creates a UnitProgress row for seen-tracking (views.py:359) regardless
+    # of this feature -- that would confound the assertion below with an unrelated
+    # side effect. The fragment branch has no such side effect.
+    resp = client.post(
+        _check_url(unit, row.pk), {"slot": ["x"]}, HTTP_X_REQUESTED_WITH="fetch"
+    )
+    # isolate the scope-gate signal from any mark() error
+    assert resp.status_code == 200
+    assert not UnitProgress.objects.filter(student=student, unit=unit).exists()
+
+
+def test_nojs_path_also_persists(client):
+    # No X-Requested-With header -> the no-JS full-page re-render path.
+    student, course, unit = _enrolled(client)
+    obj = ShortTextQuestionElement.objects.create(stem="Q", accepted="paris")
+    row = _add(unit, obj)
+    client.post(_check_url(unit, row.pk), {"answer": "paris"})  # no fetch header
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(row.pk): {"answer": "paris"}}
+
+
+def test_start_fresh_clears_question_blob(client):
+    student, course, unit = _enrolled(client)
+    obj = ShortTextQuestionElement.objects.create(stem="Q", accepted="paris")
+    row = _add(unit, obj)
+    client.post(_check_url(unit, row.pk), {"answer": "paris"})
+    assert UnitProgress.objects.get(student=student, unit=unit).element_state
+    client.post(
+        reverse(
+            "courses:progress_reset", kwargs={"slug": course.slug, "node_pk": unit.pk}
+        )
+    )
+    up = UnitProgress.objects.filter(student=student, unit=unit).first()
+    assert not (up and up.element_state.get(str(row.pk)))

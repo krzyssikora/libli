@@ -773,7 +773,17 @@ def check_answer(request, slug, node_pk, element_pk):
         raise Http404("not a question element")
 
     answer = question.build_answer(request.POST)
-    result = question.mark(answer)  # NOTHING is persisted
+    result = question.mark(answer)
+
+    if getattr(question, "RESTORABLE_IN_LESSON", False):
+        # Practice-state (slice 3): persist the answer only — never the verdict; it
+        # is re-marked on restore. Empty answer clears any prior stored answer.
+        if answer_is_empty(answer):
+            save_element_state(request.user, node, element.pk, None)
+        else:
+            save_element_state(
+                request.user, node, element.pk, {"answer": answer_to_json(answer)}
+            )
 
     if _wants_fragment(request):
         if isinstance(question, ChoiceQuestionElement):
