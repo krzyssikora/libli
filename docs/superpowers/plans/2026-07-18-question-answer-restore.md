@@ -182,7 +182,7 @@ def test_save_helper_delete_does_not_spawn_a_row():
     assert not UnitProgress.objects.filter(student=user, unit=unit).exists()
 ```
 
-> Note: the module already declares `pytestmark = pytest.mark.django_db` at the top from Task 1; the duplicate assignment here is harmless but you may omit it if the top-level one is in scope.
+> Note: this `pytestmark = pytest.mark.django_db` is the module's SOLE declaration (Task 1's file had none — its attribute tests need no DB). Keep it: every save/restore test below needs DB access, and without the marker they error with "Database access not allowed."
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -557,12 +557,16 @@ def test_restore_shortnumeric_fills_value(client):
 
 
 def test_restore_fillblank_fills_each_blank(client):
-    # One blank accepting "paris"; the {{...}} token in the stem marks the gap
-    # (Blank.accepted is parsed from {{a|b}}, courses/models.py:1679).
+    # render_fill_blanks emits an <input name="blank"> only per U+FFFF token, and a
+    # plain model create runs NO tokenizer (the {{..}}->token conversion happens in
+    # courses.fillblank.parse, used by the builder form — not at .objects.create).
+    # So seed the tokenized stem via parse(), else no input renders and value= is absent.
+    from courses.fillblank import parse
     from courses.models import Blank
 
     student, course, unit = _enrolled(client)
-    obj = FillBlankQuestionElement.objects.create(stem="The capital is {{paris}}.")
+    token_stem, _blanks = parse("The capital is {{paris}}.")  # parse -> (token_stem, blanks)
+    obj = FillBlankQuestionElement.objects.create(stem=token_stem)
     Blank.objects.create(question=obj, order=1, accepted="paris")
     _seed(unit, student, obj, {"answer": ["paris"]})
     body = client.get(_lesson_url(unit)).content.decode()
@@ -589,7 +593,7 @@ def test_editor_preview_does_not_restore(client):
     assert 'value="paris"' not in body  # author preview never restores another user's answer
 ```
 
-> `Blank` (FK `question`, related_name `blanks`) and the `manage_editor` route (kwarg `pk`) are verified against `courses/models.py:1679` and `courses/urls.py:207`. If `render_fill_blanks` needs the gap token in a specific form, confirm the `{{paris}}` stem emits an `<input name="blank">` (courses/fillblank.py); keep the asserted behavior (refilled `value="paris"` / no restore in preview). The editor page may require the author to be logged in with build access — reuse whatever login the existing editor tests use if `make_student` is insufficient.
+> `Blank` (FK `question`, related_name `blanks`) and the `manage_editor` route (kwarg `pk`) are verified against `courses/models.py:1679` and `courses/urls.py:207`. The fill-blank restore fixture MUST seed a **tokenized** stem via `courses.fillblank.parse(...)` (see that test's comment) — `render_fill_blanks` splits on the U+FFFF token and emits an input only per token; a raw `{{paris}}` stem renders zero inputs. The editor page may require the author to be logged in with build access — reuse whatever login the existing editor tests use if `make_student` is insufficient.
 
 > Adjust `required_keywords` / `Choice` field names to the real schema if they differ; keep the asserted markers (`question__reveal-guide`, `value="paris"`, `checked`).
 
