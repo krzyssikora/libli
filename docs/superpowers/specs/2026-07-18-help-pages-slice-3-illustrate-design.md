@@ -55,9 +55,11 @@ both directions in slice 2). It is never `@pytest.mark.e2e`.
   - `wait_selector` — element that must be visible before shooting.
   - `clip_selector` — element to element-clip (keeps shots tight and stable); `None`
     means full viewport.
-  - `onboarded` — default `True`; the first-run-wizard shot sets `False`.
-  - `prep` — optional callable for per-shot state the seed can't hold globally (e.g.
-    flip `onboarded`, expand a drill-down row before the shot).
+  - `prep` — optional `prep(page)` callable, run **after** login + `goto` +
+    `wait_selector` and **before** the screenshot, for on-page Playwright interactions
+    (e.g. expand a drill-down row). It receives the Playwright `page` and nothing else.
+    Per-shot DB differences live in the seed, not here; no shot needs a DB mutation at
+    capture time (the `onboarded` flag is irrelevant — see Component 2).
 - **Two locale passes.** For `locale in ("en", "pl")`: set every demo user's `language`
   field to `locale`, then for each shot log in fresh as its `login_as` (the login signal
   writes `session[SESSION_KEY] = user.language`, and `SessionLocaleMiddleware` renders
@@ -76,12 +78,16 @@ both directions in slice 2). It is never `@pytest.mark.e2e`.
   harness activates a capture-only urlconf `tests/capture_urls.py` (re-exports
   `config.urls.urlpatterns` + unconditionally appends `static(MEDIA_URL,
   document_root=MEDIA_ROOT)`) via `override_settings(ROOT_URLCONF=...)` so MEDIA resolves.
+  The plan adds a fast **smoke check** (one `MEDIA_URL` asset returns 200 under the capture
+  urlconf) before the full run, so a mis-wired urlconf fails fast rather than as a
+  broken-image cascade.
 - **Broken-image tripwire** (from slice 2) is retained and now load-bearing: it proves a
   lesson shot actually rendered its MEDIA image rather than a broken icon. To stay a
   targeted MEDIA proof rather than a noisy whole-run failure, `bad_images` is
   reset/asserted **per shot** (not once for the entire multi-page run), and is scoped to
-  image requests under `MEDIA_URL` (or the shot's clip target) so an unrelated 404
-  elsewhere — a favicon, an avatar — doesn't fail the regeneration.
+  image requests whose URL starts with `MEDIA_URL` (a network `response` has a URL, not a
+  clip), so an unrelated 404 elsewhere — a favicon, an avatar — doesn't fail the
+  regeneration.
 - **Time determinism.** Time-bearing surfaces drift across regenerations unless the clock
   is pinned (the notifications list/bell render `created_at|timesince`; invitations render
   `created_at|date`/`expires_at|date`; the course list renders `updated|date`; the people
@@ -115,7 +121,10 @@ discipline) — the command is run repeatedly by the harness and by other seed t
 - **Per-surface state** so each PA/teacher page has something real to show:
   - a small set of **notifications** for `demo_admin` (the notifications topic is
     PA-gated, so its shot logs in as `demo_admin`) — covers the notifications topic + the
-    bell;
+    bell. `created_at` is `auto_now_add`, so under the frozen clock every row would read
+    "0 minutes ago"; backdate each row to a fixed offset before the frozen `now` via a
+    **post-create `.update()`** (`auto_now_add` ignores create-time values), giving varied,
+    realistic relative times;
   - one **invitation** (invitations topic);
   - a saved, **disabled OIDC/SSO config** (sso topic);
   - a **WebhookEndpoint** + one **WebhookDelivery** (integrations topic);
@@ -131,13 +140,22 @@ discipline) — the command is run repeatedly by the harness and by other seed t
     consumption shot renders a MEDIA image and the broken-image tripwire is load-bearing.
     Today the only image is on the separate "Bonus lesson" unit, so no single unit shows
     both content elements and a MEDIA image.
+  - a personal **note** (on a lesson block) and a personal **tag** (on a unit) for
+    `demo_teacher`, so the tags-and-notes hub (`overview`) and `my_tags` render populated
+    rather than empty-state (notes-tags topic);
+  - a **Collection** containing the Demo Group, so collection-scoped surfaces
+    (`collection_detail`, and the teacher collection analytics if that is the surface the
+    analytics topic documents) have data (groups-collections topic);
   - Group + graded quiz + varied grades already exist from slice 2 (analytics,
     drill-down, quiz-review, roster, groups-collections, gradebook-export).
-- **`onboarded`** left `True` by default (so non-wizard PA pages behave normally). The
-  wizard shot's `prep` flips it `False`, and **must restore it to `True` afterward** (or
-  the wizard shot is ordered last in each locale pass) — otherwise a later shot in the
-  same pass hits the first-run home gate. `onboarded` is a global institution flag, so the
-  toggle is not naturally scoped to one capture.
+- **`onboarded`** needs no seeding or per-shot toggling. It defaults to **`False`**
+  (`institution/models.py`, `core/services._DEFAULTS`) and the seed does not call
+  `mark_onboarded`. The only first-run gate is in the **`home`** view (a PA who isn't
+  onboarded and hasn't skipped is redirected to the wizard); **no shot navigates to
+  `home`**, and the `setup` view renders regardless of the flag. So the wizard shot simply
+  navigates directly to `setup`, and every other PA shot is unaffected. (The plan confirms
+  no global "finish setup" banner appears on captured pages — none was found in the base
+  templates.)
 
 ### Component 3 — Doc edits (all `docs/help/**/*.md` + `*.pl.md`)
 
@@ -166,11 +184,17 @@ registered `Topic`, both the EN markdown and its `.pl.md` sibling contain at lea
 `static:` image reference, and **every** referenced `static:` path resolves via
 `django.contrib.staticfiles.finders.find` (proving the PNG is committed, not a dangling
 reference). This mechanically enforces the "all 22 topics, both locales" goal and catches
-a doc that references an un-regenerated image. Implementation note: the gate renders both
-`topic.path` **and** its PL sibling (`localized_doc_path(topic.path, "pl")`) and reuses
-the existing rendered-HTML `<img src="static:...">` extraction (`render_markdown_doc(...,
-resolve_static=False)`), not a raw-markdown scan — extending slice 2's EN-only,
-`topic.path`-only scan to both locales.
+a doc that references an un-regenerated image. Implementation notes:
+- **Do not** use `localized_doc_path` for the PL branch — it falls back to the English
+  base when the `.pl.md` is absent, so a missing Polish doc would render the EN file, find
+  the EN image, and pass silently (the exact falsifiability trap the project guards
+  against). Instead derive the PL sibling directly
+  (`topic.path.removesuffix(".md") + ".pl.md"`), **assert that file exists on disk**, and
+  render that exact path via `render_markdown_doc(..., resolve_static=False)`, reusing the
+  rendered-HTML `<img src="static:...">` extraction (extends slice 2's EN-only scan).
+- For each locale, additionally assert the embedded image's stem carries the **matching
+  locale suffix** (`.en.png` in `*.md`, `.pl.png` in `*.pl.md`), so a PL doc that reuses
+  the EN image is caught — mechanically enforcing the "own PL-locale image" rule.
 
 ### Component 5 — Regeneration workflow
 
@@ -203,10 +227,10 @@ verifies which surface the topic's prose actually describes** before wiring the 
 | create-a-course | demo_admin | `manage_course_list` / `manage_course_create` |
 | export-import | demo_admin | `manage_course_export` / `manage_course_import` surface |
 | users-roles | demo_admin | `people` (Users tab) |
-| invitations | demo_admin | `people` (Invitations tab) — needs seeded invitation |
-| branding-settings | demo_admin | `settings` (Branding tab) — needs branding set |
-| sso | demo_admin | `settings` (SSO tab) — needs disabled OIDC config |
-| integrations | demo_admin | `settings` (Integrations tab) — needs endpoint + delivery |
+| invitations | demo_admin | `people_invitations` — needs seeded invitation |
+| branding-settings | demo_admin | `settings_branding` — needs branding set |
+| sso | demo_admin | `settings_sso` — needs disabled OIDC config |
+| integrations | demo_admin | `settings_integrations` — needs endpoint + delivery |
 | subjects | demo_admin | `manage_subject_list` |
 | cohorts | demo_admin | `cohort_list` — needs a cohort |
 | notifications | demo_admin | `list` — needs notifications seeded for `demo_admin` |
@@ -214,9 +238,14 @@ verifies which surface the topic's prose actually describes** before wiring the 
 
 ## Error handling / edge cases
 
-- **Tab-panel surfaces** (settings Branding/SSO/Integrations, people Users/Invitations):
-  navigate directly to the tab URL/anchor; wait on the tab's own content selector, not
-  the page shell, so the clip captures the right panel.
+- **Tab-panel surfaces:** use the **dedicated per-tab routes** — `settings_branding`,
+  `settings_sso`, `settings_integrations`, `settings_notifications`; `people` and
+  `people_invitations` — (or the `?tab=` query param the settings view honors via
+  `_active_tab`), not an anchor guess. Wait on the tab's own content selector, not the
+  page shell, so the clip captures the right panel.
+- **Review-queue emptiness:** the seeded quiz is AUTO-marked, so the manual review queue
+  may render empty. The plan confirms `manage_review_queue` is non-empty for the seeded
+  state; if the queue filters to manual-marking submissions, seed one that lands in it.
 - **Streaming/download routes** (gradebook export, node export) have no HTML to shoot —
   the shot targets the page that offers the control, never the download response.
 - **Idempotency:** every seed addition must survive reruns (the harness reseeds each
