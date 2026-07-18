@@ -123,3 +123,20 @@ def test_seed_quiz_group_idempotent():
     subs = QuizSubmission.objects.count()
     call_command("seed_demo_course")
     assert QuizSubmission.objects.count() == subs
+
+
+@pytest.mark.django_db
+def test_seed_materializes_demo_image_idempotently(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    from courses.models import MediaAsset
+
+    call_command("seed_demo_course")
+    asset = MediaAsset.objects.get(original_filename="demo.png")
+    assert asset.file  # a file is set
+    assert asset.file.storage.exists(asset.file.name)  # and exists on disk
+    assert asset.file.size > 0
+    first_name = asset.file.name
+
+    call_command("seed_demo_course")  # rerun
+    asset.refresh_from_db()
+    assert asset.file.name == first_name  # stable name, no demo_<rand>.png

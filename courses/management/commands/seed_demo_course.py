@@ -1,8 +1,10 @@
 """Management command: idempotently seed a demo course, tree, and enrolled student."""
 
 from decimal import Decimal
+from pathlib import Path
 
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
@@ -40,6 +42,8 @@ from institution.roles import seed_roles
 User = get_user_model()
 
 DEMO_PASSWORD = "demo-pass-123"  # noqa: S105 - single reused demo credential (not a test literal)
+
+_DEMO_PNG = Path(__file__).resolve().parent / "seed_assets" / "demo.png"
 
 
 class Command(BaseCommand):
@@ -160,11 +164,13 @@ class Command(BaseCommand):
         ).first()
         if asset is None:
             asset = MediaAsset.objects.create(
-                course=course,
-                kind="image",
-                file="courses/images/demo.png",
-                original_filename="demo.png",
+                course=course, kind="image", original_filename="demo.png"
             )
+        # Materialize real bytes idempotently: FileField.save() would append a random
+        # suffix if the target name already exists (get_available_name), so only write
+        # when there is no backing file on disk yet — keeping a stable "demo.png" name.
+        if not asset.file or not asset.file.storage.exists(asset.file.name):
+            asset.file.save("demo.png", ContentFile(_DEMO_PNG.read_bytes()), save=True)
         self._upsert(unit, ImageElement, media=asset, alt=alt)
 
     def _callout(self, unit):
