@@ -87,10 +87,15 @@ def to_author_stem(token_stem, blanks):
     return _TOKEN_RE.sub(_swap, token_stem or "")
 
 
-def render_inputs(token_stem, submitted_values=None):
+def render_inputs(token_stem, submitted_values=None, locked=False):
     """Split a stored token-stem and safe-join server-built <input>s. The text
     segments are already-sanitized HTML (trusted); only the <input>s are inserted,
-    with the repopulation value HTML-escaped."""
+    with the repopulation value HTML-escaped.
+
+    `locked=True` renders each input read-only + .is-correct with a `size` that
+    fits its value -- the server-side answered appearance for a restored gate
+    (the width-release CSS `.is-correct:read-only` needs the `size` to fit; without
+    it `width:auto` defaults to ~20ch and clips long answers)."""
     vals = list(submitted_values or [])
     parts = _TOKEN_RE.split(token_stem or "")
     out = []
@@ -100,13 +105,26 @@ def render_inputs(token_stem, submitted_values=None):
         else:
             n = int(part)
             v = vals[n] if 0 <= n < len(vals) else ""
-            out.append(
-                str(
-                    format_html(
-                        '<input type="text" name="blank" value="{}" '
-                        'class="question__blank-input" autocomplete="off">',
-                        v,
+            if locked:
+                out.append(
+                    str(
+                        format_html(
+                            '<input type="text" name="blank" value="{}" '
+                            'class="question__blank-input is-correct" size="{}" '
+                            'readonly autocomplete="off">',
+                            v,
+                            max(len(v), 2),
+                        )
                     )
                 )
-            )
+            else:
+                out.append(
+                    str(
+                        format_html(
+                            '<input type="text" name="blank" value="{}" '
+                            'class="question__blank-input" autocomplete="off">',
+                            v,
+                        )
+                    )
+                )
     return mark_safe("".join(out))  # noqa: S308 — segments sanitized; inputs escaped

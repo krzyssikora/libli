@@ -80,20 +80,21 @@ def test_validator_exception_maps_to_REJECT(monkeypatch):
         ({"open": True, "x": 1}, {"open": True}),  # extra keys normalized away
     ],
 )
-def test_val_revealgate_stores_open(payload, expected):
-    assert state._val_revealgate(None, None, payload) == expected
+def test_val_open_gate_stores_open(payload, expected):
+    assert state._val_open_gate(None, None, payload) == expected
 
 
 @pytest.mark.parametrize("payload", [{"open": False}, {}, {"other": 1}])
-def test_val_revealgate_empty(payload):
+def test_val_open_gate_empty(payload):
     # A well-formed "nothing to restore" DROPS the key -- EMPTY, never REJECT.
-    assert state._val_revealgate(None, None, payload) is state.EMPTY
+    assert state._val_open_gate(None, None, payload) is state.EMPTY
 
 
 @pytest.mark.parametrize("payload", ["nope", 3, None, ["open"]])
-def test_val_revealgate_rejects_non_dict(payload):
-    assert state._val_revealgate(None, None, payload) is state.REJECT
+def test_val_open_gate_rejects_non_dict(payload):
+    assert state._val_open_gate(None, None, payload) is state.REJECT
 
 
-def test_revealgate_registered_under_model_key():
-    assert state.VALIDATORS["revealgateelement"] is state._val_revealgate
+def test_open_gate_registered_for_all_three_families():
+    for key in ("revealgateelement", "fillgateelement", "switchgateelement"):
+        assert state.VALIDATORS[key] is state._val_open_gate

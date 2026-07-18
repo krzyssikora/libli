@@ -80,14 +80,13 @@ def sanitize(value):
 
 
 @register.simple_tag
-def render_fill_blanks(el, submitted_values=None):
+def render_fill_blanks(el, submitted_values=None, locked=False):
     """Render a fill-blank stem: text segments (sanitized HTML) interleaved with
-    server-built <input name="blank"> elements (escaped values).
-
-    See courses.fillblank."""
+    server-built <input name="blank"> elements (escaped values). `locked=True`
+    renders the read-only answered state (restore path). See courses.fillblank."""
     from courses import fillblank
 
-    return fillblank.render_inputs(el.stem, submitted_values)
+    return fillblank.render_inputs(el.stem, submitted_values, locked=locked)
 
 
 @register.simple_tag
@@ -234,38 +233,69 @@ def render_image_selects(el, submitted_values=None):
 
 
 @register.simple_tag
-def render_switch_gate(el, eid):
-    """Render the inline cycler widget spliced into the stem at its ￿0￿ token.
-
-    See courses.switchgate."""
+def render_switch_gate(el, eid, mine=None, mine_json="{}", save_url=""):
+    """Render the "Choose & confirm" cycler. When mine.open (restore path), the
+    correct option is shown, the cycler disabled, Confirm omitted, and
+    switchgate--done added -- the server half of the answered appearance
+    (switchgate.js typesets its math on boot). mine_json is passed pre-serialized
+    from the template (courses_extras.py has no json import). See courses.switchgate."""
     check_url = reverse("courses:switchgate_check", args=[eid])
-    options_html = format_html_join(
+    is_open = bool((mine or {}).get("open"))  # null-safe: mine may be None
+    answer = el.answer
+    # Bounds-safe: un-hide the option where k == answer; an out-of-range answer
+    # (a transfer/import could persist one) leaves ALL options hidden, never an
+    # IndexError. NEVER index options[answer].
+    option_spans = format_html_join(
         "",
-        '<span class="switchgate__option" hidden>{}</span>',
-        ((mark_safe(o),) for o in (el.options or [])),  # noqa: S308 — options sanitized at save()
+        '<span class="switchgate__option"{}>{}</span>',
+        (
+            (
+                "" if (is_open and k == answer) else mark_safe(" hidden"),
+                mark_safe(o),  # noqa: S308 — options sanitized at save()
+            )
+            for k, o in enumerate(el.options or [])
+        ),
     )
     hint_id = f"sg-hint-{eid}"
+    cycler_disabled = mark_safe(" disabled") if is_open else ""
+    ph_hidden = mark_safe(" hidden") if is_open else ""
+    confirm_html = (
+        ""
+        if is_open
+        else format_html(
+            '<button type="button" class="switchgate__confirm" hidden>{}</button>',
+            _("Confirm"),
+        )
+    )
     widget = format_html(
         '<button type="button" class="switchgate__cycler" data-switchgate-cycler '
-        'aria-describedby="{hint}">'
-        '<span class="switchgate__placeholder">{placeholder}</span>{options}</button>'
+        'aria-describedby="{hint}"{disabled}>'
+        '<span class="switchgate__placeholder"{ph}>{placeholder}</span>{options}'
+        "</button>"
         '<span id="{hint}" class="visually-hidden">{describe}</span>'
-        '<button type="button" class="switchgate__confirm" hidden>{confirm}</button>'
+        "{confirm}"
         '<span class="switchgate__feedback" data-switchgate-feedback hidden>'
         "{tryagain}</span>",
         hint=hint_id,
+        disabled=cycler_disabled,
+        ph=ph_hidden,
         placeholder=_("Choose ▾"),
-        options=options_html,
+        options=option_spans,
         describe=_("Choose an option"),
-        confirm=_("Confirm"),
+        confirm=confirm_html,
         tryagain=_("Try again"),
     )
     body = _switchgate.render_stem(el.stem, widget)
+    done = mark_safe(" switchgate--done") if is_open else ""
     return format_html(
-        '<div class="switchgate" data-reveal-gate data-switchgate '
-        'data-element-pk="{pk}" data-check-url="{url}">{body}</div>',
+        '<div class="switchgate{done}" data-reveal-gate data-switchgate '
+        'data-element-pk="{pk}" data-check-url="{url}" '
+        'data-state="{state}" data-state-url="{save_url}">{body}</div>',
+        done=done,
         pk=eid,
         url=check_url,
+        state=mine_json,
+        save_url=save_url,
         body=body,
     )
 

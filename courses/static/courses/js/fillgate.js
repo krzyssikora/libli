@@ -11,6 +11,30 @@
     return m ? m[1] : "";
   }
 
+  function storedOpen(el) {
+    try {
+      var raw = el && el.dataset.state;
+      if (!raw) return false;
+      var blob = JSON.parse(raw);
+      return !!(blob && blob.open === true); // strict shape, not truthiness
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function saveOpen(container) {
+    var url = container.dataset.stateUrl;
+    if (!url) return; // editor preview: "" -> no-op
+    var eid = parseInt(container.dataset.elementPk, 10);
+    if (!eid) return; // pk 0 == content object with no join row
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CSRFToken": csrf() },
+      body: JSON.stringify({ element: eid, state: { open: true } }),
+      keepalive: true, // survives unload
+    }).catch(function () {}); // monotone: keep the DOM, ignore the body
+  }
+
   function inputs(form) {
     return form.querySelectorAll('input[name="blank"]');
   }
@@ -72,6 +96,7 @@
           if (window.libliRevealCascade && container) {
             window.libliRevealCascade(container, { hideWrapper: false });
           }
+          if (container) saveOpen(container); // NEW: persist {"open": true}
         } else {
           showWrong(form, data.blanks);
         }
@@ -82,6 +107,14 @@
   function initOne(form) {
     if (form.dataset.fillgateReady === "1") return;
     form.dataset.fillgateReady = "1";
+    var container = form.closest("[data-fillgate]");
+    if (storedOpen(container)) {
+      // Server rendered it locked; do NOT arm Confirm/submit. But a single-blank
+      // form with no submit button implicitly submits on Enter (GET nav -> reload);
+      // bind a preventDefault-only handler so restore is not worse than the click path.
+      form.addEventListener("submit", function (e) { e.preventDefault(); });
+      return;
+    }
     var btn = form.querySelector(".fillgate__confirm");
     if (btn) btn.hidden = false;  // arm Confirm now that JS is live
     form.addEventListener("submit", function (e) {
