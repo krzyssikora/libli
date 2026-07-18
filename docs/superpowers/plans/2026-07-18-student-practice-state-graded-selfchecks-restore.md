@@ -569,9 +569,9 @@ Replace `templates/courses/elements/switchgridelement.html`:
 Run: `uv run pytest courses/tests/test_switchgrid_restore.py courses/tests/test_switchgrid_template.py courses/tests/test_switchgrid_wiring.py -q`
 Expected: PASS (new restore tests plus the pre-existing template/wiring tests unaffected — `el.render()` with no state still hits `mine={}`, so the unanswered branch is byte-identical modulo the two new attributes).
 
-- [ ] **Step 6: Falsify the bounds-safe render**
+- [ ] **Step 6: Document the bounds-safe render as safe by construction**
 
-Temporarily change `shown = (answer if valid_answer else -1) if is_done else 0` to `shown = (answer if is_done else 0)` (drop the `valid_answer` bounds check, trust `answer` even when out of range) and re-run `courses/tests/test_switchgrid_restore.py -q`. Expected: RED — `test_switchgrid_stored_done_renders_locked_with_data_state` still passes (that grid's `answer` is in range), but this is not the guard under test here; the equality comparison `k == shown` never indexes and so never crashes regardless of `shown`'s value, by construction. The bounds guard's real job is *correctness*, not crash-safety: temporarily change the comparison instead to `shown = 0` unconditionally whenever `is_done` (ignoring `answer` entirely) and re-run `test_switchgrid_stored_done_renders_locked_with_data_state`. Expected: RED (option "+", index 0, shown instead of the correct option "x", index 2). Revert.
+The switch-grid render is **safe by construction**: it un-hides an option only where `k == shown` (an equality comparison against a definite index), never via `options[answer]` indexing — so an out-of-range author-set `answer` can never `IndexError`. There is no guard here to neutralize into a red test. `test_switchgrid_out_of_range_answer_shows_nothing_no_crash` documents this invariant (renders 200, nothing un-hidden) rather than falsifying a removable guard. The falsifiable *correctness* guard is the `k == answer` comparison itself, already covered by `test_switchgrid_stored_done_renders_locked_with_data_state`: temporarily change `shown = (answer if valid_answer else -1) if is_done else 0` to `shown = 0` unconditionally whenever `is_done` (ignoring `answer` entirely) and re-run that test. Expected: RED (option "+", index 0, shown instead of the correct option "x", index 2). Revert.
 
 - [ ] **Step 7: Falsify the `data-state` autoescape guard**
 
@@ -811,6 +811,7 @@ obj.render() directly with an INT-keyed state dict -- render()'s own contract,
 not the str/int UnitProgress.element_state seam. See courses.state._val_done,
 FillTableElement.canonical_cells, and FillTableElement.render()."""
 
+import html
 import json
 import re
 
@@ -859,7 +860,7 @@ def test_filltable_stored_done_renders_locked_with_data_state(client):
     body = client.get(_lesson_url(unit)).content.decode()
 
     m = re.search(r'data-state="([^"]*)"', body)
-    assert m and json.loads(m.group(1)) == {"done": True}
+    assert m and json.loads(html.unescape(m.group(1))) == {"done": True}
     assert (
         '<input type="text" class="filltable__input filltable__input--correct" '
         'data-r="1" data-c="1" value="4" readonly' in body
@@ -1610,7 +1611,7 @@ def test_filltable_correct_value_persists_across_reload(page, live_server):
     page.reload()
     inp = _answer_input(page)
     expect(_confirm(page)).to_have_count(0)
-    expect(inp).to_be_disabled()
+    expect(inp).to_have_js_property("readOnly", True)
     expect(inp).to_have_value("4")
     expect(inp).to_have_class(_CORRECT)
     expect(_summary(page)).to_have_class(_SUCCESS)
@@ -1697,7 +1698,7 @@ def test_filltable_nested_in_tab_restores_after_reload(page, live_server):
     page.wait_for_selector("[data-tabs].tabs--js")
     inp = page.locator('.filltable__input[data-r="0"][data-c="1"]')
     expect(inp).to_have_value("4")
-    expect(inp).to_be_disabled()
+    expect(inp).to_have_js_property("readOnly", True)
 ```
 
 - [ ] **Step 2: Run the e2e to verify it fails**
@@ -1876,7 +1877,7 @@ def test_restored_guessnumber_does_not_repost_on_enter(page, live_server):
     assert posts == []
 ```
 
-Also add the `_seed_state` helper this new test uses (mirroring the pattern in `tests/test_e2e_fillgate.py`), near the other seed helpers:
+Also add the `_seed_state` helper these two new tests use (mirroring the pattern in `tests/test_e2e_fillgate.py`), near the other seed helpers:
 
 ```python
 def _seed_state(student, unit, element_state):
@@ -1889,10 +1890,35 @@ def _seed_state(student, unit, element_state):
     progress.save(update_fields=["element_state"])
 ```
 
+Also add a nested-in-tab restore test, mirroring `test_switchgrid_nested_in_tab_restores_after_reload` (Task 8) and `test_filltable_nested_in_tab_restores_after_reload` (Task 9) — `guess_number` is in `NESTABLE_TYPE_KEYS` but had no restore coverage nested inside a tab panel. Reuses the file's pre-existing `_seed_tab1_gn` helper (already defined for the "Case 10: nested inside a tab panel" gesture test):
+
+```python
+@pytest.mark.django_db(transaction=True)
+def test_guessnumber_nested_in_tab_restores_after_reload(page, live_server):
+    """Guess-the-number is in NESTABLE_TYPE_KEYS -- nested inside a Tabs panel.
+    The widget JS's root-scoped dataset lookups and the server render must
+    restore correctly inside a tab panel exactly as at top level (mirrors
+    test_switchgrid_nested_in_tab_restores_after_reload / test_filltable_nested_
+    in_tab_restores_after_reload in Tasks 8/9)."""
+    from courses.models import Element
+
+    student, unit = _new_unit("gn_tabs_restore")
+    join = _seed_tab1_gn(unit, [_guessnumber("<p>Guess: {{42}}</p>")])
+    row = Element.objects.get(parent=join, content_type__model="guessnumberelement")
+    _seed_state(student, unit, {str(row.pk): {"done": True}})
+    _login(page, live_server, "gn_tabs_restore")
+    page.goto(_unit_url(live_server, unit))
+
+    page.wait_for_selector("[data-tabs].tabs--js")
+    expect(_input(page)).to_have_value("42")
+    expect(_input(page)).to_have_class(re.compile(r"\bis-correct\b"))
+    expect(_root(page)).to_have_class(re.compile(r"\bguessnumber--done\b"))
+```
+
 - [ ] **Step 3: Run the e2e to verify it fails**
 
-Run (foreground): `uv run pytest tests/test_e2e_guessnumber.py -m e2e -k "persists_across_reload or persists_nothing or restored_guessnumber_does_not_repost" -q`
-Expected: FAIL on two of the three. `test_correct_guess_persists_across_reload` times out on `expect_response` (no state POST yet). `test_restored_guessnumber_does_not_repost_on_enter` also fails: the server already renders the input `readonly` and omits `[data-guess-check]` (Task 5), but the OLD `initOne` unconditionally binds `input.addEventListener("keydown", ...)` regardless of whether `check` exists, so pressing Enter still calls `submit()` — `done` is a fresh local `false`, `input.value` is the server-filled "42", so it POSTs to the check endpoint and `assert posts == []` fails. `test_wrong_guess_persists_nothing` already passes (unaffected by this task).
+Run (foreground): `uv run pytest tests/test_e2e_guessnumber.py -m e2e -k "persists_across_reload or persists_nothing or restored_guessnumber_does_not_repost or nested_in_tab_restores" -q`
+Expected: FAIL on two of the four. `test_correct_guess_persists_across_reload` times out on `expect_response` (no state POST yet). `test_restored_guessnumber_does_not_repost_on_enter` also fails: the server already renders the input `readonly` and omits `[data-guess-check]` (Task 5), but the OLD `initOne` unconditionally binds `input.addEventListener("keydown", ...)` regardless of whether `check` exists, so pressing Enter still calls `submit()` — `done` is a fresh local `false`, `input.value` is the server-filled "42", so it POSTs to the check endpoint and `assert posts == []` fails. `test_guessnumber_nested_in_tab_restores_after_reload` is a bare page load of already-seeded `{"done": true}` state — its value/class assertions are exercised by Task 5's server render alone, so it is expected to already PASS here (this task's JS wiring doesn't change it); it is included for regression coverage and to mirror the sibling nested-tab restore tests in Tasks 8/9. `test_wrong_guess_persists_nothing` already passes too (unaffected by this task).
 
 - [ ] **Step 4: Wire save-on-correct and boot skip-arm**
 
@@ -1952,8 +1978,8 @@ becomes
 
 - [ ] **Step 5: Run the e2e to verify it passes**
 
-Run (foreground): `uv run pytest tests/test_e2e_guessnumber.py -m e2e -k "persists_across_reload or persists_nothing or restored_guessnumber_does_not_repost" -q`
-Expected: PASS (all three).
+Run (foreground): `uv run pytest tests/test_e2e_guessnumber.py -m e2e -k "persists_across_reload or persists_nothing or restored_guessnumber_does_not_repost or nested_in_tab_restores" -q`
+Expected: PASS (all four).
 
 - [ ] **Step 6: Falsify the skip-arm guard**
 
@@ -1962,7 +1988,7 @@ Temporarily delete the `if (window.libliState.storedFlag(root, "done")) { return
 - [ ] **Step 7: Run the full existing guess-number e2e file to confirm no regression**
 
 Run (foreground): `uv run pytest tests/test_e2e_guessnumber.py -m e2e -q`
-Expected: PASS (all ten pre-existing cases plus the three new ones).
+Expected: PASS (all ten pre-existing cases plus the four new ones).
 
 - [ ] **Step 8: Commit**
 
@@ -1991,12 +2017,14 @@ def test_post_clears_done_selfcheck_state_and_lesson_restores_fresh(client):
     a graded self-check's {"done": true} blob too -- mirrors the MarkDone
     coverage above, extended through the lesson view to prove the WIDGET, not
     just the row, comes back fresh."""
+    from courses import switchgrid
     from courses.models import SwitchGridElement
 
     course, unit = make_course_with_unit()
+    token_stem, _n = switchgrid.parse_stem_multi("Pick {{choice}}")
     grid = SwitchGridElement.objects.create(
         prompt="",
-        lines=[{"stem": "pick", "cyclers": [{"options": ["a", "b"], "answer": 1}]}],
+        lines=[{"stem": token_stem, "cyclers": [{"options": ["a", "b"], "answer": 1}]}],
     )
     row = add_element(unit, grid)
     student = make_verified_user(username="gsc_reset", email="gsc_reset@school.edu")
@@ -2017,6 +2045,7 @@ def test_post_clears_done_selfcheck_state_and_lesson_restores_fresh(client):
     assert 'data-state="{}"' in body
     assert "switchgrid--locked" not in body
     assert "switchgrid__confirm" in body
+    assert "data-switchgrid-cycler" in body  # cycler actually rendered, fresh
 ```
 
 Run: `uv run pytest courses/tests/test_progress_reset.py -q -k done_selfcheck`
