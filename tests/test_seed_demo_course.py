@@ -207,9 +207,25 @@ def test_seed_review_submission_is_in_review_queue():
 
 @pytest.mark.django_db
 def test_seed_is_idempotent_second_run():
+    from django.contrib.auth import get_user_model
+
+    from accounts.models import Invitation
+    from grouping.models import Cohort
     from grouping.models import Collection
+    from integrations.models import WebhookDelivery
+    from notes.models import Note
+    from tags.models import Tag
 
     call_command("seed_demo_course")
     call_command("seed_demo_course")  # must not raise / duplicate
 
     assert Collection.objects.filter(name="Demo Collection").count() == 1
+    assert Note.objects.filter(author__username="demo_teacher").count() == 1
+    assert (
+        Tag.objects.filter(author__username="demo_teacher", name="Revision").count()
+        == 1
+    )
+    assert Cohort.objects.filter(name="Autumn 2026").count() == 1
+    assert WebhookDelivery.objects.filter(dedupe_key="demo-1").count() == 1
+    assert Invitation.objects.filter(email="invitee@demo.example").count() == 1
+    assert get_user_model().objects.filter(username="demo_admin").count() == 1
