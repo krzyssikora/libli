@@ -973,7 +973,16 @@ class FillTableElement(ElementBase):
         from django.template.loader import render_to_string
 
         ctx = self._state_context(element, state, slug, node_pk)
-        ctx["data"] = self.normalize_data(self.data)
+        if ctx["mine"].get("done"):
+            # Shallow-copied dict, NEVER `self.data["cells"] = ...` -- mutating
+            # self.data in place would silently overwrite the student's stored
+            # pipe-delimited alternatives in-memory for the rest of the request.
+            ctx["data"] = {
+                **self.normalize_data(self.data),
+                "cells": self.canonical_cells,
+            }
+        else:
+            ctx["data"] = self.normalize_data(self.data)
         return render_to_string("courses/elements/filltableelement.html", ctx)
 
     @property
