@@ -16,7 +16,7 @@ Reszta tego tematu opisuje, jak administrator kursu buduje taką listę —
 warto to wiedzieć, bo tłumaczy to, co widzisz na swoim widoku tylko do
 odczytu.
 
-![Lista uczniów w grupie](static:core/img/help/roster.pl.png)
+![Wybór uczniów w formularzu edycji grupy, z filtrami kohorty i nazwiska oraz licznikiem Dodano](static:core/img/help/roster.pl.png)
 
 ## Wybieranie uczniów
 
