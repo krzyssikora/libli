@@ -64,14 +64,18 @@ callback emits an `<svg>` only for a slug in `ELEMENT_ICON_SLUGS` and otherwise 
 the matched text unchanged, leaving an unknown/typo'd token as literal.
 
 1. **Heading inject** (run first): match a **run of one or more** leading tokens on a
-   heading — `<h([1-6])([^>]*)>\s*((?:\{el:[a-z0-9-]+\}\s*)+)` — and the callback replaces
-   the captured run with one `<svg class="ic" aria-hidden="true" focusable="false"><use href="#el-SLUG"></use></svg>`
+   heading — `<h([1-6])([^>]*)>\s*((?:\{el:[a-z0-9-]+\}\s*)+)` — noting the match **spans
+   the opening tag** (groups 1–2 = level and attrs) **plus** the token run. Because
+   `re.sub` with a callable replaces the *entire* match, the callback must **reconstruct
+   the opening tag** and return `<h{group1}{group2}>` followed by one
+   `<svg class="ic" aria-hidden="true" focusable="false"><use href="#el-SLUG"></use></svg>`
    **per token, in order** (each slug validated independently; an unknown one is re-emitted
-   literally). Matching a *run* (not a single token) is required for the one combined
+   literally as its `{el:…}` text). It must **not** emit only the svgs — that would drop the
+   `<h2>` opening tag. The heading text and closing `</hN>` lie outside the match and are
+   left untouched. Matching a *run* (not a single token) is required for the one combined
    heading that mirrors two palette cards — `## {el:choice-single}{el:choice-multi} Single / Multiple choice`
-   renders both icons. The opening-tag prefix and the tokens' trailing whitespace are
-   consumed, so no stray space precedes the heading text; the heading text and closing tag
-   are untouched.
+   renders both icons. The tokens' trailing whitespace is consumed, so no stray space
+   precedes the heading text.
 2. **List-entry wrap** (run second): `<p>\s*\{el:([a-z0-9-]+)\}\s*(.*?)</p>` with the
    **non-greedy** `.*?` and `re.DOTALL` → the `.doc-elref` div in the emitted-markup form
    below (callback validates the single slug; unknown → returned unchanged). A list entry
