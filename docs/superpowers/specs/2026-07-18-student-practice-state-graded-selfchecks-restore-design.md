@@ -105,12 +105,17 @@ Verified against `master` (PRs #139/#140/#147 merged).
    (`models.py:754`), `FillTableElement.render` (`models.py:937`), `GuessNumberElement.render`
    (`models.py:727`) build the full `{el, eid, mine, mine_json, slug, node_pk}` context. **But two of
    the three then discard most of it** (see the render-path gap below).
-4. **Each widget already has a lock path that defines the completed appearance.** `switchgrid.js`
-   `lock()` (adds `switchgrid--locked`, hides Confirm), `filltable.js` `lock()` (disables inputs, hides
-   Confirm), `guessnumber.js` correct branch (readonly, `guessnumber--done`, removes Check). The
-   *restore* path does **not** call `lock()`; the server renders the identical locked look so it is
-   correct before first paint. No new locked state is invented — the server reproduces what `lock()`
-   already produces.
+4. **Each widget produces its completed appearance via TWO effects on a correct submit — not just
+   `lock()`.** Switch grid / Fill-in table: `lock()` (disables inputs/cyclers, hides Confirm —
+   `switchgrid--locked`) **and** `summarize(root, true)`, which un-hides the summary `<p>`
+   (`[data-switchgrid-summary]` / `.filltable__summary`, both start `hidden` with no text), adds
+   `switchgrid--success` / `filltable__summary--success`, and sets its text to the success message.
+   Guess-the-number: its correct branch does readonly + `guessnumber--done` + removes Check **and** adds
+   `is-correct` on the input (the green `--success` tint the Purpose section calls "all-green"). The
+   *restore* path does **not** run this JS; the server must reproduce **both** effects (lock **and**
+   summarize / is-correct) so the completed look is correct — and green — before first paint. No new
+   state is invented; the server reproduces exactly what `lock()` + `summarize()` (and guess-number's
+   `is-correct`) already produce.
 
 ### The render-path gap this slice must close
 
@@ -197,19 +202,26 @@ plan prefers it; not required.)
 
 ### 3. Server-rendered "done" appearance (gated on `mine.done`)
 
+The restore render must reproduce **both** `lock()` and `summarize()` (see "prior slices paid for" §4),
+i.e. the disabled/locked widget **and** the visible green success summary — not just the lock.
+
 - **Switch grid** — `render_switch_grid(el, eid)` → `render_switch_grid(el, eid, mine=None,
   mine_json="{}", save_url="")`; the shim `switchgridelement.html` passes `mine mine_json save_url`.
   When `mine.done`: every cycler shows its correct option (bounds-safe per-index un-hide), cyclers
-  `disabled`, Confirm omitted, `switchgrid--success` (+ `switchgrid--locked` on cyclers). The
-  `.switchgrid` div gains `data-state="{{ mine_json }}"` (autoescaped, never `|safe`) and
-  `data-state-url`.
+  `disabled` + `switchgrid--locked`, Confirm omitted, **and the summary `<p>` `[data-switchgrid-summary]`
+  is un-hidden, carries `switchgrid--success`, and shows the success message text** (reproducing
+  `summarize(root, true)`). The `.switchgrid` div gains `data-state="{{ mine_json }}"` (autoescaped,
+  never `|safe`) and `data-state-url`.
 - **Guess-the-number** — `render_guess_number(el, eid)` → same three-param widening; shim passes them.
-  When `mine.done`: input filled with `canonical_target`, `readonly`, `guessnumber--done`,
-  `success_message` shown, Check removed. The `.guessnumber` div gains `data-state`/`data-state-url`.
+  When `mine.done`: input filled with `canonical_target`, `readonly`, **`is-correct`** (the green
+  success tint), `guessnumber--done` on the root, `success_message` shown, Check removed. The
+  `.guessnumber` div gains `data-state`/`data-state-url`.
 - **Fill-in table** — real template `filltableelement.html` gains `data-state`/`data-state-url` on the
   `[data-filltable]` div and a locked branch: when `mine.done`, `render()` feeds the template
   `canonical_cells` in place of `data["cells"]` (see §2) and the existing cell loop renders each answer
-  cell `readonly` + `filltable__input--correct`, Confirm omitted, `filltable__summary--success`.
+  cell `readonly` + `filltable__input--correct`, Confirm omitted, **and the `.filltable__summary` `<p>`
+  is un-hidden with `filltable__summary--success` and the success message text** (reproducing
+  `summarize`).
 
 **Unanswered-path invariant (all three):** when `mine` is absent/false, the rendered markup is
 **byte-identical to today** — the new `mine=None`/`mine_json="{}"` tag params and the template's
@@ -257,8 +269,9 @@ those onto `libliState.csrf()`, but this slice does not require it).
 
 **Load order is a hard requirement, pinned here (not punted to the plan).** `libliState.js` must be
 included on a lesson page **before** every widget script, whenever **any** consuming widget is present
-— gated on the OR of all six flags `has_revealgate ∨ has_fillgate ∨ has_switchgate ∨ has_switchgrid ∨
-has_filltable ∨ has_guessnumber` in `build_lesson_context`. If it is missing, every widget's boot-time
+— gated on the OR of all six existing context flags (verified in `courses/views.py` /
+`templates/courses/lesson_unit.html`) — `has_reveal_gate ∨ has_fill_gate ∨ has_switch_gate ∨
+has_switch_grid ∨ has_fill_table ∨ has_guess_number`. If it is missing, every widget's boot-time
 `storedFlag` throws and restore (and the rest of `initOne`) breaks silently with no server-side signal.
 A test must therefore assert the helper is present and functional when **exactly one** new element type
 is on a page **in isolation** (not only alongside a gate, which could mask a missing-flag bug).
@@ -293,6 +306,10 @@ the doctrine, before claiming a test is falsifiable, name the single guard whose
 - Each element's server-rendered locked render **through `client.get` on the lesson view** (never
   `obj.render()` with a str key): `data-state` present + autoescaped, done classes, answers shown
   locked/readonly/disabled, Confirm/Check omitted; unanswered path unchanged (`data-state="{}"`).
+- **Success/summary reproduced (per element, not just the one visual check)** — switch grid / fill-in
+  table: the summary `<p>` is un-hidden (no `hidden` attr), carries its `--success` class, and contains
+  the success message text on restore; guess-the-number: the input carries `is-correct`. This guards
+  that the server reproduces `summarize()`/`is-correct`, not only `lock()`.
 - **Switch grid bounds-safety**: an out-of-range persisted `answer` renders 200 with nothing un-hidden
   (no `options[answer]` IndexError).
 
