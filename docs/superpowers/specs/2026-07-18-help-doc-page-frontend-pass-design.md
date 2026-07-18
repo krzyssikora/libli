@@ -58,23 +58,36 @@ depending on the token's HTML context, so it applies **two ordered regex passes*
 the rendered HTML (python-markdown here runs only `fenced_code` + `tables`, no
 `attr_list`, so `{…}` survives as literal text and is safe to match):
 
-1. **Heading inject** (run first): `<h([1-6])([^>]*)>\s*\{el:(SLUG)\}\s*` →
-   `<h\1\2><svg class="ic" aria-hidden="true" focusable="false"><use href="#el-\3"></use></svg>`.
-   Only the opening-tag prefix is consumed; the heading text and closing tag are left
-   intact. The token **and its trailing whitespace** (`\s*`) are consumed, so no stray
-   space precedes the heading text.
-2. **List-entry wrap** (run second): `<p>\s*\{el:(SLUG)\}\s*(.*?)</p>` with the
-   **non-greedy** `.*?` and `re.DOTALL` (a description may span multiple source lines
-   that markdown joins inside one `<p>`) → the `.doc-elref` div in the emitted-markup
-   form below. Non-greedy matching is required so two adjacent tokened paragraphs
-   become two separate rows rather than one greedy match swallowing the span between
-   them. The leading token + whitespace is consumed, so the body starts at `<strong>`.
+Both passes use a **function replacement** (`re.sub` with a callable), not a template
+string, because the slug-membership check requires branching (see Slug validation): the
+callback emits an `<svg>` only for a slug in `ELEMENT_ICON_SLUGS` and otherwise returns
+the matched text unchanged, leaving an unknown/typo'd token as literal.
+
+1. **Heading inject** (run first): match a **run of one or more** leading tokens on a
+   heading — `<h([1-6])([^>]*)>\s*((?:\{el:[a-z0-9-]+\}\s*)+)` — and the callback replaces
+   the captured run with one `<svg class="ic" aria-hidden="true" focusable="false"><use href="#el-SLUG"></use></svg>`
+   **per token, in order** (each slug validated independently; an unknown one is re-emitted
+   literally). Matching a *run* (not a single token) is required for the one combined
+   heading that mirrors two palette cards — `## {el:choice-single}{el:choice-multi} Single / Multiple choice`
+   renders both icons. The opening-tag prefix and the tokens' trailing whitespace are
+   consumed, so no stray space precedes the heading text; the heading text and closing tag
+   are untouched.
+2. **List-entry wrap** (run second): `<p>\s*\{el:([a-z0-9-]+)\}\s*(.*?)</p>` with the
+   **non-greedy** `.*?` and `re.DOTALL` → the `.doc-elref` div in the emitted-markup form
+   below (callback validates the single slug; unknown → returned unchanged). A list entry
+   carries exactly one token. Non-greedy matching is required so two adjacent tokened
+   paragraphs become two separate rows rather than one greedy match swallowing the span
+   between them. `re.DOTALL` lets the body span the **soft-wrapped** lines markdown joins
+   into a single `<p>`; a blank line still starts a new `<p>`, so **each element entry
+   must be authored as a single paragraph** (a two-paragraph entry would leave its
+   continuation as an orphaned untokened `<p>` outside the row — a known authoring
+   constraint, not a supported layout). The leading token + whitespace is consumed, so the
+   body starts at `<strong>`.
 
 Heading-first ordering is harmless (headings never contain `<p>`), but fixed so the
-contract is deterministic. `SLUG` in both patterns is the validated slug class
-`[a-z0-9-]+`. A token that matches neither context (e.g. inside a list item or inline
-run) is left untouched — no element surface authors one there, and leaving it literal
-surfaces the mistake (caught by the no-leak test).
+contract is deterministic. A token that matches neither context (e.g. inside a list item
+or inline run) is left untouched — no element surface authors one there, and leaving it
+literal surfaces the mistake (caught by the no-leak test).
 
 **Slug validation.** `ELEMENT_ICON_SLUGS` is a **hardcoded `frozenset`** in
 `core/help.py` — the sprite ids minus their `el-` prefix — *not* read from the
@@ -133,10 +146,18 @@ no media queries.
   the sunken surface). This is the goal-1 readability fix. These tokens are the concrete
   contract; minor spacing tuning during the frontend-design pass is allowed, but the
   surface/border/text tokens above are fixed.
+- **`.doc-elref__body`** — the flex body child: `flex: 1; min-width: 0;` so it fills the
+  remaining width and long unbreakable content (inline `<code>`, a URL) wraps instead of
+  overflowing the row (`min-width: 0` overrides the default `min-width: auto`).
 - **Icon sizing** — the palette's `.ic` rule lives in `editor.css`, not loaded on help
   pages, so `.doc-page .ic` is defined here: `width: 1.15rem; height: 1.15rem;
-  flex: 0 0 auto; fill: currentColor;` (icons inherit text color). In a `.doc-elref` row
-  the icon aligns to the first line (`margin-top: ~0.15rem`); in a heading it sits inline.
+  flex: 0 0 auto; fill: currentColor;`. `fill: currentColor` means an icon takes its
+  color from the surrounding text; the list-entry icon is therefore **deliberately**
+  `var(--text-primary)` (inherited from the `.doc-elref` body — a full-strength marker
+  next to the term), while heading icons are pinned to `var(--text-tertiary)` below (a
+  quieter marker). The two weights are an intentional contrast, not an inheritance
+  accident. In a `.doc-elref` row the icon aligns to the first line
+  (`margin-top: ~0.15rem`); in a heading it sits inline.
 - **Heading icons** — `.doc-page h2 .ic`: `display: inline-block; vertical-align: -0.12em;
   margin-right: var(--space-2); color: var(--text-tertiary);` so the glyph aligns with the
   heading baseline and reads as a quiet marker, not a second heading. Only `h2` is targeted
@@ -161,7 +182,8 @@ Add `{el:SLUG}` tokens to every element-type entry, in both language files:
   switchgrid (Switch grid), filltable (Fill-in table), spoiler, stepper (Step-by-step),
   markdone (Checklist), guessnumber (Guess the number).
 - `docs/help/course-admin/quiz-editors.md` / `.pl.md` — ~10 `##` headings:
-  choice-single (Single / Multiple choice), shorttext (Short text),
+  choice-single **+** choice-multi (the single combined "Single / Multiple choice"
+  heading carries **both** tokens, mirroring the palette's two cards), shorttext (Short text),
   shortnumeric (Short numeric), fillblank (Fill in the blanks), dragwords (Drag the
   words), matchpairs (Match pairs), switchgrid (Matrix question),
   switchgrid (Multi-select grid), dragimage (Drag to image), extended (Extended
@@ -172,7 +194,7 @@ Matrix question, and Multi-select grid. This is not an error: the authoring pale
 (`_add_menu.html`) itself points all three `data-add-type`s at `#el-switchgrid`
 (`switchgrid`, `choicegridquestion`, `multigridquestion` all render `<use href="#el-switchgrid"/>`).
 The docs mirror the palette exactly, so reusing the slug is the *correct* behavior, not a
-collision to resolve. The per-entry icon test (Testing §3) encodes each entry's expected
+collision to resolve. The per-entry icon test (Testing §4) encodes each entry's expected
 slug from an explicit table, so this reuse is asserted deliberately rather than assumed.
 
 Token placement: at the very start of the paragraph/heading line, before the bold
@@ -226,20 +248,29 @@ removed — per the project's "falsify tests, don't run them" doctrine):
 3. **No literal leak.** For each element topic (content-editors, interactive-elements,
    quiz-editors), render via `render_markdown_doc` and assert the output contains
    **no** literal `{el:` substring. Falsify: skip the transform → red.
-4. **Per-entry icon mapping (drives out C3-class silent-wrong-icon bugs).** For a small
-   authored expectation table — `{topic: {element-name → expected-slug}}` covering a
-   representative sample across all three surfaces (including the three `switchgrid`
-   reuses and at least one heading + one list entry) — render the topic and assert the
-   element name and its expected `<use href="#el-SLUG">` co-occur in the correct wrapper
-   (`.doc-elref` div for a list entry; inside an `<h2>` for a heading). Falsify: swap two
-   entries' tokens → red even though tests 2–3 stay green.
-5. **Adjacent list entries stay separate.** Feed `resolve_element_icons` two consecutive
+4. **Per-entry icon mapping (drives out silent wrong-icon bugs where a token points at
+   the wrong sprite).** For a small authored expectation table —
+   `{topic: {element-name → expected-slug(s)}}` covering a representative sample across
+   all three surfaces (including the three `switchgrid` reuses and the dual-icon
+   `choice-single`+`choice-multi` combined heading, plus at least one plain heading and
+   one list entry) — render the topic and assert the element name and its expected
+   `<use href="#el-SLUG">`(s) co-occur in the correct wrapper (`.doc-elref` div for a
+   list entry; inside an `<h2>` for a heading). Falsify: swap two entries' tokens → red
+   even though tests 2–3 stay green.
+5. **Doc icons ⊆ palette icons (palette is the oracle).** Parse
+   `templates/courses/manage/editor/_add_menu.html` for the set of `#el-…` slugs the
+   authoring palette actually renders; parse all `docs/help/` markdown for the set of
+   `{el:…}` slugs; assert the doc set is a **subset** of the palette set. This catches a
+   doc entry that invents an icon the palette never shows (drift the author's own
+   expectation table in §4 cannot catch, since it shares the author's assumptions).
+   Falsify: token a doc entry with a real sprite id the palette doesn't use → red.
+6. **Adjacent list entries stay separate.** Feed `resolve_element_icons` two consecutive
    tokened `<p>` blocks and assert it emits **two** `.doc-elref` divs, not one. Falsify:
    make the paragraph capture greedy (drop `?`) → the two collapse into one → red.
-6. **Transform is targeted.** Assert `resolve_element_icons` leaves ordinary prose
+7. **Transform is targeted.** Assert `resolve_element_icons` leaves ordinary prose
    paragraphs and untokened headings byte-for-byte unchanged. Falsify: an over-broad
    regex that rewrites untokened text → red.
-7. **Sprite present on the page.** A view-level test (authenticated, permitted user)
+8. **Sprite present on the page.** A view-level test (authenticated, permitted user)
    for a topic page asserts the response includes the sprite symbol
    (`id="el-text"`), i.e. `doc.html` includes the partial. Falsify: remove the
    include → red.
