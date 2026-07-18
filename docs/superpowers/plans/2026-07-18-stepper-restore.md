@@ -153,7 +153,7 @@ git commit -m "feat(stepper-restore): _val_stepper count validator + registratio
 - Test: `tests/test_lesson_stepper_wiring.py` (append a `state.js`-inclusion test)
 
 **Interfaces:**
-- Consumes: `_val_stepper` / registry from Task 1 (so a seeded `{"shown": N}` survives the render round-trip); the base `ElementBase.render` context (`eid`, `mine_json`, `slug`, `node_pk`) already splatted into `stepperelement.html`; the `courses:element_state_save` url; the `has_stepper` lesson-context flag.
+- Consumes: the base `ElementBase.render` context (`eid`, `mine_json`, `slug`, `node_pk`) already splatted into `stepperelement.html`; the `courses:element_state_save` url; the `has_stepper` lesson-context flag. (The read/restore path passes a stored `{"shown": N}` blob through `_state_context` **unchanged** — it does NOT invoke `_val_stepper`; the validator is exercised only by the Task 3 save round-trip, so these render tests do not depend on Task 1.)
 - Produces: `.stepper` wrapper carrying `data-element-pk`, `data-state` (the `{"shown": N}` JSON, or `{}`), `data-state-url` — the attributes `stepper.js` reads in Task 3.
 
 - [ ] **Step 1: Write the failing render tests**
@@ -244,7 +244,7 @@ Expected: FAIL — the render tests find no `data-state` on `.stepper`; the wiri
 
 - [ ] **Step 4: Add the data-attributes to the stepper template**
 
-Replace the opening of `templates/courses/elements/stepperelement.html` (the first three lines) so it reads:
+Replace the first **two** lines of `templates/courses/elements/stepperelement.html` — the `{% load i18n %}` line and the `<div class="stepper" data-stepper>` open-tag line — with these three lines (the `{% load i18n %}`, the new `{% url ... as save_url %}` line, and the widened `<div>` open tag). The existing prompt line and everything below it stay put:
 
 ```django
 {% load i18n %}
@@ -294,7 +294,7 @@ git commit -m "feat(stepper-restore): emit practice-state attrs + load state.js 
 
 **Interfaces:**
 - Consumes: the `.stepper` data-attributes from Task 2 (`data-state`, `data-state-url`, `data-element-pk`); `window.libliState.saveFlag(container, stateObj)` from `state.js` (generic: POSTs `{element, state}` to `container.dataset.stateUrl`, no-ops on empty url/pk); the Task 1 validator (so the click-save round-trips).
-- Produces: no new JS globals; preserves `window.__stepperBooted` and `window.libliInitStepper`. Boot reveals the first `min(shown, total)` steps; click reveals the next step, focuses it, and saves the new count.
+- Produces: no new JS globals; preserves `window.__stepperBooted` and `window.libliInitStepper`. Boot reveals the first `min(shown, total)` steps; click reveals the next step, focuses it, and saves the new count. Note: the old explicit `steps.length < 2` early-out is intentionally **folded** into the `if (shown >= steps.length) { btn.hidden = true; return; }` check (a 1-step stepper yields `shown=1 >= 1` → button hidden) — do not look for a literal `steps.length < 2` guard in the rewritten code.
 
 - [ ] **Step 1: Write the failing restore e2e**
 
@@ -340,9 +340,13 @@ def test_stepper_state_survives_reload(live_server, page):
     page.goto(f"{live_server.url}{url}")
     steps = page.locator(".stepper__step")
     btn = page.locator(".stepper__next")
-    btn.click()  # reveal step 1 (shown=2)
+    # Await EACH click's fire-and-forget /state/ POST before the next action.
+    # Awaiting only the second click races the first ({shown:2}) write, which under
+    # threaded LiveServerThread can commit last and leave stored=2 -> flaky RED.
     with page.expect_response(_is_state_post):
-        btn.click()  # reveal step 2 (shown=3); await the POST before reloading
+        btn.click()  # reveal step 1 (shown=2); await its POST
+    with page.expect_response(_is_state_post):
+        btn.click()  # reveal step 2 (shown=3); await its POST before reloading
     page.reload()
     # After reload: first three steps visible, 4th hidden, button still visible.
     assert steps.nth(0).is_visible()
@@ -416,7 +420,7 @@ def test_editor_preview_stepper_click_sends_no_post(live_server, page):
 - [ ] **Step 3: Run both e2e to verify they fail**
 
 Run: `uv run pytest tests/test_e2e_stepper.py -m e2e -k "survives_reload or sends_no_post" -q`
-Expected: FAIL — with current `stepper.js`, after reload only step 0 is shown (restore not implemented) and the second click before reload fires no `/state/` POST (so `expect_response` times out).
+Expected: FAIL — with current `stepper.js` no click fires a `/state/` POST (save not implemented), so the first `expect_response` times out; and even past that, after reload only step 0 is shown.
 
 - [ ] **Step 4: Implement restore + save in `stepper.js`**
 
