@@ -147,6 +147,31 @@ def test_element_icon_slugs_match_sprite():
     assert ELEMENT_ICON_SLUGS == sprite_slugs
 
 
+def test_render_markdown_doc_applies_icon_pass(tmp_path, monkeypatch):
+    monkeypatch.setattr(core_help, "DOCS_ROOT", tmp_path)
+    (tmp_path / "d.md").write_text("{el:text} **Text** — body.\n", encoding="utf-8")
+    html = core_help.render_markdown_doc("d.md")
+    assert '<div class="doc-elref">' in html
+    assert '<use href="#el-text"></use>' in html
+    assert "{el:" not in html
+
+
+def test_icon_pass_runs_even_when_static_disabled(tmp_path, monkeypatch):
+    monkeypatch.setattr(core_help, "DOCS_ROOT", tmp_path)
+    (tmp_path / "d.md").write_text("{el:math} **Math** — body.\n", encoding="utf-8")
+    html = core_help.render_markdown_doc("d.md", resolve_static=False)
+    assert '<use href="#el-math"></use>' in html  # icons are orthogonal to resolve_static
+
+
+@pytest.mark.django_db
+def test_topic_page_includes_icon_sprite(client):
+    make_ca(client)
+    resp = client.get(reverse("core:help_topic", args=["content-editors"]))
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert 'id="el-text"' in body  # sprite partial is included -> <use> refs resolve
+
+
 def test_render_markdown_doc_can_skip_static_rewrite(tmp_path, monkeypatch):
     import core.help as help_mod
 

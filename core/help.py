@@ -109,6 +109,7 @@ def resolve_element_icons(html):
 def render_markdown_doc(rel_path, *, resolve_static=True):
     text = (DOCS_ROOT / rel_path).read_text(encoding="utf-8")
     html = markdown.markdown(text, extensions=["fenced_code", "tables"])
+    html = resolve_element_icons(html)
     return resolve_static_srcs(html) if resolve_static else html
 
 
