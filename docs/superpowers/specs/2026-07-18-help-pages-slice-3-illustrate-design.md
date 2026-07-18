@@ -71,16 +71,25 @@ both directions in slice 2). It is never `@pytest.mark.e2e`.
     (e.g. expand a drill-down row). It receives the Playwright `page` and nothing else.
     Per-shot DB differences live in the seed, not here; no shot needs a DB mutation at
     capture time (the `onboarded` flag is irrelevant — see Component 2).
-- **Two locale passes.** For `locale in ("en", "pl")`: set every demo user's `language`
-  field to `locale`, then for each shot log in fresh as its `login_as` (the login signal
-  writes `session[SESSION_KEY] = user.language`, and `SessionLocaleMiddleware` renders
-  from it — so the whole UI renders in `locale`), navigate, wait, element-clip to
-  `core/static/core/img/help/<name>.<locale>.png`. **Before each login the harness must
-  clear the session** (explicit logout or a fresh Playwright browser context): navigating
-  to `/accounts/login/` while already authenticated as the previous shot's user redirects
-  away without re-submitting, so the `user_logged_in` signal never fires and the session
-  keeps the wrong user and stale `_language`. A clean session per shot guarantees the
-  signal re-fires and sets the correct user + locale.
+- **Two locale passes.** `seed_demo_course` runs **once before** the locale loop; the
+  per-pass `language` mutation happens after seeding (the seed's `_user` helper hardcodes
+  `language="en"`, so reseeding *inside* the loop would clobber the pass locale back to EN
+  and silently render EN chrome — do not reseed per pass). Then for `locale in ("en",
+  "pl")`: set every demo user's `language` field to `locale`, and for each shot log in
+  fresh as its `login_as` (the login signal writes `session[SESSION_KEY] = user.language`,
+  and `SessionLocaleMiddleware` renders from it — so the whole UI renders in `locale`),
+  navigate, wait, element-clip to `core/static/core/img/help/<name>.<locale>.png`.
+  **Before each login the harness must clear the session** (explicit logout or a fresh
+  Playwright browser context): navigating to `/accounts/login/` while already authenticated
+  as the previous shot's user redirects away without re-submitting, so the `user_logged_in`
+  signal never fires and the session keeps the wrong user and stale `_language`. A clean
+  session per shot guarantees the signal re-fires and sets the correct user + locale.
+- **PL-locale falsifiability.** The coverage gate checks only the `.pl.png` filename, not
+  the pixels — so if the PL locale silently fails to take (signal misfire, clobbered
+  `language`), EN pixels would ship under `.pl.png` names with every gate green. To prevent
+  this, in the **PL pass** the harness asserts, per shot **before** the screenshot, that
+  `page.content()` contains a known PL chrome string (e.g. a translated nav label), so a
+  wrong-locale render fails the run instead of shipping silently.
 - **Viewport / media:** 1280×800, `emulate_media(color_scheme="light",
   reduced_motion="reduce")`.
 - **MEDIA serving.** Lesson-consumption captures render `ImageElement`s whose `<img>`
@@ -158,7 +167,11 @@ discipline) — the command is run repeatedly by the harness and by other seed t
     that holds text/math/iframe/video/callout/spoiler/table) so the content-editors
     consumption shot renders a MEDIA image and the broken-image tripwire is load-bearing.
     Today the only image is on the separate "Bonus lesson" unit, so no single unit shows
-    both content elements and a MEDIA image.
+    both content elements and a MEDIA image. Implement this by **reusing the existing
+    shared `demo.png` `MediaAsset`** — the `_image` helper already filters+reuses by
+    `course`+`original_filename`, so no second asset is created and
+    `test_seed_materializes_demo_image_idempotently`'s `.get(original_filename="demo.png")`
+    stays single (a distinct second `demo.png` asset would make it `MultipleObjectsReturned`).
   - a personal **note** (on a lesson block) and a personal **tag** (on a unit) for
     `demo_teacher`, so the tags-and-notes hub (`overview`) and `my_tags` render populated
     rather than empty-state (notes-tags topic);
@@ -167,8 +180,16 @@ discipline) — the command is run repeatedly by the harness and by other seed t
     owns demo-course so `collection_detail` is reachable — giving collection-scoped surfaces
     (`collection_detail`, and the teacher collection analytics if that is the surface the
     analytics topic documents) data (groups-collections topic);
+  - a **`REVIEW`-marking (manual) question** on the demo quiz **plus a SUBMITTED
+    submission** carrying an answered-but-unreviewed response to it. This is a firm
+    requirement, not conditional: the slice-2 quiz is `AUTO`-only and all three submissions
+    are finalized, so `manage_review_queue`'s awaiting list (which needs a
+    `MarkingMode.REVIEW` element per `courses/review.py`) and `manage_review_submission`'s
+    review rows both render **empty** without it. Seed it idempotently, ordered so
+    `finalize_submission` includes it in `max_score`, and give it a stable lookup key
+    (student username + unit title) for the URL callable (quiz-review topic).
   - Group + graded quiz + varied grades already exist from slice 2 (analytics,
-    drill-down, quiz-review, roster, groups-collections, gradebook-export).
+    drill-down, roster, groups-collections, gradebook-export).
 - **`onboarded`** needs no seeding or per-shot toggling. It defaults to **`False`**
   (`institution/models.py`, `core/services._DEFAULTS`) and the seed does not call
   `mark_onboarded`. The only first-run gate is in the **`home`** view (a PA who isn't
@@ -213,9 +234,11 @@ a doc that references an un-regenerated image. Implementation notes:
   (`topic.path.removesuffix(".md") + ".pl.md"`), **assert that file exists on disk**, and
   render that exact path via `render_markdown_doc(..., resolve_static=False)`, reusing the
   rendered-HTML `<img src="static:...">` extraction (extends slice 2's EN-only scan).
-- For each locale, additionally assert the embedded image's stem carries the **matching
-  locale suffix** (`.en.png` in `*.md`, `.pl.png` in `*.pl.md`), so a PL doc that reuses
-  the EN image is caught — mechanically enforcing the "own PL-locale image" rule.
+- For each locale, additionally assert that **every** `static:` image reference in the doc
+  (topics may embed more than one — "more where earned") carries the **matching locale
+  suffix** (`.en.png` in `*.md`, `.pl.png` in `*.pl.md`), so a PL doc that reuses even one
+  EN image is caught — mechanically enforcing the "own PL-locale image" rule for all shots,
+  not just the first.
 - This new gate **supersedes** the existing `test_all_topics_static_refs_resolve` and
   **absorbs** `test_builder_topic_embeds_existing_screenshot` in `tests/test_help.py` —
   remove the superseded scans so two overlapping coverage tests don't drift apart.
@@ -267,13 +290,14 @@ verifies which surface the topic's prose actually describes** before wiring the 
   `people_invitations` — (or the `?tab=` query param the settings view honors via
   `_active_tab`), not an anchor guess. Wait on the tab's own content selector, not the
   page shell, so the clip captures the right panel.
-- **Review-queue emptiness:** the seeded quiz is AUTO-marked, so the manual review queue
-  may render empty. The plan confirms `manage_review_queue` is non-empty for the seeded
-  state; if the queue filters to manual-marking submissions, seed one that lands in it.
+- **Review-queue emptiness:** the AUTO-only baseline renders both review surfaces empty, so
+  the seed **firmly** adds a `REVIEW` question + an unreviewed SUBMITTED submission
+  (Component 2). The plan verifies `manage_review_queue` and `manage_review_submission` are
+  both non-empty for the seeded state.
 - **Streaming/download routes** (gradebook export, node export) have no HTML to shoot —
   the shot targets the page that offers the control, never the download response.
-- **Idempotency:** every seed addition must survive reruns (the harness reseeds each
-  invocation; other tests call `seed_demo_course` too — slice 2 made all seed rows
+- **Idempotency:** every seed addition must survive reruns (the harness seeds once per run,
+  but other tests call `seed_demo_course` too, and it must be re-runnable — slice 2 made all seed rows
   hermetic under a module-scoped `MEDIA_ROOT`; the new MEDIA-rendering captures rely on
   that same discipline).
 - **PL fidelity:** if a PL surface still shows an English string, that is a real product
