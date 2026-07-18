@@ -648,6 +648,31 @@ def complete(request, slug, node_pk):
     return redirect("courses:lesson_unit", slug=slug, node_pk=node_pk)
 
 
+def save_element_state(user, unit, element_pk, blob):
+    """Atomic per-student practice-state write, shared by check_answer and
+    element_state_save. `blob` is a dict to STORE (upserts the row), or None to
+    DELETE the key. On delete, operate only on an EXISTING row — never spawn a row
+    just to pop a missing key (a passive previewer clicking Check on a blank
+    question must not create a spurious empty-state row)."""
+    with transaction.atomic():
+        if blob is None:
+            progress = (
+                UnitProgress.objects.select_for_update()
+                .filter(student=user, unit=unit)
+                .first()
+            )
+            if progress is None:
+                return  # nothing to delete; do not spawn a row
+            progress.element_state.pop(str(element_pk), None)
+        else:
+            UnitProgress.objects.get_or_create(student=user, unit=unit)
+            progress = UnitProgress.objects.select_for_update().get(
+                student=user, unit=unit
+            )
+            progress.element_state[str(element_pk)] = blob
+        progress.save()
+
+
 @require_POST
 @login_required
 def element_state_save(request, slug, node_pk):
@@ -724,18 +749,12 @@ def element_state_save(request, slug, node_pk):
     # students. This deliberately diverges from seen/quiz (which ignore previewers so
     # authors don't pollute their own progress/analytics); the can_access_course gate
     # above is the only guard the write needs.
-    with transaction.atomic():
-        UnitProgress.objects.get_or_create(student=request.user, unit=node)
-        progress = UnitProgress.objects.select_for_update().get(
-            student=request.user, unit=node
-        )
-        if result is state_svc.EMPTY:
-            progress.element_state.pop(str(element.pk), None)
-            blob = {}
-        else:
-            progress.element_state[str(element.pk)] = result
-            blob = result
-        progress.save()
+    if result is state_svc.EMPTY:
+        save_element_state(request.user, node, element.pk, None)
+        blob = {}
+    else:
+        save_element_state(request.user, node, element.pk, result)
+        blob = result
     return _resp(blob)
 
 
