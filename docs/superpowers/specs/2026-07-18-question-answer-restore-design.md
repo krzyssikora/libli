@@ -172,30 +172,42 @@ Because the template gates on `element.pk == feedback_for_pk`, rendering the res
 with `feedback_for_pk = element.pk` makes it refill its input(s) and show the re-marked feedback
 — **identical** to the live-checked path. The five in-scope question templates need **no changes**.
 
-**Why quiz/editor-preview renders are excluded** (making guard 1 belt-and-suspenders, not the sole
-defense): quiz rendering passes `feedback_for_pk=el.pk` for *every* element (so guard 3 already
-skips it), and the editor preview carries no `element_state` in context (so guard 4 already skips
-it). The explicit `mode == "lesson"` guard pins the intent so a future context change cannot make
-restore fire in a non-lesson render.
+**Why quiz and editor-preview renders are excluded** (note the two are excluded by *different*
+guards — do not conflate them):
 
-**Render-time cost (accepted for v1).** Each restored question's `mark()` issues its own read
-(`choices` for choice, `blanks` for fill-blank), so restore roughly doubles per-question queries on
-a full-page render and scales linearly with the number of previously-answered in-scope questions
-— on every lesson GET and every no-JS check re-render. This is **accepted as bounded by page size**:
-the render already queries choices/blanks per question, and this compounds the project's known
-"double choices query" debt rather than introducing a new class of cost. Prefetching is a possible
-follow-up, explicitly **not** required by this slice.
+- **Quiz** rendering passes `mode="quiz"` (guard 1 skips it) **and** `feedback_for_pk=el.pk` for
+  *every* element (guard 3 skips it) — two independent exclusions.
+- **Editor preview** renders via `_preview.html`'s `{% render_element el action_url=try_url %}`,
+  which passes **no `mode`**, so `mode` defaults to `"lesson"` — **guard 1 does NOT exclude the
+  preview.** The preview is excluded **solely by guard 4**: the editor/preview path never puts
+  `element_state` in context. So guard 1 back-stops the *quiz* path only; guard 4 is the single
+  operative exclusion for the preview.
+
+The earlier claim that the mode guard makes preview-exclusion belt-and-suspenders was wrong; the
+mode guard's real value is pinning quiz-vs-lesson intent. Because preview safety rests on guard 4
+alone, a test pins it (see Testing).
+
+**Render-time cost (negligible).** `build_lesson_context` already
+`prefetch_related_objects(choice_qs, "choices")` and `prefetch_related_objects(fill_qs, "blanks")`
+(views.py:280-282) on the *same* instances `render_element` renders. Restore re-marks those same
+instances, so `ChoiceQuestionElement.mark` (`list(self.choices.all())`) and
+`FillBlankQuestionElement.mark` (`list(self.blanks.all())`) hit the prefetch cache, and the
+text/numeric/extended `mark()` read only instance fields. Restore therefore adds **~0 queries** and
+introduces **no new query class**; no extra prefetch is required.
 
 **Invariant that bounds the risk:** restore's `obj.mark(answer_from_json(obj, stored))` is the
 *same* `mark()` call `check_answer` already makes on the live path (line 757). If the live check
 cannot error for a given type/answer, neither can restore. Restore introduces no new marking
 surface.
 
-The whole restore block is wrapped in `try/except` → on **any** failure it falls through to the
-un-restored global-kwarg render (fail-open; see Error handling). The two data sources never
-collide: the global kwargs serve the single live-checked element and the JS-fragment path (which
-does not route through `render_element` at all); the map serves every previously-answered element
-on a full-page render.
+The `try/except` wraps **only the data-prep** — the blob access (`blob["answer"]`), `rehydrate`,
+`answer_from_json`, and `mark`. `obj.render(...)` is called **exactly once, after** the block:
+with the restored kwargs on success, or the branch's default kwargs on exception (fail-open; see
+Error handling). Keeping `obj.render` out of the `try` avoids a second render on a render-time
+error and makes "fall through to the un-restored render" a single, unambiguous code path. The two
+data sources never collide: the global kwargs serve the single live-checked element and the
+JS-fragment path (which does not route through `render_element` at all); the map serves every
+previously-answered element on a full-page render.
 
 ### C5. Shared atomic-write helper
 
@@ -267,10 +279,10 @@ reset with everything else. No new code — but a test pins it (Testing).
 - **Read-side fail-open (existing):** `build_lesson_context` drops non-dict blobs and
   non-int-coercible keys. The C1 envelope is a dict, so it survives; a corrupted non-dict value
   is dropped and the question renders blank rather than 500ing.
-- **Restore-side fail-open (new, C4):** the rehydrate/re-mark block is wrapped in `try/except`.
-  Any exception (a malformed `"answer"`, a shape `rehydrate`/`mark` cannot digest) → fall through
-  to the un-restored render. A single bad blob can never take down the lesson page or any sibling
-  question.
+- **Restore-side fail-open (new, C4):** the **data-prep** (blob access, `rehydrate`,
+  `answer_from_json`, `mark`) is wrapped in `try/except`; `obj.render` runs once afterward. Any
+  exception (a malformed `"answer"`, a shape `rehydrate`/`mark` cannot digest) → fall through to the
+  un-restored render. A single bad blob can never take down the lesson page or any sibling question.
 - **Stale references self-heal:** a stored choice pk whose choice the author later deleted simply
   fails to match on re-mark, and its checkbox is absent from the rendered choices — it drops
   silently. Because the verdict is re-derived (never stored), an author who fixes a wrong answer
@@ -306,10 +318,18 @@ delete the guard and watch it go red). Each guard below names what to delete to 
 - Seed the **str-keyed** `UnitProgress.element_state` DB row and GET `lesson_unit` **through the
   view** so `build_lesson_context` re-keys to `int` (never call `obj.render` with a str key — that
   bypasses the int re-keying and would pass even if C4's lookup used the wrong key representation).
-  Assert the input is pre-filled and the re-marked verdict is shown. Cover at least `ShortText`
-  (value attribute), `ChoiceQuestion` (checked inputs), `FillBlank` (per-blank values). *Falsify:*
-  remove the C4 restore block → inputs render blank, no verdict. **Also falsifies C1:** flip C4's
-  lookup to the str key → restore misses the int-keyed map → inputs blank.
+  Assert the input is pre-filled and the re-marked verdict is shown. Cover **all five** in-scope
+  types, since two have distinct render/mark shapes: `ShortText` (`value=` attribute),
+  `ShortNumeric` (`value=` attribute, `parse_number` re-mark), `ExtendedResponse` (**textarea body**
+  refill — not a `value=` attribute — with the `mark_keywords` verdict), `ChoiceQuestion` (checked
+  inputs), `FillBlank` (per-blank values). *Falsify:* remove the C4 restore block → inputs render
+  blank, no verdict. **Also falsifies C1:** flip C4's lookup to the str key → restore misses the
+  int-keyed map → inputs blank.
+- **Editor-preview exclusion (guard 4 is the sole gate):** the editor preview renders questions in
+  `mode="lesson"` but with no `element_state` in context, so an answered question must render
+  **un-restored** there. *Falsify:* the meaningful anchor is that restore requires a non-empty
+  `element_state`; a test that renders the preview (no `element_state`) and asserts a blank input
+  guards against a future change that drops guard 4 while relying on the (ineffective) mode guard.
 - The live-checked element uses the **live** answer, not a stale blob: with both a stored blob and
   a differing live POST for the same element (no-JS path), the rendered value is the live one.
   *Falsify:* drop the `element.pk != feedback_for_pk` guard → the stale blob overrides the live
