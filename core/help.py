@@ -3,10 +3,12 @@
 Content is repo-authored (fixed paths only), never user input, so the renderer
 applies no sanitization. A missing file is a packaging/deploy bug — fail loud."""
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
 import markdown
+from django.templatetags.static import static
 from django.utils.translation import gettext_lazy as _
 
 from institution.roles import COURSE_ADMIN
@@ -18,10 +20,21 @@ from institution.roles import TEACHER
 # holds docs/.
 DOCS_ROOT = Path(__file__).resolve().parent.parent / "docs"
 
+# Rewrites `src="static:REL"` (our repo-authored sentinel) to the static()-resolved
+# URL. Manifest-safe: static() consults the staticfiles manifest in production, so a
+# committed image resolves to its content-hashed name. Only the `static:` sentinel is
+# touched; ordinary/external src values pass through unchanged.
+_STATIC_SRC = re.compile(r'src="static:([^"]+)"')
 
-def render_markdown_doc(rel_path):
+
+def resolve_static_srcs(html):
+    return _STATIC_SRC.sub(lambda m: f'src="{static(m.group(1))}"', html)
+
+
+def render_markdown_doc(rel_path, *, resolve_static=True):
     text = (DOCS_ROOT / rel_path).read_text(encoding="utf-8")
-    return markdown.markdown(text, extensions=["fenced_code", "tables"])
+    html = markdown.markdown(text, extensions=["fenced_code", "tables"])
+    return resolve_static_srcs(html) if resolve_static else html
 
 
 def localized_doc_path(base, lang):

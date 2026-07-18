@@ -6,6 +6,8 @@ course title to go straight into its builder. (Every course also appears in the
 **Manage courses** list — reached via **All courses** — with a **Build** link per
 row.)
 
+![The course builder showing the demo course tree](static:core/img/help/builder-tree.png)
+
 ## Structure presets
 
 Each course uses one of four structure presets, or a custom chain of levels:
