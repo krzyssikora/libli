@@ -83,13 +83,26 @@ both directions in slice 2). It is never `@pytest.mark.e2e`.
   Playwright browser context): navigating to `/accounts/login/` while already authenticated
   as the previous shot's user redirects away without re-submitting, so the `user_logged_in`
   signal never fires and the session keeps the wrong user and stale `_language`. A clean
-  session per shot guarantees the signal re-fires and sets the correct user + locale.
+  session per shot guarantees the signal re-fires and sets the correct user + locale. The
+  simplest robust mechanism is `page.context.clear_cookies()` on the existing page — it
+  drops the session cookie while keeping the viewport, `emulate_media`, and the `bad_images`
+  response listener (all page/context-scoped, set up once). Note the alternatives' wrinkles:
+  allauth logout is **POST-only** (`base.html`'s logout is a `<form method="post">`), so
+  navigating to a logout URL won't actually log out; and a fresh browser context per shot
+  requires re-applying viewport + `emulate_media` + the response listener to each new page.
 - **PL-locale falsifiability.** The coverage gate checks only the `.pl.png` filename, not
   the pixels — so if the PL locale silently fails to take (signal misfire, clobbered
   `language`), EN pixels would ship under `.pl.png` names with every gate green. To prevent
   this, in the **PL pass** the harness asserts, per shot **before** the screenshot, that
-  `page.content()` contains a known PL chrome string (e.g. a translated nav label), so a
-  wrong-locale render fails the run instead of shipping silently.
+  `page.content()` contains a known PL chrome string, so a wrong-locale render fails the run
+  instead of shipping silently. Constrain the choice: the string must be **ungated**
+  (present for *both* the `demo_teacher` and `demo_admin` roles — everything under
+  `{% if user.is_authenticated %}` with no perm block: the account-menu **"Log out"** /
+  **"Settings"**, or the **"Tags & notes"** nav link), present on *every* captured surface,
+  and genuinely differ EN vs PL. It must **not** be a perm-gated label (Studio / Groups /
+  Admin — absent on some roles → false failure) nor the lang-switch `EN`/`PL` codes
+  (locale-invariant → false green). Allow a **per-shot override** string for a surface that
+  legitimately lacks the common chrome (e.g. the wizard's minimal layout).
 - **Viewport / media:** 1280×800, `emulate_media(color_scheme="light",
   reduced_motion="reduce")`.
 - **MEDIA serving.** Lesson-consumption captures render `ImageElement`s whose `<img>`
@@ -185,9 +198,14 @@ discipline) — the command is run repeatedly by the harness and by other seed t
     requirement, not conditional: the slice-2 quiz is `AUTO`-only and all three submissions
     are finalized, so `manage_review_queue`'s awaiting list (which needs a
     `MarkingMode.REVIEW` element per `courses/review.py`) and `manage_review_submission`'s
-    review rows both render **empty** without it. Seed it idempotently, ordered so
-    `finalize_submission` includes it in `max_score`, and give it a stable lookup key
-    (student username + unit title) for the URL callable (quiz-review topic).
+    review rows both render **empty** without it. Carry the unreviewed submission on
+    **`demo_student`** (enrolled, not in Demo Group, currently submission-less) — not
+    s1/s2/s3 (already finalized) and not a new grouped student (that would break
+    `test_seed_quiz_group_populate_analytics`, which asserts exactly 3 group members).
+    `reviewable_students` grants the course owner all *enrolled* students, so `demo_student`
+    is reachable. Seed it idempotently, ordered so `finalize_submission` includes the REVIEW
+    element in `max_score`, and key the URL callable on `demo_student` + the quiz unit title
+    (quiz-review topic).
   - Group + graded quiz + varied grades already exist from slice 2 (analytics,
     drill-down, roster, groups-collections, gradebook-export).
 - **`onboarded`** needs no seeding or per-shot toggling. It defaults to **`False`**
@@ -255,7 +273,11 @@ of both CI jobs. No new CI wiring.
 surfaces are reachable by the owner. Where a teacher-role topic documents a
 collection/group-scoped analytics surface rather than the course-admin one, **the plan
 verifies which surface the topic's prose actually describes** before wiring the URL
-(see the teacher-analytics reachability history in memory).
+(see the teacher-analytics reachability history in memory). The route names in the table
+are **bare shorthand**; the `url` callable's `reverse()` needs the full `app:name` namespace
+(`courses:manage_analytics`, `grouping:collection_detail`, `notes:overview`, `tags:my_tags`,
+`institution:setup`, `notifications:list`, `accounts:people_invitations`, …) — the plan
+supplies the exact namespaced name per shot.
 
 | Topic | Role / login | Target surface (route name) |
 |---|---|---|
