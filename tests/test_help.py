@@ -450,6 +450,21 @@ def test_help_ui_string_translated_to_polish(msgid):
         )
 
 
+def test_seed_demo_png_is_a_real_illustration():
+    """The seeded demo.png must be a legibly-sized image, not the old 16x16
+    placeholder speck. Falsify: revert seed_assets/demo.png to 16x16 -> red."""
+    from PIL import Image
+
+    from courses.management.commands import seed_demo_course
+
+    with Image.open(seed_demo_course._DEMO_PNG) as im:
+        width, height = im.size
+    assert width >= 400 and height >= 300, (
+        f"seed demo.png is {width}x{height}; expected a real illustration "
+        "(>= 400x300), not a placeholder speck"
+    )
+
+
 _IMG = re.compile(r'<img[^>]*\bsrc="static:([^"]+)"')
 
 

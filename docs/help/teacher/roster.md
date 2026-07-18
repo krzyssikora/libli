@@ -14,7 +14,7 @@ no edit control anywhere on it.
 The rest of this topic explains how a Course Admin builds that roster —
 worth knowing, since it explains what you're looking at.
 
-![A group roster of students](static:core/img/help/roster.en.png)
+![The group edit form's student picker, with cohort and name filters and an Added counter](static:core/img/help/roster.en.png)
 
 ## Picking students
 

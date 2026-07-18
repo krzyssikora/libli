@@ -96,6 +96,9 @@ def _u(name, **kwargs):
     if name == "group_detail":
         pk = Group.objects.get(name="Demo Group", course=course).pk
         return reverse("grouping:group_detail", kwargs={"pk": pk})
+    if name == "group_edit":
+        pk = Group.objects.get(name="Demo Group", course=course).pk
+        return reverse("grouping:group_edit", kwargs={"pk": pk})
     if name == "collection_detail":
         pk = Collection.objects.get(name="Demo Collection").pk
         return reverse("grouping:collection_detail", kwargs={"pk": pk})
@@ -212,11 +215,17 @@ SHOTS = [
         "section.manage",
     ),
     (
+        # The roster topic is mostly about the CA student picker, so shoot the
+        # group EDIT form (Students fieldset), not the read-only detail page.
+        # group_edit is @permission_required("grouping.change_group"); demo_teacher
+        # lacks it (would 403), so shoot as demo_admin (PA -> groups_manageable_by
+        # returns all). fieldset.roster:last-of-type = the Students picker (the
+        # second of the two .roster blocks; the first is Teachers).
         "roster",
-        "demo_teacher",
-        ("group_detail", {}),
-        "ul.course-list",
-        "ul.course-list",
+        "demo_admin",
+        ("group_edit", {}),
+        "[data-roster-list]",
+        "fieldset.roster:last-of-type",
     ),
     (
         "gradebook-export",
@@ -380,6 +389,16 @@ def _capture_gradebook_export(page, clip_sel, out_path):
 
 @override_settings(ROOT_URLCONF="tests.capture_urls", MEDIA_URL="/media/")
 def test_capture_help_screenshots(live_server, browser):
+    # CAPTURE_ONLY=name1,name2 regenerates just those shots, leaving every other
+    # committed PNG byte-stable (this machine's font/Chromium may render neighbours
+    # slightly differently — don't churn them). Unset -> full run.
+    only = os.environ.get("CAPTURE_ONLY", "").strip()
+    allow = {n.strip() for n in only.split(",") if n.strip()} or None
+    if allow is not None:
+        known = {s[0] for s in SHOTS}
+        unknown = allow - known
+        assert not unknown, f"CAPTURE_ONLY names unknown shots: {sorted(unknown)}"
+
     with freeze_time(FREEZE_AT):
         call_command("seed_demo_course")  # once, before the locale loop
         OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -387,7 +406,11 @@ def test_capture_help_screenshots(live_server, browser):
         for locale in ("en", "pl"):
             _set_language(locale)  # login signal seeds session _language from this
             for persona in ("demo_teacher", "demo_admin"):
-                persona_shots = [s for s in SHOTS if s[1] == persona]
+                persona_shots = [
+                    s
+                    for s in SHOTS
+                    if s[1] == persona and (allow is None or s[0] in allow)
+                ]
                 if not persona_shots:
                     continue
                 # Fresh context => fresh session (correct user/locale) + re-applied
