@@ -29,6 +29,7 @@
 4. **PL-locale proof is `lang="pl"` in `page.content()`** (base.html sets `<html lang="{{ LANGUAGE_CODE }}">`) — strictly better than the spec's chrome-string check (role/surface-independent, present even on the wizard). No per-shot override needed.
 5. **`django.conf.urls.static.static()` returns `[]` when `DEBUG=False`** (test settings), so the capture urlconf wires `django.views.static.serve` directly via `re_path`, not `static()`.
 6. **interactive-elements host = "Bonus lesson"** (seed adds a `RevealGateElement` there); **content-editors consumption = "Core lesson"** (seed co-locates the shared `demo.png` image there).
+7. **`MEDIA_URL="media/"` is relative** (no leading slash) and `FileField.url` = `urljoin("media/", name)` gets **no** script prefix (unlike `{% static %}`, which goes through `PrefixNode` → absolute `/static/…`). So on a nested lesson URL the media `<img src="media/…">` resolves to the wrong path and 404s. The harness therefore adds a **test-scoped `MEDIA_URL="/media/"`** to its `override_settings` so `file.url` becomes absolute `/media/…` and matches the capture urlconf's `^media/` route. (If this reflects a real prod bug on nested pages, that's out of scope — file an issue, don't fix here.)
 
 ## File Structure
 
@@ -107,7 +108,7 @@ Create `tests/test_capture_urls.py`:
 from django.test import override_settings
 
 
-@override_settings(ROOT_URLCONF="tests.capture_urls")
+@override_settings(ROOT_URLCONF="tests.capture_urls", MEDIA_URL="/media/")
 def test_capture_urls_serves_media(client, settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path
     (tmp_path / "smoke.txt").write_bytes(b"ok")
@@ -634,7 +635,7 @@ def _set_language(locale):
     ).update(language=locale)
 
 
-@override_settings(ROOT_URLCONF="tests.capture_urls")
+@override_settings(ROOT_URLCONF="tests.capture_urls", MEDIA_URL="/media/")
 def test_capture_help_screenshots(live_server, browser):
     with freeze_time(FREEZE_AT):
         call_command("seed_demo_course")  # once, before the locale loop
@@ -675,7 +676,13 @@ def test_capture_help_screenshots(live_server, browser):
                     bad_images.clear()  # reset the tripwire per shot
                     page.goto(live_server.url + _u(route, **args))
                     page.locator(wait_sel).first.wait_for(state="visible")
-                    page.wait_for_load_state("networkidle")
+                    # Bounded idle wait: "Core lesson" embeds YouTube + GeoGebra iframes
+                    # whose third-party requests can hang offline; never block the run on
+                    # them. First-party content (incl. the demo.png) settles well within 5s.
+                    try:
+                        page.wait_for_load_state("networkidle", timeout=5000)
+                    except Exception:
+                        pass
                     if locale == "pl":
                         assert 'lang="pl"' in page.content(), (
                             f"{name}: expected PL chrome (lang=pl) but page is not Polish"
@@ -716,7 +723,7 @@ git commit -m "feat(help-capture): declarative dual-locale screenshot harness + 
 
 **Files:**
 - Modify: `docs/help/course-admin/{builder,content-editors,quiz-editors,interactive-elements,media-manager}.md` and their `.pl.md` siblings
-- Modify: `tests/test_help.py` (update the builder-specific test's image name)
+- Modify: `tests/test_help.py` (delete the builder-specific screenshot test — superseded by Task 7)
 - Delete: `core/static/core/img/help/builder-tree.png` (superseded by `.en.png`)
 
 **Embed pattern:** insert `![<alt>](static:core/img/help/<name>.<locale>.png)` after the topic's first `##` heading (or after the intro paragraph). EN alt in `*.md`, PL alt in `*.pl.md`.
@@ -740,9 +747,9 @@ In `docs/help/course-admin/builder.md`, change `builder-tree.png` → `builder-t
 git rm core/static/core/img/help/builder-tree.png
 ```
 
-- [ ] **Step 3: Update the builder test**
+- [ ] **Step 3: Delete the builder-specific test**
 
-In `tests/test_help.py::test_builder_topic_embeds_existing_screenshot`, replace both occurrences of `builder-tree.png` with `builder-tree.en.png` (the rendered `src="/static/core/img/help/builder-tree.en.png"` assertion and the `finders.find("core/img/help/builder-tree.en.png")` call).
+In `tests/test_help.py`, delete `test_builder_topic_embeds_existing_screenshot` outright — Task 7's dual-locale gate supersedes it, and deleting now (rather than editing it to the new name and re-deleting in Task 7) avoids throwaway churn. Between here and Task 7, builder image coverage rides on the still-present `test_all_topics_static_refs_resolve` (which now sees `builder.md` → `builder-tree.en.png` and confirms it resolves on disk).
 
 - [ ] **Step 4: Embed the remaining course-admin images**
 
@@ -858,7 +865,7 @@ git commit -m "docs(help): illustrate platform-admin topics (EN+PL)"
 
 - [ ] **Step 1: Remove the superseded tests**
 
-In `tests/test_help.py`, delete `test_all_topics_static_refs_resolve` and `test_builder_topic_embeds_existing_screenshot`.
+In `tests/test_help.py`, delete `test_all_topics_static_refs_resolve` (`test_builder_topic_embeds_existing_screenshot` was already removed in Task 4).
 
 - [ ] **Step 2: Add the new gate**
 
