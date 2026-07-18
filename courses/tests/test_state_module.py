@@ -98,3 +98,30 @@ def test_val_open_gate_rejects_non_dict(payload):
 def test_open_gate_registered_for_all_three_families():
     for key in ("revealgateelement", "fillgateelement", "switchgateelement"):
         assert state.VALIDATORS[key] is state._val_open_gate
+
+
+@pytest.mark.parametrize(
+    "payload,expected",
+    [
+        ({"done": True}, {"done": True}),
+        ({"done": True, "x": 1}, {"done": True}),  # extra keys normalized away
+    ],
+)
+def test_val_done_stores_done(payload, expected):
+    assert state._val_done(None, None, payload) == expected
+
+
+@pytest.mark.parametrize("payload", [{"done": False}, {}, {"other": 1}])
+def test_val_done_empty(payload):
+    # A well-formed "nothing to restore" DROPS the key -- EMPTY, never REJECT.
+    assert state._val_done(None, None, payload) is state.EMPTY
+
+
+@pytest.mark.parametrize("payload", ["nope", 3, None, ["done"]])
+def test_val_done_rejects_non_dict(payload):
+    assert state._val_done(None, None, payload) is state.REJECT
+
+
+def test_done_registered_for_all_three_graded_selfcheck_families():
+    for key in ("switchgridelement", "filltableelement", "guessnumberelement"):
+        assert state.VALIDATORS[key] is state._val_done

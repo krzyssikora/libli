@@ -71,6 +71,20 @@ def _val_open_gate(element, obj, payload):
     return {"open": True} if payload.get("open") else EMPTY
 
 
+def _val_done(element, obj, payload):
+    """{"done": True} -- monotone. A graded self-check (switch grid / fill-in table /
+    guess-the-number) that has been answered fully correctly. The whole gesture has one
+    reachable value; the completed answer is NOT stored -- it is rendered server-side
+    from the element's own answers, gated on this flag.
+
+    A false/absent `done` is a well-formed "nothing to restore" -> EMPTY (drop the key),
+    never REJECT.
+    """
+    if not isinstance(payload, dict):
+        return REJECT
+    return {"done": True} if payload.get("done") else EMPTY
+
+
 # Keyed by content_type.model (the ELEMENT_MODELS namespace) -- NOT the form key
 # and NOT the transfer key. Those three namespaces have been a recurring trap; the
 # registry does not add a fourth.
@@ -79,6 +93,9 @@ VALIDATORS = {
     "revealgateelement": _val_open_gate,
     "fillgateelement": _val_open_gate,
     "switchgateelement": _val_open_gate,
+    "switchgridelement": _val_done,
+    "filltableelement": _val_done,
+    "guessnumberelement": _val_done,
 }
 
 
