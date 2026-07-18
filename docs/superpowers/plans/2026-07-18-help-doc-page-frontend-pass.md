@@ -33,6 +33,13 @@
   - `ELEMENT_ICON_SLUGS: frozenset[str]` — the 30 sprite ids minus `el-`.
   - `resolve_element_icons(html: str) -> str` — heading-inject pass then list-entry-wrap pass over rendered HTML; a `{el:SLUG}` whose slug ∉ the frozenset is left as literal text.
 
+**Before writing code — reconcile against the sprite (do not trust names from memory):**
+open `templates/courses/manage/_icon_sprite.html` and list its `id="el-…"` symbols
+(expected: 30). Derive `ELEMENT_ICON_SLUGS` and every Task 3 element→slug mapping from
+*that* list. The frozenset below and the Task 3 mappings were authored to match the
+current sprite, but if `test_element_icon_slugs_match_sprite` fails, the **frozenset is
+wrong — reconcile it to the sprite, never edit the test to match the code**.
+
 - [ ] **Step 1: Write the failing tests**
 
 Add to `tests/test_help.py` (top-level, near the other pure-function tests):
@@ -260,6 +267,11 @@ def test_topic_page_includes_icon_sprite(client):
     assert 'id="el-text"' in body  # sprite partial is included -> <use> refs resolve
 ```
 
+`reverse` is already imported in `tests/test_help.py` (`from django.urls import reverse`),
+and `"content-editors"` is the real registry slug (`Topic("content-editors", …)` in
+`core/help.py`, gated by `grouping.change_group`, which `make_ca` grants) — no new import
+or slug guessing is needed. If in doubt, confirm both before running.
+
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/test_help.py -k "icon_pass or icon_sprite" -v`
@@ -292,7 +304,14 @@ Add the include as the first line inside `{% block content %}` (so the sprite sy
 Run: `uv run pytest tests/test_help.py -k "icon_pass or icon_sprite" -v`
 Expected: PASS (3 tests).
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 6: Run the full help suite (the sprite include lands on every topic page)**
+
+Run: `uv run pytest tests/test_help.py -v`
+Expected: PASS. The `{% include %}` adds hidden `<svg>` symbols to every `doc.html`
+render, so run the full module now to catch any existing test that asserts exact page
+markup, rather than discovering an include-induced regression later in Task 3.
+
+- [ ] **Step 7: Commit**
 
 ```bash
 git add core/help.py templates/help/doc.html tests/test_help.py
@@ -349,6 +368,17 @@ Worked example (the dual-icon combined heading), before → after:
 ```
 ## {el:choice-single}{el:choice-multi} Single / Multiple choice
 ```
+
+**Two facts to confirm while editing (both hold in the current repo — this is a check, not a conversion):**
+- The content-editors "Content element types" entries are **blank-line-separated
+  `**Term** — …` paragraphs** (they render as `<p>`, which `_EL_PARA_RE` matches). They
+  are NOT markdown `-`/`*` bullets (which render as `<li>`, where the token would not
+  match and would leak, failing `test_element_topics_leak_no_literal_token`). Read the
+  file first; if any entry is a bullet, stop — the transform contract assumes paragraphs.
+- All 30 element types appear as `#el-…` in `_add_menu.html` (so
+  `test_doc_icons_subset_of_palette` holds), and the sprite has **no** dedicated
+  matrix/multigrid id — so mapping Matrix question and Multi-select grid to
+  `el-switchgrid` is the deliberate, palette-faithful choice, not a stopgap.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -434,12 +464,33 @@ def test_doc_icons_subset_of_palette():
         doc_slugs.update(_EL_TOKEN_IN_DOC.findall(text))
     assert doc_slugs, "no doc tokens found"
     assert doc_slugs <= palette_slugs, f"doc icons not in palette: {doc_slugs - palette_slugs}"
+
+
+_USE_SLUG = re.compile(r'<use href="#el-([a-z0-9-]+)">')
+
+
+@pytest.mark.parametrize(
+    "rel", ["help/course-admin/content-editors.md",
+            "help/course-admin/interactive-elements.md",
+            "help/course-admin/quiz-editors.md"],
+)
+def test_pl_icon_sequence_matches_en(rel):
+    """PL correctness without translated-name oracles: the EN and PL files list the
+    same elements in the same order, so their rendered icon sequences (document order)
+    must be identical. Catches a PL positional swap, a wrong PL slug, or a missing/
+    extra PL token that test_every_doc_token_is_a_known_slug (membership-only) misses."""
+    pl = rel.removesuffix(".md") + ".pl.md"
+    assert (DOCS_ROOT / pl).exists(), f"missing PL doc: {pl}"
+    en_icons = _USE_SLUG.findall(render_markdown_doc(rel))
+    pl_icons = _USE_SLUG.findall(render_markdown_doc(pl))
+    assert en_icons, f"{rel}: no icons rendered"
+    assert en_icons == pl_icons, f"{rel}: EN {en_icons} != PL {pl_icons}"
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
-Run: `uv run pytest tests/test_help.py -k "doc_token or element_topics_leak or expected_icon or subset_of_palette" -v`
-Expected: FAIL — `test_every_doc_token...` fails its `seen > 0` assert and `test_each_element_entry_has_its_expected_icon` fails (no icons rendered yet, tokens not authored).
+Run: `uv run pytest tests/test_help.py -k "doc_token or element_topics_leak or expected_icon or subset_of_palette or pl_icon_sequence" -v`
+Expected: FAIL — `test_every_doc_token...` fails its `seen > 0` assert, and `test_each_element_entry_has_its_expected_icon` + `test_pl_icon_sequence_matches_en` fail (no icons rendered yet, tokens not authored).
 
 - [ ] **Step 3: Add tokens to the six markdown files**
 
@@ -447,7 +498,7 @@ Apply the token-placement rule above to all six files. Edit `content-editors.md`
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
-Run: `uv run pytest tests/test_help.py -k "doc_token or element_topics_leak or expected_icon or subset_of_palette" -v`
+Run: `uv run pytest tests/test_help.py -k "doc_token or element_topics_leak or expected_icon or subset_of_palette or pl_icon_sequence" -v`
 Expected: PASS.
 
 - [ ] **Step 5: Run the full help suite to confirm no regression**
@@ -525,9 +576,13 @@ Expected: FAIL — `.doc-elref` absent and `--surface-2` / `--text-muted` still 
   border-radius: var(--radius-md); }
 .doc-elref .ic { margin-top: .15rem; }
 .doc-elref__body { flex: 1; min-width: 0; }
-.doc-page h2 .ic { display: inline-block; vertical-align: -.12em;
+.doc-page :is(h2, h3) .ic { display: inline-block; vertical-align: -.12em;
   margin-right: var(--space-2); color: var(--text-tertiary); }
 ```
+
+(All element headings are `##` = `h2`; the selector also covers `h3` so an icon on any
+future `###` element heading — and the `h3` case the Task-1 transform already handles —
+is styled, not bare.)
 
 - [ ] **Step 4: Run the test to verify it passes**
 
