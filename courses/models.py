@@ -718,6 +718,18 @@ class GuessNumberElement(ElementBase):
     success_message = models.TextField(blank=True)
     elements = GenericRelation(Element)  # cascade: deleting this removes its join-row
 
+    @property
+    def canonical_target(self):
+        """Display-formatted target, reusing courses.guessnumber.format_target() --
+        NEVER a fresh Decimal.normalize() (that alone yields E-notation for round
+        numbers, e.g. 40401 -> '4.0401E+4', the exact defect format_target's own
+        docstring records already fixing once). Shown, readonly, on restore of a
+        correctly-answered guess: the student's exact within-tolerance guess is
+        not stored (monotone blob), so the canonical target is what is shown."""
+        from courses.guessnumber import format_target
+
+        return format_target(self.target)
+
     def save(self, *args, **kwargs):
         # success_message only: `stem` is sanitised form-side, in order
         # (sanitize_html -> strip_sentinel -> parse), so save() must not touch it.

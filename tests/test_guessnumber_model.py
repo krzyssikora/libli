@@ -39,3 +39,15 @@ def test_stem_is_NOT_sanitised_on_save():
     el = GuessNumberElement.objects.create(stem=raw, target=Decimal("42"))
     el.refresh_from_db()
     assert el.stem == raw
+
+
+def test_canonical_target_strips_trailing_zeros():
+    el = GuessNumberElement(target=Decimal("42.50000000"))
+    assert el.canonical_target == "42.5"
+
+
+def test_canonical_target_avoids_e_notation_for_round_numbers():
+    # normalize() ALONE yields '4.0401E+4' for 40401 and '1E+2' for 100 --
+    # the exact defect format_target's docstring already fixed once.
+    assert GuessNumberElement(target=Decimal("40401")).canonical_target == "40401"
+    assert GuessNumberElement(target=Decimal("100")).canonical_target == "100"
