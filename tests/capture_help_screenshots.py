@@ -68,7 +68,10 @@ def _u(name, **kwargs):
     if name == "manage_media":
         return reverse("courses:manage_media", kwargs={"slug": "demo-course"})
     if name == "manage_analytics":
-        return reverse("courses:manage_analytics", kwargs={"slug": "demo-course"})
+        url = reverse("courses:manage_analytics", kwargs={"slug": "demo-course"})
+        if kwargs.get("mode") == "results":
+            url += "?mode=results"
+        return url
     if name == "manage_analytics_student":
         pk = User.objects.get(username=kwargs["username"]).pk
         return reverse(
@@ -168,7 +171,7 @@ SHOTS = [
     (
         "analytics-matrix",
         "demo_teacher",
-        ("manage_analytics", {}),
+        ("manage_analytics", {"mode": "results"}),
         ".analytics__matrix",
         "section.manage",
     ),
