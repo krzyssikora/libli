@@ -62,7 +62,12 @@ both directions in slice 2). It is never `@pytest.mark.e2e`.
   field to `locale`, then for each shot log in fresh as its `login_as` (the login signal
   writes `session[SESSION_KEY] = user.language`, and `SessionLocaleMiddleware` renders
   from it — so the whole UI renders in `locale`), navigate, wait, element-clip to
-  `core/static/core/img/help/<name>.<locale>.png`.
+  `core/static/core/img/help/<name>.<locale>.png`. **Before each login the harness must
+  clear the session** (explicit logout or a fresh Playwright browser context): navigating
+  to `/accounts/login/` while already authenticated as the previous shot's user redirects
+  away without re-submitting, so the `user_logged_in` signal never fires and the session
+  keeps the wrong user and stale `_language`. A clean session per shot guarantees the
+  signal re-fires and sets the correct user + locale.
 - **Viewport / media:** 1280×800, `emulate_media(color_scheme="light",
   reduced_motion="reduce")`.
 - **MEDIA serving.** Lesson-consumption captures render `ImageElement`s whose `<img>`
@@ -71,11 +76,23 @@ both directions in slice 2). It is never `@pytest.mark.e2e`.
   harness activates a capture-only urlconf `tests/capture_urls.py` (re-exports
   `config.urls.urlpatterns` + unconditionally appends `static(MEDIA_URL,
   document_root=MEDIA_ROOT)`) via `override_settings(ROOT_URLCONF=...)` so MEDIA resolves.
-- **Broken-image tripwire** (from slice 2) is retained and now load-bearing: any image
-  request returning >= 400 on a captured page fails the run. This is what proves a lesson
-  shot actually rendered its MEDIA image rather than a broken icon.
-- **Time determinism** comes from the seed (below), not from freezing wall-clock in the
-  harness — so a doc author regenerating one shot gets the same relative-time strings.
+- **Broken-image tripwire** (from slice 2) is retained and now load-bearing: it proves a
+  lesson shot actually rendered its MEDIA image rather than a broken icon. To stay a
+  targeted MEDIA proof rather than a noisy whole-run failure, `bad_images` is
+  reset/asserted **per shot** (not once for the entire multi-page run), and is scoped to
+  image requests under `MEDIA_URL` (or the shot's clip target) so an unrelated 404
+  elsewhere — a favicon, an avatar — doesn't fail the regeneration.
+- **Time determinism.** Time-bearing surfaces drift across regenerations unless the clock
+  is pinned (the notifications list/bell render `created_at|timesince`; invitations render
+  `created_at|date`/`expires_at|date`; the course list renders `updated|date`; the people
+  list renders `last_login`). The harness freezes the wall clock to a fixed instant for
+  the **whole** run — seed **and** every capture — via a time-freezing context, so
+  `timezone.now()`, every `auto_now`/`auto_now_add` write during seeding, the `last_login`
+  stamp set at login, `timesince`, and `|date` all render identical strings on every
+  regeneration. Fixed absolute seed constants alone do **not** work: `timesince` is
+  `now - created_at`, so a fixed `created_at` against a live `now` drifts — freezing `now`
+  is what makes it constant. (The plan confirms a freezing lib is available; `live_server`
+  renders in the test process, so freezing there reaches server-side rendering.)
 
 ### Component 2 — Seed enrichment (`courses/management/commands/seed_demo_course.py`)
 
@@ -83,25 +100,44 @@ All additions stay **fully idempotent** (get_or_create / the existing `_upsert`
 discipline) — the command is run repeatedly by the harness and by other seed tests.
 
 - **`demo_admin`** — a `PLATFORM_ADMIN` user (mirrors the existing `_user` helper +
-  `set_user_role`). Password = the shared `DEMO_PASSWORD`. Language toggled per pass by
-  the harness like the others.
-- **Fixed datetimes** on time-bearing rows so relative-time / timestamp strings render
-  stably across regenerations: notification `created` timestamps and quiz-submission
-  timestamps set to fixed constants. (Rows whose only time display is derived from these
-  become deterministic; the plan enumerates exactly which fields.)
+  `set_user_role`). Requires importing `PLATFORM_ADMIN` from `institution.roles`
+  (the seed today imports only `COURSE_ADMIN`); `set_user_role` sets `is_staff` + the role
+  group. Password = the shared `DEMO_PASSWORD`. Language toggled per pass by the harness
+  like the others.
+- **Deterministic timestamps.** With the clock frozen for the run (Component 1), rows
+  created during seeding receive deterministic `auto_now_add`/`auto_now` values
+  automatically, so no per-field constant-setting is needed for those. The plan must still
+  **enumerate every time field rendered on a captured surface** and confirm each is
+  covered by the freeze — notification `created_at` (`timesince`), invitation
+  `created_at`/`expires_at` (`date`), course `updated` (`auto_now` `date`), user
+  `last_login` (set at login) — and for any field the freeze cannot reach, seed it
+  explicitly or choose a state that reads e.g. "Never".
 - **Per-surface state** so each PA/teacher page has something real to show:
-  - a small set of **notifications** for `demo_teacher` and/or `demo_admin` (for the
-    notifications topic + the bell);
+  - a small set of **notifications** for `demo_admin` (the notifications topic is
+    PA-gated, so its shot logs in as `demo_admin`) — covers the notifications topic + the
+    bell;
   - one **invitation** (invitations topic);
   - a saved, **disabled OIDC/SSO config** (sso topic);
   - a **WebhookEndpoint** + one **WebhookDelivery** (integrations topic);
   - a **cohort** (cohorts topic);
   - **branding** fields set on the institution (branding-settings topic);
   - a second **subject** if one example reads thin (subjects topic).
+  - a representative **interactive self-check element** on a lesson unit (e.g. a Switch
+    grid or a reveal-gate "Show more") for the interactive-elements topic — the seed
+    currently holds none of the self-check family (only callout/spoiler/table are
+    present), so the shot has nothing to show without this;
+  - an **`ImageElement` co-located on the content-rich lesson unit** (the "Core lesson"
+    that holds text/math/iframe/video/callout/spoiler/table) so the content-editors
+    consumption shot renders a MEDIA image and the broken-image tripwire is load-bearing.
+    Today the only image is on the separate "Bonus lesson" unit, so no single unit shows
+    both content elements and a MEDIA image.
   - Group + graded quiz + varied grades already exist from slice 2 (analytics,
     drill-down, quiz-review, roster, groups-collections, gradebook-export).
-- **`onboarded`** left `True` by default (so non-wizard PA pages behave normally); the
-  wizard shot's `prep` flips it `False` for that capture only.
+- **`onboarded`** left `True` by default (so non-wizard PA pages behave normally). The
+  wizard shot's `prep` flips it `False`, and **must restore it to `True` afterward** (or
+  the wizard shot is ordered last in each locale pass) — otherwise a later shot in the
+  same pass hits the first-run home gate. `onboarded` is a global institution flag, so the
+  toggle is not naturally scoped to one capture.
 
 ### Component 3 — Doc edits (all `docs/help/**/*.md` + `*.pl.md`)
 
@@ -117,7 +153,10 @@ Each topic markdown embeds its shot(s) at the relevant section via the existing 
   so no `makemessages`/`.po`/`.mo` work, and the i18n catalog gates are untouched.
 - Builder migrates: `builder-tree.png` → `builder-tree.en.png`, add `builder-tree.pl.png`;
   update both `builder.md` and `builder.pl.md` references. (Uniform `.<locale>.png`
-  naming across the whole set.)
+  naming across the whole set.) This rename also requires updating **`tests/test_help.py`**,
+  whose `test_builder_topic_embeds_existing_screenshot` hardcodes `builder-tree.png` in
+  both its rendered-HTML assertion and its `finders.find(...)` call — fold that builder-
+  specific test into (or align it with) the new coverage gate (Component 4).
 - Existing cross-links between topics are preserved.
 
 ### Component 4 — Coverage gate (a real test)
@@ -127,7 +166,11 @@ registered `Topic`, both the EN markdown and its `.pl.md` sibling contain at lea
 `static:` image reference, and **every** referenced `static:` path resolves via
 `django.contrib.staticfiles.finders.find` (proving the PNG is committed, not a dangling
 reference). This mechanically enforces the "all 22 topics, both locales" goal and catches
-a doc that references an un-regenerated image.
+a doc that references an un-regenerated image. Implementation note: the gate renders both
+`topic.path` **and** its PL sibling (`localized_doc_path(topic.path, "pl")`) and reuses
+the existing rendered-HTML `<img src="static:...">` extraction (`render_markdown_doc(...,
+resolve_static=False)`), not a raw-markdown scan — extending slice 2's EN-only,
+`topic.path`-only scan to both locales.
 
 ### Component 5 — Regeneration workflow
 
@@ -148,7 +191,7 @@ verifies which surface the topic's prose actually describes** before wiring the 
 | builder | demo_teacher | `manage_builder` (redo, uniform naming) |
 | content-editors | demo_teacher | `manage_editor` (lesson unit editor) + a lesson-consumption view (`lesson_unit`) rendering content elements incl. the MEDIA image |
 | quiz-editors | demo_teacher | `manage_editor` on the demo quiz unit |
-| interactive-elements | demo_teacher | a lesson/consumption view showing self-check elements (may need a seeded interactive element) |
+| interactive-elements | demo_teacher | a lesson/consumption view showing the seeded interactive self-check element(s) (added to a lesson unit by the seed — see Component 2) |
 | media-manager | demo_teacher | `manage_media` (library) — possibly + upload panel |
 | analytics | demo_teacher | analytics matrix (`manage_analytics` or the teacher collection analytics — plan verifies) |
 | drill-down | demo_teacher | `manage_analytics_student` / expanded matrix (`prep` expands a row) |
@@ -166,7 +209,7 @@ verifies which surface the topic's prose actually describes** before wiring the 
 | integrations | demo_admin | `settings` (Integrations tab) — needs endpoint + delivery |
 | subjects | demo_admin | `manage_subject_list` |
 | cohorts | demo_admin | `cohort_list` — needs a cohort |
-| notifications | demo_admin/demo_teacher | `list` — needs seeded notifications |
+| notifications | demo_admin | `list` — needs notifications seeded for `demo_admin` |
 | first-run-wizard | demo_admin | `setup` — `prep` sets `onboarded=False` |
 
 ## Error handling / edge cases
@@ -197,8 +240,10 @@ verifies which surface the topic's prose actually describes** before wiring the 
 
 ## Definition of done
 
-1. All 23 topics have ≥1 committed screenshot in EN and PL; shot count matches each
-   topic's distinct screens.
+1. Every registered topic has ≥1 committed screenshot in EN and PL — mechanically
+   enforced by the coverage gate (Component 4). The plan enumerates the expected shot list
+   per topic as a checklist; shots beyond the first are reviewer-judgment ("more where
+   earned"), not gate-enforced.
 2. `seed_demo_course` enriched (PA user + per-surface state + fixed datetimes), still
    idempotent; all existing seed tests green.
 3. Capture harness rewritten to the declarative dual-locale form; runs green and
