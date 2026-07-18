@@ -19,3 +19,43 @@ def test_seed_is_idempotent_and_builds_demo():
     assert Course.objects.count() == courses_after_first
     assert Element.objects.count() == elements_after_first
     assert Enrollment.objects.count() == enrollments_after_first
+
+
+@pytest.mark.django_db
+def test_seed_creates_verified_ca_owner_and_students():
+    from allauth.account.models import EmailAddress
+    from django.contrib.auth import get_user_model
+
+    from courses.models import Course
+
+    call_command("seed_demo_course")
+    User = get_user_model()
+
+    teacher = User.objects.get(username="demo_teacher")
+    assert teacher.is_staff is True
+    assert teacher.theme == "light"
+    assert teacher.language == "en"
+    assert EmailAddress.objects.filter(
+        user=teacher, verified=True, primary=True
+    ).exists()
+
+    course = Course.objects.get(slug="demo-course")
+    assert course.owner_id == teacher.id  # builder access = can_manage_course(owner)
+
+    for name in ("demo_student", "demo_s1", "demo_s2", "demo_s3"):
+        u = User.objects.get(username=name)
+        assert EmailAddress.objects.filter(user=u, verified=True).exists()
+
+
+@pytest.mark.django_db
+def test_seeded_ca_can_open_builder(client):
+    # The whole PoC rests on the seeded CA being able to open the demo-course
+    # builder. Pin it here (200, not 302/403) so a missing owner relationship
+    # fails fast in CI instead of only as a capture selector timeout.
+    from django.contrib.auth import get_user_model
+
+    call_command("seed_demo_course")
+    teacher = get_user_model().objects.get(username="demo_teacher")
+    client.force_login(teacher)
+    resp = client.get("/manage/courses/demo-course/build/")
+    assert resp.status_code == 200

@@ -4,6 +4,8 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
+from accounts.emails import ensure_verified_primary_email
+from accounts.services import set_user_role
 from courses.models import ContentNode
 from courses.models import Course
 from courses.models import Element
@@ -16,8 +18,12 @@ from courses.models import Subject
 from courses.models import TextElement
 from courses.models import VideoElement
 from courses.video_url import canonicalize_video_url
+from institution.roles import COURSE_ADMIN
+from institution.roles import seed_roles
 
 User = get_user_model()
+
+DEMO_PASSWORD = "demo-pass-123"  # noqa: S105 - single reused demo credential (not a test literal)
 
 
 class Command(BaseCommand):
@@ -33,6 +39,29 @@ class Command(BaseCommand):
             defaults={"title": "Demo Course", "language": "en"},
         )
         course.subjects.add(subject)
+
+        self.course = course
+        seed_roles()  # ensure the 4 role auth-groups + perms exist before set_user_role
+        teacher = self._user(
+            "demo_teacher",
+            "Demo Teacher",
+            email="demo_teacher@demo.example",
+            role=COURSE_ADMIN,
+        )
+        course.owner = teacher  # builder access requires ownership (can_manage_course)
+        course.save(update_fields=["owner"])
+
+        student = self._user(
+            "demo_student", "Demo Student", email="demo_student@demo.example"
+        )
+        s1 = self._user("demo_s1", "Ada Demo", email="demo_s1@demo.example")
+        s2 = self._user("demo_s2", "Ben Demo", email="demo_s2@demo.example")
+        s3 = self._user("demo_s3", "Cleo Demo", email="demo_s3@demo.example")
+        for st in (student, s1, s2, s3):
+            Enrollment.objects.get_or_create(student=st, course=course)
+        self.teacher = teacher  # consumed by Task 4
+        self.group_students = [s1, s2, s3]  # consumed by Task 4
+
         chapter = self._node(course, None, "chapter", "Chapter 1", None)
         intro = self._node(
             course, chapter, "unit", "Intro lesson", "lesson", obligatory=True
@@ -58,14 +87,22 @@ class Command(BaseCommand):
         self._video(lesson, "core-video", "https://www.youtube.com/watch?v=psMMKgvpGfg")
         self._image(extra, "bonus-image", "Decorative diagram")
 
-        student, created = User.objects.get_or_create(
-            username="demo_student", defaults={"display_name": "Demo Student"}
+        self.stdout.write(self.style.SUCCESS("Demo course seeded (idempotent)."))
+
+    def _user(self, username, display_name, *, email, is_staff=False, role=None):
+        user, created = User.objects.get_or_create(
+            username=username, defaults={"display_name": display_name}
         )
         if created:
-            student.set_password("demo-pass-123")
-            student.save()
-        Enrollment.objects.get_or_create(student=student, course=course)
-        self.stdout.write(self.style.SUCCESS("Demo course seeded (idempotent)."))
+            user.set_password(DEMO_PASSWORD)
+        user.theme = "light"
+        user.language = "en"
+        user.is_staff = is_staff or user.is_staff
+        user.save()
+        ensure_verified_primary_email(user, email)
+        if role is not None:
+            set_user_role(user, role)  # sets is_staff + role group idempotently
+        return user
 
     def _node(self, course, parent, kind, title, unit_type, obligatory=True):
         node, created = ContentNode.objects.get_or_create(
