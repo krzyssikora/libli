@@ -12,7 +12,7 @@ i Kolumn.
 
 ![Lekcja z elementem interaktywnym „Pokaż więcej”](static:core/img/help/interactive.pl.png)
 
-## Pokaż więcej
+## {el:revealgate} Pokaż więcej
 
 Cienka bramka z polem **Tekst przycisku** (domyślnie *Pokaż więcej*,
 wyświetlanym jako podpowiedź, gdy pole zostanie puste). Ukrywa elementy
@@ -21,7 +21,7 @@ znajdujące się po niej w konspekcie, dopóki uczeń nie kliknie jej przycisku
 kliknij-i-odsłoń. Użyj jej, aby rozłożyć lekcję w czasie tak, by dalszy
 materiał nie zdradzał wcześniejszej części.
 
-## Uzupełnij i potwierdź
+## {el:fillgate} Uzupełnij i potwierdź
 
 Bramka odsłaniająca, której wyzwalaczem jest luka do uzupełnienia zamiast
 zwykłego przycisku. Zapisz **Treść z lukami**, oznaczając lukę jako
@@ -30,7 +30,7 @@ zwykłego przycisku. Zapisz **Treść z lukami**, oznaczając lukę jako
 luki](quiz-editors). Poprawna, sprawdzana po stronie serwera odpowiedź
 odsłania kolejne elementy; nie przyznaje punktów.
 
-## Wybierz i zatwierdź
+## {el:switchgate} Wybierz i zatwierdź
 
 Bramka odsłaniająca, której wyzwalaczem jest przełączany w linii widżet
 "Wybierz ▾" zamiast wpisywanej odpowiedzi. Zapisz **Treść z wyborem**,
@@ -38,7 +38,7 @@ oznaczając miejsce wyboru jako `{{choice}}` (dokładnie raz), a następnie
 uzupełnij listę **Opcji** widżetu i zaznacz poprawną. Poprawny, sprawdzany
 po stronie serwera wybór odsłania kolejne elementy; nie przyznaje punktów.
 
-## Siatka przełączników
+## {el:switchgrid} Siatka przełączników
 
 Element samosprawdzający złożony z jednej lub kilku linii przeplatających
 statyczny tekst z klikalnymi przełącznikami: zapisz każdą linię, wstawiając
@@ -49,7 +49,7 @@ każdego przełącznika i zaznacz poprawną. Dodawaj kolejne linie przyciskiem
 przy każdym przełączniku w miarę klikania przez ucznia; nie odsłania ani
 nie blokuje niczego i nie przyznaje punktów.
 
-## Tabela do uzupełnienia
+## {el:filltable} Tabela do uzupełnienia
 
 Edytor tabeli — ta sama siatka, przełączniki wiersza/kolumny nagłówkowej i
 style obramowania co w elemencie [Tabela](content-editors) — z jednym
@@ -60,7 +60,7 @@ zwykłej tabeli; komórki z odpowiedzią są sprawdzane po stronie serwera dla
 każdej komórki osobno, w miarę wpisywania przez ucznia. Nie przyznaje
 punktów i niczego nie odsłania.
 
-## Rozwijana treść
+## {el:spoiler} Rozwijana treść
 
 Blok, który ukrywa swoją zawartość za kliknięciem, wykorzystując
 natywny przełącznik `<details>` bez JavaScriptu. Użyj go, aby schować podpowiedź,
@@ -70,7 +70,7 @@ tym samym paskiem narzędzi tekstu sformatowanego (pogrubienie/kursywa/
 podkreślenie, nagłówki, listy, linki, cytat, kod, wyrównanie) co w innych
 polach tekstowych.
 
-## Krok po kroku
+## {el:stepper} Krok po kroku
 
 Uporządkowana lista krótkich **Kroków** — po jednej linii tekstu lub wzoru
 w linii każdy (np. `\(2^{10}\)`) — z opcjonalnym **Wprowadzeniem** nad nimi.
@@ -78,7 +78,7 @@ Pierwszy krok jest widoczny od razu; przycisk "Pokaż dalej" odsłania
 resztę pojedynczo. Element nieoceniany, bez zapamiętywania stanu —
 odświeżenie strony zaczyna przechodzenie od pierwszego kroku od nowa.
 
-## Lista zadań
+## {el:markdone} Lista zadań
 
 Opcjonalne polecenie oraz uporządkowany zestaw krótkich **pozycji listy**,
 które uczeń odhacza, zapisując "to zrobiłem" — do listy do nauki lub zadań
@@ -87,7 +87,7 @@ odpowiedzią. W odróżnieniu od pozostałych elementów
 interaktywnych, odhaczenia ucznia zapisują się między jego kolejnymi
 wizytami. Element nieoceniany.
 
-## Zgadnij liczbę
+## {el:guessnumber} Zgadnij liczbę
 
 Element samosprawdzający z odpowiedzią liczbową, dający informację
 kierunkową zamiast zwykłego werdyktu dobrze/źle. Zapisz sformatowaną

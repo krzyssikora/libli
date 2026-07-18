@@ -58,6 +58,132 @@ def test_resolve_static_srcs_rewrites_only_sentinel():
     assert 'src="https://ex.com/y.png"' in out
 
 
+def test_element_icons_wraps_list_entry():
+    from core.help import resolve_element_icons
+
+    html = "<p>{el:text} <strong>Text</strong> — the workhorse block.</p>"
+    out = resolve_element_icons(html)
+    assert '<div class="doc-elref">' in out
+    assert '<use href="#el-text"></use>' in out
+    assert (
+        '<div class="doc-elref__body"><strong>Text</strong> '
+        "— the workhorse block.</div>"
+    ) in out
+    assert "{el:" not in out  # token consumed, no leading space before <strong>
+
+
+def test_element_icons_injects_single_heading():
+    from core.help import resolve_element_icons
+
+    out = resolve_element_icons("<h2>{el:revealgate} Show more</h2>")
+    # Opening tag reconstructed, icon injected, text + closing tag intact,
+    # no stray space.
+    assert out == (
+        '<h2><svg class="ic" aria-hidden="true" focusable="false">'
+        '<use href="#el-revealgate"></use></svg>Show more</h2>'
+    )
+
+
+def test_element_icons_injects_heading_run_two_icons():
+    from core.help import resolve_element_icons
+
+    out = resolve_element_icons(
+        "<h2>{el:choice-single}{el:choice-multi} Single / Multiple choice</h2>"
+    )
+    assert out == (
+        '<h2><svg class="ic" aria-hidden="true" focusable="false">'
+        '<use href="#el-choice-single"></use></svg>'
+        '<svg class="ic" aria-hidden="true" focusable="false">'
+        '<use href="#el-choice-multi"></use></svg>Single / Multiple choice</h2>'
+    )
+
+
+def test_element_icons_preserves_heading_attrs():
+    from core.help import resolve_element_icons
+
+    out = resolve_element_icons('<h3 id="x">{el:spoiler} Spoiler</h3>')
+    assert out.startswith('<h3 id="x"><svg')
+    assert out.endswith("Spoiler</h3>")
+
+
+def test_element_icons_adjacent_paragraphs_stay_separate():
+    from core.help import resolve_element_icons
+
+    html = (
+        "<p>{el:text} <strong>Text</strong> — a.</p>\n"
+        "<p>{el:image} <strong>Image</strong> — b.</p>"
+    )
+    out = resolve_element_icons(html)
+    assert out.count('<div class="doc-elref">') == 2
+    assert (
+        '<use href="#el-text"></use>' in out and '<use href="#el-image"></use>' in out
+    )
+
+
+def test_element_icons_unknown_slug_left_literal_in_paragraph():
+    from core.help import resolve_element_icons
+
+    html = "<p>{el:bogus} <strong>Nope</strong> — x.</p>"
+    out = resolve_element_icons(html)
+    assert out == html  # untouched; token stays literal for the no-leak test to catch
+
+
+def test_element_icons_unknown_slug_left_literal_in_heading():
+    from core.help import resolve_element_icons
+
+    out = resolve_element_icons("<h2>{el:bogus} Title</h2>")
+    assert out == "<h2>{el:bogus} Title</h2>"
+
+
+def test_element_icons_leaves_untokened_html_unchanged():
+    from core.help import resolve_element_icons
+
+    html = "<p>Ordinary prose with a {curly} brace.</p><h2>Plain heading</h2>"
+    assert resolve_element_icons(html) == html
+
+
+def test_element_icon_slugs_match_sprite():
+    """Drift guard: the hardcoded frozenset must equal the sprite's el-* ids."""
+    import re as _re
+
+    from core.help import DOCS_ROOT
+    from core.help import ELEMENT_ICON_SLUGS
+
+    sprite = (
+        DOCS_ROOT.parent / "templates/courses/manage/_icon_sprite.html"
+    ).read_text(encoding="utf-8")
+    sprite_slugs = set(_re.findall(r'id="el-([a-z0-9-]+)"', sprite))
+    assert sprite_slugs, "no el-* symbols parsed from sprite"
+    assert ELEMENT_ICON_SLUGS == sprite_slugs
+
+
+def test_render_markdown_doc_applies_icon_pass(tmp_path, monkeypatch):
+    monkeypatch.setattr(core_help, "DOCS_ROOT", tmp_path)
+    (tmp_path / "d.md").write_text("{el:text} **Text** — body.\n", encoding="utf-8")
+    html = core_help.render_markdown_doc("d.md")
+    assert '<div class="doc-elref">' in html
+    assert '<use href="#el-text"></use>' in html
+    assert "{el:" not in html
+
+
+def test_icon_pass_runs_even_when_static_disabled(tmp_path, monkeypatch):
+    monkeypatch.setattr(core_help, "DOCS_ROOT", tmp_path)
+    (tmp_path / "d.md").write_text("{el:math} **Math** — body.\n", encoding="utf-8")
+    html = core_help.render_markdown_doc("d.md", resolve_static=False)
+    assert (
+        '<use href="#el-math"></use>' in html
+    )  # icons are orthogonal to resolve_static
+
+
+@pytest.mark.django_db
+def test_topic_page_includes_icon_sprite(client):
+    make_ca(client)
+    resp = client.get(reverse("core:help_topic", args=["content-editors"]))
+    assert resp.status_code == 200
+    body = resp.content.decode()
+    assert 'id="el-text"' in body  # sprite partial is included -> <use> refs resolve
+
+
 def test_render_markdown_doc_can_skip_static_rewrite(tmp_path, monkeypatch):
     import core.help as help_mod
 
@@ -348,3 +474,125 @@ def test_every_topic_illustrated_both_locales(topic):
             assert rel.endswith(suffix), (
                 f"{path}: image {rel} lacks the {suffix} locale suffix"
             )
+
+
+# --- Element-icon doc coverage ------------------------------------------------
+
+_EL_TOKEN_IN_DOC = re.compile(r"\{el:([a-z0-9-]+)\}")
+
+
+def _all_help_markdown_paths():
+    paths = []
+    for topic in TOPICS:
+        paths.append(topic.path)
+        pl = topic.path.removesuffix(".md") + ".pl.md"
+        if (DOCS_ROOT / pl).exists():
+            paths.append(pl)
+    return paths
+
+
+def test_every_doc_token_is_a_known_slug():
+    from core.help import ELEMENT_ICON_SLUGS
+
+    seen = 0
+    for rel in _all_help_markdown_paths():
+        text = (DOCS_ROOT / rel).read_text(encoding="utf-8")
+        for slug in _EL_TOKEN_IN_DOC.findall(text):
+            seen += 1
+            assert slug in ELEMENT_ICON_SLUGS, f"{rel}: unknown slug {slug!r}"
+    assert seen > 0, "no {el:} tokens found in any help doc"
+
+
+@pytest.mark.parametrize(
+    "rel",
+    [
+        "help/course-admin/content-editors.md",
+        "help/course-admin/interactive-elements.md",
+        "help/course-admin/quiz-editors.md",
+    ],
+)
+def test_element_topics_leak_no_literal_token(rel):
+    html = render_markdown_doc(rel)
+    assert "{el:" not in html
+
+
+# Element name -> expected sprite slug(s), sampled across all three surfaces,
+# including the switchgrid reuse and the dual-icon combined choice heading. The
+# oracle here is intentional (asserts the deliberate mapping); test_doc_icons_subset
+# _of_palette below adds the palette as an independent oracle.
+_ICON_EXPECTATIONS = {
+    "help/course-admin/content-editors.md": {
+        "Text": ["el-text"],  # a .doc-elref list entry
+        "Callout": ["el-callout"],
+        "Columns": ["el-twocolumn"],
+    },
+    "help/course-admin/interactive-elements.md": {
+        "Show more": ["el-revealgate"],  # a heading
+        "Switch grid": ["el-switchgrid"],
+    },
+    "help/course-admin/quiz-editors.md": {
+        "Single / Multiple choice": ["el-choice-single", "el-choice-multi"],  # dual
+        "Matrix question": ["el-switchgrid"],  # switchgrid reuse
+        "Multi-select grid": ["el-switchgrid"],  # switchgrid reuse
+    },
+}
+
+
+@pytest.mark.parametrize("rel", list(_ICON_EXPECTATIONS))
+def test_each_element_entry_has_its_expected_icon(rel):
+    html = render_markdown_doc(rel)
+    for name, slugs in _ICON_EXPECTATIONS[rel].items():
+        for slug in slugs:
+            assert f'<use href="#{slug}">' in html, f"{rel}: {name} missing #{slug}"
+
+
+def test_doc_icons_subset_of_palette():
+    """Palette is the oracle: every icon the docs use, the add-element palette shows."""
+    palette = (
+        DOCS_ROOT.parent / "templates/courses/manage/editor/_add_menu.html"
+    ).read_text(encoding="utf-8")
+    palette_slugs = set(re.findall(r"#el-([a-z0-9-]+)", palette))
+    doc_slugs = set()
+    for rel in _all_help_markdown_paths():
+        text = (DOCS_ROOT / rel).read_text(encoding="utf-8")
+        doc_slugs.update(_EL_TOKEN_IN_DOC.findall(text))
+    assert doc_slugs, "no doc tokens found"
+    assert doc_slugs <= palette_slugs, (
+        f"doc icons not in palette: {doc_slugs - palette_slugs}"
+    )
+
+
+_USE_SLUG = re.compile(r'<use href="#el-([a-z0-9-]+)">')
+
+
+@pytest.mark.parametrize(
+    "rel",
+    [
+        "help/course-admin/content-editors.md",
+        "help/course-admin/interactive-elements.md",
+        "help/course-admin/quiz-editors.md",
+    ],
+)
+def test_pl_icon_sequence_matches_en(rel):
+    """PL correctness without translated-name oracles: the EN and PL files list the
+    same elements in the same order, so their rendered icon sequences (document order)
+    must be identical. Catches a PL positional swap, a wrong PL slug, or a missing/
+    extra PL token that test_every_doc_token_is_a_known_slug (membership-only)
+    misses."""
+    pl = rel.removesuffix(".md") + ".pl.md"
+    assert (DOCS_ROOT / pl).exists(), f"missing PL doc: {pl}"
+    en_icons = _USE_SLUG.findall(render_markdown_doc(rel))
+    pl_icons = _USE_SLUG.findall(render_markdown_doc(pl))
+    assert en_icons, f"{rel}: no icons rendered"
+    assert en_icons == pl_icons, f"{rel}: EN {en_icons} != PL {pl_icons}"
+
+
+def test_doc_page_css_uses_real_tokens_and_styles_elref():
+    from django.contrib.staticfiles import finders
+
+    css = open(finders.find("core/css/doc-page.css"), encoding="utf-8").read()
+    assert ".doc-elref" in css
+    assert ".doc-elref__body" in css
+    # phantom tokens corrected to real ones
+    assert "--surface-2" not in css
+    assert "--text-muted" not in css

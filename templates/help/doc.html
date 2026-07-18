@@ -3,6 +3,7 @@
 {% block head_title %}{{ topic.title }} · libli{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'core/css/doc-page.css' %}">{% endblock %}
 {% block content %}
+{% include "courses/manage/_icon_sprite.html" %}
 <div class="doc-layout">
   <aside class="doc-sidebar">
     <a class="doc-sidebar__back" href="{% url 'core:help_index' %}">{% trans "← All help" %}</a>

@@ -32,23 +32,23 @@ konspekcie; uczniowie nigdy go nie widzą.
 
 ## Typy elementów treści
 
-**Tekst** — podstawowy blok. Pole tekstu sformatowanego obsługujące
+{el:text} **Tekst** — podstawowy blok. Pole tekstu sformatowanego obsługujące
 nagłówki, listy, pogrubienie/kursywę, linki oraz wzory matematyczne wpisane
 w liniowym tekście za pomocą znaczników KaTeX (np. `$x^2$`). Używaj go do
 wyjaśnień, instrukcji i dowolnej treści między innymi elementami.
 
-**Obraz** — osadza zdjęcie z biblioteki mediów kursu. Wybierz istniejący
+{el:image} **Obraz** — osadza zdjęcie z biblioteki mediów kursu. Wybierz istniejący
 plik lub prześlij nowy od razu (zobacz [Menedżer mediów](media-manager));
 dodaj opcjonalny **tekst alternatywny** dla dostępności (pozostaw go pusty
 tylko dla obrazu czysto dekoracyjnego) oraz opcjonalny **podpis** wyświetlany
 pod obrazem.
 
-**Wideo** — osadza film na dwa sposoby: wybierz przesłany plik wideo z
+{el:video} **Wideo** — osadza film na dwa sposoby: wybierz przesłany plik wideo z
 biblioteki mediów *albo* wklej link do filmu hostowanego (YouTube, Vimeo i
 podobne są automatycznie normalizowane do postaci osadzalnej). Podaj
 dokładnie jedną z tych dwóch opcji — nie obie naraz i nie żadną.
 
-**Iframe** — osadza dowolną zewnętrzną stronę interaktywną poprzez
+{el:iframe} **Iframe** — osadza dowolną zewnętrzną stronę interaktywną poprzez
 wklejenie jej linku udostępniania lub pełnego fragmentu `<iframe>`,
 najczęściej apletu GeoGebry. Wklejenie linku GeoGebry jest automatycznie
 sprowadzane do widoku samego arkusza roboczego, a osadzenie zachowuje
@@ -56,12 +56,12 @@ oryginalne proporcje, jeśli źródło podało szerokość/wysokość. Nadaj mu
 opisowy **tytuł** ze względu na dostępność. Osadzić można tylko domeny
 dopuszczone przez administratora platformy.
 
-**Wzór** — samodzielny blok wzoru w trybie wyświetlanym. Wpisz LaTeX;
+{el:math} **Wzór** — samodzielny blok wzoru w trybie wyświetlanym. Wpisz LaTeX;
 jest renderowany po stronie klienta za pomocą KaTeX. Użyj tego bloku dla
 wzoru, który zasługuje na własną linię, a nie dla krótkiego wyrażenia w
 tekście — to lepiej umieścić wewnątrz elementu Tekst.
 
-**HTML** — surowy HTML/CSS/JS dla autorów, którzy potrzebują czegoś, czego
+{el:html} **HTML** — surowy HTML/CSS/JS dla autorów, którzy potrzebują czegoś, czego
 pozostałe typy bloków nie potrafią (własny widżet, animacja, autorska
 interakcja). Działa w izolowanej ramce oddzielonej od reszty strony, a
 wspólny CSS/JS kursu (konfigurowany w ustawieniach kursu) jest dostępny dla
@@ -69,7 +69,7 @@ każdego bloku HTML w tym kursie. Używaj go oszczędnie — treść nie jest
 sanityzowana, więc powinni z niego korzystać tylko zaufani autorzy, a
 utrzymanie takiego bloku jest trudniejsze niż pozostałych typów.
 
-**Tabela** — edytor siatki typu WYSIWYG: kliknij komórkę, aby edytować jej
+{el:table} **Tabela** — edytor siatki typu WYSIWYG: kliknij komórkę, aby edytować jej
 tekst sformatowany (pogrubienie, kursywa, podkreślenie, wzory w linii oraz
 wyrównanie poziome/pionowe) na miejscu, a uchwytami wierszy/kolumn wstawiaj
 lub usuwaj wiersze i kolumny. Włącz **Wiersz nagłówkowy** i
@@ -77,25 +77,25 @@ lub usuwaj wiersze i kolumny. Włącz **Wiersz nagłówkowy** i
 styl **Obramowanie** (**Siatka**, **Wiersze**, **Tylko nagłówek** albo
 **Brak**).
 
-**Galeria** — karuzela obrazów wyświetlanych pojedynczo, z nawigacją.
+{el:gallery} **Galeria** — karuzela obrazów wyświetlanych pojedynczo, z nawigacją.
 Kliknij **Dodaj obraz**, aby wybrać plik z biblioteki mediów, dodaj do
 każdego obrazu opcjonalny opis w tekście sformatowanym oraz zmieniaj
 kolejność lub usuwaj obrazy przyciskami w wierszu. **Pozycja opisu**
 umieszcza podpis **Pod obrazem** lub **Nad obrazem**.
 
-**Ramka** — zawsze widoczna, oprawiona wstawka na notatkę, która ma się
+{el:callout} **Ramka** — zawsze widoczna, oprawiona wstawka na notatkę, która ma się
 wyróżnić na tle otaczającego tekstu. Wybierz **Rodzaj** (Przykład, Notatka,
 Wskazówka lub Uwaga — każdy z własnym kolorem akcentu i ikoną), opcjonalny
 **Nagłówek** (jeśli pozostawiony pusty, używany jest domyślny nagłówek dla
 danego rodzaju) oraz treść w tekście sformatowanym.
 
-**Zakładki** — kontener dzielący swoją zawartość na nazwane zakładki, między
+{el:tabs} **Zakładki** — kontener dzielący swoją zawartość na nazwane zakładki, między
 którymi przełącza się uczeń; dodawaj, usuwaj, zmieniaj kolejność i nazywaj
 zakładki z listy wierszy w edytorze. Każda zakładka zawiera własne
 zagnieżdżone elementy, dodawane z jej własnego menu **Dodaj element** —
 zobacz „Kontenery i zagnieżdżanie” poniżej, co można w nich umieścić.
 
-**Kolumny** — kontener układający swoją zawartość obok siebie w 2 do 4
+{el:twocolumn} **Kolumny** — kontener układający swoją zawartość obok siebie w 2 do 4
 kolumnach; ustaw **Liczba kolumn** i wypełnij każdą kolumnę z jej własnej
 grupy na liście elementów pod edytorem. Zmniejszenie liczby kolumn zachowuje
 kolumny z lewej strony i przenosi zawartość każdej usuniętej kolumny do
@@ -104,7 +104,7 @@ poniżej, co można w nich umieścić.
 
 ## Struktura
 
-**Podział slajdów** — znacznik, a nie blok treści: nie ma żadnych pól i
+{el:slidebreak} **Podział slajdów** — znacznik, a nie blok treści: nie ma żadnych pól i
 sam w sobie nic nie wyświetla. Dodanie jednego lub więcej Podziałów slajdów
 do lekcji zamienia ją w podzielony na slajdy widok pokazu slajdów zamiast
 jednego długiego przewijanego widoku, a każdy podział rozpoczyna nowy slajd.
