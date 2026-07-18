@@ -58,6 +58,95 @@ def test_resolve_static_srcs_rewrites_only_sentinel():
     assert 'src="https://ex.com/y.png"' in out
 
 
+def test_element_icons_wraps_list_entry():
+    from core.help import resolve_element_icons
+
+    html = "<p>{el:text} <strong>Text</strong> — the workhorse block.</p>"
+    out = resolve_element_icons(html)
+    assert '<div class="doc-elref">' in out
+    assert '<use href="#el-text"></use>' in out
+    assert '<div class="doc-elref__body"><strong>Text</strong> — the workhorse block.</div>' in out
+    assert "{el:" not in out  # token consumed, no leading space before <strong>
+
+
+def test_element_icons_injects_single_heading():
+    from core.help import resolve_element_icons
+
+    out = resolve_element_icons("<h2>{el:revealgate} Show more</h2>")
+    # Opening tag reconstructed, icon injected, text + closing tag intact, no stray space.
+    assert out == (
+        '<h2><svg class="ic" aria-hidden="true" focusable="false">'
+        '<use href="#el-revealgate"></use></svg>Show more</h2>'
+    )
+
+
+def test_element_icons_injects_heading_run_two_icons():
+    from core.help import resolve_element_icons
+
+    out = resolve_element_icons(
+        "<h2>{el:choice-single}{el:choice-multi} Single / Multiple choice</h2>"
+    )
+    assert out == (
+        '<h2><svg class="ic" aria-hidden="true" focusable="false">'
+        '<use href="#el-choice-single"></use></svg>'
+        '<svg class="ic" aria-hidden="true" focusable="false">'
+        '<use href="#el-choice-multi"></use></svg>Single / Multiple choice</h2>'
+    )
+
+
+def test_element_icons_preserves_heading_attrs():
+    from core.help import resolve_element_icons
+
+    out = resolve_element_icons('<h3 id="x">{el:spoiler} Spoiler</h3>')
+    assert out.startswith('<h3 id="x"><svg')
+    assert out.endswith("Spoiler</h3>")
+
+
+def test_element_icons_adjacent_paragraphs_stay_separate():
+    from core.help import resolve_element_icons
+
+    html = "<p>{el:text} <strong>Text</strong> — a.</p>\n<p>{el:image} <strong>Image</strong> — b.</p>"
+    out = resolve_element_icons(html)
+    assert out.count('<div class="doc-elref">') == 2
+    assert '<use href="#el-text"></use>' in out and '<use href="#el-image"></use>' in out
+
+
+def test_element_icons_unknown_slug_left_literal_in_paragraph():
+    from core.help import resolve_element_icons
+
+    html = "<p>{el:bogus} <strong>Nope</strong> — x.</p>"
+    out = resolve_element_icons(html)
+    assert out == html  # untouched; token stays literal for the no-leak test to catch
+
+
+def test_element_icons_unknown_slug_left_literal_in_heading():
+    from core.help import resolve_element_icons
+
+    out = resolve_element_icons("<h2>{el:bogus} Title</h2>")
+    assert out == "<h2>{el:bogus} Title</h2>"
+
+
+def test_element_icons_leaves_untokened_html_unchanged():
+    from core.help import resolve_element_icons
+
+    html = "<p>Ordinary prose with a {curly} brace.</p><h2>Plain heading</h2>"
+    assert resolve_element_icons(html) == html
+
+
+def test_element_icon_slugs_match_sprite():
+    """Drift guard: the hardcoded frozenset must equal the sprite's el-* ids."""
+    import re as _re
+
+    from core.help import DOCS_ROOT, ELEMENT_ICON_SLUGS
+
+    sprite = (DOCS_ROOT.parent / "templates/courses/manage/_icon_sprite.html").read_text(
+        encoding="utf-8"
+    )
+    sprite_slugs = set(_re.findall(r'id="el-([a-z0-9-]+)"', sprite))
+    assert sprite_slugs, "no el-* symbols parsed from sprite"
+    assert ELEMENT_ICON_SLUGS == sprite_slugs
+
+
 def test_render_markdown_doc_can_skip_static_rewrite(tmp_path, monkeypatch):
     import core.help as help_mod
 

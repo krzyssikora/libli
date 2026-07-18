@@ -31,6 +31,81 @@ def resolve_static_srcs(html):
     return _STATIC_SRC.sub(lambda m: f'src="{static(m.group(1))}"', html)
 
 
+# Element-type icon tokens. Authors write {el:SLUG} in trusted help markdown;
+# render_markdown_doc rewrites them to the shared #el-* sprite icon. SLUG is the
+# sprite id minus its "el-" prefix. Hardcoded (NOT read from the template at import —
+# that would resolve a Django template name as a path before the app registry is
+# ready, and buys nothing). test_element_icon_slugs_match_sprite keeps this in sync
+# with templates/courses/manage/_icon_sprite.html.
+ELEMENT_ICON_SLUGS = frozenset(
+    {
+        "text", "image", "video", "iframe", "math", "html",
+        "table", "gallery", "callout", "tabs", "twocolumn", "slidebreak",
+        "revealgate", "fillgate", "switchgate", "switchgrid", "filltable",
+        "spoiler", "stepper", "markdone", "guessnumber",
+        "choice-single", "choice-multi", "shorttext", "shortnumeric",
+        "fillblank", "dragwords", "matchpairs", "dragimage", "extended",
+    }
+)
+
+_ICON_SVG = (
+    '<svg class="ic" aria-hidden="true" focusable="false">'
+    '<use href="#el-{slug}"></use></svg>'
+)
+
+# Heading pass: an <hN> opening tag followed by a run of one-or-more leading tokens.
+# The match SPANS the opening tag (groups 1-2) plus the run, so the callback must
+# reconstruct the opening tag (re.sub replaces the whole match).
+_EL_HEADING_RE = re.compile(r"<h([1-6])([^>]*)>\s*((?:\{el:[a-z0-9-]+\}\s*)+)")
+# A single token, used to split a captured run.
+_EL_TOKEN_RE = re.compile(r"\{el:([a-z0-9-]+)\}")
+# List-entry pass: a paragraph whose first content is a single token. Non-greedy +
+# DOTALL so soft-wrapped body lines are captured without swallowing the next entry.
+_EL_PARA_RE = re.compile(r"<p>\s*\{el:([a-z0-9-]+)\}\s*(.*?)</p>", re.DOTALL)
+
+
+def _icon_or_literal(slug):
+    """SVG for a known slug; the literal {el:slug} text for an unknown one."""
+    if slug in ELEMENT_ICON_SLUGS:
+        return _ICON_SVG.format(slug=slug)
+    return "{el:" + slug + "}"
+
+
+def _sub_heading(m):
+    level, attrs, run = m.group(1), m.group(2), m.group(3)
+    slugs = _EL_TOKEN_RE.findall(run)
+    # If no token in the run is a known slug, leave the whole match untouched so the
+    # literal tokens (and their original whitespace) survive byte-for-byte for the
+    # no-leak test — mirrors _sub_para's unknown-slug early return. When at least one
+    # slug is known, emit one <svg> per known token; unknown tokens re-emit literally.
+    if not any(s in ELEMENT_ICON_SLUGS for s in slugs):
+        return m.group(0)
+    icons = "".join(_icon_or_literal(s) for s in slugs)
+    return f"<h{level}{attrs}>{icons}"
+
+
+def _sub_para(m):
+    slug, body = m.group(1), m.group(2)
+    if slug not in ELEMENT_ICON_SLUGS:
+        return m.group(0)  # unknown -> leave the paragraph (and literal token) intact
+    return (
+        f'<div class="doc-elref">{_ICON_SVG.format(slug=slug)}'
+        f'<div class="doc-elref__body">{body}</div></div>'
+    )
+
+
+def resolve_element_icons(html):
+    """Rewrite {el:SLUG} tokens into #el-* sprite-icon markup.
+
+    Heading pass first (a run of leading tokens on an <hN> -> one <svg> per token,
+    opening tag reconstructed), then list-entry pass (a single leading token in a
+    <p> -> a .doc-elref row). Unknown slugs are left as literal text so a typo is
+    visible and caught by tests, never a silent wrong/absent icon."""
+    html = _EL_HEADING_RE.sub(_sub_heading, html)
+    html = _EL_PARA_RE.sub(_sub_para, html)
+    return html
+
+
 def render_markdown_doc(rel_path, *, resolve_static=True):
     text = (DOCS_ROOT / rel_path).read_text(encoding="utf-8")
     html = markdown.markdown(text, extensions=["fenced_code", "tables"])
