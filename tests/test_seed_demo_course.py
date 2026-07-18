@@ -2,6 +2,11 @@ import pytest
 from django.core.management import call_command
 
 
+@pytest.fixture(autouse=True)
+def _isolate_media_root(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+
+
 @pytest.mark.django_db
 def test_seed_is_idempotent_and_builds_demo():
     from courses.models import Course
@@ -127,7 +132,6 @@ def test_seed_quiz_group_idempotent():
 
 @pytest.mark.django_db
 def test_seed_materializes_demo_image_idempotently(settings, tmp_path):
-    settings.MEDIA_ROOT = tmp_path
     from courses.models import MediaAsset
 
     call_command("seed_demo_course")
