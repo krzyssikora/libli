@@ -43,6 +43,7 @@ import pytest
 from courses.models import (
     ChoiceGridQuestionElement,
     ChoiceQuestionElement,
+    DragFillBlankQuestionElement,
     DragToImageQuestionElement,
     ExtendedResponseQuestionElement,
     FillBlankQuestionElement,
@@ -65,7 +66,7 @@ DEFERRED = [
     MultiGridQuestionElement,
     MatchPairQuestionElement,
     DragToImageQuestionElement,
-    # DragFillBlankQuestionElement imported below to avoid an unused-name lint if absent
+    DragFillBlankQuestionElement,
 ]
 
 
@@ -368,9 +369,12 @@ def test_deferred_type_persists_nothing(client):
     student, course, unit = _enrolled(client)
     obj = MatchPairQuestionElement.objects.create(stem="Q")
     row = _add(unit, obj)
-    # A generic POST; MatchPair build_answer yields its own shape. Regardless, the
-    # scope gate must refuse to persist a deferred type.
-    resp = client.post(_check_url(unit, row.pk), {"left": "1", "right": "2"})
+    # POST a NON-empty answer for the deferred type: MatchPair.build_answer is
+    # post.getlist("slot") (models.py:1761), so {"slot": ["x"]} yields ["x"], not
+    # empty. This matters for falsification — with the scope gate deleted, an empty
+    # answer would still hit the delete branch and store nothing (false GREEN); a
+    # non-empty one takes the store branch and a row appears (true RED).
+    resp = client.post(_check_url(unit, row.pk), {"slot": ["x"]})
     assert resp.status_code == 200  # isolate the scope-gate signal from any mark() error
     assert not UnitProgress.objects.filter(student=student, unit=unit).exists()
 
@@ -535,7 +539,12 @@ def test_deferred_hand_forged_blob_does_not_restore(client):
     obj = MatchPairQuestionElement.objects.create(stem="Q")
     _seed(unit, student, obj, {"answer": [[0, 1]]})
     resp = client.get(_lesson_url(unit))
-    assert resp.status_code == 200  # in-scope gate refuses to restore it; no crash
+    assert resp.status_code == 200
+    # Un-restored: the feedback partial is included only when element.pk ==
+    # feedback_for_pk (matchpairquestionelement.html:19). A restored deferred blob
+    # would emit a verdict; assert none — this is what goes RED if the restore-side
+    # scope gate is deleted.
+    assert "question__verdict" not in resp.content.decode()
 
 
 def test_restore_shortnumeric_fills_value(client):
@@ -690,6 +699,7 @@ Run: `uv run pytest courses/tests/test_question_restore.py -q -k live_check_wins
 
 - Change `.get(element.pk)` to `.get(str(element.pk))`; re-run `-k restore_shorttext` → FAIL (misses the int-keyed map). Revert.
 - Delete the `element.pk != feedback_for_pk` condition; re-run `-k live_check_wins` → FAIL (STALE overrides the live answer). Revert.
+- Delete the `getattr(obj, "RESTORABLE_IN_LESSON", False)` condition; re-run `-k deferred_hand_forged` → FAIL (the forged deferred blob restores and emits `question__verdict`). Revert.
 
 - [ ] **Step 7: Commit**
 
