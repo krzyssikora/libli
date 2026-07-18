@@ -1,5 +1,6 @@
 {% load i18n %}
-<div class="stepper" data-stepper>
+{% url 'courses:element_state_save' slug=slug node_pk=node_pk as save_url %}
+<div class="stepper" data-stepper data-element-pk="{{ eid }}" data-state="{{ mine_json }}" data-state-url="{{ save_url }}">
   {% if el.prompt %}<p class="stepper__prompt">{{ el.prompt }}</p>{% endif %}
   <div class="stepper__line">
     {% for step in el.steps.all %}

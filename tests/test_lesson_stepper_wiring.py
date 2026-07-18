@@ -43,3 +43,9 @@ def test_mathjs_selector_includes_stepper():
 
     path = finders.find("courses/js/math.js")
     assert ".stepper" in open(path, encoding="utf-8").read()
+
+
+def test_lesson_loads_state_js_for_stepper():
+    # A stepper-only lesson must load state.js (window.libliState.saveFlag), not
+    # only stepper.js. Guards the has_stepper addition to the state.js load gate.
+    assert "courses/js/state.js" in _body(pytest.importorskip("django.test").Client())

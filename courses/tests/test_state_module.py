@@ -3,6 +3,8 @@ import pytest
 from courses import state
 from courses.models import MarkDoneElement
 from courses.models import MarkDoneItem
+from courses.models import StepperElement
+from courses.models import StepperStep
 from tests.factories import add_element
 from tests.factories import make_course_with_unit
 
@@ -125,3 +127,55 @@ def test_val_done_rejects_non_dict(payload):
 def test_done_registered_for_all_three_graded_selfcheck_families():
     for key in ("switchgridelement", "filltableelement", "guessnumberelement"):
         assert state.VALIDATORS[key] is state._val_done
+
+
+def _mk_stepper(n):
+    _course, unit = make_course_with_unit()
+    obj = StepperElement.objects.create(prompt="P")
+    for i in range(n):
+        StepperStep.objects.create(stepper=obj, content=f"s{i}")
+    el = add_element(unit, obj)
+    return el, obj
+
+
+def test_val_stepper_stores_clamped_count():
+    el, obj = _mk_stepper(3)
+    assert state.validate_state(el, obj, {"shown": 2}) == {"shown": 2}
+
+
+def test_val_stepper_clamps_to_step_count():
+    # A stored value above the count stores the count, not the input (self-heal).
+    el, obj = _mk_stepper(3)
+    assert state.validate_state(el, obj, {"shown": 9}) == {"shown": 3}
+
+
+def test_val_stepper_below_two_is_EMPTY():
+    el, obj = _mk_stepper(3)
+    assert state.validate_state(el, obj, {"shown": 1}) is state.EMPTY
+    assert state.validate_state(el, obj, {"shown": 0}) is state.EMPTY
+
+
+def test_val_stepper_non_dict_is_REJECT():
+    el, obj = _mk_stepper(3)
+    assert state.validate_state(el, obj, ["nope"]) is state.REJECT
+
+
+def test_val_stepper_absent_or_non_numeric_shown_is_REJECT():
+    el, obj = _mk_stepper(3)
+    assert state.validate_state(el, obj, {}) is state.REJECT
+    assert state.validate_state(el, obj, {"shown": "abc"}) is state.REJECT
+
+
+def test_val_stepper_float_shown_is_floored_not_rejected():
+    # int() floors 2.9 -> 2 (consistent with _val_markdone); NOT REJECT.
+    el, obj = _mk_stepper(3)
+    assert state.validate_state(el, obj, {"shown": 2.9}) == {"shown": 2}
+
+
+def test_val_stepper_single_step_never_restores():
+    el, obj = _mk_stepper(1)
+    assert state.validate_state(el, obj, {"shown": 5}) is state.EMPTY
+
+
+def test_stepper_registered():
+    assert state.VALIDATORS["stepperelement"] is state._val_stepper

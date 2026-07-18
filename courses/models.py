@@ -448,8 +448,10 @@ KIND_DEFAULT_HEADING = {k.value: k.label for k in CalloutElement.Kind}
 class StepperElement(ElementBase):
     """Step-by-step: an ordered list of short inline fragments (text + \\(...\\)
     math) shown on one wrapping line. The first is visible; a walking "Show next"
-    button reveals the rest one at a time. Ungraded, no persistence, no endpoint.
-    See the stepper design doc."""
+    button reveals the rest one at a time. Ungraded and lesson-only, but the
+    revealed step depth persists per-student in UnitProgress.element_state -- keyed
+    by the Element JOIN-ROW pk (not this object's pk), blob {"shown": N} -- via the
+    courses:element_state_save endpoint. See the stepper design doc."""
 
     MIN_STEPS = 1
     MAX_STEPS = 20
