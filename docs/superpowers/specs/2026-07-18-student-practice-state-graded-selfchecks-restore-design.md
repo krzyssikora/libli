@@ -181,9 +181,14 @@ plan prefers it; not required.)
   `[0]`; empty/absent → empty string). **Not** positional like `FillGateElement.canonical_answers`:
   `filltableelement.html` is a real Django template iterating `{% for row in data.cells %}{% for cell
   in row %}`, and Django cannot do runtime-variable 2-D indexing (`{{ grid.<r>.<c> }}` needs literal
-  digit indices) nor `zip`. So `render()` substitutes `canonical_cells` **wholesale** for
-  `ctx["data"]["cells"]` when `mine.done`, and the existing loop + `_filltable_cell.html` include run
-  unchanged, branching only on `mine.done` for the readonly/locked styling.
+  digit indices) nor `zip`. So when `mine.done`, `render()` builds a **shallow-copied** context —
+  `ctx["data"] = {**normalize_data(self.data), "cells": canonical_cells}` — and **must never mutate
+  `self.data`** (the model's live JSON field; mutating it in place would silently overwrite the
+  student's stored pipe-delimited alternatives in-memory for the rest of the request). The cell **loop
+  structure** is unchanged (iterate `data.cells`, no positional/indexed access), but
+  `_filltable_cell.html` itself gains a new `{% if mine.done %}` branch that emits the `readonly` +
+  `filltable__input--correct` locked cell. A unit test asserts `self.data` is byte-identical
+  before/after a `mine.done` render.
 - **Guess-the-number**: a display-formatted `target` via the **existing** helper
   `courses.guessnumber.format_target()` (`format(Decimal(target).normalize(), "f")`) — **not** a fresh
   normalizer. Bare `.normalize()` yields E-notation for round numbers (`100` → `1E+2`, `40401` →
