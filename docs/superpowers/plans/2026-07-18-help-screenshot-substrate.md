@@ -16,7 +16,7 @@
 - **Determinism knobs (capture):** viewport `1280×800`; light theme (seed `User.theme="light"` **and** `page.emulate_media(color_scheme="light")`); English (`User.language="en"`, no language switch); `page.emulate_media(reduced_motion="reduce")`; navigate via the fixed slug `demo-course`; capture is an **element-clipped** `locator("section.builder").screenshot()`; output path anchored to `settings.BASE_DIR`.
 - **Static home:** committed screenshots live under `core/static/core/img/help/`. Topics reference them only via the `static:` sentinel (never a hardcoded `/static/…` URL).
 - **Capture isolation:** the capture module is `tests/capture_help_screenshots.py` (no `test_` prefix, one `test_`-named function inside). It must never run in the unit CI job (`pytest -n auto`, bare) or the e2e job (`pytest -m e2e`), but must be collectable via `pytest tests/capture_help_screenshots.py`. Do **not** mark it `@pytest.mark.e2e` (that would make the explicit-path run deselect it under the default `-m 'not e2e'`).
-- **Tooling:** run everything through `uv run` (ruff/pytest/manage are not on PATH otherwise). Format+lint with `uv run ruff format` and `uv run ruff check` before each commit.
+- **Tooling:** run everything through `uv run` (ruff/pytest/manage are not on PATH otherwise). Before each commit run **`uv run ruff check --fix <files>` FIRST** (ruff's `I`/isort with `force-single-line` sorts new imports into their stdlib/django/first-party groups — `ruff format` does **not** sort imports), **then** `uv run ruff format <files>`. New imports may be pasted in any position; `--fix` reorders them, so the "Lint + commit" steps below use this `--fix`-first order.
 - **CRLF-safe:** all files are CRLF in the working tree. Never anchor a grep on `$` or `\n`; use `\r?\n`. Locate code by searching quoted strings, not line numbers.
 - **No new element MODEL:** we reuse existing element classes, so the `ELEMENT_MODELS`/transfer-schema count asserts are untouched. Adding a help topic image needs no registry bump.
 - **i18n:** seed data strings and help markdown are not gettext catalog entries; no `.po` change is expected. If any translatable string is nonetheless touched, run `uv run python manage.py makemessages -a --no-obsolete` and reconcile.
@@ -109,8 +109,8 @@ Expected: PASS (all existing help tests plus the two new ones).
 - [ ] **Step 5: Lint + commit**
 
 ```bash
+uv run ruff check --fix core/help.py tests/test_help.py
 uv run ruff format core/help.py tests/test_help.py
-uv run ruff check core/help.py tests/test_help.py
 git add core/help.py tests/test_help.py
 git commit -m "feat(help): static: sentinel rewrite in the markdown renderer"
 ```
@@ -243,8 +243,8 @@ Expected: PASS (existing idempotency test + the two new tests).
 - [ ] **Step 5: Lint + commit**
 
 ```bash
+uv run ruff check --fix courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
 uv run ruff format courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
-uv run ruff check courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
 git add courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
 git commit -m "feat(seed): verified Course-Admin owner + students in demo seed"
 ```
@@ -341,8 +341,8 @@ Expected: PASS.
 - [ ] **Step 5: Lint + commit**
 
 ```bash
+uv run ruff check --fix courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
 uv run ruff format courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
-uv run ruff check courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
 git add courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
 git commit -m "feat(seed): diverse leaf elements (callout, spoiler, table)"
 ```
@@ -527,8 +527,8 @@ Expected: PASS. If `build_results_matrix`'s return shape differs, read `courses/
 - [ ] **Step 5: Lint + commit**
 
 ```bash
+uv run ruff check --fix courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
 uv run ruff format courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
-uv run ruff check courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
 git add courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
 git commit -m "feat(seed): graded quiz + group with populated analytics grades"
 ```
@@ -637,8 +637,8 @@ Expected: PASS.
 - [ ] **Step 6: Lint + commit (including the binary asset)**
 
 ```bash
+uv run ruff check --fix courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
 uv run ruff format courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
-uv run ruff check courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
 git add courses/management/commands/seed_assets/demo.png courses/management/commands/seed_demo_course.py tests/test_seed_demo_course.py
 git commit -m "fix(seed): materialize a real demo image into MEDIA (closes broken-image #1.5)"
 ```
@@ -794,8 +794,8 @@ Expected: PASS, and `core/static/core/img/help/builder-tree.png` now exists. Run
 - [ ] **Step 5: Lint + commit (harness + isolation checks only, not the PNG yet)**
 
 ```bash
+uv run ruff check --fix tests/capture_help_screenshots.py tests/test_help_capture_isolation.py
 uv run ruff format tests/capture_help_screenshots.py tests/test_help_capture_isolation.py
-uv run ruff check tests/capture_help_screenshots.py tests/test_help_capture_isolation.py
 git add tests/capture_help_screenshots.py tests/test_help_capture_isolation.py
 git commit -m "feat(help): deterministic Playwright capture harness + CI isolation checks"
 ```
