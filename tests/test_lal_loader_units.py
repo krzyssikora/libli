@@ -13,6 +13,9 @@ from courses.lal_loader.guards import owned_part_orders
 from courses.lal_loader.guards import resolve_course
 from courses.lal_loader.media import get_or_create_asset
 from courses.lal_loader.media import resolve_source
+from courses.lal_loader.tree import prune_orphans
+from courses.lal_loader.tree import rebuild_unit_elements
+from courses.lal_loader.tree import upsert_node
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Element
@@ -297,3 +300,41 @@ def test_iframe_host_not_allowlisted_raises():
         assert_iframe_hosts_allowlisted(
             [{"type": "iframe", "url": "https://evil.example/x"}]
         )
+
+
+def test_upsert_is_idempotent_and_renames_in_place():
+    course = CourseFactory()
+    n1 = upsert_node(course, None, 0, "part", "orig")
+    n2 = upsert_node(course, None, 0, "part", "renamed")
+    assert n1.pk == n2.pk  # same node, matched by (course, order)
+    n2.refresh_from_db()
+    assert n2.title == "renamed"
+    assert ContentNode.objects.filter(course=course, parent=None).count() == 1
+
+
+def test_prune_deletes_higher_index_orphans():
+    course = CourseFactory()
+    part = upsert_node(course, None, 0, "part", "p")
+    for i in range(3):
+        upsert_node(course, part, i, "chapter", f"c{i}")
+    prune_orphans(course, part, keep_count=2)  # keep orders 0,1; drop 2
+    assert ContentNode.objects.filter(parent=part).count() == 2
+
+
+def test_rebuild_wipes_then_recreates_in_order(tmp_path):
+    course = CourseFactory()
+    unit = upsert_node(course, None, 0, "unit", "u", unit_type="lesson")
+    els = [
+        {"type": "text", "body": "<p>one</p>"},
+        {"type": "text", "body": "<p>two</p>"},
+    ]
+    rebuild_unit_elements(
+        course, unit, els, source_root=tmp_path, source_dir="x", allow_html=False
+    )
+    rebuild_unit_elements(
+        course, unit, els, source_root=tmp_path, source_dir="x", allow_html=False
+    )
+    rows = list(Element.objects.filter(unit=unit).order_by("order"))
+    assert len(rows) == 2  # rebuilt, not duplicated
+    assert TextElement.objects.filter(elements__unit=unit).count() == 2
+    assert rows[0].order < rows[1].order  # JSON array order preserved
