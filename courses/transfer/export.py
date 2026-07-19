@@ -440,7 +440,7 @@ def walk_unit_joins(unit_pk, joins_by_unit):
                     yield child, join, col["id"]
 
 
-def build_export(course, node=None, source_host=""):
+def build_export(course, node=None, source_host="", *, drop_missing_media=True):
     with transaction.atomic():
         nodes = _ordered_nodes(course, root=node)
         node_ids = {}
@@ -514,6 +514,16 @@ def build_export(course, node=None, source_host=""):
         status = {}  # mid -> "real" | "placeholder" | "dropped"
         total_bytes = 0
         for mid, asset in media_ids.items():
+            if not drop_missing_media:
+                # Duplicate mode: media rows are shared, not re-uploaded, so on-disk
+                # presence is irrelevant. Treat every asset as real — nothing is
+                # placeholdered or dropped, and every mid survives into media_assets.
+                status[mid] = "real"
+                try:
+                    total_bytes += asset.file.size
+                except OSError:
+                    pass
+                continue
             present = bool(asset.file.name) and asset.file.storage.exists(
                 asset.file.name
             )
