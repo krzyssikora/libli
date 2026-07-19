@@ -145,8 +145,13 @@ def test_container_node_keeps_word_badge(client):
     assert not UNIT_BADGE_RE.search(body), "no unit badge expected for a chapter-only tree"
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] **Step 2: Compile the PL catalog, then run the test to verify it fails**
 
+First (unconditional — the PL tooltip assertion needs a compiled `.mo`; running it against a stale/absent catalog yields a spurious RED that reads like a real bug):
+Run: `uv run python manage.py compilemessages -l pl`
+Expected: exit 0 (writes `locale/pl/LC_MESSAGES/django.mo`).
+
+Then:
 Run: `uv run pytest tests/test_tree_badge.py -v`
 Expected: FAIL — the current template renders `>Unit</span>` (no `L`/`Q`, no per-type modifier, no badge `title`, no title-button `title`). Confirm failures in `test_lesson_badge_is_L_with_localized_tooltip` and `test_title_button_has_hover_title`.
 
@@ -181,7 +186,7 @@ Note: the `{% else %}` arm reproduces today's markup exactly (`tree__badge--{{ n
 - [ ] **Step 4: Run the test to verify it passes**
 
 Run: `uv run pytest tests/test_tree_badge.py -v`
-Expected: PASS (all 7 tests). If `test_lesson_tooltip_localizes_to_pl` fails with `"Lesson"` instead of `"Lekcja"`, the PL catalog `.mo` isn't compiled — run `uv run python manage.py compilemessages -l pl` and re-run.
+Expected: PASS (all 7 tests). (The PL catalog was compiled in Step 2, so `test_lesson_tooltip_localizes_to_pl` sees `"Lekcja"`.)
 
 - [ ] **Step 5: Falsify the tests (prove they can go RED), then restore**
 
@@ -385,11 +390,21 @@ def _login(page, live_server, username):
 def test_builder_tree_layout(page, live_server, tmp_path):
     from courses.models import ContentNode
     from courses.models import Course
+    from courses.models import Element
+    from courses.models import TextElement
 
     _make_pa_user("pa")
     course = Course.objects.create(slug="layout-demo", title="Layout Demo")
-    ContentNode.objects.create(
+    lesson = ContentNode.objects.create(
         course=course, kind="unit", unit_type="lesson", title=LONG_TITLE
+    )
+    # Give the lesson a long-summary element so the unit panel's .element-list has a
+    # row whose .element-list__summary must ellipsis-truncate at the narrowed width.
+    Element.objects.create(
+        unit=lesson,
+        content_object=TextElement.objects.create(
+            body="<p>" + ("A very long element summary that must truncate. " * 6) + "</p>"
+        ),
     )
     ContentNode.objects.create(
         course=course, kind="unit", unit_type="quiz", title="Quick check"
@@ -406,7 +421,10 @@ def test_builder_tree_layout(page, live_server, tmp_path):
     texts = sorted(badges.all_inner_texts())
     assert texts == ["L", "Q"], f"expected L and Q unit badges, got {texts}"
 
-    # Column ratio ~2:1 (tree vs panel).
+    # Column ratio ~2:1 (tree vs panel). This bound is viewport-INDEPENDENT: it
+    # follows only from the 2fr/1fr grid track split, not the absolute width, so a
+    # page-level max-width or padding around .builder does not affect it. (The fixed
+    # 1000px viewport above is solely for deterministic title overflow.)
     tree_box = page.locator(".builder__tree").bounding_box()
     panel_box = page.locator(".builder__panel").bounding_box()
     ratio = tree_box["width"] / panel_box["width"]
@@ -427,6 +445,17 @@ def test_builder_tree_layout(page, live_server, tmp_path):
     page.screenshot(path=str(tmp_path / "builder_tree_light.png"), full_page=True)
     page.evaluate("document.documentElement.setAttribute('data-theme', 'dark')")
     page.screenshot(path=str(tmp_path / "builder_tree_dark.png"), full_page=True)
+
+    # (d) Unit panel at the narrowed 1/3 width: select the lesson unit so its detail
+    # panel renders (with the seeded element list), then screenshot light + dark.
+    # Edit #2 narrows EVERY panel, so this confirms .unit-summary stays aligned and
+    # .element-list__summary still truncates rather than overflowing.
+    page.locator(".tree__title", has_text="deliberately very long").first.click()
+    page.wait_for_selector(".builder__panel .element-list")
+    page.evaluate("document.documentElement.setAttribute('data-theme', 'light')")
+    page.screenshot(path=str(tmp_path / "unit_panel_light.png"), full_page=True)
+    page.evaluate("document.documentElement.setAttribute('data-theme', 'dark')")
+    page.screenshot(path=str(tmp_path / "unit_panel_dark.png"), full_page=True)
     print(f"SCREENSHOTS: {tmp_path}")
 ```
 
@@ -442,7 +471,11 @@ Expected: PASS. The `-s` surfaces the `SCREENSHOTS: <path>` line.
 
 - [ ] **Step 3: Review the screenshots**
 
-Open `builder_tree_light.png` and `builder_tree_dark.png` from the printed path. Self-critique against the spec's visual checklist: (a) tree column clearly wider than the panel (~2:1); (b) on the fresh/empty course panel the four ghost buttons stack one-per-line; (c) the long unit title shows an ellipsis on a single row; (d) the `L`/`Q` badges are legible and accent-coloured in both themes. If (d)/(b) look wrong, fix the template/CSS from Tasks 1–2 before committing.
+Open all four PNGs from the printed path. Self-critique against the spec's visual checklist:
+- `builder_tree_{light,dark}.png` (empty/course state): (a) tree column clearly wider than the panel (~2:1); (b) the four ghost buttons stack one-per-line; (c) the long unit title shows an ellipsis on a single row; and the `L`/`Q` badges are legible and accent-coloured in both themes.
+- `unit_panel_{light,dark}.png` (a unit selected): the unit detail panel at the narrowed 1/3 width stays usable — `.unit-summary` still aligns, the `.element-list__summary` row truncates with an ellipsis rather than overflowing, and the `.panel__seam` buttons wrap sensibly.
+
+If anything looks wrong, fix the template/CSS from Tasks 1–2 before committing.
 
 - [ ] **Step 4: Lint + commit**
 
