@@ -20,7 +20,7 @@ escape hatch that requires explicit human sign-off.
 ## 2. Scope
 
 - **21 parts** (three-digit folders), imported in folder order.
-- **~702 lessons + ~95 quizzes** (797 HTML files).
+- **702 lessons + 95 quizzes** (797 HTML files, exact as of the scan).
 - Media: **~253 `.mp4` (~3.6 GB), ~1195 `.png`, ~34 `.jpg`**, plus **157
   GeoGebra** and a few edpuzzle/Lumi external iframes. `.ggb` source files are
   *not* imported — GeoGebra content is already hosted on geogebra.org and
@@ -44,6 +44,27 @@ directly:
 | one `.html` file | **Unit** (`lesson`, or `quiz` if name ends `_quiz`) |
 | pieces within a lesson | ordered **Element**s on the unit |
 
+### File ordering within a part
+
+Chapter grouping and element order depend on the order of `.html` files in a
+folder. Filenames carry a numeric token (`005_…`, `wyr_alg_010_…`,
+`f_lin_020_…`). **Sort key: the integer value of the ordering token, ascending;
+tie-break lexicographic on the full filename.** For `NNN_slug.html` the token is
+the leading number; for `prefix_NNN_slug.html` (e.g. `wyr_alg_`, `f_lin_`) it is
+the number after the shared alphabetic prefix. The parser asserts every `.html`
+file in a part yields a sortable token and fails loudly on any that doesn't, so
+ordering is never silently wrong.
+
+### Unit titles
+
+A unit's title is taken from the **first `<h2>` in the file** (the source's
+lesson heading — see `005_zbiory.html`'s `<h2>Zbiory - pojęcia podstawowe</h2>`).
+If a file has no `<h2>`, fall back to the **de-slugged, diacritic-restored
+filename** (same transform as part names, minus the ordering token). That first
+`<h2>` is then **not** also emitted as a `TextElement` heading (it is the unit
+title, not body content). Quiz units, which have no `<h2>`, take the de-slugged
+filename. Unit titles appear in the Phase-1 review surface.
+
 ### Part naming
 
 Slug after the digits → spaces, with Polish diacritics restored by hand
@@ -53,9 +74,13 @@ Each part's restored name is listed in the Phase-1 review doc for approval.
 
 ### Chapter grouping and naming
 
-A chapter is the run of files ending at the next `*_quiz.html` (inclusive).
-Chapter **names are derived from the lessons' content** (read during Phase 1),
-not from filenames, and presented for review/rename before any DB write.
+A chapter is the run of files ending at the next `*_quiz.html` (inclusive) — this
+*grouping* is deterministic. The chapter **name**, by contrast, is derived from
+the lessons' content by a **human/AI reading pass in Phase 1**, not by the parser.
+Name derivation is therefore explicitly **outside** the parser's "same input →
+identical JSON" guarantee (§4.1): the parser emits the grouping and a placeholder
+title; the reading pass fills the human-facing name, which the author reviews and
+edits before any DB write.
 
 ### Edge cases
 
@@ -96,11 +121,19 @@ cannot map — instead of 702 non-deterministic whole-file conversions.
 ### 4.2 Intermediate JSON (unit payload)
 
 One file per unit describing: `unit_type`, `title`, and an ordered
-`elements: [...]` array where each entry is `{type, …fields}` in libli terms
-(e.g. `{"type":"text","body":"<p>…\\(x^2\\)…</p>"}`,
-`{"type":"video","asset":"static/zbiory_poczatek.mp4"}`,
-`{"type":"spoiler","label":"zobacz","body":"…"}`,
-`{"type":"choice","stem":"…","choices":[{text,correct,feedback}], "multi":true}`).
+`elements: [...]` array where each entry is `{type, …fields}`. **JSON field names
+mirror the concrete model fields exactly** (so parser and loader can't drift):
+
+- `{"type":"text","body":"<p>…\\(x^2\\)…</p>"}` → `TextElement.body`
+- `{"type":"video","media_src":"static/zbiory_poczatek.mp4"}` → resolved to
+  `VideoElement.media` (a `MediaAsset` FK; the JSON holds the *source path*, hence
+  the distinct `media_src` key, not the model's `media`)
+- `{"type":"spoiler","label":"zobacz","body":"…"}` → `SpoilerElement.{label,body}`
+- `{"type":"choice","stem":"…","multiple":true,"choices":[{"text":…,"correct":…,"feedback":…}]}`
+  → `ChoiceQuestionElement.multiple` + `Choice.{text,is_correct,feedback}`
+
+A small **JSON-key → model-field table** is maintained alongside the parser as the
+single source of truth for every element type (the loader validates against it).
 Media entries reference the **source file path**; the loader resolves them to
 `MediaAsset`s. This JSON is the human review surface and the loader's input.
 
@@ -115,17 +148,33 @@ rather than fixed one-by-one.
 ### 4.4 Loader (`courses/management/commands/import_lal_content.py`)
 
 A Django management command that reads unit JSON for a part and writes the tree
-+ elements via the ORM, following the proven `seed_demo_course` authoring
-pattern:
++ elements via the ORM. It borrows `seed_demo_course`'s element-attachment call
+(`Element.objects.create(unit=unit, content_object=obj)`) but **NOT** its
+`_upsert` reconciliation — `_upsert` keys on "the join-row from this unit to an
+instance of this model" and so assumes **at most one element of each type per
+unit**. LAL lessons contain many `TextElement`s, `ImageElement`s, `VideoElement`s
+each, which `_upsert` would collapse to one. Instead:
 
-- Nodes via `get_or_create(course, parent, title, defaults={kind, unit_type})`.
-- Concrete element rows created, then attached with
-  `Element.objects.create(unit=unit, content_object=obj)` preserving order.
-- **Idempotent**: re-running a part does not duplicate nodes, elements, or media
-  (media deduped by `(course, original_filename)`; upsert elements per unit).
+- **Node identity is keyed on tree position, not title.** A part is matched by
+  its source folder; each chapter/unit is matched by `(parent, order)` — the
+  0-based index of its source group/file within the parent — with `title`,
+  `kind`, `unit_type` **updated in place** on re-run. This makes the loader
+  rename-safe: an author renaming a chapter in the Phase-1 review does not create
+  a duplicate subtree when the part is later re-run.
+- **Elements are rebuilt, not upserted.** On each run, for every unit being
+  (re)loaded the loader deletes all existing `Element` rows and their concrete
+  element objects (via the model's own subtree-safe delete), then recreates the
+  full ordered element list from the JSON. Concrete element rows have no natural
+  identity, so a clean rebuild is the only well-defined idempotency mechanism.
+  Re-running a part therefore converges to exactly the JSON's content with no
+  duplication. (Because units are deleted+rebuilt, any per-student progress on a
+  unit is not preserved across a re-run — acceptable for an authoring import into
+  a not-yet-live course; noted so it is a conscious choice.)
+- **Media deduped by content hash**, not basename — see §7.
 - Refuses to load any unit that still contains a `flagged` fragment unless a
   `--allow-html` override is passed (that path emits an `HtmlElement` and logs
   it loudly — last resort only).
+- Asserts every iframe host is on the embed allowlist before writing (§7, C2).
 - Scoped to one part per invocation (`--part 001_zbiory_liczbowe`) for batching.
 
 ## 5. Lesson element mapping
@@ -136,23 +185,47 @@ mapping below is the starting set; §1's premise is that this set grows to cover
 
 | Source pattern | libli element |
 |---|---|
-| `<h2>/<h3>/<h4>`, `<p>`, `<ul>/<ol>/<li>`, `<strong>/<em>/<b>/<i>/<u>`, `<a>`, `<blockquote>`, `<code>` | **TextElement** (`body` = sanitized HTML; inline `\(…\)` math kept verbatim) |
+| `<h2>/<h3>/<h4>`, `<p>`, `<ul>/<ol>/<li>`, `<strong>/<em>/<b>/<i>/<u>`, `<a>`, `<blockquote>`, `<code>` | **TextElement** (`body` = sanitized HTML; inline `\(…\)` math with `<`/`>` entity-escaped — see below) |
 | `\[ … \]` display-math block | **MathElement** (`latex`) |
 | local `<video><source src="static/*.mp4"></video>` | **VideoElement** ← uploaded `MediaAsset(video)` |
 | `<img src="…png/jpg">` | **ImageElement** ← uploaded `MediaAsset(image)`; `alt`/`figcaption` from surrounding `<figure>/<figcaption>` |
-| geogebra.org / edpuzzle / Lumi `<iframe>` | **IframeElement** (GeoGebra canonicalized via `courses.geogebra`) |
+| geogebra.org / edpuzzle / Lumi `<iframe>` | **IframeElement** (GeoGebra canonicalized via `courses.geogebra`; edpuzzle/Lumi require an allowlist change — see below) |
 | `div.show_solution.ks_button` + sibling hidden `div.question_solution` | **SpoilerElement** (`label` = button text e.g. "zobacz", `body` = solution HTML+math) |
-| `<table class="my_table*">` used as a data table | **TableElement** |
+| `<table class="my_table*">` used as a data table | **TableElement** (rectangular grids only — see note) |
 | (discovered during scan — more patterns to be added here) | native element TBD per pattern |
 | genuinely unmappable fragment | flag → AI fixup → native; `HtmlElement` only with sign-off |
 
-### Math is delimiter-compatible (no conversion)
+### Data tables (span/header/math handling)
+
+`TableElement` stores a **rectangular grid**. The parser converts a source
+`<table>` only when it is a plain rectangle: no `rowspan`/`colspan`, consistent
+column count per row. Header rows (`<th>` or the first row) map to the
+`TableElement` header mechanism; **math inside cells** is supported (cells are
+rich text, so the same `<`/`>`-in-math escaping below applies per cell). A table
+using spans, nested tables, or ragged rows is **flagged** for AI/author fixup
+(re-expressed as a rectangular table, or split), never dropped. The `show_solution`
+concept→reveal tables in §5 are *not* data tables — they map to SpoilerElements,
+not TableElement. The pilot's coverage checklist includes at least one data table.
+
+### Math is delimiter-compatible, but `<`/`>` inside math MUST be escaped
 
 The source renders math with MathJax using `\( … \)` (inline) and `\[ … \]`
 (display). libli renders with **KaTeX auto-render configured with the exact same
-delimiters** (`courses/static/courses/js/editor.js`), so inline math is preserved
-**verbatim** inside `TextElement.body`, and display math maps to `MathElement`.
-No delimiter rewriting is required.
+delimiters** (`courses/static/courses/js/editor.js`), so **no delimiter rewriting
+is required** and display math maps to `MathElement`.
+
+**However, inline math is not preserved verbatim.** `TextElement.body` is passed
+through nh3 (`courses/sanitize.py`), an HTML parser, *before* KaTeX ever sees it.
+A math fragment like `\(y<z\)` or `\(a>b\)` — pervasive in a math course — is
+parsed as a stray HTML tag and **silently deleted** (verified: input
+`<p>gdy \(x < 3\) oraz \(y<z\)\)</p>` loses the whole `\(y<z\)` span). Therefore
+the parser MUST, for every `\(…\)` and `\[…\]` span it emits into a
+`TextElement`/`SpoilerElement`/table-cell body, **entity-escape `<`→`&lt;` and
+`>`→`&gt;` inside the span**. nh3 leaves entities intact, the browser decodes
+them back to `<`/`>` in the DOM, and KaTeX then typesets correctly. `MathElement.latex`
+is a plain `TextField` (no HTML sanitize) so its LaTeX is stored raw. This escaping
+is an explicit parser rule with a regression test (`\(a<b\)` must survive a
+sanitize round-trip).
 
 ### Sanitization constraints (drive some mappings)
 
@@ -165,6 +238,11 @@ pre` and strips everything else. Consequences the parser must respect:
   (the source already does this).
 - `<img>/<figure>/<video>/<iframe>` are stripped from text → they must be their
   own dedicated elements (as mapped above).
+- `<a href>` allows only `http/https/mailto` schemes; a **relative or local-file
+  `href`** (e.g. a link to another lesson file) is dropped by nh3, silently losing
+  the target. The parser flags relative/local `<a>` hrefs for author attention
+  (rewrite to an absolute URL or an in-course link, or drop deliberately) rather
+  than letting them vanish.
 
 ## 6. Quiz DSL parser (OpenEdX-style)
 
@@ -184,23 +262,54 @@ Mapping:
 | `= <number>` | **ShortNumericQuestionElement** |
 | `= <text>` | **ShortTextQuestionElement** |
 
-Ambiguities resolved during the pilot against real files, asking the author when
-unclear:
+Widget-type and answer rules (confirmed against real files in the pilot, asking
+the author when unclear):
 
-- single-`[x]` group → single-choice vs. multi-select (likely: exactly one
-  correct ⇒ single-choice; ≥2 correct ⇒ multi-select).
-- `= value` → numeric vs. text (numeric when the value parses as a number).
+- **Single- vs multi-select is a DSL signal, not a correct-count inference.**
+  Widget type (`ChoiceQuestionElement.multiple`, radio vs checkbox — which changes
+  UX *and* exact-set-match grading) is authoring intent and must not be guessed
+  from how many options are correct (a legitimate multi-select can have exactly
+  one correct answer). In the OpenEdX DSL, `[ ]`/`[x]` (square brackets) = checkbox
+  = **multi-select**, and `( )`/`(x)` (parentheses) = radio = **single-choice**.
+  The parser reads the bracket shape to set `multiple`. The samples seen so far are
+  all `[ ]` (multi); the pilot confirms whether any `( )` radio questions exist.
+- `= value` → numeric vs. text: **ShortNumericQuestionElement** when the value
+  parses as a number, else **ShortTextQuestionElement**. Numerics must handle the
+  **Polish decimal comma** (`2,5` ≡ `2.5`) and common equivalent forms
+  (`1/2` ≡ `0.5`); the exact comparison/tolerance semantics of
+  `ShortNumericQuestionElement` are inspected during the pilot and the parser
+  normalizes to whatever that field expects. **Multiple `=` lines** for one
+  question are treated as alternative accepted answers (verify the model supports
+  this; otherwise flag).
 - multiple `<p>` before a group all belong to the same stem.
+- **Field-length ceilings:** `Choice.text` and `Choice.feedback` are
+  `max_length=500`. An option or `{{selected:…}}` feedback (LaTeX inflates length)
+  that would exceed 500 chars is flagged for author attention, not silently
+  truncated.
 
 ## 7. Media pipeline
 
-- Images and videos become per-course `MediaAsset`s, **deduped by
-  `original_filename`** so re-runs never re-upload.
+- Images and videos become per-course `MediaAsset`s, **deduped by content hash
+  (SHA-256 of the file bytes)**, not by basename. `MediaAsset` has no DB
+  uniqueness; dedup is loader logic. Two physically different files that share a
+  basename across different part folders (plausible among ~1195 pngs, e.g.
+  `rys1.png` in `001/static` and `007/static`) would collide under a basename key
+  and silently substitute the wrong media — hashing the bytes avoids this while
+  still collapsing genuine duplicates. The loader keeps a hash→MediaAsset map for
+  the run; `original_filename` is stored for display only.
 - **Video: local upload by default.** libli's admin-configured video upload
   ceiling will likely need raising. If a specific file exceeds a sane ceiling,
   the fallback (author-approved) is to **split it into smaller clips** imported
   as consecutive VideoElements, or raise the ceiling for that batch.
 - GeoGebra / edpuzzle / Lumi remain **external iframes** — no local hosting.
+  `IframeElement.url` is validated by `validate_embed_url` against
+  `settings.ALLOWED_EMBED_DOMAINS`, whose default (`config/settings/base.py`) is
+  only youtube/youtu.be/vimeo/geogebra. **edpuzzle and Lumi are not on it** and
+  every such iframe would fail model validation at load. Before loading, the exact
+  edpuzzle/Lumi hostnames (confirmed from the source files) must be added via
+  `LIBLI_ALLOWED_EMBED_DOMAINS` (env) or the base default. The loader asserts each
+  iframe host is allowlisted and refuses to run otherwise (fail loud, not silent
+  skip).
 - Media resolution happens in the loader (JSON references source paths; loader
   reads bytes from the source tree and creates/reuses the asset).
 
