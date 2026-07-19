@@ -35,9 +35,11 @@ def duplicate_token_warnings(names):
     out = []
     for token, group in by_token.items():
         if len(group) > 1:
-            out.append({
-                "kind": "duplicate_ordering_token",
-                "reason": f"{len(group)} files share ordering token {token}",
-                "names": sorted(group),
-            })
+            out.append(
+                {
+                    "kind": "duplicate_ordering_token",
+                    "reason": f"{len(group)} files share ordering token {token}",
+                    "names": sorted(group),
+                }
+            )
     return out
