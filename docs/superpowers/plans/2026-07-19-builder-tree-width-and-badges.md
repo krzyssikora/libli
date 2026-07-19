@@ -69,8 +69,10 @@ TITLE_BTN_RE = re.compile(r'<button class="tree__title"[^>]*\btitle="([^"]*)"')
 
 def _render_unit(unit_type, title="Intro", lang=None):
     """Render a single leaf unit row. Units render no child scope, so a trivial
-    context suffices. `lang` wraps the render in that locale."""
-    course = CourseFactory(slug="c1")
+    context suffices. `lang` wraps the render in that locale. No explicit slug —
+    CourseFactory's Sequence slug default keeps every call unique, so helpers that
+    call this twice in one test don't collide on Course.slug's UNIQUE constraint."""
+    course = CourseFactory()
     unit = ContentNodeFactory(
         course=course, kind="unit", unit_type=unit_type, parent=None, title=title
     )
@@ -185,7 +187,7 @@ Expected: PASS (all 7 tests). If `test_lesson_tooltip_localizes_to_pl` fails wit
 
 For each, make the change, run `uv run pytest tests/test_tree_badge.py -q`, confirm a FAILED, then revert:
 - Swap the letters (`lesson` arm emits `Q`) → `test_lesson_badge_is_L_with_localized_tooltip` must fail (pins the mapping, not mere presence).
-- Revert the badge to `{{ node.get_kind_display }}` for a unit → badge/colour tests must fail (pins non-fallback).
+- Revert the badge inner text to `{{ node.get_kind_display }}` for a unit → the L/Q letter/tooltip tests (`test_lesson_badge_is_L_with_localized_tooltip`, `test_quiz_badge_is_Q_with_tooltip`) must fail (pins the non-fallback path). Note: this alone does NOT fail `test_unit_badge_keeps_accent_colour_class` if the `tree__badge--unit` class stays — that hook is pinned by the next bullet.
 - Drop `tree__badge--unit` from the lesson arm → `test_unit_badge_keeps_accent_colour_class` must fail (pins the colour hook).
 
 Restore the template to the Step-3 version afterward.
@@ -346,7 +348,9 @@ from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
 
-LONG_TITLE = "A deliberately very long unit title that must truncate on one row"
+# Long enough to overflow the tree column at the fixed narrow viewport set below,
+# so the truncation assertion is viewport-deterministic, not environment-dependent.
+LONG_TITLE = "A deliberately very long unit title that must truncate " * 4
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -390,6 +394,10 @@ def test_builder_tree_layout(page, live_server, tmp_path):
     ContentNode.objects.create(
         course=course, kind="unit", unit_type="quiz", title="Quick check"
     )
+    # Fixed narrow viewport so the long title deterministically overflows the tree
+    # column regardless of the CI default (1280px would leave room for a mid-length
+    # title and make the truncation check non-deterministic).
+    page.set_viewport_size({"width": 1000, "height": 800})
     _login(page, live_server, "pa")
     page.goto(f"{live_server.url}/manage/courses/layout-demo/build/")
 
@@ -404,19 +412,20 @@ def test_builder_tree_layout(page, live_server, tmp_path):
     ratio = tree_box["width"] / panel_box["width"]
     assert 1.7 < ratio < 2.4, f"tree:panel width ratio {ratio:.2f} not ~2:1"
 
-    # Long title truncates on one line: overflowing content, single-line height.
+    # Long title truncates on one line: its content overflows the button box.
+    # `white-space: nowrap` (asserted in Task 2's CSS test) prevents wrapping, so a
+    # scrollWidth > clientWidth overflow is the truncation signal. A no-truncation
+    # regression (wrapping) instead grows height and leaves sw == cw, failing here.
     title = page.locator(".tree__title", has_text="deliberately very long").first
-    metrics = title.evaluate(
-        "el => ({sw: el.scrollWidth, cw: el.clientWidth, h: el.clientHeight,"
-        " lh: parseFloat(getComputedStyle(el).lineHeight) || el.clientHeight})"
-    )
+    metrics = title.evaluate("el => ({sw: el.scrollWidth, cw: el.clientWidth})")
     assert metrics["sw"] > metrics["cw"], "long title is not overflowing (not truncated)"
-    assert metrics["h"] <= metrics["lh"] * 1.6, "title wrapped to a second line"
 
-    # Capture light + dark for human review.
-    page.emulate_media(color_scheme="light")
+    # Capture light + dark for human review. This app themes via a `data-theme`
+    # attribute on the root, not `prefers-color-scheme`, so stamp it directly rather
+    # than relying on emulate_media (which would not flip the app's theme).
+    page.evaluate("document.documentElement.setAttribute('data-theme', 'light')")
     page.screenshot(path=str(tmp_path / "builder_tree_light.png"), full_page=True)
-    page.emulate_media(color_scheme="dark")
+    page.evaluate("document.documentElement.setAttribute('data-theme', 'dark')")
     page.screenshot(path=str(tmp_path / "builder_tree_dark.png"), full_page=True)
     print(f"SCREENSHOTS: {tmp_path}")
 ```
