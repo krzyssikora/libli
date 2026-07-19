@@ -193,6 +193,8 @@ ALLOWED_EMBED_DOMAINS = env.list(
         "player.vimeo.com",
         "www.geogebra.org",
         "geogebra.org",
+        "edpuzzle.com",
+        "app.lumi.education",
     ],
 )
 
