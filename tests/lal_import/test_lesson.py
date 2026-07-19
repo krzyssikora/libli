@@ -194,3 +194,45 @@ def test_r7_figure_with_iframe_becomes_iframe_element():
     elements, flags = parse_lesson(html, "x.html")
     assert [e["type"] for e in elements] == ["iframe"]
     assert flags == []
+
+
+def test_f1_inline_only_div_becomes_single_text_element():
+    html = r"<div>Zbiór \(A<B\) i \(C\)</div>"
+    elements, flags = parse_lesson(html, "x.html")
+    assert [e["type"] for e in elements] == ["text"]
+    body = elements[0]["body"]
+    assert r"\(A&lt;B\)" in body
+    assert r"\(C\)" in body
+    assert flags == []
+
+
+def test_f1_div_with_block_child_still_descends():
+    html = "<div><p>a</p><table><tr><td>x</td></tr></table></div>"
+    elements, flags = parse_lesson(html, "x.html")
+    types = [e["type"] for e in elements]
+    assert "text" in types
+    assert "table" in types
+    assert flags == []
+
+
+def test_f2_bare_text_node_becomes_text_element_not_flag():
+    html = r"<p>a</p>\(A\)<p>b</p>"
+    elements, flags = parse_lesson(html, "x.html")
+    text_bodies = [e["body"] for e in elements if e["type"] == "text"]
+    assert any(r"\(A\)" in b for b in text_bodies)
+    assert flags == []
+
+
+def test_f3_top_level_span_becomes_text_not_flag():
+    html = "<p>a</p><span>x</span><p>b</p>"
+    elements, flags = parse_lesson(html, "x.html")
+    text_bodies = [e["body"] for e in elements if e["type"] == "text"]
+    assert any("x" in b for b in text_bodies)
+    assert flags == []
+
+
+def test_f3_top_level_br_is_skipped_silently():
+    html = "<p>a</p><br/><p>b</p>"
+    elements, flags = parse_lesson(html, "x.html")
+    assert [e["type"] for e in elements] == ["text", "text"]
+    assert flags == []

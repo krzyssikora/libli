@@ -35,8 +35,39 @@ _IGNORE_TAGS = {"script", "link", "style"}
 _OK_SCHEMES = {"http", "https", "mailto"}
 # A block whose entire content is one \[...\] display span -> MathElement.
 _DISPLAY_MATH = re.compile(r"^\\\[(.*)\\\]$", re.DOTALL)
-# Containers whose children are always descended into in place (R1).
+# Containers whose children are always descended into in place (R1) — but only
+# if they actually contain block-level content; a container holding only
+# inline content (text, span, br, strong, a, ...) is emitted whole as text (F1).
 _ALWAYS_DESCEND_TAGS = {"html", "body"}
+_BLOCK_CHILD_TAGS = {
+    "p",
+    "div",
+    "table",
+    "figure",
+    "video",
+    "iframe",
+    "ul",
+    "ol",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "details",
+    "blockquote",
+    "pre",
+}
+
+
+def _has_block_child(node):
+    """True if any DIRECT child of node is a block-level tag (F1). A container
+    with no block-level children holds only inline content and must be emitted
+    whole as text, not descended into (descending would expose bare inline
+    children — text nodes, span, br, strong, a, ... — each of which would
+    otherwise need its own top-level handling/flag)."""
+    return any(
+        isinstance(c, Tag) and c.name in _BLOCK_CHILD_TAGS for c in node.children
+    )
 
 
 def _flag(reason, node):
@@ -148,7 +179,12 @@ def _walk(nodes, elements, flags, consumed, state):
                 if m is not None:
                     elements.append({"type": "math", "latex": m.group(1)})
                 else:
-                    _unmapped("bare text node in lesson body", node, elements, flags)
+                    # F2: bare inline text (e.g. "Zbiór \(A\) i \(B\)") -> TextElement.
+                    # str(node) is a NavigableString: parsing already DECODED entities
+                    # to literal `<`/`>`, so re-escape math spans before wrapping in
+                    # the sanitized body field.
+                    body = escape_math_delimited(str(node).strip())
+                    elements.append({"type": "text", "body": f"<p>{body}</p>"})
             continue
         if not isinstance(node, Tag) or node.name in _IGNORE_TAGS:
             continue
@@ -159,6 +195,16 @@ def _walk(nodes, elements, flags, consumed, state):
 
         if name == "h2" and not state["h2_skipped"]:
             state["h2_skipped"] = True  # first <h2> is the unit title, not body
+            continue
+
+        if name == "br":
+            continue  # F3: inline line-break, no content -> skipped silently
+
+        if name == "span":
+            # F3: a top-level <span> (one that survived F1's inline-div text
+            # emit, e.g. a span at a level with block siblings) -> TextElement.
+            _flag_relative_hrefs(node, flags)
+            elements.append({"type": "text", "body": str(node)})  # already escaped
             continue
 
         if name in _TEXT_TAGS or name in _INLINE_TAGS:
@@ -227,15 +273,28 @@ def _walk(nodes, elements, flags, consumed, state):
                 continue
             if "question_solution" not in classes:
                 # R1: descend into any other container div (table_wrapper,
-                # id="question...", or any other bare div) in place.
-                _walk(list(node.children), elements, flags, consumed, state)
+                # id="question...", or any other bare div) in place — but only
+                # if it has block-level content to descend into (F1); an
+                # inline-only div (bare text, span, br, strong, ...) is
+                # emitted whole as a single TextElement instead.
+                if _has_block_child(node):
+                    _walk(list(node.children), elements, flags, consumed, state)
+                else:
+                    _flag_relative_hrefs(node, flags)
+                    elements.append({"type": "text", "body": node.decode_contents()})
                 continue
             # else: an orphan question_solution div (not consumed by a preceding
             # show_solution button) falls through to the unmapped catch-all below.
 
         if name in _ALWAYS_DESCEND_TAGS:
-            # R1: <html>/<body> wrappers descend into their children in place.
-            _walk(list(node.children), elements, flags, consumed, state)
+            # R1/F1: <html>/<body> wrappers descend into their children in
+            # place, unless they hold only inline content (rare, but keep the
+            # same block-vs-inline check for consistency).
+            if _has_block_child(node):
+                _walk(list(node.children), elements, flags, consumed, state)
+            else:
+                _flag_relative_hrefs(node, flags)
+                elements.append({"type": "text", "body": node.decode_contents()})
             continue
 
         _unmapped(f"unmapped <{name}> in lesson body", node, elements, flags)
