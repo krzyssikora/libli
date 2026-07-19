@@ -1,7 +1,11 @@
-from courses.models import ContentNode, Element, ImageElement, MediaAsset
+from courses.models import ContentNode
+from courses.models import Element
+from courses.models import ImageElement
+from courses.models import MediaAsset
 from courses.transfer.export import build_export
 from courses.transfer.importer import materialize_duplicate
-from tests.factories import make_course_with_unit, make_image_asset
+from tests.factories import make_course_with_unit
+from tests.factories import make_image_asset
 
 
 def test_materialize_duplicate_shares_media_and_creates_nodes():
@@ -9,9 +13,7 @@ def test_materialize_duplicate_shares_media_and_creates_nodes():
     asset = make_image_asset(course, "pic.png")
     Element.objects.create(
         unit=unit,
-        content_object=ImageElement.objects.create(
-            media=asset, alt="a", figcaption=""
-        ),
+        content_object=ImageElement.objects.create(media=asset, alt="a", figcaption=""),
     )
     _manifest, document, media_assets, _problems = build_export(
         course, node=unit, drop_missing_media=False

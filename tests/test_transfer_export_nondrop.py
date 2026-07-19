@@ -1,6 +1,8 @@
-from courses.models import Element, ImageElement
+from courses.models import Element
+from courses.models import ImageElement
 from courses.transfer.export import build_export
-from tests.factories import make_course_with_unit, make_image_asset
+from tests.factories import make_course_with_unit
+from tests.factories import make_image_asset
 
 
 def _unit_with_missing_image():
@@ -8,9 +10,7 @@ def _unit_with_missing_image():
     asset = make_image_asset(course, "gone.png")
     Element.objects.create(
         unit=unit,
-        content_object=ImageElement.objects.create(
-            media=asset, alt="a", figcaption=""
-        ),
+        content_object=ImageElement.objects.create(media=asset, alt="a", figcaption=""),
     )
     # Remove the backing file so the export's on-disk probe reports it missing.
     asset.file.storage.delete(asset.file.name)

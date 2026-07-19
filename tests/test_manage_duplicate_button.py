@@ -1,14 +1,16 @@
 from django.urls import reverse
 from django.utils import translation
 
-from courses.models import ContentNode, Element, TextElement
-from tests.factories import ContentNodeFactory, CourseFactory, make_login
+from courses.models import ContentNode
+from courses.models import Element
+from courses.models import TextElement
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import make_login
 
 
 def _builder_html(client, course):
-    resp = client.get(
-        reverse("courses:manage_builder", kwargs={"slug": course.slug})
-    )
+    resp = client.get(reverse("courses:manage_builder", kwargs={"slug": course.slug}))
     assert resp.status_code == 200
     return resp.content.decode()
 
