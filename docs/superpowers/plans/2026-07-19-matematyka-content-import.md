@@ -652,6 +652,14 @@ def test_absolute_href_not_flagged():
     _, flags = parse_lesson('<p><a href="https://x.example">t</a></p>', "x.html")
     assert not any(f["kind"] == "relative_href" for f in flags)
 
+def test_relative_href_inside_spoiler_is_flagged():
+    html = (
+        '<div class="show_solution ks_button">zobacz</div>'
+        '<div class="question_solution hidden">zob. <a href="050_x.html">tu</a></div>'
+    )
+    _, flags = parse_lesson(html, "x.html")
+    assert any(f["kind"] == "relative_href" for f in flags)
+
 def test_html_comment_is_ignored():
     elements, flags = parse_lesson("<!-- editor note --><p>a</p>", "x.html")
     assert flags == []
@@ -784,6 +792,7 @@ def parse_lesson(html, source_html):
             sol = _next_solution(children, i + 1)
             if sol is not None:
                 consumed.add(id(sol))  # so the loop does not re-flag it (I2)
+                _flag_relative_hrefs(sol, flags)  # spoiler body is nh3-sanitized too
                 elements.append({
                     "type": "spoiler",
                     "label": node.get_text(strip=True) or "zobacz",
@@ -797,6 +806,7 @@ def parse_lesson(html, source_html):
             el, tflags = table_element(node)
             elements.append(el)
             flags.extend(tflags)
+            _flag_relative_hrefs(node, flags)  # table cells are nh3-sanitized too
             continue
 
         _unmapped(f"unmapped <{name}> in lesson body", node, elements, flags)
