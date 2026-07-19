@@ -10,6 +10,14 @@
       {% include "courses/manage/_move_buttons.html" with node=node is_first=is_first is_last=is_last %}
       <a class="ica" href="{% url 'courses:manage_node_move' slug=node.course.slug %}?node={{ node.pk }}" data-move="{{ node.pk }}" aria-label="{% trans 'Move…' %}" title="{% trans 'Move…' %}"><svg class="ic"><use href="#bi-move"/></svg></a>
       <a class="ica" href="{% url 'courses:manage_node_export' slug=node.course.slug pk=node.pk %}" aria-label="{% trans 'Export subtree' %}" title="{% trans 'Export subtree' %}"><svg class="ic"><use href="#bi-download"/></svg></a>
+      {% if node.kind == "unit" %}
+      <form class="tree__inline" method="post" action="{% url 'courses:manage_node_duplicate' slug=node.course.slug %}" data-op="duplicate">
+        {% csrf_token %}
+        <input type="hidden" name="node" value="{{ node.pk }}">
+        <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
+        <button class="ica" type="submit" aria-label="{% trans 'Duplicate' %}" title="{% trans 'Duplicate' %}"><svg class="ic"><use href="#bi-duplicate"/></svg></button>
+      </form>
+      {% endif %}
       <a class="ica ica--danger" href="{% url 'courses:manage_node_delete' slug=node.course.slug %}?node={{ node.pk }}" data-delete="{{ node.pk }}" aria-label="{% trans 'Delete' %}" title="{% trans 'Delete' %}"><svg class="ic"><use href="#bi-trash"/></svg></a>
     </span>
   </div>

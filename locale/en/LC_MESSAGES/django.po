@@ -4020,6 +4020,11 @@ msgstr ""
 msgid "Export subtree"
 msgstr ""
 
+#: .\templates\courses\manage\_tree_node.html:18
+#: .\tests\test_manage_duplicate_button.py:47
+msgid "Duplicate"
+msgstr ""
+
 #: .\templates\courses\manage\_unit_panel.html:8
 msgid "Type"
 msgstr ""
