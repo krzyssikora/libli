@@ -13,7 +13,7 @@
 Every task's requirements implicitly include this section. Values are copied verbatim from the spec (`docs/superpowers/specs/2026-07-19-matematyka-content-import-design.md`).
 
 - **Zero `HtmlElement` is the goal.** An unmapped fragment is emitted as `{"type":"html","flagged":true,"raw":…,"reason":…}` AND logged to `flags.json`; the loader refuses to write it unless `--allow-html` is passed. Never ship an HTML blob silently.
-- **Math delimiters are unchanged** — `\( … \)` inline, `\[ … \]` display (libli's KaTeX uses the same delimiters). **But** `<`/`>` inside any `\(…\)` or `\[…\]` span emitted into an **nh3-sanitized field** MUST be entity-escaped (`<`→`&lt;`, `>`→`&gt;`). Sanitized target fields: `TextElement.body`, `SpoilerElement.body`, table cell `html`, `QuestionElement.stem`. NOT escaped (stored raw): `MathElement.latex`, `Choice.text`, `Choice.feedback`.
+- **Math delimiters are unchanged** — `\( … \)` inline, `\[ … \]` display (libli's KaTeX uses the same delimiters). **But** `<`/`>` inside any `\(…\)` or `\[…\]` span MUST be entity-escaped (`<`→`&lt;`, `>`→`&gt;`). **Ordering is critical: the escape MUST run on the RAW HTML string BEFORE constructing the `BeautifulSoup` object** — `html.parser` tokenizes a literal `<` inside `\(y<z\)` as a stray start-tag and irreversibly mangles the DOM, so escaping `str(node)` afterwards is too late. Every parser entry point that builds a soup (`parse_lesson`, `parse_quiz`) escapes its `html` argument as its first statement; downstream functions (`table_element`, and all `str(node)` extraction) then see already-escaped markup and MUST NOT re-escape (escaping is idempotent on already-`&lt;` content, but the invariant is "escape once, at the raw boundary"). Fields that end up sanitized by nh3: `TextElement.body`, `SpoilerElement.body`, table cell `html`, `QuestionElement.stem`. NOT sanitized, stored raw: `MathElement.latex`, `Choice.text`, `Choice.feedback` (their math needs no escaping, but pre-escaping the whole file is harmless for them).
 - **File ordering:** integer value of the *first maximal run of digits* in the filename, ascending; tie-break lexicographic on the full filename. Duplicate token → deterministic tie-break + a `flags.json` warning.
 - **Node identity is positional at every level** including Part: Part = `(course, part.order)` where `part.order` = folder index in the sorted 3-digit-folder list; chapter/unit = `(parent, order)`. `title`/`kind`/`unit_type` updated in place. No new `ContentNode` field.
 - **Elements are rebuilt, not upserted:** on each load the loader deletes a unit's existing `Element`s + concrete rows, then recreates from JSON in array order (`Element.order` is an auto-assigning `OrderField(for_fields=["unit"])`).
@@ -407,6 +407,18 @@ def test_survives_nh3_roundtrip():
     body = escape_math_delimited(r"<p>gdy \(y<z\) tak</p>")
     cleaned = nh3.clean(body)
     assert r"\(y&lt;z\)" in cleaned  # the whole span survives sanitization
+
+def test_escape_before_bs4_yields_wellformed_dom():
+    # THE ordering guarantee (see Global Constraints): escaping the RAW string
+    # first lets BeautifulSoup build a correct DOM. Escaping AFTER BS4 cannot —
+    # this test locks in the escape-then-parse order the parser tasks rely on.
+    from bs4 import BeautifulSoup
+    raw = r"<p>gdy \(y<z\) tak</p>"
+    good = BeautifulSoup(escape_math_delimited(raw), "html.parser")
+    assert good.p is not None and good.p.get_text() == r"gdy \(y&lt;z\) tak"
+    # And the broken order mangles it (documents WHY the order matters):
+    bad = BeautifulSoup(raw, "html.parser")
+    assert bad.get_text() != r"gdy \(y&lt;z\) tak"
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -539,7 +551,7 @@ git commit -m "feat(lal-import): numeric answer token detection"
 
 **Interfaces:**
 - Consumes: `escape_math_delimited` (Task 4); `table_element` (Task 7, imported lazily — implement the `<table>` branch to call it, and Task 7 lands the function; until then that branch is covered by Task 7's tests).
-- Produces: `parse_lesson(html: str, source_html: str) -> tuple[list[dict], list[dict]]` returning `(elements, flags)`. Element dicts follow the Global-Constraints schema. The first `<h2>` (used as the unit title) is skipped, not emitted. Flags are `{"unit_json": source_html+".json"? no — filled by emit}`… here flags carry `{"kind","reason","raw_excerpt"}` and `emit` adds `unit_json`.
+- Produces: `parse_lesson(html: str, source_html: str) -> tuple[list[dict], list[dict]]` returning `(elements, flags)`. Element dicts follow the schema below. The first `<h2>` (the unit title) is skipped, not emitted. Each **flag record** is `{"kind": str, "reason": str, "raw_excerpt": str}`; `seed_part` (Task 10) later stamps the owning `"unit_json"` onto each record before writing `flags.json`.
 
 **Note on element dict schemas (authoritative — the JSON-key → model-field table):**
 ```
@@ -581,20 +593,32 @@ def test_video_media_src_extracted():
     vid = next(e for e in elements if e["type"] == "video")
     assert vid["media_src"] == "static/zbiory.mp4"
 
-def test_inline_math_is_escaped_in_text():
+def test_inline_math_is_escaped_and_body_wellformed():
+    # Exact-equality (not substring): a substring check would pass on corrupted
+    # output. The <p> must be intact and the math span escaped.
     elements, _ = parse_lesson(r"<p>gdy \(y<z\)</p>", "x.html")
     body = next(e["body"] for e in elements if e["type"] == "text")
-    assert r"\(y&lt;z\)" in body
+    assert body == r"<p>gdy \(y&lt;z\)</p>"
+
+def test_second_h2_becomes_text_not_flag():
+    # Only the FIRST <h2> is the unit title; later ones are body headings (spec §5).
+    elements, flags = parse_lesson("<h2>Title</h2><p>a</p><h2>Sekcja 2</h2>", "x.html")
+    text = " ".join(e["body"] for e in elements if e["type"] == "text")
+    assert "Sekcja 2" in text
+    assert "Title" not in text
+    assert flags == []
 
 def test_spoiler_from_show_solution():
     html = (
         '<div class="show_solution ks_button">zobacz</div>'
         '<div class="question_solution hidden">Zbiór pusty \\(\\emptyset\\).</div>'
     )
-    elements, _ = parse_lesson(html, "x.html")
+    elements, flags = parse_lesson(html, "x.html")
     sp = next(e for e in elements if e["type"] == "spoiler")
     assert sp["label"] == "zobacz"
     assert "emptyset" in sp["body"]
+    # The consumed solution div must NOT be re-emitted as an "unmapped div" flag.
+    assert flags == []
 
 def test_image_with_figcaption():
     html = '<figure><img src="static/wykres.png" alt="wykres"/><figcaption>Rys 1</figcaption></figure>'
@@ -632,8 +656,10 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 
 from scripts.lal_import.mathsafe import escape_math_delimited
 
-# Tags whose inner HTML is valid TextElement body content (survive nh3).
-_TEXT_TAGS = {"p", "h3", "h4", "ul", "ol", "blockquote", "pre"}
+# Tags whose inner HTML is valid TextElement body content (survive nh3). h2 is
+# included: the FIRST h2 is consumed as the unit title, later ones are body.
+_TEXT_TAGS = {"h2", "h3", "h4", "p", "ul", "ol", "blockquote", "pre"}
+_INLINE_TAGS = {"strong", "em", "b", "i", "u", "code", "a"}
 _IGNORE_TAGS = {"script", "link", "style"}
 
 
@@ -642,24 +668,34 @@ def _flag(reason, node):
             "raw_excerpt": str(node)[:300]}
 
 
+def _unmapped(reason, node, elements, flags):
+    """Content-loss: emit a flagged html ELEMENT (so the loader gate fails loud)
+    AND a flag record (spec §4.1 / I5) — never a flag record alone."""
+    elements.append({"type": "html", "flagged": True, "raw": str(node),
+                     "reason": reason})
+    flags.append(_flag(reason, node))
+
+
 def _is_show_solution_button(node):
     return (isinstance(node, Tag) and node.name == "div"
             and "show_solution" in (node.get("class") or []))
 
 
 def parse_lesson(html, source_html):
-    soup = BeautifulSoup(html, "html.parser")
+    # Escape math <,> on the RAW string BEFORE parsing (Global Constraints / C1),
+    # so BeautifulSoup builds a correct DOM. Never re-escape below.
+    soup = BeautifulSoup(escape_math_delimited(html), "html.parser")
     root = soup.body or soup
     elements, flags = [], []
     h2_skipped = False
     children = list(root.children)
-    i = 0
-    while i < len(children):
-        node = children[i]
-        i += 1
+    consumed = set()  # ids of nodes already folded into a Spoiler (I2)
+    for i, node in enumerate(children):
+        if id(node) in consumed:
+            continue
         if isinstance(node, NavigableString):
             if node.strip():
-                flags.append(_flag("bare text node in lesson body", node))
+                _unmapped("bare text node in lesson body", node, elements, flags)
             continue
         if not isinstance(node, Tag) or node.name in _IGNORE_TAGS:
             continue
@@ -669,9 +705,8 @@ def parse_lesson(html, source_html):
             h2_skipped = True  # first <h2> is the unit title, not body
             continue
 
-        if name in _TEXT_TAGS or name in {"strong", "em", "b", "i", "u", "code", "a"}:
-            body = escape_math_delimited(str(node))
-            elements.append({"type": "text", "body": body})
+        if name in _TEXT_TAGS or name in _INLINE_TAGS:
+            elements.append({"type": "text", "body": str(node)})  # already escaped
             continue
 
         if name == "figure":
@@ -688,25 +723,25 @@ def parse_lesson(html, source_html):
             elements.append({"type": "iframe", "url": src, "title": node.get("title", "")})
             continue
         if _is_show_solution_button(node):
-            # Pair this button with the next sibling .question_solution div.
-            sol = _next_solution(children, i)
+            sol = _next_solution(children, i + 1)
             if sol is not None:
+                consumed.add(id(sol))  # so the loop does not re-flag it (I2)
                 elements.append({
                     "type": "spoiler",
                     "label": node.get_text(strip=True) or "zobacz",
-                    "body": escape_math_delimited("".join(str(c) for c in sol.children)),
+                    "body": "".join(str(c) for c in sol.children),  # already escaped
                 })
                 continue
-            flags.append(_flag("show_solution button without solution", node))
+            _unmapped("show_solution button without solution", node, elements, flags)
             continue
-        if name in {"table",}:
+        if name == "table":
             from scripts.lal_import.tables import table_element
             el, tflags = table_element(node)
             elements.append(el)
             flags.extend(tflags)
             continue
 
-        flags.append(_flag(f"unmapped <{name}> in lesson body", node))
+        _unmapped(f"unmapped <{name}> in lesson body", node, elements, flags)
     return elements, flags
 
 
@@ -735,14 +770,14 @@ def _emit_figure(fig, elements, flags):
         d["figcaption"] = caption
         elements.append(d)
     else:
-        flags.append(_flag("figure without video or img", fig))
+        _unmapped("figure without video or img", fig, elements, flags)
 
 
 def _emit_video(video, elements, flags):
     source = video.find("source")
     src = (source.get("src") if source else "") or video.get("src", "")
     if not src:
-        flags.append(_flag("video without a source src", video))
+        _unmapped("video without a source src", video, elements, flags)
         return
     elements.append({"type": "video", "media_src": src})
 ```
@@ -768,7 +803,7 @@ git commit -m "feat(lal-import): lesson DOM to element dicts (text/media/spoiler
 - Test: `tests/lal_import/test_tables.py`
 
 **Interfaces:**
-- Consumes: `escape_math_delimited` (Task 4).
+- Consumes: nothing from other tasks. **Its `table_tag` argument comes from an already-math-escaped soup** (its only caller, `parse_lesson`, escaped the raw HTML before parsing), so `table_element` does NOT escape — cell `<`/`>` inside math are already entities.
 - Produces: `table_element(table_tag) -> tuple[dict, list[dict]]`. On a clean rectangle returns `({"type":"table","data": {...}}, [])` with `data` matching `TableElement.normalize_data`'s shape (`header_row`, `header_col`, `border`, `cells`). On spans/nested/ragged returns a flagged `{"type":"html","flagged":True,...}` dict plus a flag record.
 
 - [ ] **Step 1: Write the failing test**
@@ -799,9 +834,11 @@ def test_th_first_row_marks_header_row():
     ))
     assert el["data"]["header_row"] is True
 
-def test_math_in_cell_is_escaped():
-    el, _ = table_element(_t(r"<table><tr><td>\(a<b\)</td></tr></table>"))
-    assert r"\(a&lt;b\)" in el["data"]["cells"][0][0]["html"]
+def test_math_in_cell_preserved_from_escaped_input():
+    # Input is already math-escaped (parse_lesson escapes before building the soup),
+    # so the cell html carries the entity verbatim — exact assert, not substring.
+    el, _ = table_element(_t(r"<table><tr><td>\(a&lt;b\)</td></tr></table>"))
+    assert el["data"]["cells"][0][0]["html"] == r"\(a&lt;b\)"
 
 def test_colspan_is_flagged_not_dropped():
     el, flags = table_element(_t(
@@ -828,11 +865,13 @@ Expected: FAIL — module not found.
 `scripts/lal_import/tables.py`:
 
 ```python
-"""Convert a source <table> to a rectangular TableElement grid, or flag it."""
+"""Convert a source <table> to a rectangular TableElement grid, or flag it.
+
+The table tag comes from an already-math-escaped soup (parse_lesson escapes the
+raw HTML before parsing), so cell content is emitted verbatim — never re-escaped.
+"""
 
 from bs4 import Tag
-
-from scripts.lal_import.mathsafe import escape_math_delimited
 
 
 def _rows(table):
@@ -877,7 +916,7 @@ def table_element(table):
     cells = []
     for r in grid:
         cells.append([
-            {"html": escape_math_delimited("".join(str(x) for x in c.children).strip()),
+            {"html": "".join(str(x) for x in c.children).strip(),  # already escaped
              "halign": "left", "valign": "top"}
             for c in r
         ])
@@ -908,6 +947,7 @@ git commit -m "feat(lal-import): table to rectangular grid, spans flagged"
 
 **Interfaces:**
 - Consumes: `escape_math_delimited` (Task 4), `normalize_numeric` (Task 5).
+- **Escapes `html` at entry** (before the soup is built — C1). Content-loss cases (`mixed_zadanie`, `stem_without_answer`, `quiz_stem_media`) emit a `{"type":"html","flagged":true,…}` element **in addition to** a flag record, so the loader's per-element gate (Task 14) refuses them; warning-only cases (`unknown_hint`, `choice_over_500`) emit a flag record only (I5).
 - Produces: `parse_quiz(html: str) -> tuple[list[dict], list[dict]]` → `(question_elements, flags)`. Question dicts:
   - `{"type":"choice","stem": <escaped html>, "multiple": bool, "choices":[{"text":str,"is_correct":bool,"feedback":str}]}`
   - `{"type":"numeric","stem": <escaped html>, "value": str, "tolerance": "0"}`
@@ -946,9 +986,9 @@ def test_choice_feedback_extracted():
     fb = qs[0]["choices"][1]["feedback"]
     assert "6 jest elementem" in fb
 
-def test_stem_math_escaped():
-    qs, _ = parse_quiz(CHOICE_QUIZ)
-    assert r"\(A=\{3,4,7\}\)".replace("<", "&lt;") in qs[0]["stem"] or "A=" in qs[0]["stem"]
+def test_stem_math_escaped_exactly():
+    qs, _ = parse_quiz(r"<p>Dla \(a<b\) zachodzi</p>" + "\n= 1\n")
+    assert qs[0]["stem"] == r"<p>Dla \(a&lt;b\) zachodzi</p>"
 
 def test_numeric_answer():
     qs, _ = parse_quiz(NUMERIC_QUIZ)
@@ -960,9 +1000,15 @@ def test_radio_bracket_is_single_select():
     qs, _ = parse_quiz("<p>Q</p>\n(x) a\n( ) b\n")
     assert qs[0]["multiple"] is False
 
-def test_mixed_zadanie_is_flagged():
+def test_mixed_zadanie_flagged_and_emits_flagged_element():
     qs, flags = parse_quiz("<p>Q</p>\n[x] a\n= 5\n")
     assert any(f["kind"] == "mixed_zadanie" for f in flags)
+    assert any(q.get("flagged") for q in qs)   # a flagged element, not silent drop
+
+def test_quiz_stem_media_flagged_and_emits_flagged_element():
+    qs, flags = parse_quiz('<p>Q</p><img src="x.png"/>\n= 1\n')
+    assert any(f["kind"] == "quiz_stem_media" for f in flags)
+    assert any(q.get("flagged") for q in qs)
 
 def test_unknown_hint_flagged():
     qs, flags = parse_quiz("<p>Q</p>\n[ ] a {{unselected: no}}\n")
@@ -1002,6 +1048,10 @@ def _flag(kind, reason, excerpt=""):
     return {"kind": kind, "reason": reason, "raw_excerpt": excerpt[:300]}
 
 
+def _flag_element(reason, raw):
+    return {"type": "html", "flagged": True, "raw": raw, "reason": reason}
+
+
 def _split_hint(text):
     m = _HINT.search(text)
     if not m:
@@ -1010,7 +1060,8 @@ def _split_hint(text):
 
 
 def parse_quiz(html):
-    soup = BeautifulSoup(html, "html.parser")
+    # Escape math <,> on the RAW string before parsing (C1); never re-escape below.
+    soup = BeautifulSoup(escape_math_delimited(html), "html.parser")
     root = soup.body or soup
     questions, flags = [], []
     cur = _new_q()
@@ -1026,6 +1077,9 @@ def parse_quiz(html):
     for node in root.children:
         if isinstance(node, Tag):
             if node.name in _STEM_STRIP_TAGS:
+                # content-loss: emit a flagged element AND a flag record (I5)
+                questions.append(_flag_element(
+                    f"<{node.name}> media cannot live in a sanitized stem", str(node)))
                 flags.append(_flag("quiz_stem_media",
                                    f"<{node.name}> cannot live in a sanitized stem",
                                    str(node)))
@@ -1033,7 +1087,7 @@ def parse_quiz(html):
             if node.name in {"p", "div"}:
                 if cur["answers_seen"]:      # boundary: stem after answers
                     flush()
-                cur["stem_html"].append(str(node))
+                cur["stem_html"].append(str(node))  # already escaped
             continue
         if not isinstance(node, NavigableString):
             continue
@@ -1078,12 +1132,14 @@ def _consume_line(line, cur, flags):
 
 
 def _finish(cur):
-    stem = escape_math_delimited("".join(cur["stem_html"]))
+    stem = "".join(cur["stem_html"])  # already math-escaped at parse_quiz entry
     has_choice = bool(cur["options"])
     has_fill = bool(cur["answers"])
     if has_choice and has_fill:
-        return None, [_flag("mixed_zadanie",
-                            "question has both an option group and a = answer", stem)]
+        # content-loss: emit a flagged element AND a flag record (I5)
+        return (_flag_element("question has both an option group and a = answer", stem),
+                [_flag("mixed_zadanie",
+                       "question has both an option group and a = answer", stem)])
     flags = []
     for opt in cur["options"]:
         if len(opt["text"]) > 500 or len(opt["feedback"]) > 500:
@@ -1101,7 +1157,8 @@ def _finish(cur):
         return ({"type": "shorttext", "stem": stem, "accepted": cur["answers"],
                  "case_sensitive": False}, flags)
     if stem.strip():
-        return None, [_flag("stem_without_answer", "stem had no answer DSL", stem)]
+        return (_flag_element("stem had no answer DSL", stem),
+                [_flag("stem_without_answer", "stem had no answer DSL", stem)])
     return None, []
 ```
 
@@ -1128,7 +1185,7 @@ git commit -m "feat(lal-import): quiz DSL parser (choice/numeric/text + flags)"
 **Interfaces:**
 - Produces:
   - `seed_hash(unit_payload: dict) -> str` — SHA-256 hex over `json.dumps({k:v for k,v in payload.items() if k not in {"seed_hash","fully_mapped"}}, sort_keys=True, separators=(",",":"))`.
-  - `unit_payload(elements: list[dict]) -> dict` — `{"elements":…, "fully_mapped": <no flagged element>, "seed_hash": <computed>}`.
+  - `unit_payload(elements: list[dict], flags: list[dict]) -> dict` — `{"elements":…, "fully_mapped": <no flagged element AND no flag records>, "seed_hash": <computed>}`. Taking `flags` is what makes warning-only units (a flag record but no flagged element — e.g. a quiz `unknown_hint`) still report `fully_mapped:false`, so `--refresh-unmapped` and the Phase-1 review both see them (I5).
   - `is_fully_mapped(elements) -> bool` — no element has `flagged` truthy.
 
 - [ ] **Step 1: Write the failing test**
@@ -1145,7 +1202,7 @@ def test_fully_mapped_false_with_flag():
     assert is_fully_mapped([{"type": "html", "flagged": True, "raw": "x"}]) is False
 
 def test_seed_hash_excludes_self_and_fully_mapped():
-    p = unit_payload([{"type": "text", "body": "x"}])
+    p = unit_payload([{"type": "text", "body": "x"}], [])
     # Adding/altering the excluded keys must NOT change the hash.
     p2 = dict(p)
     p2["seed_hash"] = "different"
@@ -1153,14 +1210,20 @@ def test_seed_hash_excludes_self_and_fully_mapped():
     assert seed_hash(p) == seed_hash(p2)
 
 def test_seed_hash_changes_with_payload():
-    a = unit_payload([{"type": "text", "body": "x"}])
-    b = unit_payload([{"type": "text", "body": "y"}])
+    a = unit_payload([{"type": "text", "body": "x"}], [])
+    b = unit_payload([{"type": "text", "body": "y"}], [])
     assert a["seed_hash"] != b["seed_hash"]
 
 def test_payload_stamps_hash_and_flag():
-    p = unit_payload([{"type": "text", "body": "x"}])
+    p = unit_payload([{"type": "text", "body": "x"}], [])
     assert p["fully_mapped"] is True
     assert p["seed_hash"] == seed_hash(p)
+
+def test_flag_record_alone_marks_not_fully_mapped():
+    # A warning-only flag (no flagged element) still forces fully_mapped=false.
+    p = unit_payload([{"type": "choice", "stem": "x", "multiple": True, "choices": []}],
+                     [{"kind": "unknown_hint", "reason": "…", "raw_excerpt": ""}])
+    assert p["fully_mapped"] is False
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1192,8 +1255,9 @@ def seed_hash(payload):
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
-def unit_payload(elements):
-    payload = {"elements": elements, "fully_mapped": is_fully_mapped(elements)}
+def unit_payload(elements, flags):
+    payload = {"elements": elements,
+               "fully_mapped": is_fully_mapped(elements) and not flags}
     payload["seed_hash"] = seed_hash(payload)
     return payload
 ```
@@ -1220,7 +1284,7 @@ git commit -m "feat(lal-import): seed_hash canonical form + unit payload"
 
 **Interfaces:**
 - Consumes: everything above.
-- Produces: `seed_part(source_root: Path, folder: str, out_root: Path, mode: str) -> dict` where `mode ∈ {"seed","refresh-unmapped","refresh-elements","force"}`; returns the manifest dict it wrote. Writes `<out_root>/<folder>/manifest.json`, one `<unit>.json` per unit, and `flags.json`. Re-parse guard: default `seed` refuses if the folder dir already exists; `refresh-unmapped` rewrites only units with `fully_mapped==False` AND stored `seed_hash` matching a recompute; `refresh-elements` rewrites units whose `seed_hash` still matches (i.e. not hand-edited); `force` rewrites all and overwrites the manifest. Also `main(argv)` argparse entry (`--source-root` required, `--json-dir`, `--refresh-unmapped`, `--refresh-elements`, `--force`, `folder` positional).
+- Produces: `seed_part(source_root: Path, folder: str, out_root: Path, mode: str) -> dict` where `mode ∈ {"seed","refresh-unmapped","refresh-elements","force"}`; returns the manifest dict it wrote. Writes `<out_root>/<folder>/manifest.json`, one `<unit>.json` per unit, and `flags.json`. Re-parse guard: default `seed` refuses if the folder dir already exists; `refresh-unmapped` rewrites only units with `fully_mapped==False` AND stored `seed_hash` matching a recompute; `refresh-elements` rewrites units whose `seed_hash` still matches (i.e. not hand-edited); `force` rewrites all and overwrites the manifest. **The manifest is written only by `seed`/`force`; `refresh-*` never rewrite it** (so hand-edited part/chapter/unit titles are preserved — spec §4.1, I4) and instead re-read it to return. `flags.json` is always regenerated. Also `main(argv)` argparse entry (`--source-root` required, `--json-dir`, `--refresh-unmapped`, `--refresh-elements`, `--force`, `folder` positional).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1279,6 +1343,20 @@ def test_manifest_part_order_from_scan(tmp_path):
     m1 = seed_part(root, "010_next", out, mode="seed")
     assert m0["part"]["order"] == 0
     assert m1["part"]["order"] == 1
+
+def test_refresh_preserves_hand_edited_manifest_titles(tmp_path):
+    root = tmp_path / "src"; root.mkdir(); _make_source(root)
+    out = tmp_path / "out"
+    seed_part(root, "005_demo", out, mode="seed")
+    # Simulate the Phase-1 hand-edit of a unit title in the manifest.
+    mpath = out / "005_demo" / "manifest.json"
+    m = json.loads(mpath.read_text("utf-8"))
+    m["chapters"][0]["units"][0]["title"] = "Human Intro Title"
+    mpath.write_text(json.dumps(m), "utf-8")
+    # A refresh must NOT clobber that edited unit title.
+    seed_part(root, "005_demo", out, mode="refresh-elements")
+    after = json.loads(mpath.read_text("utf-8"))
+    assert after["chapters"][0]["units"][0]["title"] == "Human Intro Title"
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1362,7 +1440,7 @@ def seed_part(source_root, folder, out_root, mode="seed"):
             for f in flags:
                 f["unit_json"] = unit_json
             all_flags.extend(flags)
-            _write_unit(out_dir / unit_json, unit_payload(elements), mode)
+            _write_unit(out_dir / unit_json, unit_payload(elements, flags), mode)
             units_meta.append({"order": u_i, "unit_json": unit_json,
                                "source_html": src, "source_dir": folder,
                                "unit_type": u["unit_type"], "title": title})
@@ -1370,10 +1448,16 @@ def seed_part(source_root, folder, out_root, mode="seed"):
             {"order": c_i, "title": f"__PLACEHOLDER chapter {c_i + 1}__",
              "units": units_meta})
 
-    if mode != "force" and (out_dir / "manifest.json").exists():
-        manifest = _merge_manifest_names(out_dir / "manifest.json", manifest)
-    (out_dir / "manifest.json").write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    # Only seed/force write the manifest. seed runs only on a fresh dir (guarded
+    # above), so its manifest is brand-new; force intentionally discards names.
+    # refresh-* NEVER touch the manifest — hand-edited part/chapter/unit titles are
+    # fully preserved (spec §4.1, I4). flags.json (a derived worklist) is always
+    # regenerated.
+    if mode in ("seed", "force"):
+        (out_dir / "manifest.json").write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    else:
+        manifest = json.loads((out_dir / "manifest.json").read_text("utf-8"))
     (out_dir / "flags.json").write_text(
         json.dumps(all_flags, ensure_ascii=False, indent=2), encoding="utf-8")
     return manifest
@@ -1396,19 +1480,6 @@ def _write_unit(path, payload, mode):
 
 def _dump(path, payload):
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
-def _merge_manifest_names(existing_path, fresh):
-    """Preserve human-edited part/chapter titles across a non-force re-parse."""
-    old = json.loads(existing_path.read_text(encoding="utf-8"))
-    if not old.get("part", {}).get("title", "").startswith("__PLACEHOLDER"):
-        fresh["part"]["title"] = old["part"]["title"]
-    for i, ch in enumerate(fresh["chapters"]):
-        if i < len(old.get("chapters", [])):
-            old_title = old["chapters"][i]["title"]
-            if not old_title.startswith("__PLACEHOLDER"):
-                ch["title"] = old_title
-    return fresh
 
 
 def main(argv=None):
@@ -1554,16 +1625,25 @@ def test_edpuzzle_embed_url_validates():
 Run: `uv run pytest tests/test_lal_loader_units.py -k allowlist -q` and `-k edpuzzle -q`
 Expected: FAIL — host not in allowlist / `validate_embed_url` raises.
 
-- [ ] **Step 3: Add the hosts**
+- [ ] **Step 3: Add the hosts (default literal AND any env override)**
 
-In `config/settings/base.py`, locate the `ALLOWED_EMBED_DOMAINS` assignment and add the two hosts (keep existing entries):
+`ALLOWED_EMBED_DOMAINS` is env-driven: `env.list("LIBLI_ALLOWED_EMBED_DOMAINS", default=[…])`. `env.list` uses the default **only when the env var is unset**, so editing the default literal alone is inert whenever the var is defined.
+
+First edit the default list literal in `config/settings/base.py` (keep existing entries):
 
 ```python
     "edpuzzle.com",
     "app.lumi.education",
 ```
 
-(If the value is env-driven via `LIBLI_ALLOWED_EMBED_DOMAINS`, add them to the default list literal.)
+Then check whether the var is set in any environment the tests/dev run under:
+
+```bash
+grep -rn "LIBLI_ALLOWED_EMBED_DOMAINS" .env .env.* config/ 2>/dev/null
+printenv LIBLI_ALLOWED_EMBED_DOMAINS || echo "(unset)"
+```
+
+If it is set anywhere (`.env`, CI config, shell), add `edpuzzle.com` and `app.lumi.education` to **that** value too — otherwise `test_edpuzzle_and_lumi_allowlisted` stays red and every edpuzzle/Lumi iframe is rejected at load. (Confirm the exact Lumi host against the source files; the samples show `app.Lumi.education` — compare case-insensitively, which `validate_embed_url` already does.)
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1878,10 +1958,11 @@ def test_ensure_policy_raises_when_off_without_flag():
         ensure_depth_policy(course, set_policy=False)
 
 def test_ensure_policy_sets_when_flagged():
-    course = CourseFactory(uses_parts=False, uses_chapters=False)
+    course = CourseFactory(uses_parts=False, uses_chapters=False, uses_sections=True)
     ensure_depth_policy(course, set_policy=True)
     course.refresh_from_db()
     assert course.uses_parts and course.uses_chapters
+    assert course.uses_sections is False        # sections turned off (spec §4.4)
 
 def test_owned_part_orders_reads_all_manifests(tmp_path):
     for folder, order in [("001_a", 0), ("005_b", 1)]:
@@ -1925,6 +2006,7 @@ from pathlib import Path
 
 from django.core.exceptions import ValidationError
 
+from courses.geogebra import canonicalize_geogebra_url
 from courses.lal_loader.builders import LoaderError
 from courses.models import ContentNode, Course
 from courses.validators import validate_embed_url
@@ -1938,15 +2020,19 @@ def resolve_course(slug):
 
 
 def ensure_depth_policy(course, set_policy):
-    if course.uses_parts and course.uses_chapters:
+    if set_policy:
+        # Import writes Part->Chapter->Unit; turn sections off (spec §4.4). A
+        # pre-existing uses_sections=True is otherwise harmless — the ContentNode
+        # invariant permits skipping the optional Section level.
+        course.uses_parts = True
+        course.uses_chapters = True
+        course.uses_sections = False
+        course.save(update_fields=["uses_parts", "uses_chapters", "uses_sections"])
         return
-    if not set_policy:
+    if not (course.uses_parts and course.uses_chapters):
         raise LoaderError(
             f"course {course.slug!r} lacks uses_parts/uses_chapters; "
             "pass --set-policy to enable them")
-    course.uses_parts = True
-    course.uses_chapters = True
-    course.save(update_fields=["uses_parts", "uses_chapters"])
 
 
 def owned_part_orders(json_dir):
@@ -1968,13 +2054,16 @@ def assert_no_foreign_top_level(course, owned):
 
 
 def assert_iframe_hosts_allowlisted(elements):
+    # Validate the SAME url the builder will store (canonicalized), so the check
+    # and the stored value can't disagree on host (M3). GeoGebra canonicalization
+    # keeps the host; non-GeoGebra urls pass through unchanged.
     for el in elements:
         if el.get("type") == "iframe":
+            url = canonicalize_geogebra_url(el["url"])
             try:
-                validate_embed_url(el["url"])
+                validate_embed_url(url)
             except ValidationError as e:
-                raise LoaderError(
-                    f"iframe host not allowlisted: {el['url']}") from e
+                raise LoaderError(f"iframe host not allowlisted: {url}") from e
 ```
 
 - [ ] **Step 4: Run test to verify it passes**
@@ -2246,12 +2335,11 @@ class Command(BaseCommand):
             f"loaded part {o['part']} into course {course.slug}"))
 
     def _gc_media(self, course):
-        used_ids = set()
-        for model_name in ("imageelement", "videoelement"):
-            pass  # media are referenced via ImageElement.media / VideoElement.media
         from courses.models import ImageElement, VideoElement
-        used = set(ImageElement.objects.values_list("media_id", flat=True))
-        used |= set(VideoElement.objects.filter(media__isnull=False)
+        used = set(ImageElement.objects.filter(media__course=course)
+                   .values_list("media_id", flat=True))
+        used |= set(VideoElement.objects
+                    .filter(media__isnull=False, media__course=course)
                     .values_list("media_id", flat=True))
         orphans = MediaAsset.objects.filter(course=course).exclude(pk__in=used)
         count = orphans.count()
@@ -2288,7 +2376,30 @@ This task has **no unit tests** — it runs the built pipeline against the real 
 
 **Environment:** set `SOURCE_ROOT="C:/Users/krzys/Documents/teaching/LAL/html"` for the commands below.
 
-- [ ] **Step 1: Phase 1 — seed all 21 parts**
+- [ ] **Step 1: Real-file smoke check (BEFORE the bulk run)**
+
+The parser tasks used only synthetic fragments; this is its first contact with a real file, and it is **guarded by explicit assertions** so a wrong structural assumption (a wrapping container `<div>`, math with literal `<`, DSL line shape) surfaces here — not silently across 21 unguarded parts. Run a throwaway check on the two files the spec names:
+
+```bash
+uv run python - <<'PY'
+from pathlib import Path
+from scripts.lal_import.lesson import parse_lesson
+from scripts.lal_import.quiz import parse_quiz
+root = Path(r"C:/Users/krzys/Documents/teaching/LAL/html/001_zbiory_liczbowe")
+els, lflags = parse_lesson((root/"005_zbiory.html").read_text("utf-8"), "005_zbiory.html")
+print("lesson types:", [e["type"] for e in els], "flags:", len(lflags))
+assert any(e["type"] == "video" for e in els), "expected video elements in 005_zbiory"
+assert not any(e.get("flagged") for e in els), f"unexpected flagged elements: {lflags}"
+qs, qflags = parse_quiz((root/"039_zbiory_quiz.html").read_text("utf-8"))
+print("quiz types:", [q["type"] for q in qs], "flags:", len(qflags))
+assert any(q["type"] == "choice" for q in qs) and any(q["type"] == "numeric" for q in qs)
+assert not any(q.get("flagged") for q in qs), f"unexpected flagged quiz elements: {qflags}"
+print("SMOKE OK")
+PY
+```
+Expected: `SMOKE OK`. If a real file is wrapped in a container `<div>` (so the top-level walk sees one node), or shows unexpected flags, **fix the parser (e.g. descend into a single wrapping container) and add a regression test before proceeding** — do not run the bulk seed on a parser that flags a clean file.
+
+- [ ] **Step 2: Phase 1 — seed all 21 parts**
 
 For each 3-digit folder (in order), run the parser to seed JSON:
 
@@ -2299,15 +2410,15 @@ done
 ```
 Expected: `scripts/lal_import/out/<folder>/` created for all 21 parts, each with `manifest.json`, unit JSONs, and `flags.json`.
 
-- [ ] **Step 2: Phase 1 — fill chapter names + build the review doc**
+- [ ] **Step 3: Phase 1 — fill chapter names + build the review doc**
 
 For each part's `manifest.json`, read the units' content and replace each chapter's `__PLACEHOLDER chapter N__` title and the `part.title` placeholder (restore Polish diacritics) with a human name. Then generate `docs/superpowers/plans/lal-review.md`: every Part → its Chapters (names) → Units, plus an aggregated summary of all `flags.json` entries (grouped by `kind`). **Checkpoint:** the author reviews/renames before any DB write.
 
-- [ ] **Step 3: Phase 1 — resolve flags to zero (AI fixups)**
+- [ ] **Step 4: Phase 1 — resolve flags to zero (AI fixups)**
 
 For every `flags.json` entry, either (a) add a parser rule and re-run `--refresh-unmapped` for that part, or (b) hand-edit the unit JSON to a native element. Confirm no unit JSON has `fully_mapped: false` remaining (except any deliberately author-signed `--allow-html` cases). **Checkpoint:** author signs off on the flag resolution.
 
-- [ ] **Step 4: Phase 2 — pilot part 001 into the course**
+- [ ] **Step 5: Phase 2 — pilot part 001 into the course**
 
 ```bash
 uv run python manage.py import_lal_content --course matematyka --part 001_zbiory_liczbowe \
@@ -2315,7 +2426,7 @@ uv run python manage.py import_lal_content --course matematyka --part 001_zbiory
 ```
 Then open the course in libli (`uv run python manage.py runserver`, or the project's run skill) and review part 001 **rendered** — video playback, math typesetting, spoilers, tables, the 5 quizzes. Confirm the pilot open-questions from spec §11 (video-ceiling enforcement point; `( )` radios; `TableElement` header-column support; numeric/ShortText matching). Adjust parser rules and re-seed with `--refresh-elements` (name-preserving) as needed. **Checkpoint:** author approves the rendered pilot; conversion rules are locked.
 
-- [ ] **Step 5: Phase 3 — batch the remaining 20 parts**
+- [ ] **Step 6: Phase 3 — batch the remaining 20 parts**
 
 For each remaining folder in order, load and spot-check:
 
@@ -2331,7 +2442,7 @@ uv run python manage.py import_lal_content --course matematyka --part 150_f_wykl
 ```
 **Checkpoint:** author spot-checks each part; the populated course is the deliverable.
 
-- [ ] **Step 6: Commit the review artifacts**
+- [ ] **Step 7: Commit the review artifacts**
 
 ```bash
 git add docs/superpowers/plans/lal-review.md
