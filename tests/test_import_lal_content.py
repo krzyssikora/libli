@@ -1,5 +1,6 @@
 import pytest
 from django.core.management import call_command
+from django.core.management.base import CommandError
 
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
@@ -71,7 +72,7 @@ def test_load_is_idempotent(tmp_path):
 
 def test_missing_course_errors(tmp_path):
     src, out = _seed(tmp_path)
-    with pytest.raises(Exception):  # noqa: B017 -- CommandError wraps LoaderError
+    with pytest.raises(CommandError):
         call_command(
             "import_lal_content",
             "--course",
