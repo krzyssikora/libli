@@ -17,6 +17,7 @@ from scripts.lal_import.naming import part_title_placeholder
 from scripts.lal_import.naming import quiz_title
 from scripts.lal_import.ordering import duplicate_token_warnings
 from scripts.lal_import.ordering import ordered_html_files
+from scripts.lal_import.ordering import ordering_token
 from scripts.lal_import.quiz import parse_quiz
 
 _THREE_DIGIT = re.compile(r"^\d{3}")
@@ -58,9 +59,27 @@ def seed_part(source_root, folder, out_root, mode="seed"):
             "use --refresh-unmapped/--refresh-elements/--force"
         )
 
-    names = [p.name for p in part_dir.glob("*.html")]
+    # Real folders contain stray non-lesson .html exports (neolms.html, text.html,
+    # _start.html, podobienstwo.html) with no ordering token. Skip them with a
+    # warning rather than aborting the whole part.
+    names, skipped = [], []
+    for n in (p.name for p in part_dir.glob("*.html")):
+        try:
+            ordering_token(n)
+            names.append(n)
+        except ValueError:
+            skipped.append(n)
     ordered = ordered_html_files(names)
     all_flags = list(duplicate_token_warnings(ordered))
+    for s in sorted(skipped):
+        all_flags.append(
+            {
+                "kind": "skipped_unnumbered_file",
+                "reason": f"{s} has no ordering token; not a numbered lesson — skipped",
+                "unit_json": None,
+                "raw_excerpt": s,
+            }
+        )
     chapters_src = group_into_chapters(ordered)
 
     out_dir.mkdir(parents=True, exist_ok=True)
