@@ -200,6 +200,14 @@ reusable parser rule when the pattern repeats). Goal: drive `flagged` count to
 zero before load. Repeating flagged patterns are promoted into parser rules
 rather than fixed one-by-one.
 
+**Invariant — only the parser stamps `seed_hash`.** AI fixups and hand edits
+mutate payload content **only**; they MUST NOT rewrite `seed_hash` (that is the
+whole basis of the untouched-since-seed test in §4.2 — a fixup tool that "helpfully"
+recomputed `seed_hash` would make every edit look untouched and `--refresh-unmapped`
+would then clobber it). A fixup that resolves a unit's *last* flagged fragment
+flips its derived `fully_mapped` to true; `seed_hash` stays as the parser stamped
+it. Only a parser regeneration (`--refresh-*`/`--force`) re-stamps `seed_hash`.
+
 ### 4.4 Loader (`courses/management/commands/import_lal_content.py`)
 
 A Django management command that reads unit JSON for a part and writes the tree
@@ -265,6 +273,11 @@ each, which `_upsert` would collapse to one. Instead:
   Part created at `order=0` on first load is *found and updated* on re-run, not
   rejected); the loader **refuses only** if it finds a top-level node whose `order`
   is **not** in the import's `part.order` set (a foreign subtree it does not own).
+  Crucially, even under `--part` (one part per run) the loader builds the owned set
+  from **all** part manifests (`scripts/lal_import/out/*/manifest.json` — i.e. the
+  full 0…20 range), **not** just the `--part` manifest; otherwise a later batch
+  (say order 4) would see the Parts that earlier batches created (orders 0–3) as
+  foreign and refuse on every sequential batch.
   This makes the guard compatible with the re-run promise (§9) instead of firing on
   every re-run. The import assumes it owns the whole `matematyka` course tree.
 - **Depth policy.** Writing Part+Chapter nodes via raw ORM bypasses the
@@ -410,13 +423,23 @@ tokens are **bare text lines**, not wrapped in any tag — they appear as top-le
 `NavigableString` text nodes *between* the `<p>` stem elements (confirmed in
 `001_zbiory_liczbowe/039_zbiory_quiz.html`, e.g. a `<p>…</p>` stem followed by raw
 lines `[x] \(3\in A\)`, `[ ] \(6\in A\) {{selected: …}}`, `= 2`). The parser
-therefore walks the fragment's **top-level nodes in order**: an `<p>`/`<div>`
-element is stem prose; a text node is split on newlines and each non-empty line is
-classified by its **first non-space character(s)**:
+therefore walks the fragment's **top-level nodes in order**: a stem-prose element
+(`<p>`/`<div>`, and inline/list markup that survives stem sanitization) is stem
+prose; a text node is split on newlines and each non-empty line is classified by
+its **first non-space character(s)**:
 - `[x]`/`[ ]`/`(x)`/`( )` → a choice option (bracket shape sets `multiple`, §below);
   a trailing `{{selected:…}}` on the same line is that option's feedback;
 - a line whose first non-space char is `=` → a fill-in answer;
 - an HTML comment `<!-- Zadanie N -->` → a question boundary.
+
+A `QuestionElement` has only a (sanitized) `stem` field — no way to attach separate
+media — and sanitization strips `<img>/<table>/<figure>/<iframe>/<h2>` from the
+stem. So a **top-level element node that would not survive stem sanitization**
+(image, table, figure, iframe, heading) inside a quiz fragment is **flagged as
+unmappable quiz-stem media**, never silently concatenated into a stem that
+sanitization would gut. (Quizzes are not assumed media-free; the flag routes such
+cases to author resolution — e.g. move the media into a preceding lesson, or
+restructure the question.)
 
 Because a `=` sign also occurs *inside math* (`\(x = 3\)`), a `=` counts as answer
 DSL **only** when it is the first non-space character of a top-level text line
@@ -428,9 +451,10 @@ the pilot.
 **Question segmentation.** When present, `<!-- Zadanie N -->` comments are the
 authoritative question boundaries. When absent, the parser runs a small state
 machine over the ordered top-level nodes: a question accumulates stem `<p>`s and
-then answer-DSL lines; **a new question begins at the first stem `<p>` encountered
-*after* at least one answer-DSL line has been consumed** for the current question.
-(So consecutive `<p>`s before any answer stay in one stem, per the rule above.) If
+then answer-DSL lines; **a new question begins at the first stem element
+(`<p>`/`<div>`) encountered *after* at least one answer-DSL line has been consumed**
+for the current question. (So consecutive stem elements before any answer stay in
+one stem, per the rule above.) If
 comments are present but disagree with this inference for a file, the **comments
 win and the disagreement is flagged** for author review.
 
@@ -520,8 +544,9 @@ the author when unclear):
 - Media resolution: `source_dir` in the manifest (§4.5) is stored **relative** (a
   bare folder name like `001_zbiory_liczbowe`, never an absolute
   `C:\Users\…` path — so the manifest stays machine-independent and committable).
-  Both parser and loader take a required **`--source-root`** (defaulting to the LAL
-  `html` directory) and resolve each asset as
+  Both parser and loader take a **strictly required `--source-root`** (no baked
+  default — so no developer-specific `C:\Users\…` path is committed in a script or
+  the spec; it may be supplied via env/config) and resolve each asset as
   `<source-root>/<source_dir>/<media_src>` (e.g.
   `<root>/001_zbiory_liczbowe/static/foo.mp4`). This gives an unambiguous base
   without baking a local path into the artifacts.
