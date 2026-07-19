@@ -22,6 +22,7 @@
 - **rehydrate/answer_from_json are type-blind for these five.** Both branch only on `isinstance(question, ChoiceQuestionElement)` (`courses/quiz.py:89,98`); none of the five is a `ChoiceQuestionElement` subclass, so all take the pass-through `else` branch — the grid positional list / drag slot list arrives verbatim as `submitted_values`, which the grid render tags and `dnd._render_select` consume to emit `checked` / `<option selected>`.
 - **No stored verdict** — re-marked on every load (an author fixing a wrong key re-marks a restored answer correctly). No attempt history, no analytics/gradebook coupling, no quiz-mode change.
 - **Verify-first / falsification rule** (`[[falsify-tests-not-run-them]]`): every restore/save assertion must be shown able to go RED — either by capturing RED before the flag flip (Task 1's C1 proof) or, for tests written after the flip, by a falsification step that reverts the guard (flag → `False`, or delete the render bounds guard) and observes RED. A passing test proves nothing until falsified. Never leave a parametrized test iterating an empty set (it passes vacuously).
+- **Import style (ruff isort):** `pyproject.toml` sets `[tool.ruff.lint.isort] force-single-line = true` and `select` includes `"I"`. **Every** added import — module-level **and** function-local (the e2e seed helpers) — must be **one `import X` / `from m import X` per line**, sorted; a grouped/parenthesized or comma-joined import fails `ruff check` (I001), which `ruff format` does **not** fix. The Definition of Done's `ruff check` gate is unforgiving here, so write imports single-line from the start.
 - **Tooling** (`[[uv-run-tooling]]`): run Python via `uv run` (pytest/ruff/manage.py are not on PATH). Default `uv run pytest` excludes e2e (`-m 'not e2e'`, pyproject.toml:48); run e2e with `-m e2e`. Run focused e2e files **foreground**, never the whole `-m e2e` suite in the background (runaway browsers — `[[gallery-carousel-status]]`).
 - **Test-DB isolation** (`[[test-db-contention-across-worktrees]]`): this worktree has **no `.env`**, so it would fall back to the default `DATABASE_URL` (`test_libli`) and collide with the main checkout. **Execution prerequisite (do once, before any test):** copy the main repo's `.env` into this worktree and change only the `DATABASE_URL` database name to a unique per-worktree value, e.g. `…/libli_dwqr` (yielding test DB `test_libli_dwqr`). `.env` is gitignored — this produces no commit.
 - Commit messages end with the repo's required `Co-Authored-By:` / `Claude-Session:` trailers.
@@ -45,20 +46,20 @@ The gating premise-proof and the one production edit. Writes a view-level restor
 Append to `courses/tests/test_question_restore.py`. These seed a str-keyed `element_state` blob, GET the lesson view (so `build_lesson_context` re-keys str→int — never `obj.render` with a str key), and assert the answered state renders: grids → `checked` on the chosen cell (by exact `value="<pk>" checked`); drag types → `<option value="<token>" selected>` on the chosen slot (asserting the **specific** chosen option, since a native `<select>` always has *some* option selected).
 
 ```python
-from courses.models import (
-    DragBlank,
-    DragFillBlankQuestionElement,
-    DragToImageQuestionElement,
-    DragZone,
-    GridColumn,
-    GridRow,
-    MatchPair,
-    MatchPairQuestionElement,
-    MediaAsset,
-    MultiGridColumn,
-    MultiGridQuestionElement,
-    MultiGridRow,
-)
+# Add these to the EXISTING top-of-file import block, ONE `from courses.models import X`
+# per line (ruff isort `force-single-line = true` — a grouped/parenthesized import fails
+# `ruff check` I001). Only these eight names are new: the file already imports
+# ChoiceGridQuestionElement, MultiGridQuestionElement, MatchPairQuestionElement,
+# DragToImageQuestionElement, DragFillBlankQuestionElement, Element, Enrollment, UnitProgress —
+# do NOT re-import those (F811 redefinition).
+from courses.models import DragBlank
+from courses.models import DragZone
+from courses.models import GridColumn
+from courses.models import GridRow
+from courses.models import MatchPair
+from courses.models import MediaAsset
+from courses.models import MultiGridColumn
+from courses.models import MultiGridRow
 
 
 def _image(course):
@@ -150,6 +151,8 @@ def test_restore_dragimage_selects_both_slots(client):
 ```
 
 > Field names verified against `courses/models.py`: `GridColumn(question, label)` / `GridRow(question, statement, correct_column FK)` via `columns`/`rows`; `MultiGridColumn` + `MultiGridRow(correct_columns M2M)`; `MatchPair(question, left, right)`; `DragBlank(question, correct_token)` with the stem carrying a `￿0￿` token marker; `DragZone(question, correct_label, x, y, w, h, order)`; `DragToImageQuestionElement.media` is a required FK to an image `MediaAsset`. `_seed`/`_enrolled`/`_lesson_url` already exist in this file.
+>
+> **U+FFFF sentinel warning (DragFillBlank stem):** the `￿` in `stem="Cap is ￿0￿"` is a single **U+FFFF** character (the `SENTINEL` in `courses/fillblank.py`; `render_selects` splits on `_TOKEN_RE = ￿(\d+)￿`). It is invisible and easily stripped/mangled by an editor or encoding round-trip during copy-paste. If it is lost, `render_selects` produces **zero** `<select>` gaps and the DragFillBlank restore test fails RED **after** the flip — which the carve logic would misread as "DragFillBlank cannot restore" and spuriously carve a working type. **Preserve it byte-for-byte**, or seed via `tests.factories.DragFillBlankQuestionElementFactory` (its `stem` already carries the sentinel) instead of a hand-typed literal. If a dragfill test fails only because no `<select>` rendered, suspect a lost sentinel before suspecting the restore path.
 
 - [ ] **Step 2: Run the five restore tests — capture RED (flag OFF, current tree)**
 
@@ -238,6 +241,12 @@ Expected: **the entire file passes** — the five new restore tests are GREEN, t
 
 Run: `uv run python manage.py makemigrations --check --dry-run`
 Expected: `No changes detected` (a plain class attribute is not a model field).
+
+- [ ] **Step 6b: Confirm the flip's full blast radius is green**
+
+The flag flip is a global production change; verify no test **outside** this file encoded the old deferred behavior before committing it.
+Run: `uv run pytest -n auto -m "not e2e"`
+Expected: exit 0, 0 failures. (Source analysis found no other non-e2e test asserting these flags and the widget reload e2es are quiz-mode, so the risk is low — but confirm it at the commit that introduces the flip, not only at the Definition of Done.) Also run `uv run ruff check .` here to catch the import-style rule (Global Constraints → Import style) on the new test code before it is committed.
 
 - [ ] **Step 7: Commit (with the RED/GREEN evidence in the message)**
 
@@ -604,7 +613,14 @@ def _size_stage(page, w=400, h=300):
 
 
 def _seed_dragimage_lesson(username, slug):
-    from courses.models import ContentNode, Course, DragToImageQuestionElement, DragZone, Element, Enrollment, MediaAsset
+    # One import per line (ruff force-single-line); keep sorted.
+    from courses.models import ContentNode
+    from courses.models import Course
+    from courses.models import DragToImageQuestionElement
+    from courses.models import DragZone
+    from courses.models import Element
+    from courses.models import Enrollment
+    from courses.models import MediaAsset
 
     user = make_verified_user(username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD)
     course = Course.objects.create(title="C", slug=slug, language="en")
@@ -712,7 +728,13 @@ Append to `tests/test_e2e_widget_restore.py`:
 
 ```python
 def _seed_dragfill_lesson(username, slug):
-    from courses.models import ContentNode, Course, DragBlank, DragFillBlankQuestionElement, Element, Enrollment
+    # One import per line (ruff force-single-line); keep sorted.
+    from courses.models import ContentNode
+    from courses.models import Course
+    from courses.models import DragBlank
+    from courses.models import DragFillBlankQuestionElement
+    from courses.models import Element
+    from courses.models import Enrollment
 
     user = make_verified_user(username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD)
     course = Course.objects.create(title="C", slug=slug, language="en")
