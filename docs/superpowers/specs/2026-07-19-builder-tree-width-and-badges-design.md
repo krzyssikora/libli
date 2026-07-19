@@ -52,8 +52,11 @@ File: `templates/courses/manage/_tree_node.html` (the `.tree__badge` span).
   already-translatable accessor for the `unit_type` choices.
 - Non-unit nodes (Part / Chapter / Section) keep their current word badge
   (`get_kind_display`) unchanged.
-- **Defensive fallback:** the L/Q arm is a two-branch match (`lesson → L`, `quiz → Q`)
-  with a **final `else` that falls back to the `get_kind_display` word**. This else
+- **Defensive fallback:** the badge is a Django template conditional —
+  `{% if node.unit_type == "lesson" %}` L `{% elif node.unit_type == "quiz" %}` Q
+  `{% else %}` … `{% endif %}` (compared against the string literals `"lesson"` /
+  `"quiz"`) — with a **final `{% else %}` that falls back to the `get_kind_display`
+  word**. This else
   catches *both* an empty `unit_type` (cannot happen in practice —
   `ContentNode.clean()` raises "Units require a unit_type." — but the DB column is
   `null=True`) *and* a non-empty-but-unrecognized value (DB corruption, or a future
@@ -176,6 +179,13 @@ Purely render-time; no runtime data path changes.
   - a `lesson` unit row: badge span text is `L`, badge `title` is `Lesson` (default
     locale);
   - a `quiz` unit row: badge span text is `Q`, badge `title` is `Quiz`;
+  - **both** unit rows: the badge span still carries the `tree__badge--unit` class —
+    this is the load-bearing accent-colour hook (`.tree__badge--unit { color:
+    var(--accent) }`) and edit #1 rewrites the whole span, so its survival must be
+    pinned, not assumed;
+  - the title button (`.tree__title`) carries `title` equal to the node's title
+    (edit #3's hover tooltip) — assert this scoped to the button, distinct from the
+    badge tooltip;
   - a container node (e.g. chapter) still renders its word badge — `Chapter` under the
     default (EN) locale (i.e. `get_kind_display` for the active locale; PL would be
     "Rozdział");
@@ -185,12 +195,21 @@ Purely render-time; no runtime data path changes.
     badge `title` becomes `Lekcja`. (The quiz tooltip is "Quiz" in both EN and PL per
     the model choices, so only the lesson tooltip visibly changes between locales;
     don't assert a locale change on the quiz row.)
+  - **Catalog dependency:** the `pl` assertions (`Lekcja`, and the L/Q-under-`pl`
+    check) only behave correctly with the PL `.mo` compiled and the locale actually
+    switched — `get_unit_type_display()` otherwise returns the untranslated msgid
+    ("Lesson") and the "Lekcja" assertion fails spuriously. Reuse the repo's existing
+    locale-switching test pattern (e.g. `override('pl')` / the helper the i18n catalog
+    tests already use) rather than hand-rolling locale activation, so a compiled
+    catalog is guaranteed.
   - **Falsification (per the repo "falsify tests, don't run them" convention),
     targeting the actual production behavior — each bullet must be *achievable* (can
     be made to fail by a real production change):**
     - the test goes RED if the L/Q letter mapping is broken or swapped (e.g. lesson→Q),
       pinning the mapping itself — not just its presence;
-    - the test goes RED if a unit badge falls back to `get_kind_display` ("Unit").
+    - the test goes RED if a unit badge falls back to `get_kind_display` ("Unit");
+    - the test goes RED if the `tree__badge--unit` class is dropped from the unit
+      badge (the accent-colour hook).
     - Note: do **not** frame "letter is not translated" as a falsification — the
       letters `L`/`Q` have no msgid in the catalog, so wrapping them in `{% trans %}`
       is a behavioral no-op and such a test could never go red (the "vacuous test"
