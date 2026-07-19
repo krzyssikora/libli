@@ -48,9 +48,17 @@ File: `templates/courses/manage/_tree_node.html` (the `.tree__badge` span).
 - Badge **colour is unchanged**: both L and Q keep the current
   `.tree__badge--unit { color: var(--accent); }`.
 
-Because the letter depends on `unit_type` (lesson vs quiz), a per-`unit_type`
-modifier class is added to the badge span so the template stays declarative and any
-future colour split is a one-line CSS change — but no colour split ships now.
+**Badge classes.** The unit badge keeps its existing `tree__badge tree__badge--unit`
+classes (the `--unit` modifier is what carries `color: var(--accent)`, so it must stay
+for the colour to remain unchanged). Additionally, **only when `unit_type` is
+non-empty**, append a per-type modifier — `tree__badge--lesson` or
+`tree__badge--quiz` — so the template stays declarative and a future colour split is a
+one-line CSS change. Gate this modifier on a non-empty `unit_type` (e.g. inside the
+same branch that emits the L/Q letter) so the defensive fallback path never renders a
+malformed empty modifier (`tree__badge--`). **No colour split ships now** — no CSS is
+added for `--lesson`/`--quiz`; both continue to inherit the `--unit` accent colour.
+The fallback (empty `unit_type`) render keeps only `tree__badge tree__badge--unit`
+plus the `get_kind_display` word.
 
 ### 2. Column ratio `1fr 1fr` → `2fr 1fr`
 
@@ -63,11 +71,28 @@ File: `courses/static/courses/css/builder.css`.
 - In the now-narrower panel, the four ghost buttons must stack **one per line**
   rather than sitting side-by-side. The panel's direct children already get vertical
   rhythm via `.builder__panel .panel > * + * { margin-top: ... }`, but the `<a
-  class="btn">` links are inline-block and flow horizontally until they wrap. Make
-  the panel a **flex column** (`display: flex; flex-direction: column;
-  align-items: flex-start`) so each button occupies its own line at its natural
-  width. This keeps the existing owl-selector top-margins working as the inter-item
-  gap.
+  class="btn">` links are inline-block and flow horizontally until they wrap.
+- **Scope the change to the empty/course state only.** The inner `.panel` element is
+  shared by all three panel renders — `_course_panel.html`, `_node_panel.html`, and
+  `_unit_panel.html` — but only the course render (shown when no node is selected) is
+  the "nearly empty, buttons side-by-side" case. The course render is uniquely tagged
+  `<div class="panel" data-panel-for="course">`; the node and unit renders carry
+  `data-panel-for="{{ node.pk }}"` instead. So target exactly
+  **`.builder__panel .panel[data-panel-for="course"]`** and make *that* selector a
+  flex column (`display: flex; flex-direction: column; align-items: flex-start`). Its
+  direct children are the `<a class="btn">` links, which then each occupy their own
+  line at natural width; the existing owl-selector top-margins keep working as the
+  inter-item gap.
+- **Do not** apply flex to the bare `.builder__panel .panel` (would regress the unit
+  panel — see below) nor to `.builder__panel` (the grid cell, whose only child is the
+  single `.panel`, so flex there would not stack the grandchild buttons and the fix
+  would silently no-op).
+- **Regression to avoid:** the unit panel's `.unit-summary`
+  (`display: grid; grid-template-columns: auto 1fr`), `.element-list` (`display:
+  grid`), and `.panel__seam` rely on occupying the full panel width. An unscoped
+  flex-column with `align-items: flex-start` would shrink those to content width and
+  break `.element-list__summary`'s ellipsis truncation. Scoping to
+  `[data-panel-for="course"]` keeps the unit/node panels untouched.
 
 ### 3. Long titles truncate instead of wrap
 
@@ -75,7 +100,11 @@ Files: `courses/static/courses/css/builder.css` + `templates/courses/manage/_tre
 
 - `.tree__title` gains `min-width: 0; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis;`. `min-width: 0` is required for a flex item to be allowed
-  to shrink below its content width so `text-overflow` can engage.
+  to shrink below its content width so `text-overflow` can engage. `.tree__title` is a
+  `<button>`; `text-overflow` needs a block-container box, so if the ellipsis fails to
+  engage in testing, add `display: block` (it is already `flex: 1` inside the flex row,
+  which combined with `min-width: 0` is normally sufficient). The one-line-truncation
+  check in visual verification is the guard here.
 - Add `title="{{ node.title }}"` to the title button so the full name is available on
   hover when it is truncated.
 
@@ -108,15 +137,31 @@ Purely render-time; no runtime data path changes.
 
 ## Testing
 
-- **Template rendering test** (extends the existing builder/tree template tests):
-  - a `lesson` unit row renders badge text `L` and `title="Lesson"` (default locale);
-  - a `quiz` unit row renders badge text `Q` and `title="Quiz"`;
+- **Template rendering test** (extends the existing builder/tree template tests).
+  **Scope every assertion to the badge `<span>`**, not the whole row — the title
+  button also gains a `title="..."` attribute in edit #3, so a row-wide grep for
+  `title="Lesson"` or for the letter could false-pass. Parse/isolate the
+  `.tree__badge` element (e.g. via the test's HTML parser or a regex anchored to the
+  badge class) and assert against its text and its `title` attribute specifically.
+  Use fixture unit titles that are **not** "Lesson"/"Quiz" (e.g. "Intro", "Chapter
+  test") so a title collision can't mask a wrong assertion.
+  - a `lesson` unit row: badge span text is `L`, badge `title` is `Lesson` (default
+    locale);
+  - a `quiz` unit row: badge span text is `Q`, badge `title` is `Quiz`;
   - a container node (e.g. chapter) still renders its word badge (`Chapter`);
-  - assert the L/Q letters are present **regardless of active language** (render under
-    `pl` and confirm the badge letter is still `L`/`Q`, i.e. not translated), while the
-    tooltip does localize.
-  - Falsify the test per the repo convention: confirm it goes RED if the badge falls
-    back to `get_kind_display` for a unit.
+  - **Non-translation of the letter:** render under `pl` and confirm the badge span
+    text is still `L`/`Q` (the letters are hardcoded, not run through gettext).
+  - **Tooltip localization:** assert on the **lesson** row — under `pl` the lesson
+    badge `title` becomes `Lekcja`. (The quiz tooltip is "Quiz" in both EN and PL per
+    the model choices, so only the lesson tooltip visibly changes between locales;
+    don't assert a locale change on the quiz row.)
+  - **Falsification (per the repo "falsify tests, don't run them" convention),
+    targeting the actual production behavior:**
+    - the test goes RED if the L/Q letter mapping is broken or swapped (e.g. lesson→Q),
+      pinning the mapping itself — not just its presence;
+    - the test goes RED if the letter were run through `{% trans %}` (i.e. it must
+      stay identical across locales);
+    - the test goes RED if a unit badge falls back to `get_kind_display` ("Unit").
 - **Visual verification** (repo convention for styling changes): drive the builder
   page with Playwright and screenshot **light and dark**, confirming (a) the tree
   column is visibly wider than the panel (~2:1), (b) the four panel buttons stack one
@@ -129,5 +174,9 @@ Purely render-time; no runtime data path changes.
 ## Docs
 
 - Grep the in-app help pages (`docs/help/**`) and any builder-facing help topic for
-  descriptions of the "Unit" tree badge; update prose that names the old badge to
-  describe the L/Q (lesson/quiz) scheme. EN + PL where a PL variant exists.
+  prose that describes the "Unit" tree badge. **Only if such prose exists**, update it
+  to describe the L/Q (lesson/quiz) scheme (EN + PL where a PL variant exists). An
+  empty grep result is an acceptable outcome — the builder help currently describes
+  adding units via the "+ Lesson"/"+ Quiz" chips and does not name the tree badge
+  letter, so this step may legitimately be a no-op. Do not invent new badge prose
+  where none existed.
