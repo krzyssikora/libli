@@ -35,7 +35,8 @@ The operation is non-destructive and instant (no confirmation page).
 There is no `Unit` model. The course tree is a single self-referential
 `ContentNode` model (`courses/models.py`) whose `kind` is one of
 `part/chapter/section/unit`. A unit's content is an ordered list of `Element`
-generic-FK join rows, each pointing at one concrete element model (31 types), some
+generic-FK join rows, each pointing at one concrete element model (the set
+enumerated by `ELEMENT_MODELS` / the transfer `BUILDERS` registry), some
 of which own child rows (Choices, Blanks, grid columns/rows, stepper steps, drag
 zones, mark-done items, …) and/or nested `Element` children (tabs/two-column
 containers) and/or ids embedded in a JSON `data` field.
@@ -58,21 +59,35 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
      **shares** existing `MediaAsset` rows instead of creating new files/rows, and
      (b) otherwise reuses the importer's two-pass element rebuild (concrete
      objects, child rows, nested `parent`/`tab_id`, JSON `data`).
-   - Placement: the importer appends the new node at the end of the parent's
-     children; the service then moves it directly below the source using the
-     existing `courses/ordering.py` helpers, so the copy lands at
-     `source.order + 1` and siblings are compacted.
+   - Placement: the materialize step appends the new node at the end of the
+     parent's children; the service then moves it directly below the source. It
+     sets `new_node.parent = source.parent` (a precondition of `place_node`) and
+     calls `ordering.place_node(new_node, source.parent, course,
+     position=<0-based index of source among its siblings> + 1)`. `place_node`
+     takes a **0-based position index** (not an `order` value), clamps it, and
+     reindexes all siblings, so the copy ends up immediately after the source.
    - Returns the newly created `ContentNode` (for the view to re-render / focus).
 
 2. **Importer duplicate-mode seam** (`courses/transfer/importer.py`).
-   The importer's `import_subtree` currently calls `_create_media`, which creates
-   new `MediaAsset` rows and builds an `old-ref → new-row` media map consumed by
-   `_create_elements`. Duplicate-mode injects a media map that resolves every
-   referenced asset to its **existing** row (identity mapping keyed on the source
-   asset), skipping `_create_media` entirely. Implemented as a narrow parameter
-   (e.g. `media_map=` / `share_media=True`) on the internal materialize path so the
-   normal cross-course import behavior is untouched. The two-pass ordering rebuild
-   and all per-type BUILDERS are reused verbatim.
+   The importer's `import_subtree(zf, manifest, document, media_entries,
+   target_course, insertion_node, user)` is **zip-coupled**: it requires a real
+   `zf` zipfile and a `media_entries` filename→zip-info map, and `_create_media`
+   extracts media bytes from that zip. The duplicate flow has no zip, so
+   duplicate-mode does **not** call `import_subtree`. Instead the service reaches
+   the importer's inner steps directly — `_create_nodes` then `_create_elements`,
+   inside the importer's `_run_import` / `transaction.atomic` wrapper — bypassing
+   `zf`, `media_entries`, and `_create_media` entirely.
+
+   `_create_elements` resolves media by looking up `assets[mid]`, keyed on the
+   **export-assigned `mid` string** (`"m1"`, `"m2"`, …). Duplicate-mode therefore
+   passes a precomputed `{mid: MediaAsset}` map built from `build_export`'s
+   `media_assets` return, where each `mid` maps to the **existing** source
+   `MediaAsset` row — so no bytes are read, no files are written, and no new asset
+   rows are created. Concretely this is a new internal materialize entry point
+   (e.g. `materialize_duplicate(document, media_map, target_course,
+   insertion_node, user)`) added alongside `import_subtree`, so the normal
+   cross-course import path is untouched. The two-pass ordering rebuild and all
+   per-type `BUILDERS` are reused verbatim.
 
    Rationale for this seam over a standalone deep-copy: it keeps a single
    authoritative per-type copy path. As new element types are added, only the
@@ -80,10 +95,20 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
 
 3. **View — `views_manage.node_duplicate`** (new, POST only, `courses/views_manage.py`).
    Mirrors `node_move`'s structure: `_require_manage` access gate, resolve the node
-   within the course, read the token, call `builder.duplicate_unit`, and return the
-   re-rendered `_scope.html` fragment for the affected scope (the same AJAX swap the
-   reorder/reparent ops return). Rejects non-unit nodes (404/400) and stale tokens
-   (409), matching sibling ops.
+   within the course, read the token, call `builder.duplicate_unit`, and re-render
+   the affected scope.
+   - **Scope selection mirrors `node_move` / `node_delete`:** when the source unit
+     has a parent, return the `_scope.html` fragment for that parent scope; when the
+     unit is **top-level** (`parent is None`, as in a Flat course where units are
+     the deepest kind), use scope `"top"` and return `_render_tree` (the whole-tree
+     render), exactly as the sibling ops do.
+   - **No-JS fallback mirrors the sibling ops via `_wants_fragment(request)`:** with
+     JS, return the fragment; without JS, on success redirect to `manage_builder`,
+     and on a 409 render `_builder_with_notice(..., status=409)`.
+   - Rejects non-unit nodes (404/400) and stale tokens (409). A `TransferError` from
+     the materialize step (see Error handling) is caught and surfaced as an error
+     response — fragment or notice page per `_wants_fragment` — not a raw 500.
+     Guards match sibling ops.
 
 4. **URL — `manage_node_duplicate`** (new, `courses/urls.py`), placed alongside the
    other `manage_node_*` node-ops.
@@ -93,9 +118,10 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
    **gated on `node.kind == "unit"`**. Non-destructive, so positioned near
    export/move and before the danger `delete`. It POSTs (a small inline form like
    `_move_buttons.html`, carrying `node` pk and the `token`) rather than being a GET
-   link, since it mutates. Uses a monochrome `currentColor` "duplicate" SVG icon
-   (per the icon convention — shared `.ica`/`.icon`), with a translated
-   `title`/aria-label.
+   link, since it mutates. Uses a monochrome `currentColor` "duplicate" SVG icon on
+   the existing shared action-cluster icon class — the `.ica` class the other
+   cluster buttons in `_tree_node.html` / `_move_buttons.html` use (confirm against
+   that file) — with a translated `title` / aria-label.
 
 6. **i18n** — a "Duplicate" string added to the EN and PL message catalogs
    (`gettext`), following the lazy-vs-eager and catalog-test conventions already in
@@ -109,13 +135,18 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
    `builder.duplicate_unit(course, node, token=token)`.
 3. Service (atomic):
    a. Validate kind + token (409 on stale).
-   b. `document, media, problems = build_export(course, node)` (in-memory
-      serialize of the unit subtree — one unit node plus its elements).
-   c. Materialize via importer duplicate-mode with a share-media map → new
-      `ContentNode` + copied `Element` rows + concrete objects + child rows +
-      nested children, all pointing at the **existing** `MediaAsset` rows.
-   d. Move the new node to `source.order + 1` within the same parent scope via
-      `ordering` helpers; compact siblings.
+   b. `manifest, document, media_assets, problems = build_export(course, node,
+      drop_missing_media=False)` — a 4-tuple (in-memory serialize of the unit
+      subtree: one unit node plus its elements). `media_assets` is a list of
+      `(mid, asset, is_placeholder)` tuples and is the only place the
+      export-assigned `mid` → source `MediaAsset` mapping exists, so the
+      share-media map (`{mid: MediaAsset}`) is derived from it.
+   c. Materialize via the duplicate-mode entry point (§2) with that share-media
+      map → new `ContentNode` + copied `Element` rows + concrete objects + child
+      rows + nested children, all pointing at the **existing** `MediaAsset` rows.
+   d. Set `new_node.parent = source.parent`, then `place_node` it at the 0-based
+      index `(index of source among its siblings) + 1` within the same parent
+      scope; siblings are reindexed.
    e. Return the new node.
 4. View re-renders `_scope.html` for the scope and returns the fragment; the
    builder JS swaps it in, showing the copy directly below the original.
@@ -142,22 +173,42 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
   retries.
 - **Access** → `_require_manage` / `can_manage_course`; non-managers get the
   standard denial. The button is not rendered for users who cannot manage.
-- **Atomicity** → the whole duplicate runs in `transaction.atomic`; any failure
-  during serialize/materialize rolls back, leaving the tree untouched (no partial
-  unit, no orphaned elements or child rows).
-- **Export `problems`** → `build_export` can report per-element problems (e.g. a
-  missing media reference). For an in-course duplicate these should be rare (the
-  source lives in the same DB); the service treats a hard serialization failure as
-  a rollback+error, and benign problems (already-missing media) degrade the same
-  way the source already renders. This path is covered by a test.
+- **Atomicity** → the whole duplicate runs in `transaction.atomic`. `build_export`
+  and the importer's `_run_import` each open their **own inner** `atomic`; these
+  nest under the service's outer block as savepoints, so a failure in either inner
+  block still rolls the entire duplicate back — leaving the tree untouched (no
+  partial unit, no orphaned elements or child rows).
+- **Missing-media elements must not be dropped.** `build_export`'s normal walk
+  *degrades* missing media: an element whose file is absent on disk is either
+  excluded from the serialized output (missing video → `status="dropped"`) or
+  replaced with a synthetic placeholder (missing image). For a **shared-row** in-DB
+  duplicate that is wrong — it would make the copy lose or alter elements the source
+  still has. Because duplicate-mode references the existing `MediaAsset` rows and
+  never reads files, on-disk presence is irrelevant, so the serialization used for
+  duplication runs in a **non-dropping mode** — a flag on `build_export`
+  (`drop_missing_media=False`) that keeps every element and preserves its existing
+  asset reference verbatim. Covered by a test (a unit whose media file is absent
+  duplicates with the element intact — see Testing).
+- **Genuine failures → rollback.** A hard serialization/materialize failure — a real
+  exception, not a media `problem` — is wrapped by the importer's `_run_import` as a
+  `TransferError`; the service lets it propagate to roll the whole duplicate back,
+  and the view maps it to an error response (see the view's `TransferError`
+  handling above). Missing media does **not** raise (it is reported via `problems` /
+  handled by the non-dropping mode), so it is never a rollback trigger.
 
 ## Testing
 
 - **Service tests** (`courses/tests/…`):
   - Duplicating a rich unit — a question element with child rows (e.g. choices), a
     container element with nested children (tabs/two-column), and a media-bearing
-    element — yields a new `ContentNode` distinct from the source with **equal**
-    element and child-row counts and equivalent structure.
+    element, **with all media files present on disk** — yields a new `ContentNode`
+    distinct from the source with **equal** element and child-row counts and
+    equivalent structure. (The count-equality assertion assumes a clean source with
+    no broken/dangling elements.)
+  - Duplicating a unit whose media file is **absent** on disk: the copy still
+    contains that element, referencing the same `MediaAsset` row (ties to the
+    non-dropping-mode constraint in Error handling) — no element is lost or
+    replaced with a placeholder.
   - The copy's media-bearing elements reference the **same** `MediaAsset` pks as
     the source (share-media assertion), and no new `MediaAsset` rows are created.
   - The copy is placed at `source.order + 1` within the same parent; siblings
