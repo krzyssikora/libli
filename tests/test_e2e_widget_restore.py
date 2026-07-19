@@ -153,3 +153,50 @@ def test_dragimage_overlay_restores_incorrect_and_stays_editable(live_server, pa
     page.locator('.dnd__chip[data-token="Heart"]').drag_to(targets.nth(0))
     expect(page.locator(".dragimage__target").nth(0)).to_have_text("Heart")
     assert page.locator('select[name="slot"]').nth(0).input_value() == "Heart"
+
+
+def _seed_dragfill_lesson(username, slug):
+    # One import per line (ruff force-single-line); keep sorted.
+    from courses.models import ContentNode
+    from courses.models import Course
+    from courses.models import DragBlank
+    from courses.models import DragFillBlankQuestionElement
+    from courses.models import Element
+    from courses.models import Enrollment
+
+    user = make_verified_user(
+        username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
+    )
+    course = Course.objects.create(title="C", slug=slug, language="en")
+    Enrollment.objects.create(student=user, course=course)
+    unit = ContentNode.objects.create(
+        course=course, kind="unit", unit_type="lesson", title="U"
+    )
+    q = DragFillBlankQuestionElement.objects.create(
+        stem="Cap is ￿0￿", distractors="Rome"
+    )
+    DragBlank.objects.create(question=q, correct_token="Paris")
+    el = Element.objects.create(unit=unit, content_object=q)
+    return course, unit, el
+
+
+@pytest.mark.django_db(transaction=True)
+def test_dragfill_inline_slot_restores_after_reload(live_server, page):
+    course, unit, el = _seed_dragfill_lesson("wr_df", "wr-df")
+    _login(page, live_server, "wr_df")
+    page.goto(_lesson_url(live_server, course, unit))
+
+    # Real drag: chip 'Paris' onto the inline drop-slot.
+    page.locator('.dnd__chip[data-token="Paris"]').drag_to(
+        page.locator(".dnd__slot").first
+    )
+    assert page.locator('select[name="slot"]').input_value() == "Paris"
+    with page.expect_response(lambda r: "/check/" in r.url):
+        page.locator('.question__form button[type="submit"]').click()
+
+    page.reload()
+    page.wait_for_selector(".dnd__slot")
+    # The VISIBLE inline slot (buildInlineSlots seeds it from sel.value on boot)
+    # shows the restored token.
+    expect(page.locator(".dnd__slot").first).to_have_text("Paris")
+    assert page.locator('select[name="slot"]').input_value() == "Paris"
