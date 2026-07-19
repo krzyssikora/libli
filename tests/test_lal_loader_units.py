@@ -148,6 +148,27 @@ def test_build_numeric(tmp_path):
     assert obj.value == Decimal("2.5")
 
 
+def test_build_numeric_with_points_sets_max_marks(tmp_path):
+    course = CourseFactory()
+    unit = _unit(course)
+    obj = build_element(
+        course,
+        unit,
+        {
+            "type": "numeric",
+            "stem": "<p>n</p>",
+            "value": "2.5",
+            "tolerance": "0",
+            "points": "0.5",
+        },
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert isinstance(obj, ShortNumericQuestionElement)
+    assert obj.max_marks == Decimal("0.5")
+
+
 def test_build_shorttext(tmp_path):
     course = CourseFactory()
     unit = _unit(course)

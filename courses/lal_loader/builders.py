@@ -79,7 +79,9 @@ def build_element(course, unit, el, *, source_root, source_dir, allow_html):
                     "shorten or split the option (Choice fields are varchar(500))"
                 )
         q = ChoiceQuestionElement.objects.create(
-            stem=el["stem"], multiple=bool(el.get("multiple"))
+            stem=el["stem"],
+            multiple=bool(el.get("multiple")),
+            **_max_marks_kwargs(el),
         )
         for c in el["choices"]:
             Choice.objects.create(
@@ -96,6 +98,7 @@ def build_element(course, unit, el, *, source_root, source_dir, allow_html):
                 stem=el["stem"],
                 value=Decimal(el["value"]),
                 tolerance=Decimal(el.get("tolerance", "0")),
+                **_max_marks_kwargs(el),
             ),
         )
     if etype == "shorttext":
@@ -105,9 +108,18 @@ def build_element(course, unit, el, *, source_root, source_dir, allow_html):
                 stem=el["stem"],
                 accepted="\n".join(el["accepted"]),
                 case_sensitive=bool(el.get("case_sensitive")),
+                **_max_marks_kwargs(el),
             ),
         )
     raise LoaderError(f"unknown element type {etype!r} in unit {unit.pk}")
+
+
+def _max_marks_kwargs(el):
+    # "points" (from the quiz `(N)` DSL) sets max_marks; absent -> model default.
+    points = el.get("points")
+    if points is None:
+        return {}
+    return {"max_marks": Decimal(points)}
 
 
 def _attach(unit, obj):

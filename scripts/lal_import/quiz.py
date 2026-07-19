@@ -12,6 +12,7 @@ from scripts.lal_import.numbers import normalize_numeric
 
 _OPTION = re.compile(r"^\s*([\[(])\s*([ xX]?)\s*[\])]\s*(.*)$")
 _HINT = re.compile(r"\{\{\s*(\w+)\s*:\s*(.*?)\s*\}\}\s*$", re.DOTALL)
+_POINTS = re.compile(r"^\(\s*(\d+(?:[.,]\d+)?)\s*\)$")
 _STEM_STRIP_TAGS = {"img", "table", "figure", "iframe", "h2"}
 
 
@@ -37,20 +38,19 @@ def parse_quiz(html):
     questions, flags = [], []
     cur = _new_q()
 
-    def flush():
-        nonlocal cur
+    def flush(cur):
         el, qflags = _finish(cur)
         if el is not None:
             questions.append(el)
         flags.extend(qflags)
-        cur = _new_q()
+        return _new_q()
 
     for node in root.children:
         if isinstance(node, Comment):
             # <!-- Zadanie N --> is an authoritative question boundary (spec §6).
             # bs4 stringifies a Comment to its inner text (no markers), so it MUST
             # be caught here structurally, never string-matched in _consume_line.
-            flush()
+            cur = flush(cur)
             continue
         if isinstance(node, Tag):
             if node.name in _STEM_STRIP_TAGS:
@@ -71,7 +71,7 @@ def parse_quiz(html):
                 continue
             if node.name in {"p", "div"}:
                 if cur["answers_seen"]:  # boundary: stem after answers
-                    flush()
+                    cur = flush(cur)
                 cur["stem_html"].append(str(node))  # already escaped
             continue
         if not isinstance(node, NavigableString):
@@ -79,8 +79,8 @@ def parse_quiz(html):
         for line in str(node).splitlines():
             if not line.strip():
                 continue
-            _consume_line(line, cur, flags)
-    flush()
+            cur = _consume_line(line, cur, flags, flush)
+    flush(cur)
     return questions, flags
 
 
@@ -91,10 +91,15 @@ def _new_q():
         "answers": [],
         "answers_seen": False,
         "bracket": None,
+        "points": None,
     }
 
 
-def _consume_line(line, cur, flags):
+def _consume_line(line, cur, flags, flush):
+    pm = _POINTS.match(line.strip())
+    if pm:
+        cur["points"] = pm.group(1).replace(",", ".")
+        return cur
     m = _OPTION.match(line)
     if m:
         cur["answers_seen"] = True
@@ -117,13 +122,25 @@ def _consume_line(line, cur, flags):
         cur["options"].append(
             {"text": text, "is_correct": is_correct, "feedback": feedback}
         )
-        return
+        return cur
     if line.lstrip().startswith("="):
         cur["answers_seen"] = True
         cur["answers"].append(line.lstrip()[1:].strip())
-        return
+        return cur
     # Comments are handled structurally in parse_quiz (bs4 Comment nodes), never here.
-    flags.append(_flag("unmatched_dsl", "line matched no DSL shape", line))
+    # Any other bare-text line is stem prose (Q1), not an unmatched-DSL error. A
+    # bare NavigableString line has entities DECODED (literal '<'); the |safe stem
+    # needs the entity form, so re-escape before folding it in.
+    if cur["answers_seen"]:  # boundary: stem after answers, mirrors <p>/<div>
+        cur = flush(cur)
+    cur["stem_html"].append("<p>" + escape_math_delimited(line.strip()) + "</p>")
+    return cur
+
+
+def _with_points(d, cur):
+    if cur["points"] is not None:
+        d["points"] = cur["points"]
+    return d
 
 
 def _finish(cur):
@@ -155,28 +172,37 @@ def _finish(cur):
     if has_choice:
         multiple = cur["bracket"] == "["
         return (
-            {
-                "type": "choice",
-                "stem": stem,
-                "multiple": multiple,
-                "choices": cur["options"],
-            },
+            _with_points(
+                {
+                    "type": "choice",
+                    "stem": stem,
+                    "multiple": multiple,
+                    "choices": cur["options"],
+                },
+                cur,
+            ),
             flags,
         )
     if has_fill:
         num = normalize_numeric(cur["answers"][0])
         if num is not None and len(cur["answers"]) == 1:
             return (
-                {"type": "numeric", "stem": stem, "value": num, "tolerance": "0"},
+                _with_points(
+                    {"type": "numeric", "stem": stem, "value": num, "tolerance": "0"},
+                    cur,
+                ),
                 flags,
             )
         return (
-            {
-                "type": "shorttext",
-                "stem": stem,
-                "accepted": cur["answers"],
-                "case_sensitive": False,
-            },
+            _with_points(
+                {
+                    "type": "shorttext",
+                    "stem": stem,
+                    "accepted": cur["answers"],
+                    "case_sensitive": False,
+                },
+                cur,
+            ),
             flags,
         )
     if stem.strip():

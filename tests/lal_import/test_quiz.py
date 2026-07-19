@@ -82,3 +82,47 @@ def test_choice_math_stored_literal_for_autoescape():
     # decodes it), so the autoescaped choice template renders it correctly.
     qs, _ = parse_quiz(r"<p>Q</p>" + "\n[x] \\(y<z\\)\n")
     assert qs[0]["choices"][0]["text"] == r"\(y<z\)"  # literal <, not &lt;
+
+
+def test_bare_stem_line_before_options_no_unmatched_dsl():
+    # Q1(a): a bare-text line before any answer DSL is stem prose, not a flag.
+    qs, flags = parse_quiz("Wybierz wszystkie\n[x] a\n")
+    assert not any(f["kind"] == "unmatched_dsl" for f in flags)
+    assert len(qs) == 1
+    assert qs[0]["type"] == "choice"
+    assert "Wybierz wszystkie" in qs[0]["stem"]
+
+
+def test_bare_math_stem_line_before_numeric_answer():
+    # Q1(b): a bare display-math line before `= N` folds into the stem.
+    qs, flags = parse_quiz(r"\[(-7,-2\rangle\]" + "\n= 1\n")
+    assert not any(f["kind"] == "unmatched_dsl" for f in flags)
+    assert qs[0]["type"] == "numeric"
+    assert r"\[(-7,-2\rangle\]" in qs[0]["stem"]
+
+
+def test_bare_stem_line_math_lt_gt_entity_escaped():
+    # Q1: a bare NavigableString line has entities DECODED (literal '<'); folding
+    # it into the |safe stem requires re-escaping to the entity form.
+    qs, _ = parse_quiz(r"\[a<b\]" + "\n= 1\n")
+    assert r"\[a&lt;b\]" in qs[0]["stem"]
+
+
+def test_bare_stem_line_after_answers_starts_new_question():
+    # Q1: mirrors the existing <p>-after-answers boundary rule for bare text.
+    qs, flags = parse_quiz("<p>Q1</p>\n[x] a\nQ2 bare stem\n[x] b\n")
+    assert len(qs) == 2
+    assert qs[0]["type"] == "choice" and qs[1]["type"] == "choice"
+    assert "Q2 bare stem" in qs[1]["stem"]
+    assert not any(f["kind"] == "unmatched_dsl" for f in flags)
+
+
+def test_point_value_line_sets_points_no_unmatched_dsl():
+    qs, flags = parse_quiz("<p>Q</p>\n[x] a\n(0.5)\n")
+    assert qs[0]["points"] == "0.5"
+    assert not any(f["kind"] == "unmatched_dsl" for f in flags)
+
+
+def test_point_value_line_comma_normalized():
+    qs, _ = parse_quiz("<p>Q</p>\n[x] a\n(0,5)\n")
+    assert qs[0]["points"] == "0.5"
