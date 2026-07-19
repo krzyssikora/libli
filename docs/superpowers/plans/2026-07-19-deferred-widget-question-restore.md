@@ -448,6 +448,17 @@ def test_restore_drag_stale_slot_list_is_bounded(client):
     assert resp.status_code == 200
 
 
+# Position-scoping helper (module-level). Every drag/match slot renders its OWN
+# `<select name="slot">` holding the FULL pool, so a global `"value=X selected" in body`
+# only proves X is selected SOMEWHERE — it cannot tell slot 0 from slot 1 and so cannot
+# detect a positional shift/compaction. These helpers isolate each slot's own <select>
+# markup (in document = slot order) so the alignment assertions actually pin position.
+def _slot_options(body):
+    # One chunk per <select name="slot">, in slot order, truncated at that select's close.
+    chunks = body.split('<select name="slot"')[1:]  # [0] is the pre-first-select prefix
+    return [c.split("</select>")[0] for c in chunks]
+
+
 def test_restore_dragimage_partial_answer_aligns_positionally(client):
     # Restore-leg alignment: an aligned partial blob ["", "Lung"] must pre-select Lung on
     # slot 2 and leave slot 1 on the blank placeholder — NOT shift Lung onto slot 1.
@@ -457,9 +468,10 @@ def test_restore_dragimage_partial_answer_aligns_positionally(client):
     DragZone.objects.create(question=q, correct_label="Heart", x=0.1, y=0.1, w=0.3, h=0.3, order=0)
     DragZone.objects.create(question=q, correct_label="Lung", x=0.6, y=0.6, w=0.3, h=0.3, order=1)
     _seed(unit, student, q, {"answer": ["", "Lung"]})
-    body = client.get(_lesson_url(unit)).content.decode()
-    assert 'value="Lung" selected' in body       # slot 2 restored
-    assert 'value="Heart" selected' not in body  # slot 1 did NOT get slot 2's token
+    slots = _slot_options(client.get(_lesson_url(unit)).content.decode())
+    assert len(slots) == 2
+    assert "selected" not in slots[0]              # slot 1 stays on the blank placeholder
+    assert 'value="Lung" selected' in slots[1]     # slot 2 restored to Lung, in its OWN select
 
 
 def test_restore_matchpair_partial_answer_aligns_positionally(client):
@@ -468,20 +480,23 @@ def test_restore_matchpair_partial_answer_aligns_positionally(client):
     MatchPair.objects.create(question=q, left="Heart", right="cardiac")
     MatchPair.objects.create(question=q, left="Kidney", right="renal")
     _seed(unit, student, q, {"answer": ["", "renal"]})
-    body = client.get(_lesson_url(unit)).content.decode()
-    assert 'value="renal" selected' in body
-    assert 'value="cardiac" selected' not in body
+    slots = _slot_options(client.get(_lesson_url(unit)).content.decode())
+    assert len(slots) == 2
+    assert "selected" not in slots[0]              # row 1 stays on the placeholder
+    assert 'value="renal" selected' in slots[1]    # row 2 restored, in its OWN select
 
 
 def test_restore_dragfill_partial_answer_aligns_positionally(client):
+    q_stem = "￿0￿ and ￿1￿"  # two U+FFFF gap markers — preserve byte-for-byte
     student, course, unit = _enrolled(client)
-    q = DragFillBlankQuestionElement.objects.create(stem="￿0￿ and ￿1￿", distractors="Rome")
+    q = DragFillBlankQuestionElement.objects.create(stem=q_stem, distractors="Rome")
     DragBlank.objects.create(question=q, correct_token="Paris")
     DragBlank.objects.create(question=q, correct_token="Madrid")
     _seed(unit, student, q, {"answer": ["", "Madrid"]})
-    body = client.get(_lesson_url(unit)).content.decode()
-    assert 'value="Madrid" selected' in body
-    assert 'value="Paris" selected' not in body
+    slots = _slot_options(client.get(_lesson_url(unit)).content.decode())
+    assert len(slots) == 2
+    assert "selected" not in slots[0]              # gap 1 stays on the placeholder
+    assert 'value="Madrid" selected' in slots[1]   # gap 2 restored, in its OWN select
 
 
 def test_restore_grid_empty_blob_renders_blank(client):
@@ -535,7 +550,7 @@ Expected: **PASS**.
 - [ ] **Step 3: Falsify the render bounds guard and the alignment**
 
 - Temporarily edit `courses/templatetags/courses_extras.py:164` from `sv[i] if i < len(sv) else ""` to `sv[i]` and re-run `-k fewer_stored_entries` → must **500/IndexError** (proving the guard is load-bearing and that `obj.render()` is outside the try/except). Revert.
-- Temporarily change `test_restore_dragimage_partial_answer_aligns_positionally` to seed `{"answer": ["Lung", ""]}` (mis-aligned) and re-run it → the `value="Lung" selected` on slot 2 assertion FAILS (Lung now lands on slot 1) — confirming the test pins positional consumption. Revert.
+- **Prove each partial-alignment test actually pins position** (all three — dragimage, matchpair, dragfill): temporarily swap that test's seed from `["", "<token>"]` to the mis-aligned `["<token>", ""]` (token on slot 0) and re-run it → `assert "selected" not in slots[0]` must FAIL (the token is now selected in slot 0's own `<select>`), confirming the per-slot scoping detects a positional shift. Revert each. (A global-substring version of these assertions would stay GREEN under this swap — that is the vacuous form the `_slot_options` helper exists to avoid.)
 
 - [ ] **Step 4: Commit**
 
