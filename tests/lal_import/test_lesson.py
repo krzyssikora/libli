@@ -119,3 +119,78 @@ def test_spoiler_body_preserves_escaped_math():
     elements, _ = parse_lesson(html, "x.html")
     sp = next(e for e in elements if e["type"] == "spoiler")
     assert r"\(a&lt;b\)" in sp["body"]  # entity preserved, not literal <
+
+
+def test_r1_generic_question_div_descends_into_children():
+    html = r'<div id="question10"><p>hi \(x<y\)</p></div>'
+    elements, flags = parse_lesson(html, "x.html")
+    assert [e["type"] for e in elements] == ["text"]
+    assert flags == []
+
+
+def test_r2_question_text_div_becomes_text_element():
+    html = r'<div class="question_text">Jak obliczyć \(a<b\)?</div>'
+    elements, _ = parse_lesson(html, "x.html")
+    text = next(e for e in elements if e["type"] == "text")
+    assert r"\(a&lt;b\)" in text["body"]
+
+
+def test_r3_reveal_table_becomes_spoilers_per_row():
+    html = (
+        '<table class="my_table_TL">'
+        "<tr><td>Suma zbiorów</td>"
+        '<td class="question_answer"></td>'
+        '<td><div class="show_solution ks_button">zobacz</div></td>'
+        '<td><div class="question_solution hidden">A ∪ B</div></td></tr>'
+        "<tr><td>Iloczyn zbiorów</td>"
+        '<td class="question_answer"></td>'
+        '<td><div class="show_solution ks_button">zobacz</div></td>'
+        '<td><div class="question_solution hidden">A ∩ B</div></td></tr>'
+        "</table>"
+    )
+    elements, _ = parse_lesson(html, "x.html")
+    spoilers = [e for e in elements if e["type"] == "spoiler"]
+    assert len(spoilers) == 2
+    assert spoilers[0]["label"] == "Suma zbiorów"
+    assert spoilers[1]["label"] == "Iloczyn zbiorów"
+
+
+def test_r3_plain_data_table_still_maps_to_table_element():
+    html = "<table><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>"
+    elements, _ = parse_lesson(html, "x.html")
+    assert [e["type"] for e in elements] == ["table"]
+
+
+def test_r4_details_becomes_spoiler():
+    html = r"<details><summary>obliczenia</summary><p>\(a<b\)</p></details>"
+    elements, _ = parse_lesson(html, "x.html")
+    sp = next(e for e in elements if e["type"] == "spoiler")
+    assert sp["label"] == "obliczenia"
+    assert r"\(a&lt;b\)" in sp["body"]
+    assert "obliczenia" not in sp["body"]
+
+
+def test_r5_bare_display_math_text_node_becomes_math_element():
+    html = r"<p>a</p>\[p\Rightarrow q\]<p>b</p>"
+    elements, _ = parse_lesson(html, "x.html")
+    math_els = [e for e in elements if e["type"] == "math"]
+    assert len(math_els) == 1
+    assert math_els[0]["latex"] == r"p\Rightarrow q"
+
+
+def test_r6_h1_small_h5_become_text_and_hr_is_skipped():
+    elements, flags = parse_lesson('<h1 class="heading">T</h1>', "x.html")
+    assert flags == []
+    text = next(e for e in elements if e["type"] == "text")
+    assert "T" in text["body"]
+
+    elements, flags = parse_lesson("<hr/>", "x.html")
+    assert elements == []
+    assert flags == []
+
+
+def test_r7_figure_with_iframe_becomes_iframe_element():
+    html = '<figure><iframe src="https://www.geogebra.org/x"></iframe></figure>'
+    elements, flags = parse_lesson(html, "x.html")
+    assert [e["type"] for e in elements] == ["iframe"]
+    assert flags == []
