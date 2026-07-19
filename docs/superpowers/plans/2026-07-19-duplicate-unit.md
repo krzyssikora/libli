@@ -841,18 +841,18 @@ Run: `uv run python manage.py compilemessages`
 Run: `uv run pytest tests/test_manage_duplicate_button.py -v`
 Expected: all PASS.
 
-- [ ] **Step 7: Run the i18n catalog tests (no obsolete/fuzzy regressions)**
+- [ ] **Step 7: Run the i18n catalog cleanliness tests (no obsolete/fuzzy regressions)**
 
-First **locate** the real catalog test (do not guess a `-k` filter — a wrong guess makes pytest exit 5 "no tests collected", which looks like a pass):
+Locate the tests that assert the PL catalog has no fuzzy/obsolete entries **by their assertion content** — do not grep for `catalog`, which matches a decoy page-translation test (`tests/test_i18n_catalog.py`) that verifies nothing about `.po` cleanliness:
 
 ```bash
-grep -rlE "fuzzy|#~|obsolete|\.po|LC_MESSAGES|catalog" tests/
+grep -rlnE "#, fuzzy|#~|not in text" tests/
 ```
 
-Run the identified test file directly, e.g.:
+At the time of writing these are `tests/test_i18n_auth.py` (`test_po_catalog_clean`), `tests/test_i18n_notes.py`, and `tests/test_tags_i18n.py`. Run the ones the grep surfaces directly, e.g.:
 
-Run: `uv run pytest <the-catalog-test-file> -v`
-Expected: PASS, and pytest reports **collected > 0** (an exit code of 5 / "no tests ran" means you ran the wrong file — find the right one; do not treat it as success). These tests assert no `#~` obsolete entries and no stray fuzzy flags across EN+PL.
+Run: `uv run pytest tests/test_i18n_auth.py tests/test_i18n_notes.py tests/test_tags_i18n.py -v`
+Expected: PASS, and pytest reports **collected > 0** (exit code 5 / "no tests ran" means you ran the wrong file — find the right one; do not treat it as success). These assert the **PL** catalog (`locale/pl/LC_MESSAGES/django.po`) has no `#~` obsolete entries and no stray `#, fuzzy` flags; **EN** cleanliness is covered only by the manual `git diff` review in Step 5.
 
 - [ ] **Step 8: Commit**
 
