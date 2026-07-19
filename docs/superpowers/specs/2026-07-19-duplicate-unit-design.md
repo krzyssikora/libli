@@ -52,16 +52,24 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
    (new, `courses/builder.py`), wrapped in `transaction.atomic`.
    - Takes `node_pk` (not a pre-fetched node) and **re-fetches the source under a
      row lock inside the atomic** via `_locked_node(course, node_pk)`
-     (`select_for_update`), then token-checks the locked row — matching
-     `delete_node` / `reorder_node` exactly, so neither the token check nor the
-     subsequent `build_export` serialization of the source can race a concurrent
+     (`select_for_update`), then token-checks the locked row with `_check_token` —
+     matching `delete_node` / `reorder_node` exactly, so neither the token check nor
+     the subsequent `build_export` serialization of the source can race a concurrent
      writer.
-   - Guards: `node.kind == "unit"` (defense-in-depth — the view already rejects
-     non-units with 404, so this guard is effectively an assertion; if reached it
-     raises `ValueError`, which the whole-body wrapper then normalizes rather than
-     500-ing); caller already access-checked in the view; and
-     the optimistic-concurrency token (`node.updated.isoformat()`) matched via the
-     existing `_check_token` helper (409 on stale) — consistent with the sibling
+   - **Error boundary (precise).** `_locked_node` + `_check_token` run **first**, and
+     both raise `ConflictError` (lock conflict / stale token) which must propagate
+     **unwrapped** to the view's existing 409 mapping. Only **after** those two steps
+     does the normalizing `try/except` region begin — wrapping the kind-guard +
+     `build_export` + materialize + `place_node`. That handler **re-raises
+     `ConflictError` unwrapped** (defensively, in case a nested op raises one) and
+     normalizes every **other** exception to `TransferError` (→ 422). This is what
+     lets the stale-token → 409 path and the failure → 422 path coexist.
+   - Guards: `node.kind == "unit"` — defense-in-depth (the view already rejects
+     non-units with 404, so this guard is normally unreachable). If reached it raises
+     `ValueError`; because that sits **inside** the normalizing region it becomes a
+     `TransferError` (→ 422), never a raw 500. The caller is already access-checked in
+     the view. The token itself (`node.updated.isoformat()`) is validated by
+     `_check_token` per the error-boundary bullet above — consistent with the sibling
      node-ops (`reorder_node`, `reparent_node`, `delete_node`).
    - Serializes the unit in-memory: `transfer.export.build_export(course, node)`.
    - Materializes via a **duplicate-mode** path through the importer that (a)
@@ -105,8 +113,10 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
    insertion_node)` — no `user` parameter, since duplicate-mode bypasses
    `_create_media` and neither `_create_nodes` nor `_create_elements` consumes it)
    added alongside `import_subtree`, so the normal cross-course import path is
-   untouched. The two-pass ordering rebuild and all
-   per-type `BUILDERS` are reused verbatim.
+   untouched. The service passes `insertion_node = source.parent` (which is `None`
+   for a top-level unit); `_create_nodes` roots the new node there, and `place_node`
+   (§1) authoritatively fixes the final parent/order afterward. The two-pass ordering
+   rebuild and all per-type `BUILDERS` are reused verbatim.
 
    Rationale for this seam over a standalone deep-copy: it keeps a single
    authoritative per-type copy path. As new element types are added, only the
@@ -128,7 +138,9 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
      builder.js swaps and annotates — mirroring `node_move`'s reorder-conflict
      branch. Without JS, on success redirect to `manage_builder`, and on a 409 render
      `_builder_with_notice(..., status=409)`.
-   - Rejects non-unit nodes (404/400) and stale tokens (409). A `TransferError` from
+   - Rejects non-unit nodes with **404** (`raise Http404` when the resolved node's
+     `kind != "unit"`, alongside the `get_node_or_404` fetch) and stale tokens (409).
+     A `TransferError` from
      the materialize step (see Error handling) is caught and pinned to **HTTP 422** —
      the JS branch renders `_op_error.html` (mirroring the ValidationError path of
      `node_add` / `node_move`, which builder.js surfaces as a notice), and the no-JS
@@ -215,8 +227,9 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
 
 ## Error handling
 
-- **Non-unit node** → the view rejects it (the button is never rendered for
-  non-units, but the endpoint guards server-side anyway): 404/400, no mutation.
+- **Non-unit node** → the view rejects it with **404** (`Http404`; the button is
+  never rendered for non-units, but the endpoint guards server-side anyway), no
+  mutation.
 - **Stale token** (source unit changed since the tree was rendered) → 409, no
   mutation, consistent with `reorder_node`/`delete_node`. The author reloads and
   retries.
@@ -254,11 +267,13 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
   *after*, both inside the service's outer atomic yet **outside** `_run_import`, so
   their exceptions would not be `TransferError` — and the view (which catches only
   `TransferError`) would surface a raw 500 that builder.js ignores. To close this,
-  `duplicate_unit` wraps its **entire body** (build_export + materialize +
-  place_node) so any unexpected exception is normalized to `TransferError`, which the
-  view maps to 422; the whole duplicate rolls back atomically. Missing media does
-  **not** raise (it is handled by the non-dropping mode), so it is never a rollback
-  trigger.
+  `duplicate_unit` wraps the region **after** the lock/token check (kind-guard +
+  build_export + materialize + place_node) in a normalizing `try/except` that
+  **re-raises `ConflictError` unwrapped** (preserving the stale-token → 409 path) and
+  normalizes every other exception to `TransferError`, which the view maps to 422;
+  the whole duplicate rolls back atomically. Missing media does **not** raise (it is
+  handled by the non-dropping mode), so it is never a rollback trigger. (See §1's
+  "Error boundary" bullet for the exact ordering.)
 
 ## Testing
 
