@@ -416,8 +416,9 @@ def _seed_dragfill(unit, student, *, chosen="Rome"):  # "Rome": in-pool distract
     return q, row
 
 
-def _seed_dragimage(unit, student, *, answer=("Lung", "Heart")):
-    # swapped -> both wrong, both in pool
+def _seed_dragimage(unit, student, *, answer):
+    # `answer` is required: callers pass a wrong-but-in-pool pair (e.g. the swapped
+    # ("Lung", "Heart")) to decouple the restore signal from correct-verdict rendering.
     course = unit.course
     q = DragToImageQuestionElement.objects.create(
         media=_image(course), alt="Diagram", distractors="Liver"
@@ -601,17 +602,23 @@ def test_restore_grid_fewer_stored_entries_than_rows_is_bounded(client):
 
 def test_restore_grid_more_stored_entries_than_rows_is_bounded(client):
     # A row DELETED after save (stored list longer than current rows): render iterates
-    # rows and ignores the extra entry — 200, no crash (a later cell MAY show a
-    # neighbour's answer; that bounded misfill is accepted, verdict re-derived on load).
+    # rows, consuming stored entries POSITIONALLY and dropping the extra tail entry —
+    # 200, no crash. Two rows + three stored entries exercises the positional
+    # consumption (sv[0]->row1, sv[1]->row2) AND the tail drop, not merely "no crash".
     student, course, unit = _enrolled(client)
     q = ChoiceGridQuestionElement.objects.create(stem="Q")
     col_a = GridColumn.objects.create(question=q, label="A")
-    GridRow.objects.create(question=q, statement="r1", correct_column=col_a)  # 1 row
-    _seed(
-        unit, student, q, {"answer": [col_a.pk, col_a.pk, col_a.pk]}
-    )  # 3 stored entries
+    col_b = GridColumn.objects.create(question=q, label="B")
+    row1 = GridRow.objects.create(question=q, statement="r1", correct_column=col_a)
+    row2 = GridRow.objects.create(question=q, statement="r2", correct_column=col_a)
+    # 3 stored entries for the 2 surviving rows (a third row was deleted after save).
+    _seed(unit, student, q, {"answer": [col_a.pk, col_b.pk, col_a.pk]})
     resp = client.get(_lesson_url(unit))
     assert resp.status_code == 200
+    body = resp.content.decode()
+    # Each surviving row shows its OWN positional stored column; 3rd entry dropped.
+    assert f'name="row_{row1.pk}" value="{col_a.pk}" checked' in body
+    assert f'name="row_{row2.pk}" value="{col_b.pk}" checked' in body
 
 
 def test_restore_drag_stale_slot_list_is_bounded(client):
