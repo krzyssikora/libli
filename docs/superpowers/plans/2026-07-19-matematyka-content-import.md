@@ -13,7 +13,7 @@
 Every task's requirements implicitly include this section. Values are copied verbatim from the spec (`docs/superpowers/specs/2026-07-19-matematyka-content-import-design.md`).
 
 - **Zero `HtmlElement` is the goal.** An unmapped fragment is emitted as `{"type":"html","flagged":true,"raw":…,"reason":…}` AND logged to `flags.json`; the loader refuses to write it unless `--allow-html` is passed. Never ship an HTML blob silently.
-- **Math delimiters are unchanged** — `\( … \)` inline, `\[ … \]` display (libli's KaTeX uses the same delimiters). **But** `<`/`>` inside any `\(…\)` or `\[…\]` span MUST be entity-escaped (`<`→`&lt;`, `>`→`&gt;`). **Ordering is critical: the escape MUST run on the RAW HTML string BEFORE constructing the `BeautifulSoup` object** — `html.parser` tokenizes a literal `<` inside `\(y<z\)` as a stray start-tag and irreversibly mangles the DOM, so escaping `str(node)` afterwards is too late. Every parser entry point that builds a soup (`parse_lesson`, `parse_quiz`) escapes its `html` argument as its first statement; downstream functions (`table_element`, and all `str(node)` extraction) then see already-escaped markup and MUST NOT re-escape (escaping is idempotent on already-`&lt;` content, but the invariant is "escape once, at the raw boundary"). Fields that end up sanitized by nh3: `TextElement.body`, `SpoilerElement.body`, table cell `html`, `QuestionElement.stem`. NOT sanitized, stored raw: `MathElement.latex`, `Choice.text`, `Choice.feedback` (their math needs no escaping, but pre-escaping the whole file is harmless for them).
+- **Math delimiters are unchanged** — `\( … \)` inline, `\[ … \]` display (libli's KaTeX uses the same delimiters). **But** `<`/`>` inside any `\(…\)` or `\[…\]` span MUST be entity-escaped (`<`→`&lt;`, `>`→`&gt;`). **Ordering is critical: the escape MUST run on the RAW HTML string BEFORE constructing the `BeautifulSoup` object** — `html.parser` tokenizes a literal `<` inside `\(y<z\)` as a stray start-tag and irreversibly mangles the DOM, so escaping `str(node)` afterwards is too late. Every parser entry point that builds a soup (`parse_lesson`, `parse_quiz`) escapes its `html` argument as its first statement; downstream functions (`table_element`, and all `str(node)` extraction) then see already-escaped markup and MUST NOT re-escape (escaping is idempotent on already-`&lt;` content, but the invariant is "escape once, at the raw boundary"). Fields that end up sanitized by nh3 (and rendered `|safe`): `TextElement.body`, `SpoilerElement.body`, table cell `html`, `QuestionElement.stem` — these must hold the **escaped entity** `\(y&lt;z\)`. NOT sanitized: `MathElement.latex` (raw LaTeX), and `Choice.text`/`Choice.feedback`, which the choice templates render **autoescaped** (`{{ c.text }}`, no `|safe`) — these must hold the **literal** `\(y<z\)` so Django's autoescape produces the single correct `\(y&lt;z\)`. This falls out of bs4 automatically: a stem comes from `str(Tag)`, which **re-escapes** to `\(y&lt;z\)`; a choice option comes from a bare-text `str(NavigableString)`, which **decodes** back to literal `\(y<z\)`. So the one pre-escape at the raw boundary yields the right stored form for *both* field classes — no per-field unescape is needed. (Locked by tests in Tasks 8 and 14.)
 - **File ordering:** integer value of the *first maximal run of digits* in the filename, ascending; tie-break lexicographic on the full filename. Duplicate token → deterministic tie-break + a `flags.json` warning.
 - **Node identity is positional at every level** including Part: Part = `(course, part.order)` where `part.order` = folder index in the sorted 3-digit-folder list; chapter/unit = `(parent, order)`. `title`/`kind`/`unit_type` updated in place. No new `ContentNode` field.
 - **Elements are rebuilt, not upserted:** on each load the loader deletes a unit's existing `Element`s + concrete rows, then recreates from JSON in array order (`Element.order` is an auto-assigning `OrderField(for_fields=["unit"])`).
@@ -633,6 +633,29 @@ def test_iframe_url_kept():
     elements, _ = parse_lesson(html, "x.html")
     frame = next(e for e in elements if e["type"] == "iframe")
     assert "geogebra.org" in frame["url"]
+
+def test_sole_block_display_math_becomes_mathelement():
+    elements, _ = parse_lesson(r"<p>\[a<b\]</p>", "x.html")
+    assert elements[0]["type"] == "math"
+    assert elements[0]["latex"] == r"a<b"          # literal, for [data-katex]
+
+def test_mid_paragraph_display_math_stays_text():
+    elements, _ = parse_lesson(r"<p>Wynik: \[x\] gotowe</p>", "x.html")
+    assert elements[0]["type"] == "text"           # not a sole \[...\] block
+
+def test_relative_href_is_flagged():
+    elements, flags = parse_lesson('<p>zob. <a href="040_x.html">tu</a></p>', "x.html")
+    assert any(f["kind"] == "relative_href" for f in flags)
+    assert elements[0]["type"] == "text"           # text still emitted (warning only)
+
+def test_absolute_href_not_flagged():
+    _, flags = parse_lesson('<p><a href="https://x.example">t</a></p>', "x.html")
+    assert not any(f["kind"] == "relative_href" for f in flags)
+
+def test_html_comment_is_ignored():
+    elements, flags = parse_lesson("<!-- editor note --><p>a</p>", "x.html")
+    assert flags == []
+    assert [e["type"] for e in elements] == ["text"]
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -652,7 +675,9 @@ only body-level content elements map. Anything unrecognized is flagged, never
 silently dropped.
 """
 
-from bs4 import BeautifulSoup, NavigableString, Tag
+import re
+
+from bs4 import BeautifulSoup, Comment, NavigableString, Tag
 
 from scripts.lal_import.mathsafe import escape_math_delimited
 
@@ -661,11 +686,37 @@ from scripts.lal_import.mathsafe import escape_math_delimited
 _TEXT_TAGS = {"h2", "h3", "h4", "p", "ul", "ol", "blockquote", "pre"}
 _INLINE_TAGS = {"strong", "em", "b", "i", "u", "code", "a"}
 _IGNORE_TAGS = {"script", "link", "style"}
+_OK_SCHEMES = {"http", "https", "mailto"}
+# A block whose entire content is one \[...\] display span -> MathElement.
+_DISPLAY_MATH = re.compile(r"^\\\[(.*)\\\]$", re.DOTALL)
 
 
 def _flag(reason, node):
     return {"kind": "unmapped_pattern", "reason": reason,
             "raw_excerpt": str(node)[:300]}
+
+
+def _sole_block_math_latex(node):
+    """If node's whole content is a single \\[...\\] display span (no child tags),
+    return the inner LaTeX. get_text() decodes entities, so `<` comes back literal —
+    exactly what the autoescaped [data-katex] MathElement template needs."""
+    if node.name not in {"p", "div"} or node.find(True) is not None:
+        return None
+    m = _DISPLAY_MATH.match(node.get_text().strip())
+    return m.group(1) if m else None
+
+
+def _flag_relative_hrefs(node, flags):
+    """nh3 drops non-http/https/mailto <a href> silently; flag them (spec §5)."""
+    anchors = ([node] if getattr(node, "name", None) == "a" else []) + \
+        (node.find_all("a", href=True) if isinstance(node, Tag) else [])
+    for a in anchors:
+        href = a.get("href", "")
+        scheme = href.split(":", 1)[0].lower() if ":" in href else ""
+        if scheme not in _OK_SCHEMES:
+            flags.append({"kind": "relative_href",
+                          "reason": f"relative/local <a href> dropped by nh3: {href}",
+                          "raw_excerpt": str(a)[:300]})
 
 
 def _unmapped(reason, node, elements, flags):
@@ -693,6 +744,8 @@ def parse_lesson(html, source_html):
     for i, node in enumerate(children):
         if id(node) in consumed:
             continue
+        if isinstance(node, Comment):
+            continue  # HTML comments carry no content (Comment ⊂ NavigableString)
         if isinstance(node, NavigableString):
             if node.strip():
                 _unmapped("bare text node in lesson body", node, elements, flags)
@@ -706,7 +759,12 @@ def parse_lesson(html, source_html):
             continue
 
         if name in _TEXT_TAGS or name in _INLINE_TAGS:
-            elements.append({"type": "text", "body": str(node)})  # already escaped
+            latex = _sole_block_math_latex(node)
+            if latex is not None:
+                elements.append({"type": "math", "latex": latex})  # display math
+            else:
+                _flag_relative_hrefs(node, flags)  # warn on nh3-dropped hrefs (I2)
+                elements.append({"type": "text", "body": str(node)})  # already escaped
             continue
 
         if name == "figure":
@@ -1018,6 +1076,20 @@ def test_two_questions_segmented_without_comments():
     qs, _ = parse_quiz("<p>Q1</p>\n= 1\n<p>Q2</p>\n= 2\n")
     assert len(qs) == 2
     assert qs[0]["value"] == "1" and qs[1]["value"] == "2"
+
+def test_zadanie_comment_is_a_boundary_not_unmatched_dsl():
+    # bs4 Comment nodes stringify to their inner text (no <!-- markers), so they
+    # must be detected structurally — never string-matched — and never flagged.
+    html = "<!-- Zadanie 1 -->\n<p>Q1</p>\n= 1\n<!-- Zadanie 2 -->\n<p>Q2</p>\n= 2\n"
+    qs, flags = parse_quiz(html)
+    assert not any(f["kind"] == "unmatched_dsl" for f in flags)
+    assert [q["value"] for q in qs] == ["1", "2"]
+
+def test_choice_math_stored_literal_for_autoescape():
+    # C1: choice option math must be stored with a LITERAL '<' (bs4 NavigableString
+    # decodes it), so the autoescaped choice template renders it correctly.
+    qs, _ = parse_quiz(r"<p>Q</p>" + "\n[x] \\(y<z\\)\n")
+    assert qs[0]["choices"][0]["text"] == r"\(y<z\)"   # literal <, not &lt;
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1034,7 +1106,7 @@ Expected: FAIL — module not found.
 
 import re
 
-from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4 import BeautifulSoup, Comment, NavigableString, Tag
 
 from scripts.lal_import.mathsafe import escape_math_delimited
 from scripts.lal_import.numbers import normalize_numeric
@@ -1075,6 +1147,12 @@ def parse_quiz(html):
         cur = _new_q()
 
     for node in root.children:
+        if isinstance(node, Comment):
+            # <!-- Zadanie N --> is an authoritative question boundary (spec §6).
+            # bs4 stringifies a Comment to its inner text (no markers), so it MUST
+            # be caught here structurally, never string-matched in _consume_line.
+            flush()
+            continue
         if isinstance(node, Tag):
             if node.name in _STEM_STRIP_TAGS:
                 # content-loss: emit a flagged element AND a flag record (I5)
@@ -1126,8 +1204,7 @@ def _consume_line(line, cur, flags):
         cur["answers_seen"] = True
         cur["answers"].append(line.lstrip()[1:].strip())
         return
-    if line.strip().startswith("<!--"):
-        return  # Zadanie boundary comments are advisory; segmentation is structural
+    # Comments are handled structurally in parse_quiz (bs4 Comment nodes), never here.
     flags.append(_flag("unmatched_dsl", "line matched no DSL shape", line))
 
 
@@ -1284,7 +1361,7 @@ git commit -m "feat(lal-import): seed_hash canonical form + unit payload"
 
 **Interfaces:**
 - Consumes: everything above.
-- Produces: `seed_part(source_root: Path, folder: str, out_root: Path, mode: str) -> dict` where `mode ∈ {"seed","refresh-unmapped","refresh-elements","force"}`; returns the manifest dict it wrote. Writes `<out_root>/<folder>/manifest.json`, one `<unit>.json` per unit, and `flags.json`. Re-parse guard: default `seed` refuses if the folder dir already exists; `refresh-unmapped` rewrites only units with `fully_mapped==False` AND stored `seed_hash` matching a recompute; `refresh-elements` rewrites units whose `seed_hash` still matches (i.e. not hand-edited); `force` rewrites all and overwrites the manifest. **The manifest is written only by `seed`/`force`; `refresh-*` never rewrite it** (so hand-edited part/chapter/unit titles are preserved — spec §4.1, I4) and instead re-read it to return. `flags.json` is always regenerated. Also `main(argv)` argparse entry (`--source-root` required, `--json-dir`, `--refresh-unmapped`, `--refresh-elements`, `--force`, `folder` positional).
+- Produces: `seed_part(source_root: Path, folder: str, out_root: Path, mode: str) -> dict` where `mode ∈ {"seed","refresh-unmapped","refresh-elements","force"}`; returns the manifest dict it wrote. Writes `<out_root>/<folder>/manifest.json`, one `<unit>.json` per unit, and `flags.json`. Re-parse guard: default `seed` refuses if the folder dir already exists; `refresh-unmapped` rewrites only units with `fully_mapped==False` AND stored `seed_hash` matching a recompute; `refresh-elements` rewrites units whose `seed_hash` still matches (i.e. not hand-edited); `force` rewrites all and overwrites the manifest. **The manifest is written only by `seed`/`force`; `refresh-*` never rewrite it** (so hand-edited part/chapter/unit titles are preserved — spec §4.1, I4) and instead re-read it to return. `flags.json` is always regenerated from a fresh full parse; in refresh modes it can therefore still list the original parser flags of a unit that was hand-fixed (and hence NOT rewritten) — per-unit `fully_mapped` in the unit JSON is the authoritative "is this resolved" signal, `flags.json` is a coarse worklist. Also `main(argv)` argparse entry (`--source-root` required, `--json-dir`, `--refresh-unmapped`, `--refresh-elements`, `--force`, `folder` positional).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1822,6 +1899,38 @@ def test_flagged_element_refused_without_allow_html(tmp_path):
     with pytest.raises(LoaderError):
         build_element(course, unit, {"type": "html", "flagged": True, "raw": "<x/>"},
                       source_root=tmp_path, source_dir="x", allow_html=False)
+
+def test_over_500_char_choice_raises_loader_error(tmp_path):
+    course = CourseFactory(); unit = _unit(course)
+    with pytest.raises(LoaderError):
+        build_element(course, unit, {
+            "type": "choice", "stem": "<p>Q</p>", "multiple": False,
+            "choices": [{"text": "x" * 501, "is_correct": True, "feedback": ""}],
+        }, source_root=tmp_path, source_dir="x", allow_html=False)
+
+def test_escaped_math_in_stem_survives_sanitize_on_save(tmp_path):
+    # Spec §5: a \(a<b\) span (parser-escaped to \(a&lt;b\)) must survive the model's
+    # sanitize_html on save — verified through a real QuestionElement.stem, not a
+    # bare nh3.clean call.
+    course = CourseFactory(); unit = _unit(course)
+    obj = build_element(course, unit, {
+        "type": "numeric", "stem": r"<p>gdy \(a&lt;b\)</p>", "value": "1",
+        "tolerance": "0"}, source_root=tmp_path, source_dir="x", allow_html=False)
+    obj.refresh_from_db()
+    assert r"\(a&lt;b\)" in obj.stem
+
+def test_choice_literal_math_stored_then_autoescapes(tmp_path):
+    # C1 end-to-end: the parser stores literal '<' in Choice.text; Django autoescape
+    # (the choice template) then renders the single correct \(y&lt;z\).
+    from django.utils.html import escape
+    course = CourseFactory(); unit = _unit(course)
+    obj = build_element(course, unit, {
+        "type": "choice", "stem": "<p>Q</p>", "multiple": True,
+        "choices": [{"text": r"\(y<z\)", "is_correct": True, "feedback": ""}],
+    }, source_root=tmp_path, source_dir="x", allow_html=False)
+    text = obj.choices.first().text
+    assert text == r"\(y<z\)"                      # stored literal
+    assert escape(text) == r"\(y&lt;z\)"           # autoescape -> single entity
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -1886,6 +1995,13 @@ def build_element(course, unit, el, *, source_root, source_dir, allow_html):
         return _attach(unit, TableElement.objects.create(
             data=TableElement.normalize_data(el["data"])))
     if etype == "choice":
+        # Validate lengths BEFORE any create, so we fail loud with LoaderError
+        # (not a mid-transaction DB DataError) and leave no orphan question.
+        for c in el["choices"]:
+            if len(c["text"]) > 500 or len(c.get("feedback", "")) > 500:
+                raise LoaderError(
+                    f"choice text/feedback exceeds 500 chars in unit {unit.pk}; "
+                    "shorten or split the option (Choice fields are varchar(500))")
         q = ChoiceQuestionElement.objects.create(
             stem=el["stem"], multiple=bool(el.get("multiple")))
         for c in el["choices"]:
@@ -2281,7 +2397,7 @@ from courses.lal_loader.guards import (
     ensure_depth_policy, owned_part_orders, resolve_course,
 )
 from courses.lal_loader.tree import prune_orphans, rebuild_unit_elements, upsert_node
-from courses.models import Element, MediaAsset
+from courses.models import MediaAsset
 
 
 class Command(BaseCommand):
@@ -2358,8 +2474,9 @@ Run:
 ```bash
 uv run pytest tests/lal_import tests/test_lal_loader_units.py tests/test_import_lal_content.py -q
 uv run ruff format --check scripts/lal_import courses/lal_loader courses/management/commands/import_lal_content.py
+uv run ruff check scripts/lal_import courses/lal_loader courses/management/commands/import_lal_content.py
 ```
-Expected: all pass; format clean.
+Expected: all pass; format clean; `ruff check` reports no F401/unused or other lint errors (fix any before committing).
 
 - [ ] **Step 6: Commit**
 
@@ -2387,13 +2504,16 @@ from scripts.lal_import.lesson import parse_lesson
 from scripts.lal_import.quiz import parse_quiz
 root = Path(r"C:/Users/krzys/Documents/teaching/LAL/html/001_zbiory_liczbowe")
 els, lflags = parse_lesson((root/"005_zbiory.html").read_text("utf-8"), "005_zbiory.html")
-print("lesson types:", [e["type"] for e in els], "flags:", len(lflags))
-assert any(e["type"] == "video" for e in els), "expected video elements in 005_zbiory"
-assert not any(e.get("flagged") for e in els), f"unexpected flagged elements: {lflags}"
+print("lesson types:", [e["type"] for e in els], "flags:", lflags)
+# Hard gate: a clean real file must produce elements and NO flags/flagged elements.
+assert els, "lesson produced no elements — structural assumption is wrong"
+assert not any(e.get("flagged") for e in els) and not lflags, \
+    f"unexpected flags on a clean lesson: {lflags}"
 qs, qflags = parse_quiz((root/"039_zbiory_quiz.html").read_text("utf-8"))
-print("quiz types:", [q["type"] for q in qs], "flags:", len(qflags))
-assert any(q["type"] == "choice" for q in qs) and any(q["type"] == "numeric" for q in qs)
-assert not any(q.get("flagged") for q in qs), f"unexpected flagged quiz elements: {qflags}"
+print("quiz types:", [q["type"] for q in qs], "flags:", qflags)
+assert qs, "quiz produced no questions"
+assert not any(q.get("flagged") for q in qs) and not qflags, \
+    f"unexpected flags on a clean quiz: {qflags}"
 print("SMOKE OK")
 PY
 ```
