@@ -48,12 +48,15 @@ directly:
 
 Chapter grouping and element order depend on the order of `.html` files in a
 folder. Filenames carry a numeric token (`005_…`, `wyr_alg_010_…`,
-`f_lin_020_…`). **Sort key: the integer value of the ordering token, ascending;
-tie-break lexicographic on the full filename.** For `NNN_slug.html` the token is
-the leading number; for `prefix_NNN_slug.html` (e.g. `wyr_alg_`, `f_lin_`) it is
-the number after the shared alphabetic prefix. The parser asserts every `.html`
-file in a part yields a sortable token and fails loudly on any that doesn't, so
-ordering is never silently wrong.
+`f_lin_020_…`). **Sort key: the integer value of the *first maximal run of digits*
+in the filename, ascending; tie-break lexicographic on the full filename.** The
+"first digit run" rule is unambiguous whether or not the file has an alphabetic
+prefix (`005…` → 5, `wyr_alg_010…` → 10) and needs no per-folder prefix
+assumption. The parser asserts every `.html` file in a part yields a token and
+fails loudly on any that doesn't. Two files that yield the **same** token almost
+certainly indicate an authoring mistake: the parser still tie-breaks
+deterministically but **emits a flag-report warning** rather than resolving it
+silently.
 
 ### Unit titles
 
@@ -95,11 +98,12 @@ edits before any DB write.
 ## 4. Architecture: two-stage pipeline
 
 ```
-HTML files ──▶ [parser] ──▶ per-unit JSON ──▶ [loader mgmt cmd] ──▶ DB
-                              │                    (idempotent ORM writes)
+HTML files ──▶ [parser] ──▶ manifest.json + per-unit JSON ──▶ [loader] ──▶ DB
+              (runs ONCE       │        (editable source of      (idempotent
+               to seed)        │         truth after seeding)     ORM writes)
                      (flagged fragments)
                               ▼
-                     [AI subagent fixups]   ← only the long tail
+                     [AI subagent fixups]  ← edits the JSON in place; long tail only
 ```
 
 Rationale: decoupling **parsing** from **loading** via an intermediate JSON
@@ -109,14 +113,27 @@ cannot map — instead of 702 non-deterministic whole-file conversions.
 
 ### 4.1 Parser (`scripts/lal_import/parser.py`, BeautifulSoup)
 
-- Input: a part folder. Output: **one JSON file per unit** plus a **per-part
-  flag report**.
+- Input: a part folder. Output, per part: a **`manifest.json`** (§4.5) describing
+  the chapter tree, plus **one JSON file per unit** (§4.2), plus a **flag report**.
 - Walks each lesson's DOM top-to-bottom, emitting an **ordered element list**.
 - Recognized patterns are mapped deterministically (§5). Unrecognized fragments
   become `{"type": "html", "flagged": true, "raw": "…"}` **and** an entry in the
   flag report — these are the to-do list for extending the mapping, never the
   intended final output.
-- Deterministic and re-runnable: same input → identical JSON.
+- Deterministic: same source → identical output. But **the parser runs to *seed*
+  the JSON, not on every load.** Once seeded, the per-part JSON + manifest ARE the
+  editable source of truth (chapter names and flagged-fragment fixups are written
+  into them — §4.3, §4.5). To protect those edits, a re-parse of an
+  already-seeded part is guarded:
+  - default: **refuses** to overwrite (errors, listing edited files);
+  - `--refresh-unmapped`: regenerates element JSON **only** for units still marked
+    `fully_mapped:false` (never-edited, still-flagged), leaving edited units and
+    all manifest names untouched;
+  - `--force`: regenerates everything from source, discarding edits (explicit,
+    last-resort).
+
+  So "re-running a part" in Phase 3 (§8) means re-running the **loader**
+  (JSON→DB), which is always idempotent — *not* re-running the parser.
 
 ### 4.2 Intermediate JSON (unit payload)
 
@@ -132,10 +149,40 @@ mirror the concrete model fields exactly** (so parser and loader can't drift):
 - `{"type":"choice","stem":"…","multiple":true,"choices":[{"text":…,"correct":…,"feedback":…}]}`
   → `ChoiceQuestionElement.multiple` + `Choice.{text,is_correct,feedback}`
 
+Each unit JSON also carries `fully_mapped: <bool>` (false while any fragment is
+still `flagged`) so `--refresh-unmapped` (§4.1) knows which units it may regenerate.
+
 A small **JSON-key → model-field table** is maintained alongside the parser as the
 single source of truth for every element type (the loader validates against it).
-Media entries reference the **source file path**; the loader resolves them to
-`MediaAsset`s. This JSON is the human review surface and the loader's input.
+Media entries reference the **source file path** (`media_src`), resolved **relative
+to the directory of the source `.html` file** that the unit came from; the loader
+knows that directory from the manifest and reads the bytes there. This JSON is the
+human review surface and the loader's input.
+
+### 4.5 Per-part structure manifest (`manifest.json`)
+
+The parser emits one manifest per part — the loader's structural input, so it never
+re-derives the tree implicitly. It enumerates, in order:
+
+```
+{
+  "part": {"source_folder": "001_zbiory_liczbowe", "title": "zbiory liczbowe"},
+  "chapters": [
+    {"order": 0, "title": "<human/AI-authored name>",
+     "units": [
+       {"order": 0, "unit_json": "005_zbiory.json", "source_html": "005_zbiory.html",
+        "source_dir": "001_zbiory_liczbowe", "unit_type": "lesson", "title": "…"},
+       ...
+     ]}
+  ]
+}
+```
+
+Chapter `title`s start as parser placeholders and are filled by the Phase-1
+reading pass (§3.2) — the manifest is where those human-facing names live and
+survive loader re-runs. `source_dir` gives the loader the base for resolving each
+unit's `media_src` paths. The manifest is a committed deliverable and the Phase-1
+review surface for structure.
 
 ### 4.3 AI fixups
 
@@ -157,20 +204,30 @@ each, which `_upsert` would collapse to one. Instead:
 
 - **Node identity is keyed on tree position, not title.** A part is matched by
   its source folder; each chapter/unit is matched by `(parent, order)` — the
-  0-based index of its source group/file within the parent — with `title`,
-  `kind`, `unit_type` **updated in place** on re-run. This makes the loader
-  rename-safe: an author renaming a chapter in the Phase-1 review does not create
-  a duplicate subtree when the part is later re-run.
+  0-based index (from the manifest) of its source group/file within the parent —
+  with `title`, `kind`, `unit_type` **updated in place** on re-run. This makes the
+  loader rename-safe: an author renaming a chapter in the Phase-1 review does not
+  create a duplicate subtree when the part is later re-run.
+- **Orphan nodes are pruned.** After matching, the loader **deletes any
+  chapter/unit whose `(parent, order)` index is ≥ the current run's child count
+  for that parent** (via `ContentNode.delete`, which is subtree-safe). Otherwise a
+  re-run that yields fewer chapters/units than before would leave stale
+  higher-index subtrees, and "converges to exactly the manifest" would not hold.
 - **Elements are rebuilt, not upserted.** On each run, for every unit being
   (re)loaded the loader deletes all existing `Element` rows and their concrete
   element objects (via the model's own subtree-safe delete), then recreates the
   full ordered element list from the JSON. Concrete element rows have no natural
   identity, so a clean rebuild is the only well-defined idempotency mechanism.
   Re-running a part therefore converges to exactly the JSON's content with no
-  duplication. (Because units are deleted+rebuilt, any per-student progress on a
-  unit is not preserved across a re-run — acceptable for an authoring import into
-  a not-yet-live course; noted so it is a conscious choice.)
-- **Media deduped by content hash**, not basename — see §7.
+  duplication. Deleting a concrete `ImageElement`/`VideoElement` does **not**
+  cascade to its `MediaAsset` (the element→asset FK is `on_delete=PROTECT`, on the
+  asset side), so the shared asset survives an element rebuild; the rebuild
+  **re-attaches** the asset by content-hash lookup (§7) rather than re-creating it.
+  (Because units are deleted+rebuilt, any per-student progress on a unit is not
+  preserved across a re-run — acceptable for an authoring import into a
+  not-yet-live course; noted so it is a conscious choice.)
+- **Media deduped durably by content hash**, not basename, and not just
+  per-run — see §7.
 - Refuses to load any unit that still contains a `flagged` fragment unless a
   `--allow-html` override is passed (that path emits an `HtmlElement` and logs
   it loudly — last resort only).
@@ -186,7 +243,8 @@ mapping below is the starting set; §1's premise is that this set grows to cover
 | Source pattern | libli element |
 |---|---|
 | `<h2>/<h3>/<h4>`, `<p>`, `<ul>/<ol>/<li>`, `<strong>/<em>/<b>/<i>/<u>`, `<a>`, `<blockquote>`, `<code>` | **TextElement** (`body` = sanitized HTML; inline `\(…\)` math with `<`/`>` entity-escaped — see below) |
-| `\[ … \]` display-math block | **MathElement** (`latex`) |
+| `\[ … \]` that is the **sole content of its block** | **MathElement** (`latex`, raw — no escaping) |
+| `\[ … \]` occurring **mid-paragraph** (with surrounding text) | kept **inline** in the `TextElement` body, `<`/`>`-escaped like `\(…\)` |
 | local `<video><source src="static/*.mp4"></video>` | **VideoElement** ← uploaded `MediaAsset(video)` |
 | `<img src="…png/jpg">` | **ImageElement** ← uploaded `MediaAsset(image)`; `alt`/`figcaption` from surrounding `<figure>/<figcaption>` |
 | geogebra.org / edpuzzle / Lumi `<iframe>` | **IframeElement** (GeoGebra canonicalized via `courses.geogebra`; edpuzzle/Lumi require an allowlist change — see below) |
@@ -199,8 +257,10 @@ mapping below is the starting set; §1's premise is that this set grows to cover
 
 `TableElement` stores a **rectangular grid**. The parser converts a source
 `<table>` only when it is a plain rectangle: no `rowspan`/`colspan`, consistent
-column count per row. Header rows (`<th>` or the first row) map to the
-`TableElement` header mechanism; **math inside cells** is supported (cells are
+column count per row. Header **rows** (`<th>` or the first row) and header **columns** (first-column
+`<th>`) map to the `TableElement` header mechanism (or, if it supports only one
+header axis, the unsupported axis is flagged rather than rendered as plain data);
+**math inside cells** is supported (cells are
 rich text, so the same `<`/`>`-in-math escaping below applies per cell). A table
 using spans, nested tables, or ragged rows is **flagged** for AI/author fixup
 (re-expressed as a rectangular table, or split), never dropped. The `show_solution`
@@ -281,7 +341,19 @@ the author when unclear):
   normalizes to whatever that field expects. **Multiple `=` lines** for one
   question are treated as alternative accepted answers (verify the model supports
   this; otherwise flag).
+- **ShortText answer matching** is specified, not left implicit like numerics
+  were: the parser inspects `ShortTextQuestionElement`'s comparison semantics in
+  the pilot (case sensitivity, whitespace trimming, Polish-diacritic handling) and
+  normalizes the stored answer to match that contract; the chosen rules are
+  recorded in the pilot notes.
+- **Mixed Zadanie** — a single `<!-- Zadanie N -->` block that contains **both** a
+  `[ ]/( )` option group **and** a `= value` line maps to no single element. Such
+  a block is **flagged** for author resolution (split into two questions, or pick
+  one), never silently reduced to one construct with the other dropped.
 - multiple `<p>` before a group all belong to the same stem.
+- **Unknown hint forms:** only `{{selected:…}}` is mapped to per-option feedback.
+  Any other `{{…}}` hint form (e.g. `{{unselected:…}}`, general hints) is
+  **flagged**, not silently ignored or swept into `raw`.
 - **Field-length ceilings:** `Choice.text` and `Choice.feedback` are
   `max_length=500`. An option or `{{selected:…}}` feedback (LaTeX inflates length)
   that would exceed 500 chars is flagged for author attention, not silently
@@ -289,18 +361,33 @@ the author when unclear):
 
 ## 7. Media pipeline
 
-- Images and videos become per-course `MediaAsset`s, **deduped by content hash
-  (SHA-256 of the file bytes)**, not by basename. `MediaAsset` has no DB
-  uniqueness; dedup is loader logic. Two physically different files that share a
-  basename across different part folders (plausible among ~1195 pngs, e.g.
-  `rys1.png` in `001/static` and `007/static`) would collide under a basename key
-  and silently substitute the wrong media — hashing the bytes avoids this while
-  still collapsing genuine duplicates. The loader keeps a hash→MediaAsset map for
-  the run; `original_filename` is stored for display only.
-- **Video: local upload by default.** libli's admin-configured video upload
-  ceiling will likely need raising. If a specific file exceeds a sane ceiling,
-  the fallback (author-approved) is to **split it into smaller clips** imported
-  as consecutive VideoElements, or raise the ceiling for that batch.
+- Images and videos become per-course `MediaAsset`s, **deduped durably by content
+  hash (SHA-256 of the file bytes)**, not by basename. `MediaAsset` has no DB
+  uniqueness or hash field today; this import **adds a nullable indexed
+  `content_hash` field to `MediaAsset` (one small migration)** and the loader,
+  before creating an asset, **queries `MediaAsset` by `(course, content_hash)`**
+  and reuses any hit. This makes dedup survive across the one-part-per-invocation
+  boundary and across re-runs (a per-run in-memory map alone would re-create
+  assets every invocation, since two parts are never in the same run and a re-run
+  starts with an empty map — leaking orphans). Basename collisions across the
+  ~1195 pngs (e.g. `rys1.png` in `001/static` and `007/static`) are handled for
+  free: different bytes → different hash → different asset. `original_filename` is
+  stored for display only.
+- **Orphan-asset sweep.** Because element rebuilds (§4.4) can leave a `MediaAsset`
+  with no referencing element, the loader runs an optional
+  `--gc-media` sweep that deletes course `MediaAsset`s referenced by no element.
+  Off by default (a shared asset may be re-referenced by a not-yet-loaded part);
+  run once after the full batch.
+- **Video: local upload by default.** The admin-configured video ceiling is
+  enforced in `MediaAsset.clean()` (via `validate_video_file`), which Django runs
+  on `full_clean()` — **not** automatically on `save()`/`objects.create()`. The
+  loader must decide explicitly: if it creates assets via plain ORM `create()` it
+  **bypasses the ceiling entirely** (no raise needed, but we own file sanity); if
+  it calls `full_clean()` first (recommended, to also catch bad extensions) the
+  ceiling applies and must be raised. This is confirmed and chosen in the pilot.
+  Where a genuinely oversized file is undesirable regardless, the author-approved
+  fallback is to **split it into smaller clips** imported as consecutive
+  VideoElements.
 - GeoGebra / edpuzzle / Lumi remain **external iframes** — no local hosting.
   `IframeElement.url` is validated by `validate_embed_url` against
   `settings.ALLOWED_EMBED_DOMAINS`, whose default (`config/settings/base.py`) is
@@ -310,8 +397,10 @@ the author when unclear):
   `LIBLI_ALLOWED_EMBED_DOMAINS` (env) or the base default. The loader asserts each
   iframe host is allowlisted and refuses to run otherwise (fail loud, not silent
   skip).
-- Media resolution happens in the loader (JSON references source paths; loader
-  reads bytes from the source tree and creates/reuses the asset).
+- Media resolution happens in the loader: a unit's `media_src` is resolved
+  **relative to that unit's `source_dir`** (from the manifest, §4.5 — the
+  directory of the originating `.html`), so the loader reads the right bytes even
+  though `media_src` values like `static/foo.mp4` are ambiguous on their own.
 
 ## 8. Workflow & batching
 
@@ -322,15 +411,16 @@ its Units, plus a summary of flagged/unmapped patterns discovered. Author
 reviews and renames before any DB writes. No DB changes in this phase.
 
 **Phase 2 — Pilot (part `001_zbiory_liczbowe`).**
-Fully build part 001 into the live "matematyka" course. It exercises video,
-math, data tables, the reveal/spoiler pattern, and 5 quizzes — broad coverage.
-Author reviews it **rendered in libli**. Conversion rules and mappings are
-locked based on findings.
+Actually build part 001 into the local "matematyka" course (writing to the local
+dev DB — §9, not a production target). It exercises video, math, data tables, the
+reveal/spoiler pattern, and 5 quizzes — broad coverage. Author reviews it
+**rendered in libli**. Conversion rules and mappings are locked based on findings.
 
 **Phase 3 — Batches (remaining 20 parts).**
-One part per batch, in folder order. Each batch: parse → fixup flagged → load →
-author spot-check. New patterns discovered mid-run are added to the mapping and,
-if they affect already-imported parts, those parts are re-run (idempotent).
+One part per batch, in folder order. Each batch: parse (seed JSON) → fixup flagged
+→ load → author spot-check. New patterns discovered mid-run are added to the
+mapping; re-applying them to an already-seeded part uses `--refresh-unmapped`
+(§4.1, preserving edits), then the **loader** is re-run (always idempotent).
 
 ## 9. Isolation & safety
 
@@ -343,19 +433,25 @@ if they affect already-imported parts, those parts are re-run (idempotent).
 
 ## 10. Deliverables
 
-1. `scripts/lal_import/parser.py` (+ helpers) — HTML → unit JSON.
-2. Intermediate unit-JSON tree (per part) — reviewable, git-ignored or committed
-   per author preference.
-3. `courses/management/commands/import_lal_content.py` — JSON → DB loader.
-4. Phase-1 review document (parts/chapters/units + flag summary).
-5. The populated "matematyka" course.
+1. `scripts/lal_import/parser.py` (+ helpers) — HTML → `manifest.json` + unit JSON,
+   including the JSON-key → model-field table (§4.2).
+2. Per-part **`manifest.json`** (§4.5) + intermediate unit-JSON tree — reviewable,
+   git-ignored or committed per author preference (§11).
+3. A migration adding a nullable indexed **`MediaAsset.content_hash`** (§7).
+4. `courses/management/commands/import_lal_content.py` — manifest+JSON → DB loader
+   (with `--refresh-unmapped`, `--force`, `--allow-html`, `--gc-media` flags).
+5. Phase-1 review document (parts/chapters/units + flag summary).
+6. The populated "matematyka" course.
 
 ## 11. Open questions / to confirm during pilot
 
-- Exact ceiling value for video upload; which (if any) videos need splitting.
-- Whether intermediate JSON is committed to the repo or kept local-only.
-- The precise single-choice vs. multi-select and numeric vs. text rules, against
-  real quiz files.
+- The video-ceiling **enforcement point** (`full_clean()` vs bypassed on
+  `create()`), and hence whether any ceiling raise or video splitting is needed
+  at all (§7).
+- Whether the intermediate JSON + manifest are committed to the repo or kept
+  local-only.
+- The precise single-choice vs. multi-select DSL signal (`( )` radios present?),
+  numeric normalization, and ShortText matching rules, against real quiz files.
 - Whether the `show_solution` *table-of-reveals* pattern should render as N
   independent Spoilers (default) or a single grouped element — confirmed
   "Spoiler is fine" for the pilot; revisit if the scan shows a better native fit.
