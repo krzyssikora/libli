@@ -1,4 +1,4 @@
-.builder { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); position: relative; }
+.builder { display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-4); position: relative; }
 @media (max-width: 720px) { .builder { grid-template-columns: 1fr; } }
 .builder__sprite { position: absolute; }
 .builder__tree { border-right: 1px solid var(--border-default); padding-right: var(--space-4); }
@@ -16,7 +16,7 @@
 .tree__badge { font-size: .6rem; text-transform: uppercase; letter-spacing: .03em; border: 1px solid currentColor; border-radius: 8px; padding: 0 6px; }
 .tree__badge--part, .tree__badge--chapter, .tree__badge--section { color: var(--primary); }
 .tree__badge--unit { color: var(--accent); }
-.tree__title { flex: 1; background: none; border: none; cursor: pointer; text-align: left; color: var(--text-primary); padding: 0; }
+.tree__title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: none; cursor: pointer; text-align: left; color: var(--text-primary); padding: 0; }
 .tree__empty { list-style: none; color: var(--text-secondary); font-style: italic; padding: 3px 4px; }
 
 /* #6 control cluster — always visible, subtle, brighten on hover/focus */
@@ -80,6 +80,11 @@
 .builder__panel .form--inline { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
 .builder__panel .form--inline > label { width: 100%; margin: 0; }
 .builder__panel .panel__seam { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
+
+/* Empty/course panel only (unique data-panel-for="course"): stack its title, meta,
+   and the four ghost buttons one-per-line in the narrowed 1/3 column. Scoped so the
+   unit/node panels' grids (.unit-summary, .element-list) keep full-width layout. */
+.builder__panel .panel[data-panel-for="course"] { display: flex; flex-direction: column; align-items: flex-start; }
 
 /* Structure legend (Task 6) */
 .builder__legend {
