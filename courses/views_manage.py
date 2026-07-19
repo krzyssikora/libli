@@ -27,6 +27,7 @@ from courses.models import Enrollment
 from courses.models import QuestionElement
 from courses.models import Subject
 from courses.models import UnitProgress
+from courses.transfer.schema import TransferError
 
 
 @login_required
@@ -453,6 +454,45 @@ def node_delete(request, slug):
     if parent_id is None:
         return _render_tree(request, course)
     return _render_scope(request, course, _scope_ref(parent_id))
+
+
+@login_required
+def node_duplicate(request, slug):
+    course = _require_manage(request, slug)
+    if request.method != "POST":
+        return HttpResponseBadRequest("POST required")
+    try:
+        node_pk = int(request.POST.get("node"))
+    except (TypeError, ValueError):
+        raise Http404("Missing or invalid node parameter.") from None
+    node = get_node_or_404(node_pk, slug)
+    if node.kind != "unit":
+        raise Http404("Only units can be duplicated.")
+    try:
+        new_node = builder_svc.duplicate_unit(
+            course, node_pk, token=request.POST.get("token")
+        )
+    except builder_svc.ConflictError:
+        if not _wants_fragment(request):
+            return _builder_with_notice(
+                request,
+                course,
+                _("This changed elsewhere — reloaded to the latest."),
+                status=409,
+            )
+        return _conflict_scope(request, course, node_pk)
+    except TransferError as exc:
+        msg = str(exc)
+        if not _wants_fragment(request):
+            return _builder_with_notice(request, course, msg, status=422)
+        return render(
+            request, "courses/manage/_op_error.html", {"message": msg}, status=422
+        )
+    if not _wants_fragment(request):
+        return redirect("courses:manage_builder", slug=course.slug)
+    if new_node.parent_id is None:
+        return _render_tree(request, course)
+    return _render_scope(request, course, _scope_ref(new_node.parent_id))
 
 
 def _wants_fragment(request):

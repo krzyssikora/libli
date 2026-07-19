@@ -191,6 +191,11 @@ urlpatterns = [
         name="manage_node_delete",
     ),
     path(
+        "manage/courses/<slug:slug>/build/node/duplicate/",
+        views_manage.node_duplicate,
+        name="manage_node_duplicate",
+    ),
+    path(
         "manage/courses/<slug:slug>/build/element/move/",
         views_manage.element_move,
         name="manage_element_move",

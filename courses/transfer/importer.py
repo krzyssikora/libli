@@ -993,3 +993,21 @@ def import_subtree(
         return node_map[document["nodes"][0]["id"]]
 
     return _run_import(work, created_files)
+
+
+def materialize_duplicate(document, media_map, target_course, insertion_node):
+    """In-process graft of an exported subtree into `target_course`, sharing the
+    existing MediaAsset rows in `media_map` ({mid: MediaAsset}) instead of
+    re-creating them. Mirrors `import_subtree`'s work() but skips `_create_media`
+    (no zip, media is shared). Returns the new root ContentNode.
+
+    Wrapped in `_run_import`, so any failure rolls back and is normalized to
+    TransferError — the same guarantee `import_subtree` gives.
+    """
+
+    def work():
+        node_map = _create_nodes(document, target_course, root_parent=insertion_node)
+        _create_elements(document, node_map, media_map)
+        return node_map[document["nodes"][0]["id"]]
+
+    return _run_import(work, created_files=[])
