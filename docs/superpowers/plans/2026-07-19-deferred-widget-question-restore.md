@@ -91,21 +91,25 @@ def _seed_multigrid(unit, student):
     return q, row, col_a, col_b
 
 
-def _seed_matchpair(unit, student, *, chosen="cardiac"):
+# The drag/matchpair restore tests seed a WRONG-but-in-pool answer (a distractor / a
+# swapped token), NOT the correct one. A distractor still renders `<option value="X"
+# selected>`, so the restore signal is decoupled from any correct-verdict rendering path —
+# only `_seed_choicegrid` needs the same care (it already seeds "B", the wrong column).
+def _seed_matchpair(unit, student, *, chosen="renal"):  # "renal" is a distractor (in pool, wrong)
     q = MatchPairQuestionElement.objects.create(stem="Q", distractors="renal")
     MatchPair.objects.create(question=q, left="Heart", right="cardiac")
     row = _seed(unit, student, q, {"answer": [chosen]})
     return q, row
 
 
-def _seed_dragfill(unit, student, *, chosen="Paris"):
+def _seed_dragfill(unit, student, *, chosen="Rome"):  # "Rome" is a distractor (in pool, wrong)
     q = DragFillBlankQuestionElement.objects.create(stem="Cap is ￿0￿", distractors="Rome")
     DragBlank.objects.create(question=q, correct_token="Paris")
     row = _seed(unit, student, q, {"answer": [chosen]})
     return q, row
 
 
-def _seed_dragimage(unit, student, *, answer=("Heart", "Lung")):
+def _seed_dragimage(unit, student, *, answer=("Lung", "Heart")):  # swapped → both wrong, both in pool
     course = unit.course
     q = DragToImageQuestionElement.objects.create(media=_image(course), alt="Diagram", distractors="Liver")
     DragZone.objects.create(question=q, correct_label="Heart", x=0.1, y=0.1, w=0.3, h=0.3, order=0)
@@ -130,24 +134,24 @@ def test_restore_multigrid_checks_chosen_cell(client):
 
 def test_restore_matchpair_selects_chosen_option(client):
     student, course, unit = _enrolled(client)
-    _seed_matchpair(unit, student, chosen="cardiac")
+    _seed_matchpair(unit, student, chosen="renal")  # wrong-but-in-pool distractor
     body = client.get(_lesson_url(unit)).content.decode()
-    assert 'value="cardiac" selected' in body
+    assert 'value="renal" selected' in body
 
 
 def test_restore_dragfill_selects_chosen_option(client):
     student, course, unit = _enrolled(client)
-    _seed_dragfill(unit, student, chosen="Paris")
+    _seed_dragfill(unit, student, chosen="Rome")  # wrong-but-in-pool distractor
     body = client.get(_lesson_url(unit)).content.decode()
-    assert 'value="Paris" selected' in body
+    assert 'value="Rome" selected' in body
 
 
 def test_restore_dragimage_selects_both_slots(client):
     student, course, unit = _enrolled(client)
-    _seed_dragimage(unit, student, answer=("Heart", "Lung"))
+    _seed_dragimage(unit, student, answer=("Lung", "Heart"))  # swapped → both wrong, both in pool
     body = client.get(_lesson_url(unit)).content.decode()
-    assert 'value="Heart" selected' in body
     assert 'value="Lung" selected' in body
+    assert 'value="Heart" selected' in body
 ```
 
 > Field names verified against `courses/models.py`: `GridColumn(question, label)` / `GridRow(question, statement, correct_column FK)` via `columns`/`rows`; `MultiGridColumn` + `MultiGridRow(correct_columns M2M)`; `MatchPair(question, left, right)`; `DragBlank(question, correct_token)` with the stem carrying a `￿0￿` token marker; `DragZone(question, correct_label, x, y, w, h, order)`; `DragToImageQuestionElement.media` is a required FK to an image `MediaAsset`. `_seed`/`_enrolled`/`_lesson_url` already exist in this file.
@@ -302,12 +306,15 @@ def test_check_persists_multigrid_list_of_lists(client):
     assert up.element_state == {str(el.pk): {"answer": [sorted([col_a.pk, col_b.pk])]}}
 
 
-def test_check_persists_dragfill_slot_list(client):
+def test_check_persists_dragfill_slot_list_fragment_path(client):
+    # JS-fragment path (X-Requested-With: fetch) — the save runs BEFORE the
+    # _wants_fragment split, so it must persist here too. Its no-JS sibling below
+    # covers the other leg; keep the fetch header here so the pair covers both.
     student, course, unit = _enrolled(client)
     q = DragFillBlankQuestionElement.objects.create(stem="Cap is ￿0￿", distractors="Rome")
     DragBlank.objects.create(question=q, correct_token="Paris")
     el = _add(unit, q)
-    client.post(_check_url(unit, el.pk), {"slot": ["Paris"]})
+    client.post(_check_url(unit, el.pk), {"slot": ["Paris"]}, HTTP_X_REQUESTED_WITH="fetch")
     up = UnitProgress.objects.get(student=student, unit=unit)
     assert up.element_state == {str(el.pk): {"answer": ["Paris"]}}
 
@@ -397,7 +404,7 @@ def test_restore_grid_stale_column_pk_renders_unfilled(client):
     row = _seed(unit, student, q, {"answer": [999999]})  # non-existent column pk
     resp = client.get(_lesson_url(unit))
     assert resp.status_code == 200
-    assert "checked" not in resp.content.decode()
+    assert f'value="{col_a.pk}" checked' not in resp.content.decode()  # cell unfilled
 
 
 def test_restore_grid_fewer_stored_entries_than_rows_is_bounded(client):
@@ -484,7 +491,7 @@ def test_restore_grid_empty_blob_renders_blank(client):
     _seed(unit, student, q, {"answer": [""]})
     resp = client.get(_lesson_url(unit))
     assert resp.status_code == 200
-    assert "checked" not in resp.content.decode()
+    assert f'value="{col_a.pk}" checked' not in resp.content.decode()  # nothing restored
 
 
 def test_editor_preview_does_not_restore_widget(client):
@@ -500,7 +507,9 @@ def test_editor_preview_does_not_restore_widget(client):
     UnitProgress.objects.create(student=other, unit=unit, element_state={str(row.pk): {"answer": [col_a.pk]}})
     preview_url = reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
     body = client.get(preview_url).content.decode()
-    assert "checked" not in body
+    # Scope the negative to the restore-specific string — the authoring page chrome
+    # (toolbars, author correct-column markers, aria-checked) may contain bare "checked".
+    assert f'value="{col_a.pk}" checked' not in body
 
 
 def test_start_fresh_clears_widget_blob(client):
