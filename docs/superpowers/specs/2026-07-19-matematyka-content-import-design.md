@@ -274,8 +274,9 @@ each, which `_upsert` would collapse to one. Instead:
   rejected); the loader **refuses only** if it finds a top-level node whose `order`
   is **not** in the import's `part.order` set (a foreign subtree it does not own).
   Crucially, even under `--part` (one part per run) the loader builds the owned set
-  from **all** part manifests (`scripts/lal_import/out/*/manifest.json` — i.e. the
-  full 0…20 range), **not** just the `--part` manifest; otherwise a later batch
+  from **all** part manifests (`<json-dir>/*/manifest.json`, honoring the same
+  `--json-dir` root as §4.5, default `scripts/lal_import/out/` — i.e. the full
+  0…20 range), **not** just the `--part` manifest; otherwise a later batch
   (say order 4) would see the Parts that earlier batches created (orders 0–3) as
   foreign and refuse on every sequential batch.
   This makes the guard compatible with the re-run promise (§9) instead of firing on
