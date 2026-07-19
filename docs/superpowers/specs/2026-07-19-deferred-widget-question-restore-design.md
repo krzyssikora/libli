@@ -235,6 +235,14 @@ single change per model:
 
 No other production edit is required **if C1 held**.
 
+**The collective flip is for evidence capture — not necessarily the committed end state.** The
+end-to-end sequence is: (1) flip all five to `True`; (2) run the per-type view tests + C4 e2es and
+observe which pass; (3) **revert `RESTORABLE_IN_LESSON = False`** for every carved type — any that
+stayed red at C1, failed its C4 e2e, or tripped a precondition (see Fallback); (4) finalize the
+`IN_SCOPE` / `DEFERRED` test membership to match the surviving set. So "single flip" means one flip
+*to capture the red→green evidence*, never a guarantee that all five ship — an implementer must not
+read it as the final committed state.
+
 ### C3. UX — parity with slice 3 (confirmed)
 
 A restored grid/drag answer renders **filled, still editable, re-submittable** — identical to the
@@ -280,17 +288,22 @@ slice must drive a **real browser**:
   observes neither. So at least one inline drag e2e is **also mandatory** — reload and assert the
   visible drop-slots show the restored tokens — otherwise two of the three drag types ship with zero
   browser evidence their widget re-arms, exactly the risk this slice exists to retire. This e2e
-  vouches for the **shared `buildInlineSlots` JS path** for *both* inline types; the un-chosen inline
-  type's **distinct server render** (`render_selects` vs `render_match_rows`) is covered separately by
-  its C1 view test. Same rule as the overlay case: visible tokens are the hard anchor; Check/verdict
-  asserted only if observed.
+  vouches for the **shared `buildInlineSlots` JS path** for *both* inline types **only if** a
+  source-confirm shows `buildInlineSlots` has **no per-inline-type branch** and both inline templates
+  present the **same slot DOM shape** it keys on — that confirm is a precondition of the vouch, since a
+  passing e2e for one type only proves *that* type's DOM re-arms. Absent it (or if the two DOMs
+  differ), the sibling inline type gets its **own** mandatory e2e rather than riding the vouch. The
+  un-chosen inline type's distinct *server render* (`render_selects` vs `render_match_rows`) is
+  separately covered by its C1 view test. Same rule as the overlay case: visible tokens are the hard
+  anchor; Check/verdict asserted only if observed.
 
 **These mandates are conditional on the type shipping.** An e2e is required only for a drag type that
 survives C1 and is actually being enabled: if `DragToImage` is carved at C1 (e.g. its view test shows
 no server-side `<option selected>` under the lesson divergence), the overlay e2e is **moot** and its
 absence does not block a grids+inline ship. Choose the inline type freely — both share
-`buildInlineSlots`; prefer whichever's *distinct server render* (`render_selects` vs
-`render_match_rows`) is otherwise least covered. **A failed inline e2e disproves the shared
+`buildInlineSlots` and both server renders are already covered by their C1 view tests, so there is no
+"least-covered" tie-break; pick either (or the one with the more complex widget DOM, to exercise the
+harder re-arm). **A failed inline e2e disproves the shared
 `buildInlineSlots` vouch**, so the sibling inline type may **not** ship on that vouch — it must get its
 own passing e2e or be carved too.
 
@@ -357,7 +370,8 @@ must be updated as the types are enabled).
 **When `DEFERRED` empties** (all five enabled, none carved to the Fallback), a test parametrized over
 it passes **vacuously** by iterating nothing — the exact trap `[[falsify-tests-not-run-them]]` warns
 against. So `test_deferred_types_are_not_restorable` must be **deleted** in that case — its intent is
-then carried (in reduced form) by `test_base_default_is_false` (`QuestionElement.RESTORABLE_IN_LESSON`
+then carried (in reduced form) by `test_base_default_is_false` — a **pre-existing** test in
+`courses/tests/test_question_restore.py`, not new to this slice (`QuestionElement.RESTORABLE_IN_LESSON`
 still defaults `False`) — or, if any type lands in the Fallback, kept parametrized over **only** that
 still-deferred sentinel. Note the reduced guarantee: once all five subclasses set `True`, no shipping
 type inherits the base default, so `test_base_default_is_false` guards only the **base invariant /
@@ -369,10 +383,14 @@ falsification-shown still able to go RED.
 - For **all five** types: seed the str-keyed `element_state` DB row, GET `lesson_unit` **through the
   view** (so `build_lesson_context` re-keys to int — never `obj.render` with a str key), assert the
   answered state renders. Run the whole set **RED on the current all-deferred tree, then GREEN after
-  C2's single collective flip** (one run each side, no per-type toggling). The go/no-go gate is that
-  **both grid shapes and at least one drag type** flipped red→green; any type still RED after the flip
-  routes to the Fallback. **Paste both run outputs (flag off / flag on) into the falsification commit
-  message and the PR body** so the per-type evidence is discoverable at review time.
+  C2's single collective flip** (one run each side, no per-type toggling). This pair of runs is a
+  **confidence target** (both grid shapes + ≥1 drag type going red→green sanity-checks the mechanism),
+  **not** a hard gate — the authoritative rule for what actually ships is **Fallback → Ship criteria**
+  (a one-grid, zero-drag ship is valid). Any type still RED after the flip, or later carved by its C4
+  e2e, is dropped. **Paste both run outputs (flag off / flag on) into the falsification commit message
+  and the PR body, annotated with the final per-type carve outcomes** — a type can be view-GREEN yet
+  carved by a failing e2e, so the annotation lets a reviewer reconcile the green list against the
+  actually-shipped set.
 
 **Save (per type):**
 - Checking each of the five in a lesson stores `{"answer": <json>}` under `str(element.pk)`.
@@ -389,10 +407,15 @@ falsification-shown still able to go RED.
   each empty slot, not a short/compacted list. This pins the invariant's **real** (save-leg) failure
   mode: the restore-leg partial test (below) seeds an already-aligned blob and so cannot catch a
   `build_answer`/`answer_to_json` that drops empties. *Falsify:* if the save omits empty slots, the
-  stored list is shorter than the slot count → RED. **Shared behavior, one representative type:**
-  placeholder retention lives in shared `dnd.py` (`getlist("slot")` / `answer_to_json`) across all
-  three drag types — it is the C1 gating precondition — so **one** representative drag type suffices
-  here (unlike the per-type restore-leg test below).
+  stored list is shorter than the slot count → RED. **Shared POST-side leg, but confirm all three
+  renders.** The placeholder *retention on save* lives in shared `dnd.py` (`getlist("slot")` /
+  `answer_to_json`), so **one** representative drag type exercises that POST-side leg. **But** whether
+  an empty slot contributes a blank at all depends on each *per-type render* (`render_selects` /
+  `render_match_rows` / `render_zone_selects`) emitting a submittable blank/default `<option>` for an
+  unfilled slot — a render that omits it would drop empties and silently misfill partial answers. So
+  the C1 placeholder precondition must **source-confirm all three renders** emit that blank option;
+  only then does the single representative save-side test generalize. (The restore-leg test below is
+  per shipping drag type regardless.)
 
 **Restore (per type, view-level):**
 - Seed each type's `element_state` blob, GET `lesson_unit`, assert the answered state renders: grids
@@ -459,15 +482,19 @@ falsification-shown still able to go RED.
 - Drive the actual drag/tap gesture and a real reload — never `page.evaluate`.
 
 **Regression breadth:** full non-e2e suite at every red-window boundary (a red window blinds
-per-task reviewers — `[[student-practice-state-status]]`), plus the focused question/quiz/state and
-new drag e2e files. `manage.py check`, `ruff check`, `ruff format --check`, `makemigrations --check`
+per-task reviewers — `[[student-practice-state-status]]`), plus the focused question/quiz/state files
+and the **new widget-restore e2e file** — `courses/tests/test_question_restore_e2e.py` (marked
+`@pytest.mark.e2e`, holding the overlay + inline drag re-arm e2es), the sibling of the view-level
+`courses/tests/test_question_restore.py`. `manage.py check`, `ruff check`, `ruff format --check`, `makemigrations --check`
 (expected: **no new migration**) all clean.
 
 ## Fallback
 
-The Fallback triggers on **any** of three observed REDs — **C1** (view-level restore), the **C4 e2e**
-(widget re-arm), **or the Save-side alignment test** (drag placeholder retention). If a check shows a
-type genuinely does **not** round-trip from the flag flip alone (e.g. the image-overlay widget cannot
+The Fallback triggers on **any** observed RED or failed precondition — **C1** (view-level restore),
+the **C4 e2e** (widget re-arm), the **Save-side alignment test** (drag placeholder retention), the
+**drag placeholder-render precondition** (all three renders emit a submittable blank option), or the
+**grid bounds-guard precondition** (`sv[i]` guarded by `i < len(sv)`). If a check shows a type
+genuinely does **not** round-trip from the flag flip alone (e.g. the image-overlay widget cannot
 re-arm from server-rendered selects), that type is **carved back out of this slice** — left
 `RESTORABLE_IN_LESSON = False`, with the observed failure documented — and the slice ships the types
 that do.
@@ -481,6 +508,14 @@ spec**. Do **not** smuggle the production edit into this slice to keep the drag 
 violate the "no other production edit" invariant the whole slice rests on. (This is why C1 makes the
 placeholder-retention source-check a gating precondition: the decision should be reached *before* the
 flip, not discovered after.)
+
+**Special case — an absent grid render bounds guard carves the grids.** If the C1 source-confirm finds
+`render_choice_grid` / `render_multigrid` do **not** guard `sv[i]` with `i < len(sv)` — so a row added
+after save would 500 at render, since `obj.render()` runs *outside* the fail-open `try/except` —
+adding the guard is a **production edit** this flag-flip slice excludes. Mirror the drag case exactly:
+do **not** flip the grids, spin the bounds-guard fix into its **own follow-up spec**, and ship only
+the drag types that pass — or, if the grids were the only in-scope survivors, **ship nothing**. The
+no-production-edit invariant stays intact.
 
 A client-rehydrate mechanism for a stubborn widget is likewise **not** forced in under this slice; it
 becomes its own follow-up with its own spec. The verify-first structure exists precisely so every
