@@ -1712,6 +1712,8 @@ class DragFillBlankQuestionElement(QuestionElement):
     student picks a discrete chip instead of typing. `stem` stores the token-stem
     from fillblank.parse(); each gap's correct token is a DragBlank row."""
 
+    RESTORABLE_IN_LESSON = True
+
     REVEAL_TEMPLATE = "courses/elements/_reveal_dragfill.html"
 
     distractors = models.TextField(blank=True)  # newline-delimited extra (wrong) tokens
@@ -1762,6 +1764,8 @@ class DragBlank(models.Model):
 class MatchPairQuestionElement(QuestionElement):
     """Match each left label to its right token by drag/select. Marking is per-left,
     against the pair's `right`. `left` labels are targets and never enter the pool."""
+
+    RESTORABLE_IN_LESSON = True
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_matchpair.html"
 
@@ -1814,6 +1818,8 @@ class ChoiceGridQuestionElement(QuestionElement):
     """Matrix single-choice: N statements each answered by one of a shared set of
     columns. Partial credit per row. Mirrors MatchPairQuestionElement's relational
     shape but with two children (columns + rows)."""
+
+    RESTORABLE_IN_LESSON = True
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_choicegrid.html"
     elements = GenericRelation(Element)
@@ -1894,6 +1900,8 @@ class MultiGridQuestionElement(QuestionElement):
     All-or-nothing per row, grid-level partial credit. Sibling of
     ChoiceGridQuestionElement, but a row owns a ManyToMany set of correct
     columns instead of a single FK."""
+
+    RESTORABLE_IN_LESSON = True
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_multigrid.html"
     elements = GenericRelation(Element)
@@ -1981,6 +1989,8 @@ class DragToImageQuestionElement(QuestionElement):
     """Drag labels onto author-defined rectangle zones over an image. Marking is
     per-zone via the shared DnD substrate; each zone's correct token is a DragZone
     row. `stem` (inherited) is the optional prompt above the image."""
+
+    RESTORABLE_IN_LESSON = True
 
     REVEAL_TEMPLATE = "courses/elements/_reveal_dragimage.html"
 

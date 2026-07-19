@@ -7,14 +7,22 @@ from django.urls import reverse
 from courses.models import Choice
 from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
+from courses.models import DragBlank
 from courses.models import DragFillBlankQuestionElement
 from courses.models import DragToImageQuestionElement
+from courses.models import DragZone
 from courses.models import Element
 from courses.models import Enrollment
 from courses.models import ExtendedResponseQuestionElement
 from courses.models import FillBlankQuestionElement
+from courses.models import GridColumn
+from courses.models import GridRow
+from courses.models import MatchPair
 from courses.models import MatchPairQuestionElement
+from courses.models import MediaAsset
+from courses.models import MultiGridColumn
 from courses.models import MultiGridQuestionElement
+from courses.models import MultiGridRow
 from courses.models import QuestionElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
@@ -32,14 +40,13 @@ IN_SCOPE = [
     ExtendedResponseQuestionElement,
     ShortNumericQuestionElement,
     FillBlankQuestionElement,
-]
-DEFERRED = [
     ChoiceGridQuestionElement,
     MultiGridQuestionElement,
     MatchPairQuestionElement,
     DragToImageQuestionElement,
     DragFillBlankQuestionElement,
 ]
+DEFERRED = []  # all widget types enabled this slice; base-invariant note is below
 
 
 def test_base_default_is_false():
@@ -51,9 +58,10 @@ def test_in_scope_types_are_restorable(cls):
     assert cls.RESTORABLE_IN_LESSON is True
 
 
-@pytest.mark.parametrize("cls", DEFERRED)
-def test_deferred_types_are_not_restorable(cls):
-    assert cls.RESTORABLE_IN_LESSON is False
+# test_deferred_types_are_not_restorable removed: DEFERRED is now empty (all five
+# widget types enabled this slice), so a parametrize over it would iterate nothing
+# and pass vacuously. The base-invariant intent it guarded still lives in
+# test_base_default_is_false above, which protects future QuestionElement subclasses.
 
 
 def test_save_helper_stores_and_deletes():
@@ -155,26 +163,18 @@ def test_empty_answer_deletes_key(client):
     assert str(row.pk) not in up.element_state
 
 
-def test_deferred_type_persists_nothing(client):
+def test_matchpair_check_persists_slot_list(client):
+    # MatchPair is now in-scope: a non-empty check persists the slot list envelope.
     student, course, unit = _enrolled(client)
-    obj = MatchPairQuestionElement.objects.create(stem="Q")
-    row = _add(unit, obj)
-    # POST a NON-empty answer for the deferred type: MatchPair.build_answer is
-    # post.getlist("slot") (models.py:1761), so {"slot": ["x"]} yields ["x"], not
-    # empty. This matters for falsification — with the scope gate deleted, an empty
-    # answer would still hit the delete branch and store nothing (false GREEN); a
-    # non-empty one takes the store branch and a row appears (true RED).
-    # Uses the fragment path (fetch header): the no-JS path calls
-    # full_lesson_render_context -> build_lesson_context, which unconditionally
-    # get_or_creates a UnitProgress row for seen-tracking (views.py:359) regardless
-    # of this feature -- that would confound the assertion below with an unrelated
-    # side effect. The fragment branch has no such side effect.
+    q = MatchPairQuestionElement.objects.create(stem="Q", distractors="renal")
+    MatchPair.objects.create(question=q, left="Heart", right="cardiac")
+    row = _add(unit, q)
     resp = client.post(
-        _check_url(unit, row.pk), {"slot": ["x"]}, HTTP_X_REQUESTED_WITH="fetch"
+        _check_url(unit, row.pk), {"slot": ["cardiac"]}, HTTP_X_REQUESTED_WITH="fetch"
     )
-    # isolate the scope-gate signal from any mark() error
     assert resp.status_code == 200
-    assert not UnitProgress.objects.filter(student=student, unit=unit).exists()
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(row.pk): {"answer": ["cardiac"]}}
 
 
 def test_nojs_path_also_persists(client):
@@ -273,16 +273,15 @@ def test_corrupt_blob_logs_the_failure(client, caplog):
     assert "practice-state restore failed" in caplog.text
 
 
-def test_deferred_hand_forged_blob_does_not_restore(client):
+def test_matchpair_malformed_blob_is_fail_open(client):
+    # A structurally-wrong blob (list-of-lists, not slot strings) must not 500 and must
+    # not emit a verdict — the render_element try/except logs and falls through.
     student, course, unit = _enrolled(client)
     obj = MatchPairQuestionElement.objects.create(stem="Q")
+    MatchPair.objects.create(question=obj, left="Heart", right="cardiac")
     _seed(unit, student, obj, {"answer": [[0, 1]]})
     resp = client.get(_lesson_url(unit))
     assert resp.status_code == 200
-    # Un-restored: the feedback partial is included only when element.pk ==
-    # feedback_for_pk (matchpairquestionelement.html:19). A restored deferred blob
-    # would emit a verdict; assert none — this is what goes RED if the restore-side
-    # scope gate is deleted.
     assert "question__verdict" not in resp.content.decode()
 
 
@@ -361,3 +360,384 @@ def test_render_element_prefers_live_kwargs_over_stale_blob(client):
         mode="lesson",
     )
     assert "paris" in html and "STALE" not in html
+
+
+def _image(course):
+    return MediaAsset.objects.create(
+        course=course,
+        kind="image",
+        file="courses/media/x.png",
+        original_filename="x.png",
+    )
+
+
+def _seed_choicegrid(unit, student, *, chosen="B"):
+    """One 1-row matrix: columns A,B; row correct=A. Seed the student's chosen
+    column (default 'B' -> wrong, so the restore signal is the `checked` cell,
+    not a verdict)."""
+    q = ChoiceGridQuestionElement.objects.create(stem="Q")
+    col_a = GridColumn.objects.create(question=q, label="A")
+    col_b = GridColumn.objects.create(question=q, label="B")
+    GridRow.objects.create(question=q, statement="r1", correct_column=col_a)
+    picked = col_a if chosen == "A" else col_b
+    row = _seed(unit, student, q, {"answer": [picked.pk]})
+    return q, row, col_a, col_b
+
+
+def _seed_multigrid(unit, student):
+    """One 1-row multi-select grid: columns A,B; row correct={A}. Seed chosen={A}."""
+    q = MultiGridQuestionElement.objects.create(stem="Q")
+    col_a = MultiGridColumn.objects.create(question=q, label="A")
+    col_b = MultiGridColumn.objects.create(question=q, label="B")
+    r = MultiGridRow.objects.create(question=q, statement="r1")
+    r.correct_columns.add(col_a)
+    row = _seed(unit, student, q, {"answer": [[col_a.pk]]})
+    return q, row, col_a, col_b
+
+
+# The drag/matchpair restore tests seed a WRONG-but-in-pool answer (a distractor /
+# a swapped token), NOT the correct one. A distractor still renders `<option
+# value="X" selected>`, so the restore signal is decoupled from any
+# correct-verdict rendering path -- only _seed_choicegrid needs the same care (it
+# already seeds "B", the wrong column).
+def _seed_matchpair(unit, student, *, chosen="renal"):  # "renal": in-pool distractor
+    q = MatchPairQuestionElement.objects.create(stem="Q", distractors="renal")
+    MatchPair.objects.create(question=q, left="Heart", right="cardiac")
+    row = _seed(unit, student, q, {"answer": [chosen]})
+    return q, row
+
+
+def _seed_dragfill(unit, student, *, chosen="Rome"):  # "Rome": in-pool distractor
+    q = DragFillBlankQuestionElement.objects.create(
+        stem="Cap is ￿0￿", distractors="Rome"
+    )
+    DragBlank.objects.create(question=q, correct_token="Paris")
+    row = _seed(unit, student, q, {"answer": [chosen]})
+    return q, row
+
+
+def _seed_dragimage(unit, student, *, answer=("Lung", "Heart")):
+    # swapped -> both wrong, both in pool
+    course = unit.course
+    q = DragToImageQuestionElement.objects.create(
+        media=_image(course), alt="Diagram", distractors="Liver"
+    )
+    DragZone.objects.create(
+        question=q, correct_label="Heart", x=0.1, y=0.1, w=0.3, h=0.3, order=0
+    )
+    DragZone.objects.create(
+        question=q, correct_label="Lung", x=0.6, y=0.6, w=0.3, h=0.3, order=1
+    )
+    row = _seed(unit, student, q, {"answer": list(answer)})
+    return q, row
+
+
+def test_restore_choicegrid_checks_chosen_cell(client):
+    student, course, unit = _enrolled(client)
+    _q, _row, _col_a, col_b = _seed_choicegrid(unit, student, chosen="B")
+    body = client.get(_lesson_url(unit)).content.decode()
+    # the student's chosen column is checked
+    assert f'value="{col_b.pk}" checked' in body
+
+
+def test_restore_multigrid_checks_chosen_cell(client):
+    student, course, unit = _enrolled(client)
+    _q, _row, col_a, _col_b = _seed_multigrid(unit, student)
+    body = client.get(_lesson_url(unit)).content.decode()
+    assert f'value="{col_a.pk}" checked' in body
+
+
+def test_restore_matchpair_selects_chosen_option(client):
+    student, course, unit = _enrolled(client)
+    _seed_matchpair(unit, student, chosen="renal")  # wrong-but-in-pool distractor
+    body = client.get(_lesson_url(unit)).content.decode()
+    assert 'value="renal" selected' in body
+
+
+def test_restore_dragfill_selects_chosen_option(client):
+    student, course, unit = _enrolled(client)
+    _seed_dragfill(unit, student, chosen="Rome")  # wrong-but-in-pool distractor
+    body = client.get(_lesson_url(unit)).content.decode()
+    assert 'value="Rome" selected' in body
+
+
+def test_restore_dragimage_selects_both_slots(client):
+    student, course, unit = _enrolled(client)
+    # swapped -> both wrong, both in pool
+    _seed_dragimage(unit, student, answer=("Lung", "Heart"))
+    body = client.get(_lesson_url(unit)).content.decode()
+    assert 'value="Lung" selected' in body
+    assert 'value="Heart" selected' in body
+
+
+def test_check_persists_choicegrid_positional_list(client):
+    student, course, unit = _enrolled(client)
+    q = ChoiceGridQuestionElement.objects.create(stem="Q")
+    col_a = GridColumn.objects.create(question=q, label="A")
+    GridColumn.objects.create(question=q, label="B")
+    row_obj = GridRow.objects.create(question=q, statement="r1", correct_column=col_a)
+    el = _add(unit, q)
+    client.post(
+        _check_url(unit, el.pk),
+        {f"row_{row_obj.pk}": str(col_a.pk)},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(el.pk): {"answer": [col_a.pk]}}
+
+
+def test_check_persists_multigrid_list_of_lists(client):
+    student, course, unit = _enrolled(client)
+    q = MultiGridQuestionElement.objects.create(stem="Q")
+    col_a = MultiGridColumn.objects.create(question=q, label="A")
+    col_b = MultiGridColumn.objects.create(question=q, label="B")
+    r = MultiGridRow.objects.create(question=q, statement="r1")
+    r.correct_columns.add(col_a)
+    el = _add(unit, q)
+    client.post(
+        _check_url(unit, el.pk), {f"row_{r.pk}": [str(col_a.pk), str(col_b.pk)]}
+    )
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(el.pk): {"answer": [sorted([col_a.pk, col_b.pk])]}}
+
+
+def test_check_persists_dragfill_slot_list_fragment_path(client):
+    # JS-fragment path (X-Requested-With: fetch) — the save runs BEFORE the
+    # _wants_fragment split, so it must persist here too. Its no-JS sibling below
+    # covers the other leg; keep the fetch header here so the pair covers both.
+    student, course, unit = _enrolled(client)
+    q = DragFillBlankQuestionElement.objects.create(
+        stem="Cap is ￿0￿", distractors="Rome"
+    )
+    DragBlank.objects.create(question=q, correct_token="Paris")
+    el = _add(unit, q)
+    client.post(
+        _check_url(unit, el.pk), {"slot": ["Paris"]}, HTTP_X_REQUESTED_WITH="fetch"
+    )
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(el.pk): {"answer": ["Paris"]}}
+
+
+def test_check_empty_grid_deletes_key(client):
+    # An all-"" grid answer reads empty (answer_is_empty recurses) → the prior
+    # key is dropped.
+    student, course, unit = _enrolled(client)
+    q = ChoiceGridQuestionElement.objects.create(stem="Q")
+    GridColumn.objects.create(question=q, label="A")
+    GridRow.objects.create(question=q, statement="r1", correct_column=q.columns.first())
+    el = _add(unit, q)
+    UnitProgress.objects.create(
+        student=student,
+        unit=unit,
+        element_state={str(el.pk): {"answer": [q.columns.first().pk]}},
+    )
+    client.post(_check_url(unit, el.pk), {})  # no row_<pk> posted → build_answer → [""]
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert str(el.pk) not in up.element_state
+
+
+def test_check_nojs_path_also_persists_dragfill(client):
+    # No X-Requested-With header → the no-JS full-page re-render path still saves.
+    student, course, unit = _enrolled(client)
+    q = DragFillBlankQuestionElement.objects.create(
+        stem="Cap is ￿0￿", distractors="Rome"
+    )
+    DragBlank.objects.create(question=q, correct_token="Paris")
+    el = _add(unit, q)
+    client.post(_check_url(unit, el.pk), {"slot": ["Paris"]})  # no fetch header
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(el.pk): {"answer": ["Paris"]}}
+
+
+def test_check_dragimage_partial_answer_keeps_placeholder_alignment(client):
+    # THE save-leg invariant: a partial drag answer (only slot 2 filled) must store a
+    # POSITIONALLY-ALIGNED list ["", "Lung"] — a placeholder kept for the empty slot 1 —
+    # NOT a compacted ["Lung"] that would shift slot 2's answer onto slot 1 on restore.
+    student, course, unit = _enrolled(client)
+    course = unit.course
+    q = DragToImageQuestionElement.objects.create(
+        media=_image(course), alt="D", distractors="Liver"
+    )
+    DragZone.objects.create(
+        question=q, correct_label="Heart", x=0.1, y=0.1, w=0.3, h=0.3, order=0
+    )
+    DragZone.objects.create(
+        question=q, correct_label="Lung", x=0.6, y=0.6, w=0.3, h=0.3, order=1
+    )
+    el = _add(unit, q)
+    # The native selects post one value each; slot 1 left at the blank placeholder ("").
+    client.post(_check_url(unit, el.pk), {"slot": ["", "Lung"]})
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(el.pk): {"answer": ["", "Lung"]}}
+
+
+def test_restore_grid_stale_column_pk_renders_unfilled(client):
+    # A stored column-pk whose column was deleted fails to match on re-mark; the cell
+    # renders unfilled — no `checked`, 200, no 500.
+    student, course, unit = _enrolled(client)
+    q = ChoiceGridQuestionElement.objects.create(stem="Q")
+    col_a = GridColumn.objects.create(question=q, label="A")
+    GridRow.objects.create(question=q, statement="r1", correct_column=col_a)
+    _seed(unit, student, q, {"answer": [999999]})  # non-existent column pk
+    resp = client.get(_lesson_url(unit))
+    assert resp.status_code == 200
+    assert f'value="{col_a.pk}" checked' not in resp.content.decode()  # cell unfilled
+
+
+def test_restore_grid_fewer_stored_entries_than_rows_is_bounded(client):
+    # A row ADDED after save (stored list shorter than current rows) must NOT
+    # IndexError: render_choice_grid guards `sv[i] if i < len(sv) else ""`.
+    # obj.render() runs OUTSIDE the fail-open try/except, so an unguarded index
+    # here would be a real 500.
+    student, course, unit = _enrolled(client)
+    q = ChoiceGridQuestionElement.objects.create(stem="Q")
+    col_a = GridColumn.objects.create(question=q, label="A")
+    GridRow.objects.create(question=q, statement="r1", correct_column=col_a)
+    GridRow.objects.create(question=q, statement="r2", correct_column=col_a)  # 2 rows
+    _seed(unit, student, q, {"answer": [col_a.pk]})  # only 1 stored entry
+    resp = client.get(_lesson_url(unit))
+    assert resp.status_code == 200
+
+
+def test_restore_grid_more_stored_entries_than_rows_is_bounded(client):
+    # A row DELETED after save (stored list longer than current rows): render iterates
+    # rows and ignores the extra entry — 200, no crash (a later cell MAY show a
+    # neighbour's answer; that bounded misfill is accepted, verdict re-derived on load).
+    student, course, unit = _enrolled(client)
+    q = ChoiceGridQuestionElement.objects.create(stem="Q")
+    col_a = GridColumn.objects.create(question=q, label="A")
+    GridRow.objects.create(question=q, statement="r1", correct_column=col_a)  # 1 row
+    _seed(
+        unit, student, q, {"answer": [col_a.pk, col_a.pk, col_a.pk]}
+    )  # 3 stored entries
+    resp = client.get(_lesson_url(unit))
+    assert resp.status_code == 200
+
+
+def test_restore_drag_stale_slot_list_is_bounded(client):
+    # A stored slot list longer than the current zone count (a zone removed after save):
+    # render iterates zones, extra entries ignored — 200, no 500.
+    student, course, unit = _enrolled(client)
+    course = unit.course
+    q = DragToImageQuestionElement.objects.create(
+        media=_image(course), alt="D", distractors="Liver"
+    )
+    DragZone.objects.create(
+        question=q, correct_label="Heart", x=0.1, y=0.1, w=0.3, h=0.3, order=0
+    )
+    _seed(unit, student, q, {"answer": ["Heart", "Lung", "Liver"]})  # 3 stored, 1 zone
+    resp = client.get(_lesson_url(unit))
+    assert resp.status_code == 200
+
+
+# Position-scoping helper (module-level). Every drag/match slot renders its OWN
+# `<select name="slot">` holding the FULL pool, so a global `"value=X selected" in body`
+# only proves X is selected SOMEWHERE — it cannot tell slot 0 from slot 1 and so cannot
+# detect a positional shift/compaction. These helpers isolate each slot's own <select>
+# markup (in document = slot order) so the alignment assertions actually pin position.
+def _slot_options(body):
+    # One chunk per <select name="slot">, in slot order, truncated at that select's
+    # close.
+    chunks = body.split('<select name="slot"')[1:]  # [0] is the pre-first-select prefix
+    return [c.split("</select>")[0] for c in chunks]
+
+
+def test_restore_dragimage_partial_answer_aligns_positionally(client):
+    # Restore-leg alignment: an aligned partial blob ["", "Lung"] must pre-select
+    # Lung on slot 2 and leave slot 1 on the blank placeholder — NOT shift Lung
+    # onto slot 1.
+    student, course, unit = _enrolled(client)
+    course = unit.course
+    q = DragToImageQuestionElement.objects.create(
+        media=_image(course), alt="D", distractors="Liver"
+    )
+    DragZone.objects.create(
+        question=q, correct_label="Heart", x=0.1, y=0.1, w=0.3, h=0.3, order=0
+    )
+    DragZone.objects.create(
+        question=q, correct_label="Lung", x=0.6, y=0.6, w=0.3, h=0.3, order=1
+    )
+    _seed(unit, student, q, {"answer": ["", "Lung"]})
+    slots = _slot_options(client.get(_lesson_url(unit)).content.decode())
+    assert len(slots) == 2
+    assert "selected" not in slots[0]  # slot 1 stays on the blank placeholder
+    assert (
+        'value="Lung" selected' in slots[1]
+    )  # slot 2 restored to Lung, in its OWN select
+
+
+def test_restore_matchpair_partial_answer_aligns_positionally(client):
+    student, course, unit = _enrolled(client)
+    q = MatchPairQuestionElement.objects.create(stem="Q", distractors="renal")
+    MatchPair.objects.create(question=q, left="Heart", right="cardiac")
+    MatchPair.objects.create(question=q, left="Kidney", right="renal")
+    _seed(unit, student, q, {"answer": ["", "renal"]})
+    slots = _slot_options(client.get(_lesson_url(unit)).content.decode())
+    assert len(slots) == 2
+    assert "selected" not in slots[0]  # row 1 stays on the placeholder
+    assert 'value="renal" selected' in slots[1]  # row 2 restored, in its OWN select
+
+
+def test_restore_dragfill_partial_answer_aligns_positionally(client):
+    q_stem = "￿0￿ and ￿1￿"  # two U+FFFF gap markers — preserve byte-for-byte
+    student, course, unit = _enrolled(client)
+    q = DragFillBlankQuestionElement.objects.create(stem=q_stem, distractors="Rome")
+    DragBlank.objects.create(question=q, correct_token="Paris")
+    DragBlank.objects.create(question=q, correct_token="Madrid")
+    _seed(unit, student, q, {"answer": ["", "Madrid"]})
+    slots = _slot_options(client.get(_lesson_url(unit)).content.decode())
+    assert len(slots) == 2
+    assert "selected" not in slots[0]  # gap 1 stays on the placeholder
+    assert 'value="Madrid" selected' in slots[1]  # gap 2 restored, in its OWN select
+
+
+def test_restore_grid_empty_blob_renders_blank(client):
+    # An all-"" grid blob reads empty; nothing restores (no checked cell), 200.
+    student, course, unit = _enrolled(client)
+    q = ChoiceGridQuestionElement.objects.create(stem="Q")
+    col_a = GridColumn.objects.create(question=q, label="A")
+    GridRow.objects.create(question=q, statement="r1", correct_column=col_a)
+    _seed(unit, student, q, {"answer": [""]})
+    resp = client.get(_lesson_url(unit))
+    assert resp.status_code == 200
+    assert (
+        f'value="{col_a.pk}" checked' not in resp.content.decode()
+    )  # nothing restored
+
+
+def test_editor_preview_does_not_restore_widget(client):
+    # The editor preview renders mode="lesson" with NO element_state → nothing restores,
+    # even when another student has a stored answer.
+    author = make_student(client, "wr_author")
+    course, unit = make_course_with_unit(owner=author)
+    q = ChoiceGridQuestionElement.objects.create(stem="Q")
+    col_a = GridColumn.objects.create(question=q, label="A")
+    GridRow.objects.create(question=q, statement="r1", correct_column=col_a)
+    row = Element.objects.create(unit=unit, content_object=q)
+    other = make_verified_user()
+    UnitProgress.objects.create(
+        student=other, unit=unit, element_state={str(row.pk): {"answer": [col_a.pk]}}
+    )
+    preview_url = reverse(
+        "courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk}
+    )
+    body = client.get(preview_url).content.decode()
+    # Scope the negative to the restore-specific string — the authoring page
+    # chrome (toolbars, author correct-column markers, aria-checked) may contain
+    # bare "checked".
+    assert f'value="{col_a.pk}" checked' not in body
+
+
+def test_start_fresh_clears_widget_blob(client):
+    student, course, unit = _enrolled(client)
+    q = ChoiceGridQuestionElement.objects.create(stem="Q")
+    col_a = GridColumn.objects.create(question=q, label="A")
+    GridRow.objects.create(question=q, statement="r1", correct_column=col_a)
+    row = _seed(unit, student, q, {"answer": [col_a.pk]})
+    client.post(
+        reverse(
+            "courses:progress_reset", kwargs={"slug": course.slug, "node_pk": unit.pk}
+        )
+    )
+    up = UnitProgress.objects.filter(student=student, unit=unit).first()
+    assert not (up and up.element_state.get(str(row.pk)))
