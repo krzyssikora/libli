@@ -184,7 +184,9 @@ Do the same in `MatchPairQuestionElement` (`:1762`), `ChoiceGridQuestionElement`
 
 The flip immediately breaks three existing tests; fix all three so the file is green at this task's commit.
 
-(a) In `courses/tests/test_question_restore.py`, move the five deferred classes from `DEFERRED` into `IN_SCOPE` and **empty `DEFERRED`**:
+> **Sequencing note (carve-aware):** parts (a)–(b) below assume the all-green outcome (all five enabled). If Step 5's go/no-go carves any type, do **not** fully empty `DEFERRED` or delete the sentinel test — instead leave each carved type in `DEFERRED`, keep `test_deferred_types_are_not_restorable` parametrized over the still-deferred set, and move only the surviving types into `IN_SCOPE`. Practically: reach Step 5's run first, then finalize this membership edit to match the surviving set, so you never delete-then-un-delete the sentinel test across one step.
+
+(a) In `courses/tests/test_question_restore.py`, move the five deferred classes from `DEFERRED` into `IN_SCOPE` and **empty `DEFERRED`** (all-green case):
 
 ```python
 IN_SCOPE = [
@@ -202,7 +204,7 @@ IN_SCOPE = [
 DEFERRED = []  # all widget types enabled this slice; kept for the base-invariant note below
 ```
 
-(b) **Delete** `test_deferred_types_are_not_restorable` (`:54-56`). With `DEFERRED` empty it would iterate nothing and pass vacuously (`[[falsify-tests-not-run-them]]`). Its base-invariant intent is already carried by `test_base_default_is_false` (`:45-46`) — keep that. Add a one-line comment where the deleted test was, noting the base default still guards future subclasses.
+(b) **Delete** `test_deferred_types_are_not_restorable` (`:54-56`) — **only in the all-green case**, where `DEFERRED` is empty and the test would iterate nothing and pass vacuously (`[[falsify-tests-not-run-them]]`). Its base-invariant intent is already carried by `test_base_default_is_false` (`:45-46`) — keep that. Add a one-line comment where the deleted test was, noting the base default still guards future subclasses. **If any type is carved** (per the sequencing note above), do **not** delete it — keep it parametrized over the non-empty still-deferred set.
 
 (c) Retarget `test_deferred_type_persists_nothing` (`:158-177`) — it asserted a MatchPair check persists nothing; MatchPair now persists. Rename and invert to assert persistence:
 
@@ -730,6 +732,8 @@ The inline widgets (`DragFillBlank`, `MatchPair`) re-arm through `buildInlineSlo
 - [ ] **Step 1: Confirm the shared-path vouch precondition**
 
 Read `courses/static/courses/js/dnd.js` `buildInlineSlots` (around `:180-214`). **Source-confirm** it has **no per-inline-type branch** (it keys generically on `sel.value` / `.dnd__slot`, identical for dragfill and matchpair). Both inline templates render `<select name="slot">` inside `.dnd__rows`/inline markup that `buildInlineSlots` enhances into `.dnd__slot`. If confirmed, one inline e2e (DragFillBlank) vouches for MatchPair too, and MatchPair's distinct **server render** (`render_match_rows`) is already covered by its Task 1 view test. If the confirm **fails** (a per-type branch, or differing slot DOM), add a second inline e2e for MatchPair instead of relying on the vouch. Record the confirmation outcome in the commit message.
+
+> **MatchPair fallback e2e shape (only if the vouch fails):** mirror `test_dragfill_inline_slot_restores_after_reload` (Step 2), swapping the seed for a `_seed_matchpair_lesson` that builds a `MatchPairQuestionElement.objects.create(stem="Q", distractors="renal")` + `MatchPair.objects.create(question=q, left="Heart", right="cardiac")` on a lesson `ContentNode` (same login/enroll pattern), and drive the same locators — `render_match_rows` also emits `<ol class="dnd__rows"><li class="dnd__row">…<select name="slot"></li>` which `buildInlineSlots` enhances into `.dnd__slot`, so the gesture (`.dnd__chip[data-token="cardiac"].drag_to(.dnd__slot.first)`), the reload, and the `expect(.dnd__slot.first).to_have_text("cardiac")` assertion are identical to the dragfill case. No new locator concept is needed.
 
 - [ ] **Step 2: Write the inline restore e2e**
 
