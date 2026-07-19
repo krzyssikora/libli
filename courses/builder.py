@@ -246,6 +246,59 @@ def reparent_node(course, node_pk, new_parent_ref, position, node_token, parent_
 
 
 @transaction.atomic
+def duplicate_unit(course, node_pk, *, token):
+    """Deep-copy a unit as a sibling immediately below the source, sharing media.
+
+    Reuses the transfer export/import path. `_locked_node` + `_check_token` run
+    FIRST and raise ConflictError (-> 409) unwrapped. Only the region after them
+    is wrapped so any other failure becomes TransferError (-> 422); the whole
+    duplicate is atomic.
+    """
+    source = _locked_node(course, node_pk)
+    _check_token(source.updated, token)
+
+    # Lazy imports: the transfer package pulls courses.forms / courses.media,
+    # so a top-level edge here risks an import cycle (builder.py convention).
+    from courses.transfer import export as _export  # avoid import cycle
+    from courses.transfer import importer as _importer  # avoid import cycle
+    from courses.transfer.schema import TransferError  # avoid import cycle
+
+    try:
+        if source.kind != "unit":
+            raise ValueError("duplicate_unit only supports units")
+        parent = source.parent
+        _manifest, document, media_assets, _problems = _export.build_export(
+            course, node=source, drop_missing_media=False
+        )
+        media_map = {mid: asset for (mid, asset, _ph) in media_assets}
+        new_node = _importer.materialize_duplicate(document, media_map, course, parent)
+        # Place the copy immediately after the source among its siblings. The
+        # sibling list is read AFTER materialize appended new_node at the end;
+        # source's index is unaffected by new_node sitting last, and place_node
+        # excludes new_node from the reindexed others.
+        new_node.parent = parent
+        siblings = list(
+            ContentNode.objects.filter(course=course, parent=parent).order_by(
+                "order", "pk"
+            )
+        )
+        idx = next(i for i, n in enumerate(siblings) if n.pk == source.pk)
+        ordering.place_node(new_node, parent, course, idx + 1)
+        if parent is None:
+            course.save(update_fields=["updated"])
+        return new_node
+    except ConflictError:
+        # Defensive only: _check_token already ran BEFORE this try, so no
+        # ConflictError normally reaches here. Keep the 409 path unwrapped in case
+        # a nested op ever raises one — never normalize it to 422.
+        raise
+    except TransferError:
+        raise  # already normalized by materialize's _run_import
+    except Exception as exc:
+        raise TransferError(str(exc) or "Duplicate failed.") from exc
+
+
+@transaction.atomic
 def delete_node(course, node_pk, token):
     node = _locked_node(course, node_pk)
     _check_token(node.updated, token)
