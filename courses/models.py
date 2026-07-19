@@ -533,6 +533,11 @@ class MediaAsset(models.Model):
     kind = models.CharField(max_length=10, choices=Kind.choices)
     file = models.FileField(upload_to="courses/media/")
     original_filename = models.CharField(max_length=255)
+    # SHA-256 hex of the file bytes; used by the LAL import loader for durable
+    # (course, content_hash) dedup. Blank on assets created before/without hashing.
+    content_hash = models.CharField(
+        max_length=64, blank=True, default="", db_index=True
+    )
     name = models.CharField(max_length=255, blank=True, default="")
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
