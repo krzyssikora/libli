@@ -106,6 +106,23 @@ def test_builder_tree_layout(page, live_server, tmp_path):
     # panel renders (with the seeded element list), then screenshot light + dark.
     page.locator(".tree__title", has_text="deliberately very long").first.click()
     page.wait_for_selector(".builder__panel .element-list")
+
+    # The 2:1 ratio must SURVIVE selecting a unit — the content-heavy unit panel must
+    # not balloon the 1fr track back (requires .builder__panel min-width:0). Without
+    # it the ratio collapses to ~0.73.
+    utree = page.locator(".builder__tree").bounding_box()
+    upanel = page.locator(".builder__panel").bounding_box()
+    uratio = utree["width"] / upanel["width"]
+    assert 1.7 < uratio < 2.4, f"ratio {uratio:.2f} broke on unit select"
+
+    # No horizontal page overflow: the narrowed 1/3 panel's element list must truncate,
+    # not spill (element-list__item / panel / tree all need min-width:0).
+    no_overflow = page.evaluate(
+        "() => { const d = document.documentElement;"
+        " return d.scrollWidth <= d.clientWidth; }"
+    )
+    assert no_overflow, "page overflows horizontally after selecting a unit"
+
     page.evaluate("document.documentElement.setAttribute('data-theme', 'light')")
     page.screenshot(path=str(tmp_path / "unit_panel_light.png"), full_page=True)
     page.evaluate("document.documentElement.setAttribute('data-theme', 'dark')")

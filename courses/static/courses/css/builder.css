@@ -2,6 +2,12 @@
 @media (max-width: 720px) { .builder { grid-template-columns: 1fr; } }
 .builder__sprite { position: absolute; }
 .builder__tree { border-right: 1px solid var(--border-default); padding-right: var(--space-4); min-width: 0; }
+/* Both grid items need min-width:0 so neither track balloons past its 2fr/1fr share
+   from content-based auto minimums. Without this on the panel, selecting a unit (whose
+   detail panel is content-heavy) inflates the 1fr track and steals width back from the
+   tree — collapsing the 2:1 ratio to ~0.73:1. Panel content shrinks safely: the h2
+   wraps, .element-list__summary truncates (its own min-width:0), .panel__seam wraps. */
+.builder__panel { min-width: 0; }
 .builder__title { font-weight: 700; letter-spacing: var(--heading-letter-spacing); }
 
 /* #5 connectors */
@@ -116,6 +122,9 @@
 .unit-summary dt { color: var(--text-tertiary); font-size: .8rem; }
 .unit-summary dd { margin: 0; color: var(--text-primary); }
 .element-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-1); }
-.element-list__item { display: flex; align-items: baseline; gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--border-subtle); }
+/* min-width:0 so the row shrinks to its grid cell and lets __summary truncate; without
+   it the flex row's auto minimum grows to the nowrap summary's content width and
+   overflows the (now 1/3-width) panel horizontally. */
+.element-list__item { display: flex; min-width: 0; align-items: baseline; gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--border-subtle); }
 .element-list__type { flex: none; font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; color: var(--primary); }
 .element-list__summary { flex: 1; min-width: 0; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
