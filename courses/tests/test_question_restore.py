@@ -468,3 +468,104 @@ def test_restore_dragimage_selects_both_slots(client):
     body = client.get(_lesson_url(unit)).content.decode()
     assert 'value="Lung" selected' in body
     assert 'value="Heart" selected' in body
+
+
+def test_check_persists_choicegrid_positional_list(client):
+    student, course, unit = _enrolled(client)
+    q = ChoiceGridQuestionElement.objects.create(stem="Q")
+    col_a = GridColumn.objects.create(question=q, label="A")
+    GridColumn.objects.create(question=q, label="B")
+    row_obj = GridRow.objects.create(question=q, statement="r1", correct_column=col_a)
+    el = _add(unit, q)
+    client.post(
+        _check_url(unit, el.pk),
+        {f"row_{row_obj.pk}": str(col_a.pk)},
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(el.pk): {"answer": [col_a.pk]}}
+
+
+def test_check_persists_multigrid_list_of_lists(client):
+    student, course, unit = _enrolled(client)
+    q = MultiGridQuestionElement.objects.create(stem="Q")
+    col_a = MultiGridColumn.objects.create(question=q, label="A")
+    col_b = MultiGridColumn.objects.create(question=q, label="B")
+    r = MultiGridRow.objects.create(question=q, statement="r1")
+    r.correct_columns.add(col_a)
+    el = _add(unit, q)
+    client.post(
+        _check_url(unit, el.pk), {f"row_{r.pk}": [str(col_a.pk), str(col_b.pk)]}
+    )
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(el.pk): {"answer": [sorted([col_a.pk, col_b.pk])]}}
+
+
+def test_check_persists_dragfill_slot_list_fragment_path(client):
+    # JS-fragment path (X-Requested-With: fetch) — the save runs BEFORE the
+    # _wants_fragment split, so it must persist here too. Its no-JS sibling below
+    # covers the other leg; keep the fetch header here so the pair covers both.
+    student, course, unit = _enrolled(client)
+    q = DragFillBlankQuestionElement.objects.create(
+        stem="Cap is ￿0￿", distractors="Rome"
+    )
+    DragBlank.objects.create(question=q, correct_token="Paris")
+    el = _add(unit, q)
+    client.post(
+        _check_url(unit, el.pk), {"slot": ["Paris"]}, HTTP_X_REQUESTED_WITH="fetch"
+    )
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(el.pk): {"answer": ["Paris"]}}
+
+
+def test_check_empty_grid_deletes_key(client):
+    # An all-"" grid answer reads empty (answer_is_empty recurses) → the prior
+    # key is dropped.
+    student, course, unit = _enrolled(client)
+    q = ChoiceGridQuestionElement.objects.create(stem="Q")
+    GridColumn.objects.create(question=q, label="A")
+    GridRow.objects.create(question=q, statement="r1", correct_column=q.columns.first())
+    el = _add(unit, q)
+    UnitProgress.objects.create(
+        student=student,
+        unit=unit,
+        element_state={str(el.pk): {"answer": [q.columns.first().pk]}},
+    )
+    client.post(_check_url(unit, el.pk), {})  # no row_<pk> posted → build_answer → [""]
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert str(el.pk) not in up.element_state
+
+
+def test_check_nojs_path_also_persists_dragfill(client):
+    # No X-Requested-With header → the no-JS full-page re-render path still saves.
+    student, course, unit = _enrolled(client)
+    q = DragFillBlankQuestionElement.objects.create(
+        stem="Cap is ￿0￿", distractors="Rome"
+    )
+    DragBlank.objects.create(question=q, correct_token="Paris")
+    el = _add(unit, q)
+    client.post(_check_url(unit, el.pk), {"slot": ["Paris"]})  # no fetch header
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(el.pk): {"answer": ["Paris"]}}
+
+
+def test_check_dragimage_partial_answer_keeps_placeholder_alignment(client):
+    # THE save-leg invariant: a partial drag answer (only slot 2 filled) must store a
+    # POSITIONALLY-ALIGNED list ["", "Lung"] — a placeholder kept for the empty slot 1 —
+    # NOT a compacted ["Lung"] that would shift slot 2's answer onto slot 1 on restore.
+    student, course, unit = _enrolled(client)
+    course = unit.course
+    q = DragToImageQuestionElement.objects.create(
+        media=_image(course), alt="D", distractors="Liver"
+    )
+    DragZone.objects.create(
+        question=q, correct_label="Heart", x=0.1, y=0.1, w=0.3, h=0.3, order=0
+    )
+    DragZone.objects.create(
+        question=q, correct_label="Lung", x=0.6, y=0.6, w=0.3, h=0.3, order=1
+    )
+    el = _add(unit, q)
+    # The native selects post one value each; slot 1 left at the blank placeholder ("").
+    client.post(_check_url(unit, el.pk), {"slot": ["", "Lung"]})
+    up = UnitProgress.objects.get(student=student, unit=unit)
+    assert up.element_state == {str(el.pk): {"answer": ["", "Lung"]}}
