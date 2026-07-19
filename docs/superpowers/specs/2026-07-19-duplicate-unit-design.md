@@ -56,7 +56,10 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
      `delete_node` / `reorder_node` exactly, so neither the token check nor the
      subsequent `build_export` serialization of the source can race a concurrent
      writer.
-   - Guards: `node.kind == "unit"`; caller already access-checked in the view; and
+   - Guards: `node.kind == "unit"` (defense-in-depth — the view already rejects
+     non-units with 404, so this guard is effectively an assertion; if reached it
+     raises `ValueError`, which the whole-body wrapper then normalizes rather than
+     500-ing); caller already access-checked in the view; and
      the optimistic-concurrency token (`node.updated.isoformat()`) matched via the
      existing `_check_token` helper (409 on stale) — consistent with the sibling
      node-ops (`reorder_node`, `reparent_node`, `delete_node`).
@@ -68,10 +71,13 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
    - Placement: the materialize step appends the new node at the end of the
      parent's children; the service then moves it directly below the source. It
      sets `new_node.parent = source.parent` (a precondition of `place_node`) and
-     calls `ordering.place_node(new_node, source.parent, course,
-     position=<0-based index of source among its siblings> + 1)`. `place_node`
-     takes a **0-based position index** (not an `order` value), clamps it, and
-     reindexes all siblings, so the copy ends up immediately after the source.
+     calls `ordering.place_node(new_node, source.parent, course, position=idx + 1)`,
+     where `idx` is the source's **0-based index in the freshly-read sibling list** —
+     `list(ContentNode.objects.filter(course=course, parent=source.parent)
+     .order_by("order", "pk"))`, read after the append so it reflects reality. Do
+     **not** use `source.order` (an order value, not a position index). `place_node`
+     takes that 0-based position index, clamps it, and reindexes all siblings, so
+     the copy ends up immediately after the source.
    - Returns the newly created `ContentNode` (for the view to re-render / focus).
    - **Imports the transfer modules lazily** (`from courses.transfer import export,
      importer` *inside* `duplicate_unit`, not at module top), following
@@ -96,8 +102,10 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
    `MediaAsset` row — so no bytes are read, no files are written, and no new asset
    rows are created. Concretely this is a new internal materialize entry point
    (e.g. `materialize_duplicate(document, media_map, target_course,
-   insertion_node, user)`) added alongside `import_subtree`, so the normal
-   cross-course import path is untouched. The two-pass ordering rebuild and all
+   insertion_node)` — no `user` parameter, since duplicate-mode bypasses
+   `_create_media` and neither `_create_nodes` nor `_create_elements` consumes it)
+   added alongside `import_subtree`, so the normal cross-course import path is
+   untouched. The two-pass ordering rebuild and all
    per-type `BUILDERS` are reused verbatim.
 
    Rationale for this seam over a standalone deep-copy: it keeps a single
@@ -146,7 +154,10 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
    Since the sprite (`templates/courses/manage/_icon_sprite.html`) currently defines
    only `bi-{down,download,grip,move,trash,up}` and has no copy/duplicate glyph, a
    new `<symbol id="bi-duplicate">` must be **added to the sprite** as a concrete
-   deliverable. The button carries a translated `title` / aria-label.
+   deliverable — reusing the existing `bi-*` symbols' `viewBox` and monochrome
+   `currentColor` line convention (they are Bootstrap Icons; source the glyph from
+   Bootstrap Icons' `files` / `copy` icon) so it matches the cluster's size and
+   style. The button carries a translated `title` / aria-label.
 
 6. **i18n** — a "Duplicate" string added to the EN and PL message catalogs
    (`gettext`), following the lazy-vs-eager and catalog-test conventions already in
@@ -178,7 +189,11 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
       the sibling top-scope ops (`reorder_node` / `delete_node` / `add_node`).
    e. Return the new node.
 4. View re-renders `_scope.html` for the scope and returns the fragment; the
-   builder JS swaps it in, showing the copy directly below the original.
+   builder JS swaps it in, showing the copy directly below the original. The new
+   node is **not** specially focused, scrolled-to, or highlighted — it simply appears
+   in the swapped fragment (mirroring how `node_add`'s freshly created node appears);
+   the service returning the new `ContentNode` is for the view's scope selection, not
+   for any highlight behavior.
 
 ### What is / isn't copied
 
@@ -220,8 +235,11 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
   still has. Because duplicate-mode references the existing `MediaAsset` rows and
   never reads files, on-disk presence is irrelevant, so the serialization used for
   duplication runs in a **non-dropping mode** — a flag on `build_export`
-  (`drop_missing_media=False`). Its contract is to **short-circuit the on-disk media
-  probing across all three coupled passes** of the export walk: every registered
+  (`drop_missing_media`, **defaulting to `True`** so every existing caller —
+  `export_to` / `write_archive` — keeps today's drop/placeholder behavior unchanged;
+  only the duplicate path passes `False`). Its contract when `False` is to
+  **short-circuit the on-disk media probing across all three coupled passes** of the
+  export walk: every registered
   asset is treated as present (`status="real"`, `is_placeholder=False`), so (a) no
   element is excluded (the element-emission pass), and — critically — (b) the
   returned `media_assets` contains an entry for **every** referenced `mid` (the
@@ -230,12 +248,17 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
   would lack it and the video builder's `assets[mid]` lookup would `KeyError` on the
   very "absent file" test below. Covered by a test (a unit whose media file is absent
   duplicates with the element intact — see Testing).
-- **Genuine failures → rollback.** A hard serialization/materialize failure — a real
-  exception, not a media `problem` — is wrapped by the importer's `_run_import` as a
-  `TransferError`; the service lets it propagate to roll the whole duplicate back,
-  and the view maps it to an error response (see the view's `TransferError`
-  handling above). Missing media does **not** raise (it is reported via `problems` /
-  handled by the non-dropping mode), so it is never a rollback trigger.
+- **Genuine failures → rollback, uniformly wrapped.** The importer's `_run_import`
+  wraps only the *materialize* half (`_create_nodes` / `_create_elements`) as a
+  `TransferError`. But `build_export` runs *before* materialize and `place_node`
+  *after*, both inside the service's outer atomic yet **outside** `_run_import`, so
+  their exceptions would not be `TransferError` — and the view (which catches only
+  `TransferError`) would surface a raw 500 that builder.js ignores. To close this,
+  `duplicate_unit` wraps its **entire body** (build_export + materialize +
+  place_node) so any unexpected exception is normalized to `TransferError`, which the
+  view maps to 422; the whole duplicate rolls back atomically. Missing media does
+  **not** raise (it is handled by the non-dropping mode), so it is never a rollback
+  trigger.
 
 ## Testing
 
@@ -252,8 +275,13 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
     replaced with a placeholder.
   - The copy's media-bearing elements reference the **same** `MediaAsset` pks as
     the source (share-media assertion), and no new `MediaAsset` rows are created.
-  - The copy is placed at `source.order + 1` within the same parent; siblings
-    remain contiguously ordered.
+  - The copy is the **immediate next sibling** of the source within the same parent
+    — assert by reading the ordered sibling list (source at index `i`, copy at
+    `i+1`), not by comparing raw `order` values; siblings remain contiguously
+    ordered.
+  - Duplicating a source that contains a **dangling** `Element` (missing
+    `content_object`) succeeds with no exception; the copy has exactly one fewer
+    element (the broken row is silently skipped, per "Cannot be copied").
   - Independence: editing the copy (e.g. changing an element's text, repointing an
     image) does **not** mutate the original's rows.
   - Non-unit node → rejected. Stale token → 409, no mutation.
