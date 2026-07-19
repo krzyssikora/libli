@@ -8,7 +8,8 @@ the left column and a detail panel in the right; the two columns are equal width
 poorly, most visibly in Polish:
 
 1. Each unit row shows a kind badge rendered from `get_kind_display()` — for a unit
-   that is **"Unit" / "jednostka"**. The Polish word is long; between it and the
+   that is **"Unit" / "Jednostka"** (the verbatim `get_kind_display` output — PL
+   renders capitalized "Jednostka"). The Polish word is long; between it and the
    6–7 action icons in the row's control cluster, the title button gets squeezed and
    **wraps to a second line**, roughly doubling the tree's height.
 2. The badge is also **uninformative**: every unit already carries a `unit_type`
@@ -23,11 +24,21 @@ shorter and more informative, with no change to builder behaviour or data.
 Scope is deliberately narrow: presentation only (one template partial + one CSS
 file), plus a docs touch-up and tests. No model, view, migration, or JS changes.
 
+**Deliberately out of scope — the move picker.** `templates/courses/manage/_move_picker.html`
+renders the same `<span class="tree__badge tree__badge--{{ node.kind }}">{{ node.get_kind_display }}</span>`
+markup, so after this change units still show the "Unit"/"Jednostka" word badge *in
+the move picker*. That is intentional and left unchanged: the move picker is a
+transient reparent-destination list, not the always-on builder column, so the
+badge-wrap and scanning problems this change targets do not bite there, and the L/Q
+letters (which read as builder-tree shorthand) are less self-evident out of that
+context. Keeping the edit to the one builder-tree partial avoids widening the blast
+radius; the move-picker badge can be revisited separately if it ever matters.
+
 ## Architecture / components
 
 Three coordinated edits, each independent and low-risk:
 
-### 1. Unit badge `Unit` / `jednostka` → `L` / `Q`
+### 1. Unit badge `Unit` / `Jednostka` → `L` / `Q`
 
 File: `templates/courses/manage/_tree_node.html` (the `.tree__badge` span).
 
@@ -133,7 +144,7 @@ Purely render-time; no runtime data path changes.
 ## Error handling
 
 - **Missing `unit_type` on a unit:** template branch falls back to `get_kind_display`
-  (the current "Unit"/"jednostka" word) rather than emitting an empty badge. This is
+  (the current "Unit"/"Jednostka" word) rather than emitting an empty badge. This is
   a defensive-only path; model validation forbids the state.
 - **Non-unit nodes:** unaffected — the L/Q logic is gated on `node.kind == "unit"`,
   so Part/Chapter/Section render exactly as before.
@@ -154,7 +165,9 @@ Purely render-time; no runtime data path changes.
   - a `lesson` unit row: badge span text is `L`, badge `title` is `Lesson` (default
     locale);
   - a `quiz` unit row: badge span text is `Q`, badge `title` is `Quiz`;
-  - a container node (e.g. chapter) still renders its word badge (`Chapter`);
+  - a container node (e.g. chapter) still renders its word badge — `Chapter` under the
+    default (EN) locale (i.e. `get_kind_display` for the active locale; PL would be
+    "Rozdział");
   - **Non-translation of the letter:** render under `pl` and confirm the badge span
     text is still `L`/`Q` (the letters are hardcoded, not run through gettext).
   - **Tooltip localization:** assert on the **lesson** row — under `pl` the lesson
