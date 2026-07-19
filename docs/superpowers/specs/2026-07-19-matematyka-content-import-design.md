@@ -19,16 +19,17 @@ escape hatch that requires explicit human sign-off.
 
 ## 2. Scope
 
-- **21 parts** (three-digit folders), imported in folder order.
+- **21 parts** (three-digit folders), imported in folder order. This count
+  **includes** `150_f_wykladnicza`, which is in scope but incomplete (1 lesson, no
+  quiz) — imported as a single quiz-less chapter and flagged as incomplete (§3).
 - **702 lessons + 95 quizzes** (797 HTML files, exact as of the scan).
 - Media: **~253 `.mp4` (~3.6 GB), ~1195 `.png`, ~34 `.jpg`**, plus **157
   GeoGebra** and a few edpuzzle/Lumi external iframes. `.ggb` source files are
   *not* imported — GeoGebra content is already hosted on geogebra.org and
   referenced by iframe.
 
-Out of scope: single-digit folders (`0_R_24_binarny`, `0_R_euklides`), loose
-top-level files, and the `150_f_wykladnicza` part is imported but flagged as
-incomplete (1 lesson, no quiz).
+Out of scope: single-digit folders (`0_R_24_binarny`, `0_R_euklides`) and loose
+top-level files.
 
 ## 3. Target tree mapping
 
@@ -60,13 +61,15 @@ silently.
 
 ### Unit titles
 
-A unit's title is taken from the **first `<h2>` in the file** (the source's
-lesson heading — see `005_zbiory.html`'s `<h2>Zbiory - pojęcia podstawowe</h2>`).
-If a file has no `<h2>`, fall back to the **de-slugged, diacritic-restored
-filename** (same transform as part names, minus the ordering token). That first
-`<h2>` is then **not** also emitted as a `TextElement` heading (it is the unit
-title, not body content). Quiz units, which have no `<h2>`, take the de-slugged
-filename. Unit titles appear in the Phase-1 review surface.
+A **lesson** unit's title is taken from the **first `<h2>` in the file** (the
+source's lesson heading — see `005_zbiory.html`'s
+`<h2>Zbiory - pojęcia podstawowe</h2>`). If a lesson has no `<h2>`, fall back to
+the **de-slugged, diacritic-restored filename** (same transform as part names,
+minus the ordering token). That first `<h2>` is then **not** also emitted as a
+`TextElement` heading (it is the unit title, not body content). A **quiz** unit's
+title is **unconditionally** the de-slugged filename, regardless of whether the
+quiz file happens to contain an `<h2>` (so a stray heading never becomes the quiz
+title). Unit titles appear in the Phase-1 review surface.
 
 ### Part naming
 
@@ -129,8 +132,9 @@ cannot map — instead of 702 non-deterministic whole-file conversions.
   - `--refresh-unmapped`: regenerates element JSON **only** for units still marked
     `fully_mapped:false` (never-edited, still-flagged), leaving edited units and
     all manifest names untouched;
-  - `--force`: regenerates everything from source, discarding edits (explicit,
-    last-resort).
+  - `--force`: regenerates everything from source, discarding **all** edits —
+    including the human-authored manifest chapter names — hence explicit and
+    last-resort.
 
   So "re-running a part" in Phase 3 (§8) means re-running the **loader**
   (JSON→DB), which is always idempotent — *not* re-running the parser.
@@ -150,7 +154,12 @@ mirror the concrete model fields exactly** (so parser and loader can't drift):
   → `ChoiceQuestionElement.multiple` + `Choice.{text,is_correct,feedback}`
 
 Each unit JSON also carries `fully_mapped: <bool>` (false while any fragment is
-still `flagged`) so `--refresh-unmapped` (§4.1) knows which units it may regenerate.
+still `flagged`) **and** a `seed_hash` — the hash of the unit JSON as first
+emitted by the parser. `--refresh-unmapped` (§4.1) regenerates a unit only when it
+is **both** still-flagged (`fully_mapped:false`) **and** untouched since seed
+(current file hash == `seed_hash`). A unit whose partial AI fixup resolved *some*
+flagged fragments has a changed hash and is therefore preserved, even though it is
+still `fully_mapped:false` — so incremental fixups are never clobbered.
 
 A small **JSON-key → model-field table** is maintained alongside the parser as the
 single source of truth for every element type (the loader validates against it).
@@ -158,31 +167,6 @@ Media entries reference the **source file path** (`media_src`), resolved **relat
 to the directory of the source `.html` file** that the unit came from; the loader
 knows that directory from the manifest and reads the bytes there. This JSON is the
 human review surface and the loader's input.
-
-### 4.5 Per-part structure manifest (`manifest.json`)
-
-The parser emits one manifest per part — the loader's structural input, so it never
-re-derives the tree implicitly. It enumerates, in order:
-
-```
-{
-  "part": {"source_folder": "001_zbiory_liczbowe", "title": "zbiory liczbowe"},
-  "chapters": [
-    {"order": 0, "title": "<human/AI-authored name>",
-     "units": [
-       {"order": 0, "unit_json": "005_zbiory.json", "source_html": "005_zbiory.html",
-        "source_dir": "001_zbiory_liczbowe", "unit_type": "lesson", "title": "…"},
-       ...
-     ]}
-  ]
-}
-```
-
-Chapter `title`s start as parser placeholders and are filled by the Phase-1
-reading pass (§3.2) — the manifest is where those human-facing names live and
-survive loader re-runs. `source_dir` gives the loader the base for resolving each
-unit's `media_src` paths. The manifest is a committed deliverable and the Phase-1
-review surface for structure.
 
 ### 4.3 AI fixups
 
@@ -202,12 +186,16 @@ instance of this model" and so assumes **at most one element of each type per
 unit**. LAL lessons contain many `TextElement`s, `ImageElement`s, `VideoElement`s
 each, which `_upsert` would collapse to one. Instead:
 
-- **Node identity is keyed on tree position, not title.** A part is matched by
-  its source folder; each chapter/unit is matched by `(parent, order)` — the
-  0-based index (from the manifest) of its source group/file within the parent —
-  with `title`, `kind`, `unit_type` **updated in place** on re-run. This makes the
-  loader rename-safe: an author renaming a chapter in the Phase-1 review does not
-  create a duplicate subtree when the part is later re-run.
+- **Node identity is keyed on tree position, not title — for every level
+  including the Part.** The Part is matched by `(course, order)` where `order` is
+  its folder's index in the sorted list of 3-digit folders (recorded as
+  `part.order` in the manifest, §4.5, so the loader knows it under `--part`
+  without re-scanning); each chapter/unit is matched by `(parent, order)` — the
+  0-based index (from the manifest) of its source group/file within the parent.
+  `title`, `kind`, `unit_type` are **updated in place** on re-run. This makes the
+  loader rename-safe at *all* levels: an author renaming a part or a chapter in the
+  Phase-1 review does not create a duplicate subtree when the part is later
+  re-run. (No new `ContentNode` field is needed — position is the anchor.)
 - **Orphan nodes are pruned.** After matching, the loader **deletes any
   chapter/unit whose `(parent, order)` index is ≥ the current run's child count
   for that parent** (via `ContentNode.delete`, which is subtree-safe). Otherwise a
@@ -233,6 +221,41 @@ each, which `_upsert` would collapse to one. Instead:
   it loudly — last resort only).
 - Asserts every iframe host is on the embed allowlist before writing (§7, C2).
 - Scoped to one part per invocation (`--part 001_zbiory_liczbowe`) for batching.
+
+### 4.5 Per-part structure manifest (`manifest.json`) and flag report
+
+The parser emits, per part, a manifest — the loader's structural input, so it never
+re-derives the tree implicitly. It enumerates, in order:
+
+```
+{
+  "part": {"source_folder": "001_zbiory_liczbowe", "order": 0, "title": "zbiory liczbowe"},
+  "chapters": [
+    {"order": 0, "title": "<human/AI-authored name>",
+     "units": [
+       {"order": 0, "unit_json": "005_zbiory.json", "source_html": "005_zbiory.html",
+        "source_dir": "001_zbiory_liczbowe", "unit_type": "lesson", "title": "…"},
+       ...
+     ]}
+  ]
+}
+```
+
+`part.order` is the folder's index in the sorted list of 3-digit folders — the
+loader's rename-safe anchor for the Part node (§4.4). Chapter `title`s start as
+parser placeholders and are filled by the Phase-1 reading pass ("Chapter grouping
+and naming", §3) — the manifest is where those human-facing names live and survive
+loader re-runs. `source_dir` gives the loader the base for resolving each unit's
+`media_src` paths. The manifest is a committed deliverable and the Phase-1 review
+surface for structure.
+
+Alongside the manifest, the parser writes a **per-part flag report**
+(`flags.json`): a list of `{unit_json, kind, reason, raw_excerpt}` records, one per
+flagged fragment or warning (unmapped pattern, duplicate ordering token, mixed
+Zadanie, unknown hint form, over-length choice, relative `<a>` href, spanning
+table, …). It is the AI-fixup worklist (§4.3) and part of the Phase-1 summary
+(§8). Both `manifest.json` and `flags.json` live in the part's JSON output
+directory.
 
 ## 5. Lesson element mapping
 
@@ -313,6 +336,26 @@ Quiz files interleave `<p>` stems with an answer DSL:
 - `= <value>` line = a fill-in answer (numeric or short text).
 - `<!-- Zadanie N -->` comments delimit questions (also inferable from blank
   lines / stem `<p>` boundaries).
+
+**HTML embodiment (how the DSL sits in the DOM).** In the source files the DSL
+tokens are **bare text lines**, not wrapped in any tag — they appear as top-level
+`NavigableString` text nodes *between* the `<p>` stem elements (confirmed in
+`001_zbiory_liczbowe/039_zbiory_quiz.html`, e.g. a `<p>…</p>` stem followed by raw
+lines `[x] \(3\in A\)`, `[ ] \(6\in A\) {{selected: …}}`, `= 2`). The parser
+therefore walks the fragment's **top-level nodes in order**: an `<p>`/`<div>`
+element is stem prose; a text node is split on newlines and each non-empty line is
+classified by its **first non-space character(s)**:
+- `[x]`/`[ ]`/`(x)`/`( )` → a choice option (bracket shape sets `multiple`, §below);
+  a trailing `{{selected:…}}` on the same line is that option's feedback;
+- a line whose first non-space char is `=` → a fill-in answer;
+- an HTML comment `<!-- Zadanie N -->` → a question boundary.
+
+Because a `=` sign also occurs *inside math* (`\(x = 3\)`), a `=` counts as answer
+DSL **only** when it is the first non-space character of a top-level text line
+(never inside a `\(…\)`/`\[…\]` span and never inside a `<p>` stem). Anything that
+doesn't match a known DSL shape at top level is **flagged**, not silently dropped.
+The exact whitespace/line conventions are re-confirmed against the real files in
+the pilot.
 
 Mapping:
 
@@ -404,11 +447,14 @@ the author when unclear):
 
 ## 8. Workflow & batching
 
-**Phase 1 — Scan (immediately after spec approval).**
-Run the parser across **all 21 parts**; read content to derive chapter names;
-produce a **review document**: every Part → its Chapters (proposed names) →
-its Units, plus a summary of flagged/unmapped patterns discovered. Author
-reviews and renames before any DB writes. No DB changes in this phase.
+**Phase 1 — Scan & seed (immediately after spec approval).**
+This is the **sole parser-seeding pass**: run the parser across **all 21 parts**
+once, producing every part's `manifest.json` + unit JSON + `flags.json`. Read
+content to derive chapter names (written into the manifests). Produce a **review
+document**: every Part → its Chapters (proposed names) → its Units, plus a summary
+of flagged/unmapped patterns. Author reviews and renames before any DB writes. No
+DB changes in this phase. After Phase 1, the JSON + manifests are the editable
+source of truth (§4.1); later phases do **not** re-seed them.
 
 **Phase 2 — Pilot (part `001_zbiory_liczbowe`).**
 Actually build part 001 into the local "matematyka" course (writing to the local
@@ -417,10 +463,11 @@ reveal/spoiler pattern, and 5 quizzes — broad coverage. Author reviews it
 **rendered in libli**. Conversion rules and mappings are locked based on findings.
 
 **Phase 3 — Batches (remaining 20 parts).**
-One part per batch, in folder order. Each batch: parse (seed JSON) → fixup flagged
-→ load → author spot-check. New patterns discovered mid-run are added to the
-mapping; re-applying them to an already-seeded part uses `--refresh-unmapped`
-(§4.1, preserving edits), then the **loader** is re-run (always idempotent).
+One part per batch, in folder order. Each batch operates on the **already-seeded**
+JSON from Phase 1: fixup flagged (§4.3) → load → author spot-check. No re-seeding.
+New parser rules discovered mid-run are re-applied to a part only via
+`--refresh-unmapped` (regenerates just still-flagged, untouched-since-seed units,
+§4.1 — preserving edits); the **loader** is then re-run (always idempotent).
 
 ## 9. Isolation & safety
 
@@ -452,6 +499,8 @@ mapping; re-applying them to an already-seeded part uses `--refresh-unmapped`
   local-only.
 - The precise single-choice vs. multi-select DSL signal (`( )` radios present?),
   numeric normalization, and ShortText matching rules, against real quiz files.
+- Whether `TableElement` supports a header **column** (first-column `<th>`) as well
+  as header rows — drives the §5 data-table mapping (support it, or flag the axis).
 - Whether the `show_solution` *table-of-reveals* pattern should render as N
   independent Spoilers (default) or a single grouped element — confirmed
   "Spoiler is fine" for the pilot; revisit if the scan shows a better native fit.
