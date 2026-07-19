@@ -52,27 +52,35 @@ File: `templates/courses/manage/_tree_node.html` (the `.tree__badge` span).
   already-translatable accessor for the `unit_type` choices.
 - Non-unit nodes (Part / Chapter / Section) keep their current word badge
   (`get_kind_display`) unchanged.
-- **Defensive fallback:** if a unit ever had an empty `unit_type` (it cannot in
-  practice — `ContentNode.clean()` raises "Units require a unit_type." — but the DB
-  column is `null=True`), fall back to the existing `get_kind_display` word so the
-  badge never renders blank.
+- **Defensive fallback:** the L/Q arm is a two-branch match (`lesson → L`, `quiz → Q`)
+  with a **final `else` that falls back to the `get_kind_display` word**. This else
+  catches *both* an empty `unit_type` (cannot happen in practice —
+  `ContentNode.clean()` raises "Units require a unit_type." — but the DB column is
+  `null=True`) *and* a non-empty-but-unrecognized value (DB corruption, or a future
+  third `UnitType` choice added without a matching letter arm). Both defensive cases
+  render exactly today's word badge, so the badge **never renders blank and never
+  emits a stray `tree__badge--<newtype>` modifier**. Corollary: adding a new
+  `UnitType` requires adding its letter arm here — otherwise it correctly degrades to
+  the word badge rather than a blank one.
 - Badge **colour is unchanged**: both L and Q keep the current
   `.tree__badge--unit { color: var(--accent); }`.
 
 **Badge classes.** The unit badge keeps its existing `tree__badge tree__badge--unit`
 classes (the `--unit` modifier is what carries `color: var(--accent)`, so it must stay
-for the colour to remain unchanged). Additionally, **only when `unit_type` is
-non-empty**, append a per-type modifier — `tree__badge--lesson` or
-`tree__badge--quiz` — so the template stays declarative and a future colour split is a
-one-line CSS change. Gate this modifier on a non-empty `unit_type` (e.g. inside the
-same branch that emits the L/Q letter) so the defensive fallback path never renders a
-malformed empty modifier (`tree__badge--`). **No colour split ships now** — no CSS is
+for the colour to remain unchanged). Additionally, **only inside the recognized `lesson`/`quiz` arms** (the same branches
+that emit the L/Q letter), append the matching per-type modifier —
+`tree__badge--lesson` or `tree__badge--quiz` — so the template stays declarative and a
+future colour split is a one-line CSS change. Because the modifier lives in the L/Q
+arms (not a broader "non-empty `unit_type`" test), the defensive `else` fallback never
+renders a malformed modifier — neither the empty `tree__badge--` nor a stray
+`tree__badge--<unrecognized>`. **No colour split ships now** — no CSS is
 added for `--lesson`/`--quiz`; both continue to inherit the `--unit` accent colour.
-The fallback (empty `unit_type`) render reproduces **today's** badge markup exactly:
-classes `tree__badge tree__badge--unit`, text `get_kind_display`, and **no `title`
-attribute** — the whole L/Q-letter + tooltip + per-type modifier is one branch gated
-on a non-empty `unit_type`, and the else branch emits neither the letter nor the
-tooltip (so no stray `title=""` from an empty `get_unit_type_display`).
+The fallback `else` render (any `unit_type` outside `lesson`/`quiz`, empty or not)
+reproduces **today's** badge markup exactly: classes `tree__badge tree__badge--unit`,
+text `get_kind_display`, and **no `title` attribute** — the L/Q-letter, tooltip, and
+per-type modifier all live in the recognized `lesson`/`quiz` arms, so the `else` emits
+none of them (no stray `title=""` from an empty `get_unit_type_display`, no malformed
+modifier).
 
 ### 2. Column ratio `1fr 1fr` → `2fr 1fr`
 
@@ -118,10 +126,13 @@ Files: `courses/static/courses/css/builder.css` + `templates/courses/manage/_tre
 - `.tree__title` gains `min-width: 0; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis;`. `min-width: 0` is required for a flex item to be allowed
   to shrink below its content width so `text-overflow` can engage. `.tree__title` is a
-  `<button>`; `text-overflow` needs a block-container box, so if the ellipsis fails to
-  engage in testing, add `display: block` (it is already `flex: 1` inside the flex row,
-  which combined with `min-width: 0` is normally sufficient). The one-line-truncation
-  check in visual verification is the guard here.
+  `<button>`, but it is also a flex item (`flex: 1` inside `.tree__rowhead`), and flex
+  items are *blockified* — their used `display` is already block-level regardless of
+  the button's inline-block default. So `display: block` is **not** the lever here (it
+  is effectively a no-op); the actual requirements are `min-width: 0` on the item plus
+  a bounded-width flex row (both already true). If truncation misbehaves in testing,
+  look at the width constraint / `min-width: 0` on this item and its ancestors, not at
+  `display`. The one-line-truncation check in visual verification is the guard.
 - Add `title="{{ node.title }}"` to the title button so the full name is available on
   hover when it is truncated.
 
@@ -186,10 +197,19 @@ Purely render-time; no runtime data path changes.
       trap). Cross-locale identity is instead pinned by the **positive** assertion
       above (badge span text is still `L`/`Q` when rendered under `pl`).
 - **Visual verification** (repo convention for styling changes): drive the builder
-  page with Playwright and screenshot **light and dark**, confirming (a) the tree
-  column is visibly wider than the panel (~2:1), (b) the four panel buttons stack one
-  per line, and (c) a deliberately long unit title truncates with an ellipsis on a
-  single row. Self-critique the screenshots before shipping.
+  page with Playwright and screenshot **light and dark**, confirming:
+  - (a) the tree column is visibly wider than the panel (~2:1);
+  - (b) on a **fresh builder load** (no node selected — the default state, which
+    renders the course/`data-panel-for="course"` panel), the four panel buttons stack
+    one per line;
+  - (c) a deliberately long unit title truncates with an ellipsis on a single row;
+  - (d) **the unit panel at the new 1/3 width**: select a unit and screenshot its
+    detail panel (light + dark). Edit #2 narrows *every* panel render, not just the
+    empty state, so confirm the content-heavy unit panel remains usable — the
+    `.unit-summary` grid still aligns, `.element-list__summary` still truncates with
+    ellipsis (does not overflow), and the `.panel__seam` buttons still wrap sensibly.
+
+  Self-critique the screenshots before shipping.
 - **Regression guard:** run the existing courses/manage template + view test module
   to confirm nothing that asserted on the old "Unit" badge text breaks; update any
   such assertion to the new L/Q scheme.
