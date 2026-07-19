@@ -76,7 +76,12 @@ title). Unit titles appear in the Phase-1 review surface.
 Slug after the digits → spaces, with Polish diacritics restored by hand
 (the source slugs are ASCII-folded). Example:
 `005_wyrazenia_algebraiczne` → **"wyrażenia algebraiczne"**.
-Each part's restored name is listed in the Phase-1 review doc for approval.
+Like chapter names, diacritic restoration is human/non-deterministic and thus
+**outside the parser's determinism guarantee** (§4.1): the parser emits the
+ASCII-folded slug as the `part.title` placeholder in the manifest, and the
+Phase-1 reading pass restores diacritics there. The edited `part.title` survives
+loader re-runs (it lives in the manifest, matched by `part.order`). Each part's
+restored name is listed in the Phase-1 review doc for approval.
 
 ### Chapter grouping and naming
 
@@ -154,11 +159,14 @@ mirror the concrete model fields exactly** (so parser and loader can't drift):
   → `ChoiceQuestionElement.multiple` + `Choice.{text,is_correct,feedback}`
 
 Each unit JSON also carries `fully_mapped: <bool>` (false while any fragment is
-still `flagged`) **and** a `seed_hash` — the hash of the unit JSON as first
-emitted by the parser. `--refresh-unmapped` (§4.1) regenerates a unit only when it
-is **both** still-flagged (`fully_mapped:false`) **and** untouched since seed
-(current file hash == `seed_hash`). A unit whose partial AI fixup resolved *some*
-flagged fragments has a changed hash and is therefore preserved, even though it is
+still `flagged`) **and** a `seed_hash`. To avoid the self-reference of "a file
+containing a hash of itself", `seed_hash` is the hash of a **canonical
+serialization of the unit payload with the `seed_hash` and `fully_mapped` keys
+excluded** (sorted keys, fixed separators). `--refresh-unmapped` (§4.1)
+regenerates a unit only when it is **both** still-flagged (`fully_mapped:false`)
+**and** untouched since seed (recomputing that same excluded-key canonical hash and
+comparing to the stored `seed_hash`). A unit whose partial AI fixup changed any
+payload content therefore no longer matches and is preserved, even though it is
 still `fully_mapped:false` — so incremental fixups are never clobbered.
 
 A small **JSON-key → model-field table** is maintained alongside the parser as the
@@ -220,7 +228,31 @@ each, which `_upsert` would collapse to one. Instead:
   `--allow-html` override is passed (that path emits an `HtmlElement` and logs
   it loudly — last resort only).
 - Asserts every iframe host is on the embed allowlist before writing (§7, C2).
+- **Element ordering is by JSON array order.** `Element.order` is an
+  auto-assigning `OrderField(for_fields=["unit"])`; after the per-unit element
+  wipe, the loader creates rows in JSON-array order so `OrderField` numbers them
+  0, 1, 2, … — the reliance on creation order (not explicit `order=`) is
+  intentional and only correct because of the preceding full wipe.
 - Scoped to one part per invocation (`--part 001_zbiory_liczbowe`) for batching.
+
+**Loader preconditions (checked before any write, fail loud):**
+
+- **Target course resolution.** The course is selected by a required
+  `--course <slug>` (default `matematyka`); the loader errors if no such `Course`
+  exists rather than creating one.
+- **Course owns its Part range / no collision.** Because Part nodes match on
+  `(course, order)` (§C2), the loader asserts the target course has **no
+  pre-existing top-level (`parent=null`) node whose `order` falls in the range this
+  import writes** — otherwise a rename-safe Part match would silently
+  adopt/overwrite an unrelated subtree. The import assumes it owns the whole
+  `matematyka` course tree.
+- **Depth policy.** Writing Part+Chapter nodes via raw ORM bypasses the
+  `Course.uses_parts`/`uses_chapters`/`uses_sections` policy that gates the
+  builder's add-time UI. The loader therefore **verifies (and, if `--set-policy`,
+  sets) `uses_parts=True` and `uses_chapters=True`** on the target course before
+  writing, so the produced Part→Chapter→Unit tree is one the builder/policy will
+  render and allow editing. `uses_sections` is intentionally left off — the
+  `ContentNode` invariant permits skipping the optional Section level.
 
 ### 4.5 Per-part structure manifest (`manifest.json`) and flag report
 
@@ -254,8 +286,11 @@ Alongside the manifest, the parser writes a **per-part flag report**
 flagged fragment or warning (unmapped pattern, duplicate ordering token, mixed
 Zadanie, unknown hint form, over-length choice, relative `<a>` href, spanning
 table, …). It is the AI-fixup worklist (§4.3) and part of the Phase-1 summary
-(§8). Both `manifest.json` and `flags.json` live in the part's JSON output
-directory.
+(§8). Both `manifest.json` and `flags.json`, plus the per-unit JSON, live in a
+**fixed per-part output directory** — `scripts/lal_import/out/<source_folder>/`
+(e.g. `scripts/lal_import/out/001_zbiory_liczbowe/manifest.json`). Parser output
+and loader input use this same convention, so `--part 001_zbiory_liczbowe` maps
+unambiguously to its manifest path (overridable via `--json-dir`).
 
 ## 5. Lesson element mapping
 
@@ -302,13 +337,19 @@ through nh3 (`courses/sanitize.py`), an HTML parser, *before* KaTeX ever sees it
 A math fragment like `\(y<z\)` or `\(a>b\)` — pervasive in a math course — is
 parsed as a stray HTML tag and **silently deleted** (verified: input
 `<p>gdy \(x < 3\) oraz \(y<z\)\)</p>` loses the whole `\(y<z\)` span). Therefore
-the parser MUST, for every `\(…\)` and `\[…\]` span it emits into a
-`TextElement`/`SpoilerElement`/table-cell body, **entity-escape `<`→`&lt;` and
-`>`→`&gt;` inside the span**. nh3 leaves entities intact, the browser decodes
-them back to `<`/`>` in the DOM, and KaTeX then typesets correctly. `MathElement.latex`
-is a plain `TextField` (no HTML sanitize) so its LaTeX is stored raw. This escaping
-is an explicit parser rule with a regression test (`\(a<b\)` must survive a
-sanitize round-trip).
+the parser MUST, for every `\(…\)` and `\[…\]` span it emits into **any
+nh3-sanitized rich-text field**, **entity-escape `<`→`&lt;` and `>`→`&gt;` inside
+the span**. The sanitized target fields this import writes are:
+`TextElement.body`, `SpoilerElement.body`, table cells, **and the quiz
+`QuestionElement.stem` and `explanation`** (`courses/models.py` runs
+`sanitize_html` on stem/explanation on save — and the quiz stem is exactly where
+inequalities like `\(3\in A\)`, `\(y<z\)` live, so all 95 quizzes are affected).
+nh3 leaves entities intact, the browser decodes them back to `<`/`>` in the DOM,
+and KaTeX then typesets correctly. Fields that are **not** sanitized need no
+escaping and are stored raw: `MathElement.latex`, and — verified — `Choice.text`
+and `Choice.feedback` (no `sanitize_html` on `Choice`). This escaping is an
+explicit parser rule with a regression test that a `\(a<b\)` span survives a
+sanitize round-trip **in a `QuestionElement.stem`**, not only in a `TextElement`.
 
 ### Sanitization constraints (drive some mappings)
 
@@ -356,6 +397,15 @@ DSL **only** when it is the first non-space character of a top-level text line
 doesn't match a known DSL shape at top level is **flagged**, not silently dropped.
 The exact whitespace/line conventions are re-confirmed against the real files in
 the pilot.
+
+**Question segmentation.** When present, `<!-- Zadanie N -->` comments are the
+authoritative question boundaries. When absent, the parser runs a small state
+machine over the ordered top-level nodes: a question accumulates stem `<p>`s and
+then answer-DSL lines; **a new question begins at the first stem `<p>` encountered
+*after* at least one answer-DSL line has been consumed** for the current question.
+(So consecutive `<p>`s before any answer stay in one stem, per the rule above.) If
+comments are present but disagree with this inference for a file, the **comments
+win and the disagreement is flagged** for author review.
 
 Mapping:
 
@@ -486,7 +536,8 @@ New parser rules discovered mid-run are re-applied to a part only via
    git-ignored or committed per author preference (§11).
 3. A migration adding a nullable indexed **`MediaAsset.content_hash`** (§7).
 4. `courses/management/commands/import_lal_content.py` — manifest+JSON → DB loader
-   (with `--refresh-unmapped`, `--force`, `--allow-html`, `--gc-media` flags).
+   (flags: `--course <slug>`, `--part`, `--json-dir`, `--allow-html`,
+   `--gc-media`, `--set-policy`; the parser owns `--refresh-unmapped`/`--force`).
 5. Phase-1 review document (parts/chapters/units + flag summary).
 6. The populated "matematyka" course.
 
