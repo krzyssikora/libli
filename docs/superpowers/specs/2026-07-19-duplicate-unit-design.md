@@ -48,8 +48,14 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
 
 ### New / changed components
 
-1. **Service — `builder.duplicate_unit(course, node, *, token)`**
+1. **Service — `builder.duplicate_unit(course, node_pk, *, token)`**
    (new, `courses/builder.py`), wrapped in `transaction.atomic`.
+   - Takes `node_pk` (not a pre-fetched node) and **re-fetches the source under a
+     row lock inside the atomic** via `_locked_node(course, node_pk)`
+     (`select_for_update`), then token-checks the locked row — matching
+     `delete_node` / `reorder_node` exactly, so neither the token check nor the
+     subsequent `build_export` serialization of the source can race a concurrent
+     writer.
    - Guards: `node.kind == "unit"`; caller already access-checked in the view; and
      the optimistic-concurrency token (`node.updated.isoformat()`) matched via the
      existing `_check_token` helper (409 on stale) — consistent with the sibling
@@ -67,6 +73,11 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
      takes a **0-based position index** (not an `order` value), clamps it, and
      reindexes all siblings, so the copy ends up immediately after the source.
    - Returns the newly created `ContentNode` (for the view to re-render / focus).
+   - **Imports the transfer modules lazily** (`from courses.transfer import export,
+     importer` *inside* `duplicate_unit`, not at module top), following
+     `builder.py`'s existing lazy-import convention for cross-module deps — the
+     importer pulls `courses.forms` / `courses.media`, so a new top-level edge risks
+     an import cycle.
 
 2. **Importer duplicate-mode seam** (`courses/transfer/importer.py`).
    The importer's `import_subtree(zf, manifest, document, media_entries,
@@ -103,12 +114,19 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
      the deepest kind), use scope `"top"` and return `_render_tree` (the whole-tree
      render), exactly as the sibling ops do.
    - **No-JS fallback mirrors the sibling ops via `_wants_fragment(request)`:** with
-     JS, return the fragment; without JS, on success redirect to `manage_builder`,
-     and on a 409 render `_builder_with_notice(..., status=409)`.
+     JS, a success returns the scope fragment (status 200) and a **stale-token 409
+     returns the refreshed source-parent scope fragment with fresh tokens**
+     (`_conflict_scope`, or `_render_tree(status=409)` for a top-level unit), which
+     builder.js swaps and annotates — mirroring `node_move`'s reorder-conflict
+     branch. Without JS, on success redirect to `manage_builder`, and on a 409 render
+     `_builder_with_notice(..., status=409)`.
    - Rejects non-unit nodes (404/400) and stale tokens (409). A `TransferError` from
-     the materialize step (see Error handling) is caught and surfaced as an error
-     response — fragment or notice page per `_wants_fragment` — not a raw 500.
-     Guards match sibling ops.
+     the materialize step (see Error handling) is caught and pinned to **HTTP 422** —
+     the JS branch renders `_op_error.html` (mirroring the ValidationError path of
+     `node_add` / `node_move`, which builder.js surfaces as a notice), and the no-JS
+     branch renders `_builder_with_notice(..., status=422)`. (200/409/422 are the
+     only statuses builder.js acts on, so an unpinned 400/500 would leave the JS path
+     showing the user nothing.) Guards match sibling ops.
 
 4. **URL — `manage_node_duplicate`** (new, `courses/urls.py`), placed alongside the
    other `manage_node_*` node-ops.
@@ -116,12 +134,19 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
 5. **Template — Duplicate button** in
    `templates/courses/manage/_tree_node.html`, added to the action cluster,
    **gated on `node.kind == "unit"`**. Non-destructive, so positioned near
-   export/move and before the danger `delete`. It POSTs (a small inline form like
-   `_move_buttons.html`, carrying `node` pk and the `token`) rather than being a GET
-   link, since it mutates. Uses a monochrome `currentColor` "duplicate" SVG icon on
-   the existing shared action-cluster icon class — the `.ica` class the other
-   cluster buttons in `_tree_node.html` / `_move_buttons.html` use (confirm against
-   that file) — with a translated `title` / aria-label.
+   export/move and before the danger `delete`. It renders as a small inline
+   `<form>` like `_move_buttons.html`, carrying the `node` pk, the `token`,
+   `{% csrf_token %}`, and — **critically** — a `data-op="duplicate"` attribute:
+   builder.js only intercepts and fragment-swaps `form[data-op]` submits (any value
+   except the special-cased `reparent`), so without it the button would silently
+   fall back to a full-page POST every time and the fragment-swap data flow would
+   never fire. The button follows the existing icon-**sprite** pattern the other
+   cluster buttons use — `<button class="ica"><svg class="ic"><use
+   href="#bi-duplicate"/></svg></button>` — **not** an inline `currentColor` SVG.
+   Since the sprite (`templates/courses/manage/_icon_sprite.html`) currently defines
+   only `bi-{down,download,grip,move,trash,up}` and has no copy/duplicate glyph, a
+   new `<symbol id="bi-duplicate">` must be **added to the sprite** as a concrete
+   deliverable. The button carries a translated `title` / aria-label.
 
 6. **i18n** — a "Duplicate" string added to the EN and PL message catalogs
    (`gettext`), following the lazy-vs-eager and catalog-test conventions already in
@@ -131,10 +156,11 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
 
 1. Author clicks **Duplicate** on a unit row → inline form POSTs to
    `manage_node_duplicate` with `node=<pk>` and `token=<source.updated.isoformat()>`.
-2. `node_duplicate` view: access-gate → fetch node (unit, in course) → hand off to
-   `builder.duplicate_unit(course, node, token=token)`.
+2. `node_duplicate` view: access-gate → resolve `node_pk` (must be a unit in the
+   course) → hand off to `builder.duplicate_unit(course, node_pk, token=token)`.
 3. Service (atomic):
-   a. Validate kind + token (409 on stale).
+   a. Re-fetch the source under a row lock (`_locked_node`); validate kind + token
+      on the locked row (409 on stale).
    b. `manifest, document, media_assets, problems = build_export(course, node,
       drop_missing_media=False)` — a 4-tuple (in-memory serialize of the unit
       subtree: one unit node plus its elements). `media_assets` is a list of
@@ -146,7 +172,10 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
       rows + nested children, all pointing at the **existing** `MediaAsset` rows.
    d. Set `new_node.parent = source.parent`, then `place_node` it at the 0-based
       index `(index of source among its siblings) + 1` within the same parent
-      scope; siblings are reindexed.
+      scope; siblings are reindexed. When `source.parent is None` (top-level unit),
+      also `course.save(update_fields=["updated"])` after placement — the `"top"`
+      scope's rendered token is `course.updated`, so this keeps token parity with
+      the sibling top-scope ops (`reorder_node` / `delete_node` / `add_node`).
    e. Return the new node.
 4. View re-renders `_scope.html` for the scope and returns the fragment; the
    builder JS swaps it in, showing the copy directly below the original.
@@ -163,6 +192,11 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
   submissions. The duplicate is fresh authoring content with no progress history.
   (These are separate models keyed on the node; the copy simply does not create
   rows in them.)
+- **Cannot be copied:** an `Element` join row whose concrete `content_object` is
+  missing (a dangling generic-FK) carries no content to duplicate — `build_export`'s
+  walk skips it, so such an element is silently absent from the copy. This is an
+  unavoidable divergence from "full deep copy" and only affects already-broken
+  source rows.
 
 ## Error handling
 
@@ -186,8 +220,15 @@ per-type registries kept deliberately in lockstep. Duplication reuses this path.
   still has. Because duplicate-mode references the existing `MediaAsset` rows and
   never reads files, on-disk presence is irrelevant, so the serialization used for
   duplication runs in a **non-dropping mode** — a flag on `build_export`
-  (`drop_missing_media=False`) that keeps every element and preserves its existing
-  asset reference verbatim. Covered by a test (a unit whose media file is absent
+  (`drop_missing_media=False`). Its contract is to **short-circuit the on-disk media
+  probing across all three coupled passes** of the export walk: every registered
+  asset is treated as present (`status="real"`, `is_placeholder=False`), so (a) no
+  element is excluded (the element-emission pass), and — critically — (b) the
+  returned `media_assets` contains an entry for **every** referenced `mid` (the
+  media-emission pass). Both halves matter: the share map is built from
+  `media_assets`, so if a missing video's `mid` were still dropped there, the map
+  would lack it and the video builder's `assets[mid]` lookup would `KeyError` on the
+  very "absent file" test below. Covered by a test (a unit whose media file is absent
   duplicates with the element intact — see Testing).
 - **Genuine failures → rollback.** A hard serialization/materialize failure — a real
   exception, not a media `problem` — is wrapped by the importer's `_run_import` as a
