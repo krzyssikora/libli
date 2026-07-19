@@ -57,8 +57,11 @@ one-line CSS change. Gate this modifier on a non-empty `unit_type` (e.g. inside 
 same branch that emits the L/Q letter) so the defensive fallback path never renders a
 malformed empty modifier (`tree__badge--`). **No colour split ships now** — no CSS is
 added for `--lesson`/`--quiz`; both continue to inherit the `--unit` accent colour.
-The fallback (empty `unit_type`) render keeps only `tree__badge tree__badge--unit`
-plus the `get_kind_display` word.
+The fallback (empty `unit_type`) render reproduces **today's** badge markup exactly:
+classes `tree__badge tree__badge--unit`, text `get_kind_display`, and **no `title`
+attribute** — the whole L/Q-letter + tooltip + per-type modifier is one branch gated
+on a non-empty `unit_type`, and the else branch emits neither the letter nor the
+tooltip (so no stray `title=""` from an empty `get_unit_type_display`).
 
 ### 2. Column ratio `1fr 1fr` → `2fr 1fr`
 
@@ -80,9 +83,12 @@ File: `courses/static/courses/css/builder.css`.
   `data-panel-for="{{ node.pk }}"` instead. So target exactly
   **`.builder__panel .panel[data-panel-for="course"]`** and make *that* selector a
   flex column (`display: flex; flex-direction: column; align-items: flex-start`). Its
-  direct children are the `<a class="btn">` links, which then each occupy their own
-  line at natural width; the existing owl-selector top-margins keep working as the
-  inter-item gap.
+  direct children are the `<a class="btn">` links **plus** the `<h2>` course title and
+  the `<p class="panel__meta">` line; under `align-items: flex-start` all of these
+  shrink-wrap to content width and each occupies its own line — this is intended
+  (the heading and meta no longer span the full panel, which is fine). The four
+  buttons stacking one-per-line is the goal; the existing owl-selector top-margins
+  keep working as the inter-item gap.
 - **Do not** apply flex to the bare `.builder__panel .panel` (would regress the unit
   panel — see below) nor to `.builder__panel` (the grid cell, whose only child is the
   single `.panel`, so flex there would not stack the grandchild buttons and the fix
@@ -156,12 +162,16 @@ Purely render-time; no runtime data path changes.
     the model choices, so only the lesson tooltip visibly changes between locales;
     don't assert a locale change on the quiz row.)
   - **Falsification (per the repo "falsify tests, don't run them" convention),
-    targeting the actual production behavior:**
+    targeting the actual production behavior — each bullet must be *achievable* (can
+    be made to fail by a real production change):**
     - the test goes RED if the L/Q letter mapping is broken or swapped (e.g. lesson→Q),
       pinning the mapping itself — not just its presence;
-    - the test goes RED if the letter were run through `{% trans %}` (i.e. it must
-      stay identical across locales);
     - the test goes RED if a unit badge falls back to `get_kind_display` ("Unit").
+    - Note: do **not** frame "letter is not translated" as a falsification — the
+      letters `L`/`Q` have no msgid in the catalog, so wrapping them in `{% trans %}`
+      is a behavioral no-op and such a test could never go red (the "vacuous test"
+      trap). Cross-locale identity is instead pinned by the **positive** assertion
+      above (badge span text is still `L`/`Q` when rendered under `pl`).
 - **Visual verification** (repo convention for styling changes): drive the builder
   page with Playwright and screenshot **light and dark**, confirming (a) the tree
   column is visibly wider than the panel (~2:1), (b) the four panel buttons stack one
