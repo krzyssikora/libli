@@ -1,7 +1,7 @@
 .builder { display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-4); position: relative; }
 @media (max-width: 720px) { .builder { grid-template-columns: 1fr; } }
 .builder__sprite { position: absolute; }
-.builder__tree { border-right: 1px solid var(--border-default); padding-right: var(--space-4); }
+.builder__tree { border-right: 1px solid var(--border-default); padding-right: var(--space-4); min-width: 0; }
 .builder__title { font-weight: 700; letter-spacing: var(--heading-letter-spacing); }
 
 /* #5 connectors */

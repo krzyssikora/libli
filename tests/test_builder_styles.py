@@ -40,3 +40,13 @@ def test_tree_title_truncates_with_ellipsis():
     assert re.search(r"\.tree__title\s*\{[^}]*white-space:\s*nowrap", css), (
         ".tree__title needs white-space:nowrap for single-line truncation"
     )
+
+
+def test_builder_tree_column_can_shrink():
+    # The 2fr grid track must be allowed to shrink below its content width, else a
+    # long nowrap title balloons the track and breaks the 2:1 ratio. This needs
+    # min-width:0 on the grid item itself — .tree__title's own min-width:0 only
+    # bounds truncation within the row.
+    assert re.search(r"\.builder__tree\s*\{[^}]*min-width:\s*0", _css()), (
+        ".builder__tree needs min-width:0 so the 2fr column can shrink"
+    )
