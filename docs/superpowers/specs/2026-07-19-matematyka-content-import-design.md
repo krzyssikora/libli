@@ -135,20 +135,36 @@ cannot map — instead of 702 non-deterministic whole-file conversions.
   already-seeded part is guarded:
   - default: **refuses** to overwrite (errors, listing edited files);
   - `--refresh-unmapped`: regenerates element JSON **only** for units still marked
-    `fully_mapped:false` (never-edited, still-flagged), leaving edited units and
-    all manifest names untouched;
+    `fully_mapped:false` **and** untouched since seed (seed_hash match, §4.2) —
+    for **new-pattern coverage** (a fragment that was flagged now maps). Leaves
+    edited units and all manifest names untouched;
+  - `--refresh-elements`: regenerates element JSON for **all units EXCEPT those
+    hand-edited since seed** (seed_hash mismatch) — for a **rule *correction*** that
+    a pilot uncovers in units the seed emitted as `fully_mapped:true` but *wrong*
+    (which `--refresh-unmapped` would skip). It **never touches the manifest**, so
+    all human-authored part/chapter names survive; hand-edited unit fixups are
+    preserved by the seed_hash-mismatch skip;
   - `--force`: regenerates everything from source, discarding **all** edits —
     including the human-authored manifest chapter names — hence explicit and
     last-resort.
+
+  Any regeneration (`--refresh-unmapped`/`--refresh-elements`) **re-stamps** each
+  rewritten unit with a fresh `seed_hash` (over its new excluded-key canonical form,
+  §4.2) and a recomputed `fully_mapped`, so a subsequent refresh compares against
+  the current baseline, never a stale one.
 
   So "re-running a part" in Phase 3 (§8) means re-running the **loader**
   (JSON→DB), which is always idempotent — *not* re-running the parser.
 
 ### 4.2 Intermediate JSON (unit payload)
 
-One file per unit describing: `unit_type`, `title`, and an ordered
-`elements: [...]` array where each entry is `{type, …fields}`. **JSON field names
-mirror the concrete model fields exactly** (so parser and loader can't drift):
+One file per unit describing an ordered `elements: [...]` array where each entry
+is `{type, …fields}`. **The unit's `title` and `unit_type` are NOT stored here** —
+the **manifest is the single authority** for both (it is the structural input, and
+the Phase-1 review surface where titles are edited); the loader reads `title`/
+`unit_type` only from the manifest, so the two artifacts can never disagree.
+**JSON field names mirror the concrete model fields exactly** (so parser and loader
+can't drift):
 
 - `{"type":"text","body":"<p>…\\(x^2\\)…</p>"}` → `TextElement.body`
 - `{"type":"video","media_src":"static/zbiory_poczatek.mp4"}` → resolved to
@@ -240,12 +256,17 @@ each, which `_upsert` would collapse to one. Instead:
 - **Target course resolution.** The course is selected by a required
   `--course <slug>` (default `matematyka`); the loader errors if no such `Course`
   exists rather than creating one.
-- **Course owns its Part range / no collision.** Because Part nodes match on
-  `(course, order)` (§C2), the loader asserts the target course has **no
-  pre-existing top-level (`parent=null`) node whose `order` falls in the range this
-  import writes** — otherwise a rename-safe Part match would silently
-  adopt/overwrite an unrelated subtree. The import assumes it owns the whole
-  `matematyka` course tree.
+- **Course owns its Part range / no foreign collision.** Because Part nodes match
+  on `(course, order)`, the loader must distinguish *its own* Part from a prior run
+  (adopt + update in place) from an *unrelated* top-level node (refuse). The whole
+  import owns a known set of `part.order` values (0…20, from the manifests). The
+  rule: a top-level (`parent=null`) node whose `order` **is** one of the import's
+  own `part.order`s is adopted (this is exactly the idempotent re-run path — the
+  Part created at `order=0` on first load is *found and updated* on re-run, not
+  rejected); the loader **refuses only** if it finds a top-level node whose `order`
+  is **not** in the import's `part.order` set (a foreign subtree it does not own).
+  This makes the guard compatible with the re-run promise (§9) instead of firing on
+  every re-run. The import assumes it owns the whole `matematyka` course tree.
 - **Depth policy.** Writing Part+Chapter nodes via raw ORM bypasses the
   `Course.uses_parts`/`uses_chapters`/`uses_sections` policy that gates the
   builder's add-time UI. The loader therefore **verifies (and, if `--set-policy`,
@@ -315,10 +336,14 @@ mapping below is the starting set; §1's premise is that this set grows to cover
 
 `TableElement` stores a **rectangular grid**. The parser converts a source
 `<table>` only when it is a plain rectangle: no `rowspan`/`colspan`, consistent
-column count per row. Header **rows** (`<th>` or the first row) and header **columns** (first-column
-`<th>`) map to the `TableElement` header mechanism (or, if it supports only one
-header axis, the unsupported axis is flagged rather than rendered as plain data);
-**math inside cells** is supported (cells are
+column count per row. Header **rows** and header **columns** are inferred **only from explicit `<th>`
+markup** (a full first row of `<th>` → header row; a full first column of `<th>` →
+header column) and map to the `TableElement` header mechanism; if the element
+supports only one header axis, the unsupported axis is flagged rather than
+rendered as plain data. A table with **no `<th>` at all** is rendered as a plain
+data grid (its first row is **not** assumed to be a header) — the ambiguous case is
+flagged for author attention rather than guessed. **Math inside cells** is
+supported (cells are
 rich text, so the same `<`/`>`-in-math escaping below applies per cell). A table
 using spans, nested tables, or ragged rows is **flagged** for AI/author fixup
 (re-expressed as a rectangular table, or split), never dropped. The `show_solution`
@@ -341,9 +366,11 @@ the parser MUST, for every `\(…\)` and `\[…\]` span it emits into **any
 nh3-sanitized rich-text field**, **entity-escape `<`→`&lt;` and `>`→`&gt;` inside
 the span**. The sanitized target fields this import writes are:
 `TextElement.body`, `SpoilerElement.body`, table cells, **and the quiz
-`QuestionElement.stem` and `explanation`** (`courses/models.py` runs
-`sanitize_html` on stem/explanation on save — and the quiz stem is exactly where
-inequalities like `\(3\in A\)`, `\(y<z\)` live, so all 95 quizzes are affected).
+`QuestionElement.stem`** (`courses/models.py` runs `sanitize_html` on the stem on
+save — and the quiz stem is exactly where inequalities like `\(3\in A\)`, `\(y<z\)`
+live, so all 95 quizzes are affected). The DSL provides no source for
+`QuestionElement.explanation`, so this import does not populate it; if a future
+mapping ever writes `explanation` (also sanitized), the same escaping applies.
 nh3 leaves entities intact, the browser decodes them back to `<`/`>` in the DOM,
 and KaTeX then typesets correctly. Fields that are **not** sanitized need no
 escaping and are stored raw: `MathElement.latex`, and — verified — `Choice.text`
@@ -490,10 +517,14 @@ the author when unclear):
   `LIBLI_ALLOWED_EMBED_DOMAINS` (env) or the base default. The loader asserts each
   iframe host is allowlisted and refuses to run otherwise (fail loud, not silent
   skip).
-- Media resolution happens in the loader: a unit's `media_src` is resolved
-  **relative to that unit's `source_dir`** (from the manifest, §4.5 — the
-  directory of the originating `.html`), so the loader reads the right bytes even
-  though `media_src` values like `static/foo.mp4` are ambiguous on their own.
+- Media resolution: `source_dir` in the manifest (§4.5) is stored **relative** (a
+  bare folder name like `001_zbiory_liczbowe`, never an absolute
+  `C:\Users\…` path — so the manifest stays machine-independent and committable).
+  Both parser and loader take a required **`--source-root`** (defaulting to the LAL
+  `html` directory) and resolve each asset as
+  `<source-root>/<source_dir>/<media_src>` (e.g.
+  `<root>/001_zbiory_liczbowe/static/foo.mp4`). This gives an unambiguous base
+  without baking a local path into the artifacts.
 
 ## 8. Workflow & batching
 
@@ -515,9 +546,10 @@ reveal/spoiler pattern, and 5 quizzes — broad coverage. Author reviews it
 **Phase 3 — Batches (remaining 20 parts).**
 One part per batch, in folder order. Each batch operates on the **already-seeded**
 JSON from Phase 1: fixup flagged (§4.3) → load → author spot-check. No re-seeding.
-New parser rules discovered mid-run are re-applied to a part only via
-`--refresh-unmapped` (regenerates just still-flagged, untouched-since-seed units,
-§4.1 — preserving edits); the **loader** is then re-run (always idempotent).
+A newly-*covered* pattern is re-applied via `--refresh-unmapped`; a *corrected*
+mapping (units the seed emitted as `fully_mapped:true` but wrong) via
+`--refresh-elements` — both preserve manifest names and hand edits (§4.1). The
+**loader** is then re-run (always idempotent).
 
 ## 9. Isolation & safety
 
@@ -536,8 +568,9 @@ New parser rules discovered mid-run are re-applied to a part only via
    git-ignored or committed per author preference (§11).
 3. A migration adding a nullable indexed **`MediaAsset.content_hash`** (§7).
 4. `courses/management/commands/import_lal_content.py` — manifest+JSON → DB loader
-   (flags: `--course <slug>`, `--part`, `--json-dir`, `--allow-html`,
-   `--gc-media`, `--set-policy`; the parser owns `--refresh-unmapped`/`--force`).
+   (flags: `--course <slug>`, `--part`, `--json-dir`, `--source-root`,
+   `--allow-html`, `--gc-media`, `--set-policy`; the parser owns `--source-root`,
+   `--refresh-unmapped`, `--refresh-elements`, `--force`).
 5. Phase-1 review document (parts/chapters/units + flag summary).
 6. The populated "matematyka" course.
 
