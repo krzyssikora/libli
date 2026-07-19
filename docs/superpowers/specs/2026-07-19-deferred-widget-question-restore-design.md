@@ -172,6 +172,12 @@ flag that does the work.
   `UnitProgress.element_state`, GET `lesson_unit`, assert the answered state renders — a `checked`
   radio/checkbox for the grids, an `<option selected>` for the drag types). Structure these as the
   parametrized `IN_SCOPE` restore tests (Testing), so the same tests supply the per-type evidence.
+  **Assert on the *specific* option, not bare `selected`.** A native `<select>` always has *some*
+  option selected (the blank/placeholder default when nothing is chosen), so "no `<option selected>`"
+  is not a valid RED signal. Pin it by value: **GREEN** asserts `selected` on the *chosen value's*
+  option; **RED / empty slot** asserts `selected` sits on the *blank/placeholder* option (equivalently,
+  is absent from every non-default option). The grids' `checked` on radios/checkboxes has no such
+  ambiguity (an unchecked cell simply carries no `checked`).
 - **Capture all five RED before any flip.** With `RESTORABLE_IN_LESSON = False` (the current tree —
   all five still deferred), run the whole parametrized set in **one** pass: every one must be **RED**
   (renders un-restored). *Then* apply C2's single collective flip and re-run: every one must turn
@@ -184,10 +190,11 @@ flag that does the work.
   red→green, or be carved to the Fallback — that is the real bar.** The two grids are different
   payloads (positional list vs list-of-lists) and the three drag types use *distinct server render
   functions* (`render_selects` / `render_match_rows` / `render_zone_selects`), so **no type vouches
-  for another.** As a **minimum-confidence floor** to sanity-check the mechanism before reading the
-  rest, require at least both grid shapes and one drag type among the greens — but do not stop there:
-  any type still RED after the flip (or whose C4 e2e later fails) routes to the Fallback and is never
-  assumed to have passed.
+  for another.** As a **minimum-confidence sanity check** before reading the rest, *expect* both grid
+  shapes and one drag type among the greens — but this is **not** a blocking gate (the authoritative
+  ship rule is Fallback → Ship criteria, under which a one-grid / zero-drag ship is valid). Any type
+  still RED after the flip (or whose C4 e2e later fails) routes to the Fallback and is never assumed to
+  have passed.
 - **Capture the evidence** where a reviewer can find it: paste the RED (flag off) and GREEN (flag on)
   run outputs into the falsification commit message **and** the PR body, so "red-then-green" is a
   discoverable artifact, not a claim.
@@ -532,8 +539,13 @@ carveable — they are a joint *confidence target*, never a joint ship requireme
   grid, carve the failing one** like any other type. First investigate *why* one grid shape failed
   when the other passed — it is a surprising, payload-shape-specific result and may be a fixable bug —
   but a single passing grid is a valid ship, not a blocker.
-- **Neither grid red→green** → the premise is falsified; **nothing ships** and the slice is abandoned
-  (the deferral was right after all), documented as such.
+- **Both grids carved by the bounds-guard *precondition*** (not by a C1 RED — the flag-flip premise
+  actually holds for them, but the missing `sv[i]` guard makes shipping them a production edit), **and
+  ≥1 drag type passes** → ship those drag types; the grids' bounds-guard fix becomes its own follow-up
+  (see the grid-bounds-guard special case). If in this case **no** type at all survives, nothing ships.
+- **Both grids flipped and genuinely stayed RED at C1** (a real restore failure, *not* a
+  precondition carve) → the flag-flip premise is falsified for the lowest-risk types, so **nothing
+  ships** and the slice is abandoned (the deferral was right after all), documented as such.
 - A drag type may ship **only** if it clears C1 (view), the C4 e2e (widget) — satisfied for a vouched
   inline sibling **by the shared `buildInlineSlots` vouch, or by its own e2e** — and the save-side
   placeholder precondition.
