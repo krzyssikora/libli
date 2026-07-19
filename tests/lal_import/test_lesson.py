@@ -109,3 +109,13 @@ def test_html_comment_is_ignored():
     elements, flags = parse_lesson("<!-- editor note --><p>a</p>", "x.html")
     assert flags == []
     assert [e["type"] for e in elements] == ["text"]
+
+
+def test_spoiler_body_preserves_escaped_math():
+    html = (
+        '<div class="show_solution ks_button">zobacz</div>'
+        r'<div class="question_solution hidden">gdy \(a<b\) to</div>'
+    )
+    elements, _ = parse_lesson(html, "x.html")
+    sp = next(e for e in elements if e["type"] == "spoiler")
+    assert r"\(a&lt;b\)" in sp["body"]  # entity preserved, not literal <

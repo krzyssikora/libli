@@ -132,7 +132,7 @@ def parse_lesson(html, source_html):
             if sol is not None:
                 consumed.add(id(sol))  # so the loop does not re-flag it (I2)
                 _flag_relative_hrefs(sol, flags)  # spoiler body is nh3-sanitized too
-                body = "".join(str(c) for c in sol.children)  # already escaped
+                body = sol.decode_contents()  # re-escapes entities on serialize
                 elements.append(
                     {
                         "type": "spoiler",
