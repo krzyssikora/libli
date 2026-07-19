@@ -2,8 +2,14 @@
 <li class="tree__row" data-node="{{ node.pk }}" data-updated="{{ node.updated.isoformat }}"
     data-kind="{{ node.kind }}" data-parent="{{ node.parent_id|default:'top' }}">
   <div class="tree__rowhead">
+    {% if node.kind == "unit" and node.unit_type == "lesson" %}
+    <span class="tree__badge tree__badge--unit tree__badge--lesson" title="{{ node.get_unit_type_display }}">L</span>
+    {% elif node.kind == "unit" and node.unit_type == "quiz" %}
+    <span class="tree__badge tree__badge--unit tree__badge--quiz" title="{{ node.get_unit_type_display }}">Q</span>
+    {% else %}
     <span class="tree__badge tree__badge--{{ node.kind }}">{{ node.get_kind_display }}</span>
-    <button class="tree__title" type="button" data-select="{{ node.pk }}"
+    {% endif %}
+    <button class="tree__title" type="button" data-select="{{ node.pk }}" title="{{ node.title }}"
             data-panel-url="{% url 'courses:manage_node_panel' slug=node.course.slug pk=node.pk %}">{{ node.title }}</button>
     <span class="tree__cluster">
       <button type="button" class="ica ica--grip" draggable="true" aria-label="{% trans 'Drag to move' %}" title="{% trans 'Drag to move' %}"><svg class="ic"><use href="#bi-grip"/></svg></button>
