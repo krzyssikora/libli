@@ -255,6 +255,8 @@ Create `tests/test_builder_duplicate_unit.py`:
 import pytest
 
 from courses.builder import ConflictError, duplicate_unit
+from django.core.files.uploadedfile import SimpleUploadedFile
+
 from courses.models import (
     ChoiceQuestionElement,
     Choice,
@@ -264,6 +266,7 @@ from courses.models import (
     MediaAsset,
     TabsElement,
     TextElement,
+    VideoElement,
 )
 from courses.transfer.schema import TransferError
 from tests.factories import make_course_with_unit, make_image_asset
@@ -302,9 +305,10 @@ def _rich_unit():
 
 
 def _images(node):
+    # Filter to top-level elements so [0] doesn't hinge on implicit cross-scope order.
     return [
         e.content_object
-        for e in node.elements.all()
+        for e in node.elements.filter(parent__isnull=True)
         if isinstance(e.content_object, ImageElement)
     ]
 
@@ -312,7 +316,7 @@ def _images(node):
 def _texts(node):
     return [
         e.content_object
-        for e in node.elements.all()
+        for e in node.elements.filter(parent__isnull=True)
         if isinstance(e.content_object, TextElement)
     ]
 
@@ -351,6 +355,51 @@ def test_duplicate_independence():
     ct.body = "<p>changed</p>"
     ct.save()
     assert _texts(unit)[0].body == "<p>hi</p>"
+
+
+def test_duplicate_nested_unit_is_next_sibling_in_parent():
+    # The core feature at a NON-top-level unit: exercises the parent-not-None
+    # place_node path and the skipped course.updated bump.
+    course, _top = make_course_with_unit()
+    chapter = ContentNode.objects.create(course=course, kind="chapter", title="Ch")
+    unit = ContentNode.objects.create(
+        course=course, kind="unit", unit_type="lesson", title="U", parent=chapter
+    )
+    ContentNode.objects.create(
+        course=course, kind="unit", unit_type="lesson", title="U2", parent=chapter
+    )
+
+    copy = duplicate_unit(course, unit.pk, token=_tok(unit))
+
+    assert copy.parent_id == chapter.pk
+    sibs = list(
+        ContentNode.objects.filter(course=course, parent=chapter).order_by("order", "pk")
+    )
+    i = [n.pk for n in sibs].index(unit.pk)
+    assert sibs[i + 1].pk == copy.pk
+
+
+def test_duplicate_missing_video_kept_and_shared():
+    # The asymmetric case the flag exists for: a missing VIDEO is "dropped" in
+    # default export mode; drop_missing_media=False must keep it and share the asset.
+    course, unit = make_course_with_unit()
+    video = MediaAsset.objects.create(
+        course=course,
+        kind="video",
+        file=SimpleUploadedFile("v.mp4", b"x"),
+        original_filename="v.mp4",
+        name="V",
+    )
+    Element.objects.create(
+        unit=unit, content_object=VideoElement.objects.create(media=video, url="")
+    )
+    video.file.storage.delete(video.file.name)  # file gone on disk
+
+    copy = duplicate_unit(course, unit.pk, token=_tok(unit))
+
+    assert copy.elements.count() == 1  # video element NOT dropped
+    assert copy.elements.get().content_object.media_id == video.pk  # shared asset
+    assert MediaAsset.objects.filter(course=course).count() == 1
 
 
 def test_duplicate_absent_media_keeps_real_shared_asset():
@@ -457,7 +506,10 @@ def duplicate_unit(course, node_pk, *, token):
             course.save(update_fields=["updated"])
         return new_node
     except ConflictError:
-        raise  # 409 path — never normalize to 422
+        # Defensive only: _check_token already ran BEFORE this try, so no
+        # ConflictError normally reaches here. Keep the 409 path unwrapped in case
+        # a nested op ever raises one — never normalize it to 422.
+        raise
     except TransferError:
         raise  # already normalized by materialize's _run_import
     except Exception as exc:
@@ -530,6 +582,26 @@ def test_duplicate_view_creates_sibling_fragment(client):
     )
     assert resp.status_code == 200
     assert ContentNode.objects.filter(course=course, title="U1").count() == 2
+
+
+def test_duplicate_view_nested_returns_parent_scope(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="c2", owner=owner)
+    chapter = ContentNode.objects.create(course=course, kind="chapter", title="Ch")
+    unit = ContentNodeFactory(course=course, title="U1", parent=chapter)
+    Element.objects.create(
+        unit=unit, content_object=TextElement.objects.create(body="<p>x</p>")
+    )
+    resp = client.post(
+        _url(course), {"node": unit.pk, "token": unit.updated.isoformat()}, **FETCH
+    )
+    assert resp.status_code == 200
+    # A nested unit re-renders the PARENT scope fragment, not the whole tree.
+    assert f'data-scope="{chapter.pk}"' in resp.content.decode()
+    assert (
+        ContentNode.objects.filter(course=course, parent=chapter, title="U1").count()
+        == 2
+    )
 
 
 def test_duplicate_view_stale_token_409(client):
@@ -750,7 +822,15 @@ In `templates/courses/manage/_tree_node.html`, inside `<span class="tree__cluste
 
 Run: `uv run python manage.py makemessages -l en -l pl`
 
-Then edit `locale/pl/LC_MESSAGES/django.po`: find `msgid "Duplicate"`, set `msgstr "Duplikuj"`, and remove any `#, fuzzy` flag on that entry. In `locale/en/LC_MESSAGES/django.po`, set `msgstr "Duplicate"` for the same msgid (remove any fuzzy flag).
+Then edit `locale/pl/LC_MESSAGES/django.po`: find `msgid "Duplicate"`, set `msgstr "Duplikuj"`, and remove any `#, fuzzy` flag on that entry. Leave the `locale/en/LC_MESSAGES/django.po` `msgstr` for `"Duplicate"` **empty** (EN falls back to the msgid; do not fill it unless a catalog test requires a non-empty EN msgstr) — just ensure the new msgid was added and carries no fuzzy flag.
+
+**Guard against makemessages churn:** `makemessages` rewrites the whole catalog and can fuzzy-flag near-match strings or mark unrelated msgids obsolete. Review the full diff of both files and confirm the ONLY semantic change is the added `Duplicate` msgid:
+
+```bash
+git diff -- locale/en/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.po
+```
+
+Revert any incidental fuzzy-flag / obsolete-entry / re-wrapped-comment noise (e.g. `git checkout -p -- locale/...` to keep only the `Duplicate` hunk, then re-add your `msgstr`) before compiling.
 
 Then compile:
 
@@ -763,8 +843,16 @@ Expected: all PASS.
 
 - [ ] **Step 7: Run the i18n catalog tests (no obsolete/fuzzy regressions)**
 
-Run: `uv run pytest -k "i18n or catalog or messages" -q`
-Expected: PASS (no `#~` obsolete entries, no stray fuzzy flags). If a catalog test names a specific file, run it directly.
+First **locate** the real catalog test (do not guess a `-k` filter — a wrong guess makes pytest exit 5 "no tests collected", which looks like a pass):
+
+```bash
+grep -rlE "fuzzy|#~|obsolete|\.po|LC_MESSAGES|catalog" tests/
+```
+
+Run the identified test file directly, e.g.:
+
+Run: `uv run pytest <the-catalog-test-file> -v`
+Expected: PASS, and pytest reports **collected > 0** (an exit code of 5 / "no tests ran" means you ran the wrong file — find the right one; do not treat it as success). These tests assert no `#~` obsolete entries and no stray fuzzy flags across EN+PL.
 
 - [ ] **Step 8: Commit**
 
