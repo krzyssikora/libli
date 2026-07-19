@@ -174,8 +174,9 @@ Purely render-time; no runtime data path changes.
   `title="Lesson"` or for the letter could false-pass. Parse/isolate the
   `.tree__badge` element (e.g. via the test's HTML parser or a regex anchored to the
   badge class) and assert against its text and its `title` attribute specifically.
-  Use fixture unit titles that are **not** "Lesson"/"Quiz" (e.g. "Intro", "Chapter
-  test") so a title collision can't mask a wrong assertion.
+  Use fixture unit titles that are **not** "Lesson"/"Quiz" and contain no kind-word
+  substring (e.g. "Intro", "Warm-up") so a title collision can't mask a wrong
+  assertion.
   - a `lesson` unit row: badge span text is `L`, badge `title` is `Lesson` (default
     locale);
   - a `quiz` unit row: badge span text is `Q`, badge `title` is `Quiz`;
