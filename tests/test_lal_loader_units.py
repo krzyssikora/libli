@@ -6,9 +6,15 @@ from django.conf import settings
 
 from courses.lal_loader.builders import LoaderError
 from courses.lal_loader.builders import build_element
+from courses.lal_loader.guards import assert_iframe_hosts_allowlisted
+from courses.lal_loader.guards import assert_no_foreign_top_level
+from courses.lal_loader.guards import ensure_depth_policy
+from courses.lal_loader.guards import owned_part_orders
+from courses.lal_loader.guards import resolve_course
 from courses.lal_loader.media import get_or_create_asset
 from courses.lal_loader.media import resolve_source
 from courses.models import ChoiceQuestionElement
+from courses.models import ContentNode
 from courses.models import Element
 from courses.models import MediaAsset
 from courses.models import ShortNumericQuestionElement
@@ -238,3 +244,56 @@ def test_choice_literal_math_stored_then_autoescapes(tmp_path):
     text = obj.choices.first().text
     assert text == r"\(y<z\)"  # stored literal
     assert escape(text) == r"\(y&lt;z\)"  # autoescape -> single entity
+
+
+def test_resolve_course_missing_raises():
+    with pytest.raises(LoaderError):
+        resolve_course("does-not-exist")
+
+
+def test_ensure_policy_raises_when_off_without_flag():
+    course = CourseFactory(uses_parts=False, uses_chapters=True)
+    with pytest.raises(LoaderError):
+        ensure_depth_policy(course, set_policy=False)
+
+
+def test_ensure_policy_sets_when_flagged():
+    course = CourseFactory(uses_parts=False, uses_chapters=False, uses_sections=True)
+    ensure_depth_policy(course, set_policy=True)
+    course.refresh_from_db()
+    assert course.uses_parts and course.uses_chapters
+    assert course.uses_sections is False  # sections turned off (spec §4.4)
+
+
+def test_owned_part_orders_reads_all_manifests(tmp_path):
+    for folder, order in [("001_a", 0), ("005_b", 1)]:
+        d = tmp_path / folder
+        d.mkdir()
+        (d / "manifest.json").write_text(
+            f'{{"part": {{"order": {order}}}, "chapters": []}}', "utf-8"
+        )
+    assert owned_part_orders(tmp_path) == {0, 1}
+
+
+def test_foreign_top_level_node_refused():
+    course = CourseFactory()
+    ContentNode.objects.create(
+        course=course, parent=None, kind="part", title="foreign", order=9
+    )
+    with pytest.raises(LoaderError):
+        assert_no_foreign_top_level(course, owned={0, 1})
+
+
+def test_owned_top_level_node_ok():
+    course = CourseFactory()
+    ContentNode.objects.create(
+        course=course, parent=None, kind="part", title="mine", order=0
+    )
+    assert_no_foreign_top_level(course, owned={0, 1})  # no raise
+
+
+def test_iframe_host_not_allowlisted_raises():
+    with pytest.raises(LoaderError):
+        assert_iframe_hosts_allowlisted(
+            [{"type": "iframe", "url": "https://evil.example/x"}]
+        )
