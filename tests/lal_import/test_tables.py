@@ -1,9 +1,14 @@
 from bs4 import BeautifulSoup
 
+from scripts.lal_import.tables import fill_table_element
 from scripts.lal_import.tables import table_element
 
 
 def _t(html):
+    return BeautifulSoup(html, "html.parser").find("table")
+
+
+def _fill_table(html):
     return BeautifulSoup(html, "html.parser").find("table")
 
 
@@ -50,3 +55,44 @@ def test_ragged_rows_flagged():
     )
     assert el["type"] == "html"
     assert any(f["kind"] == "table_ragged" for f in flags)
+
+
+def test_pure_image_cell_becomes_image_kind():
+    # one input cell (so it routes to fill_table) + one pure-<img> cell
+    t = _fill_table(
+        "<table>"
+        '<tr><td><img src="static/g.png" alt="graph"></td>'
+        '<td><input class="table_input"></td></tr>'
+        "</table>"
+    )
+    inp = t.find("input", class_="table_input")
+    result, _flags = fill_table_element(t, {id(inp): "5"})
+    cells = result["data"]["cells"]
+    assert cells[0][0] == {"kind": "image", "media_src": "static/g.png", "alt": "graph"}
+    assert cells[0][1]["kind"] == "answer"
+
+
+def test_image_cell_with_only_stray_br_still_image():
+    t = _fill_table(
+        "<table><tr>"
+        '<td><img src="static/v.png"><br></td>'
+        '<td><input class="table_input"></td>'
+        "</tr></table>"
+    )
+    inp = t.find("input", class_="table_input")
+    result, _ = fill_table_element(t, {id(inp): "1"})
+    assert result["data"]["cells"][0][0]["kind"] == "image"
+
+
+def test_mixed_text_and_image_cell_stays_static():
+    # meaningful text alongside the image -> falls through to static (image dropped,
+    # documenting the deliberate non-split; no such cell exists in the corpus)
+    t = _fill_table(
+        "<table><tr>"
+        '<td>Look: <img src="static/g.png"></td>'
+        '<td><input class="table_input"></td>'
+        "</tr></table>"
+    )
+    inp = t.find("input", class_="table_input")
+    result, _ = fill_table_element(t, {id(inp): "1"})
+    assert result["data"]["cells"][0][0]["kind"] == "static"

@@ -61,6 +61,17 @@ def fill_table_element(table, answer_by_input):
             if inp is not None:
                 raw = answer_by_input.get(id(inp), "")
                 row.append({"kind": "answer", "answer": _answer_alternatives(raw)})
+            elif not c.get_text(strip=True) and len(c.find_all("img")) == 1:
+                # a pure image cell (only an <img>, maybe a stray <br>): keep the
+                # image as an image cell; the loader resolves media_src -> MediaAsset.
+                img = c.find("img")
+                row.append(
+                    {
+                        "kind": "image",
+                        "media_src": img.get("src", ""),
+                        "alt": img.get("alt", ""),
+                    }
+                )
             else:
                 row.append({"kind": "static", "html": c.decode_contents().strip()})
         cells.append(row)
