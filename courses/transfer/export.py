@@ -416,6 +416,15 @@ def _element_mids(type_key, data):
             for img in (data.get("images") or [])
             if isinstance(img, dict) and isinstance(img.get("media"), str)
         ]
+    if type_key == "fill_table":
+        return [
+            c["media"]
+            for row in (data.get("cells") or [])
+            for c in (row or [])
+            if isinstance(c, dict)
+            and c.get("kind") == "image"
+            and isinstance(c.get("media"), str)
+        ]
     m = data.get("media")
     return [m] if isinstance(m, str) else []
 
