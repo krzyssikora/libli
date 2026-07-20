@@ -1,0 +1,208 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<a href=\"https://pl.wikipedia.org/wiki/%C3%89tienne_B%C3%A9zout\">\n        Étienne Bézout\n    </a>\n    był francuskim matematykiem żyjącym w XVIII wieku.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W Polsce jego nazwiskiem nazwano następujące twierdzenie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Twierdzenie Bézout\n        </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Liczba \\(a\\) jest pierwiastkiem wielomianu \\(W(x)\\) (tzn. \\(W(a)=0\\))\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<em>\n            wtedy i tylko wtedy gdy\n        </em>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        wielomian \\(W(x)\\) jest podzielny przez \\((x-a)\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Rozpatrzmy wielomian\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    W(x)=x^5-2x^4-13x^3+28x^2+46x-60\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zauważmy, że\n    </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Po pierwsze, \\(W(1)\\)",
+      "body": "\n\n        \\[\n        \\begin{align*}\n        W(1)&amp;=1^5-2\\cdot 1^4-13\\cdot 1^3+28\\cdot 1^2+46\\cdot 1-60=\\\\\n            &amp;=1-2-13+28+46-60=\\\\\n            &amp;=0\n        \\end{align*}\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "Po drugie, \\(W(x):(x-1)\\)",
+      "body": "\n\n<p>\n            Wielomian \\(W(x)\\) jest podzielny przez \\((x-1)\\), tzn. dzieli się bez reszty:\n        </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                            \\(x^{4}\\)\n                        </td>\n<td>\n                            \\(-x^{3}\\)\n                        </td>\n<td>\n                            \\(-14x^{2}\\)\n                        </td>\n<td>\n                            \\(+14x\\)\n                        </td>\n<td>\n                            \\(+60\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\((x^{5}\\)\n                        </td>\n<td>\n                            \\(-2x^{4}\\)\n                        </td>\n<td>\n                            \\(-13x^{3}\\)\n                        </td>\n<td>\n                            \\(+28x^{2}\\)\n                        </td>\n<td>\n                            \\(+46x\\)\n                        </td>\n<td>\n                            \\(-60)\\)\n                        </td>\n<td>\n                            \\(:(x-1)\\)\n                        </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                            \\(x^{5}\\)\n                        </td>\n<td>\n                            \\(-x^{4}\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(=\\)\n                        </td>\n<td>\n                            \\(-x^{4}\\)\n                        </td>\n<td>\n                            \\(-13x^{3}\\)\n                        </td>\n<td>\n                            \\(+28x^{2}\\)\n                        </td>\n<td>\n                            \\(+46x\\)\n                        </td>\n<td>\n                            \\(-60\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(-x^{4}\\)\n                        </td>\n<td>\n                            \\(+x^{3}\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(=\\)\n                        </td>\n<td>\n                            \\(-14x^{3}\\)\n                        </td>\n<td>\n                            \\(+28x^{2}\\)\n                        </td>\n<td>\n                            \\(+46x\\)\n                        </td>\n<td>\n                            \\(-60\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(-14x^{3}\\)\n                        </td>\n<td>\n                            \\(+14x^{2}\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(=\\)\n                        </td>\n<td>\n                            \\(14x^{2}\\)\n                        </td>\n<td>\n                            \\(+46x\\)\n                        </td>\n<td>\n                            \\(-60\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(14x^{2}\\)\n                        </td>\n<td>\n                            \\(-14x\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(=\\)\n                        </td>\n<td>\n                            \\(60x\\)\n                        </td>\n<td>\n                            \\(-60\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(60x\\)\n                        </td>\n<td>\n                            \\(-60\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(=\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n</table>\n</div>\n</div>\n<p>\n            Czyli innymi słowy\n        </p>\n        \\[\n        W(x)=(x-1)(x^4-x^3-14x^2+14x+60)\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Uzupełnij zdania, wpisując odpowiednie liczby.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli wielomian \\(W(x)\\) jest podzielny przez \\((x-3)\\) to pierwiastkiem wielomianu jest liczba\n        <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n        .\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli wielomian \\(W(x)\\) jest podzielny przez \\((x+2)\\) to pierwiastkiem wielomianu jest liczba\n        <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n        .\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli wielomian \\(W(x)\\) jest podzielny przez \\((x+5)\\) to pierwiastkiem wielomianu jest liczba\n        <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n        .\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Świetnie!\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wybierz odpowiednie dzielniki\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(W(x)\\) to wielomian taki, że \\(W(4)=0\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wówczas \\(W(x)\\) jest podzielny przez</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\((x+4)\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\((x-4)\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\((4x-1)\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\((4x+1)\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(W(x)\\) to wielomian taki, że \\(W(-1)=0\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wówczas \\(W(x)\\) jest podzielny przez</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\((x+1)\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\((x-1)\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\((x)\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(W(x)\\) to wielomian taki, że \\(W(6)=0\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wówczas \\(W(x)\\) jest podzielny przez</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\((x+6)\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\((x-6)\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\((6x+1)\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\((6x-1)\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n            Doskonale!\n        "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3276dfef26f88ae9b508cf7de53916a59511f54057fc6564144d62738b349f12"
+}

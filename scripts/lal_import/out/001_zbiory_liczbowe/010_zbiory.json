@@ -1,0 +1,61 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Poniżej widzisz pojęcia, o których była mowa w nagraniach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Spróbuj opisać własnymi słowami znaczenie każdego z nich. Najlepiej: zapisz, jak być je opisał/-a.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Następnie sprawdź moje odpowiedzi i porównaj je ze swoimi.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Jak obliczyć następujące całki?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zbiór pusty",
+      "body": "\n                        Zbiór, który nie posiada żadnych elementów.\n                        <br/>\n                        Taki zbiór oznaczamy \\(\\emptyset\\) albo (rzadziej) \\(\\{\\}\\).\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zbiór skończony",
+      "body": "\n                        Zbiór, który ma skończenie wiele elementów.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zbiór nieskończony",
+      "body": "\n                        Zbiór, którego liczba elementów jest nieskończona.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "element zbioru",
+      "body": "\n                        Każdy pojedynczy obiekt wchodzący w skład zbioru. Elementami\n                        <strong>\n                            zbiorów liczbowych\n                        </strong>\n                        są, rzecz jasna, liczby.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "równość zbiorów",
+      "body": "\n                        Zbiory są równe, gdy mają takie same elementy, czyli gdy każdy element jednego ze zbiorów jest też elementem drugiego - i odwrotnie.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zbiory rozłączne",
+      "body": "\n                        Zbiory nazywamy rozłącznymi, jeśli nie mają żadnego wspólnego elementu.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "dopełnienie zbioru",
+      "body": "\n                        Zbiór wszystkich elementów, które nie należą do danego zbioru.\n                    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8b2140787eb6e6efd0cc32dd21ae8fb8c0c43010b9f8d2eff0d72150d839521a"
+}

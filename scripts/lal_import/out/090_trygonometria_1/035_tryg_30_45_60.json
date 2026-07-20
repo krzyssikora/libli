@@ -1,0 +1,14 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3 id=\"wartosci_45\">\n    Wartości funkcji trygonometrycznych kąta 45°\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/tryg_45.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "14f3c97d8b9905f09fc5c028cfa4df10104ad4424f3bea2cacab8258314a83e9"
+}

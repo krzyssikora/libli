@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Zastosowania funkcji kwadratowej\n</h1>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_podstawy_06.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Po takiej szumnej zapowiedzi zaczniemy od znacznie bardziej przyziemnego zadania.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ab7d0fbd570a714e7e134aa22ad1f01bf90fa6023b287e67ddfeeb727d5412aa"
+}

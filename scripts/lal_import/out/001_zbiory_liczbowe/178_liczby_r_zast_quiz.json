@@ -1,0 +1,139 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Równanie</p><p>\\[1+2x+3=5x+4-3x\\]</p><p>jest:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "sprzeczne",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "nieoznaczone",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "oznaczone",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ],
+      "points": "0.5"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Równanie</p><p>\\[1+6x+2-3x=3x-4\\]</p><p>jest:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "sprzeczne",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "nieoznaczone",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "oznaczone",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ],
+      "points": "0.5"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Równanie</p><p>\\[1+6x+2-x=3x-4\\]</p><p>jest:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "sprzeczne",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "nieoznaczone",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "oznaczone",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ],
+      "points": "0.5"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>W wyborach prezydenckich</p><p>Wskaż zdania prawdziwe:</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "Kandydat B uzskał o 10 procent więcej głosów od kandydata A.",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Kandydat B uzskał o 10 punktów procentowych więcej głosów od kandydata A.",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Kandydat B uzskał o 50 procent więcej głosów od kandydata A.",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Kandydat B uzskał o 50 punktów procentowych więcej głosów od kandydata A.",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Szafa ma 250 centymetrów wysokości.\n</p><p>\n    Janek zmierzył wysokość szafy i uzyskał 249 centymetrów.\n</p><p>Jaki jest błąd bezwzględny pomiaru Janka? (wpisz samą liczbę)</p>",
+      "value": "1",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jaki jest błąd względny pomiaru Janka? (wpisz samą liczbę w postaci ułamka zwykłego lub dzięsiętnego, nie procenta)</p>",
+      "value": "0.004",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Wpisz przybliżenia:\n</p><p>\\(4652\\) do \\(100\\)</p>",
+      "value": "4700",
+      "tolerance": "0",
+      "points": "2"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(2,992\\) do \\(0,01\\)</p>",
+      "value": "2.99",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(2.997\\) do \\(0,01\\)</p>",
+      "value": "3",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(4652\\) do \\(10\\)</p>",
+      "value": "4650",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "653fb469d593da2130fb7b7d981d10b3d4c6bf92ba314c1c1e8e4aeac0633689"
+}

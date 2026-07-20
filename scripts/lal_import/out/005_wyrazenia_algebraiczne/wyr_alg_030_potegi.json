@@ -1,0 +1,20 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Przyjrzyj się poznanym wcześniej wzorom i uzupełnij brakujące pola.\n    "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n                        \\(a^n\\cdot a^k=a^{n+k}\\)\n                    </td>\n<td>\n<span class=\"myequation\">\n                            \\(3^5\\cdot 3^4=3\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>\n</td>\n</tr>\n<tr>\n<td>\n</td>\n<td>\n<span class=\"myequation\">\n                            \\(7^7\\cdot 7^{13}=7\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>\n</td>\n</tr>\n<tr>\n<td>\n                        \\(a^n: a^k=a^{n-k}\\)\n                    </td>\n<td>\n<span class=\"myequation\">\n                            \\(4^{12}: 4^6=4\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>\n</td>\n</tr>\n<tr>\n<td>\n</td>\n<td>\n<span class=\"myequation\">\n                            \\(5^{10}: 5^{5}=5\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>\n</td>\n</tr>\n<tr>\n<td>\n                        \\(\\left(a^n\\right)^k=a^{n\\cdot k}\\)\n                    </td>\n<td>\n<span class=\"myequation\">\n                            \\(\\left(3^5\\right)^7=3\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>\n</td>\n</tr>\n<tr>\n<td>\n</td>\n<td>\n<span class=\"myequation\">\n                            \\(7^{24}=\\left(7^8\\right)\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>\n</td>\n</tr>\n</table>\n</div>\n</div>",
+      "reason": "interactive_widget (Group B): table_input"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "8a940f7c78f59783e3b5deff17176428a72508ffb3f761783cb5479c37b9ecbb"
+}

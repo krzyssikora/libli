@@ -1,0 +1,57 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jedną z własności deltoidu jest, że kąty między bokami różnej długości są równej miary. Wynika to oczywiście z faktu, że przekątna łącząca wierzchołki wspólne dla boków tej samej długości jest osią symetrii deltoidu. I dlatego:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli deltoid</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            ma dwa boki o długościach \\(a\\)\n        </li>\n<li>\n            i dwa boki o długościach \\(b\\), \n        </li>\n<li>\n            a kąt między bokami o długościach \\(a\\) i \\(b\\) ma miarę \\(\\alpha\\), \n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to pole deltoidu, \\(P\\), dane jest wzorem\n    \\[\n    P=a\\cdot b\\cdot \\sin\\alpha\n    \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/deltoid_pole_alpha_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "uzasadnienie",
+      "body": "\n\n<figure>\n<img src=\"static/deltoid_pole_alpha_2.png\" style=\"max-width: 400px;\"/>\n</figure>\n<p>\n        Zaznaczona na rysunku przekątna dzieli deltoid na dwa trójkąty przystające o dwóch bokach długości \\(a\\) i \\(b\\), oraz kącie między nimi o mierze \\(\\alpha\\).\n    </p>\n<p>\n        Pole każdego z tych trójkątów dane jest wzorem\n    </p>\n    \\[\n    \\frac{1}{2}\\cdot a\\cdot b\\cdot \\sin \\alpha\n    \\]\n    <p>\n        Pole deltoidu, \\(P\\), to suma pól dwóch trójkątów: \n    </p>\n<div class=\"table_wrapper\">\n        \\[\n        \\begin{align}\n        P&amp;=2\\cdot\\frac{1}{2}\\cdot a\\cdot b\\cdot \\sin\\alpha\\\\\n        P&amp;=a\\cdot b\\cdot \\sin\\alpha\n        \\end{align}\n        \\]\n    </div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Oblicz pola deltoidów, w których boki są długości \\(a\\) i \\(b\\), a kąt między nimi ma miarę \\(\\alpha\\). Wybierz wynik spośród podanych poniżej.\n        </p>\n<p>\n            Rysunki nie zachowują skali.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<div class=\"fixed_width\" data-width=\"250px\"></div>\n<div class=\"one_choice ks_button\">\\(7\\sqrt{3}\\)</div>\n<div class=\"one_choice ks_button\">\\(14\\phantom{\\sqrt{2}}\\)</div>\n<br/>\n<div class=\"statement\" data-width=\"250px\">\n                \\(a=4,\\;b=7,\\; \\alpha=30^{\\circ}\\)\n            </div>\n<div class=\"one_choice ks_button\">\\(7\\phantom{\\sqrt{2}}\\)</div>\n<div class=\"one_choice ks_button\">\\(14\\sqrt{2}\\)</div>\n</li>\n<li><br/></li>\n<hr/>\n<li>\n<div class=\"fixed_width\" data-width=\"250px\"></div>\n<div class=\"one_choice ks_button\">\\(9\\phantom{\\sqrt{2}}\\)</div>\n<div class=\"one_choice ks_button\">\\(9\\sqrt{2}\\)</div>\n<br/>\n<div class=\"statement\" data-width=\"250px\">\n                \\(a=6,\\;b=6,\\; \\alpha=45^{\\circ}\\)\n            </div>\n<div class=\"one_choice ks_button\">\\(9\\sqrt{3}\\)</div>\n<div class=\"one_choice ks_button\">\\(12\\phantom{\\sqrt{2}}\\)</div>\n</li>\n<li><br/></li>\n<hr/>\n<li>\n<div class=\"fixed_width\" data-width=\"250px\"></div>\n<div class=\"one_choice ks_button\">\\(9\\sqrt{3}\\)</div>\n<div class=\"one_choice ks_button\">\\(9\\phantom{\\sqrt{2}}\\)</div>\n<br/>\n<div class=\"statement\" data-width=\"250px\">\n                \\(a=6\\sqrt{2},\\;b=\\sqrt{6},\\; \\alpha=60^{\\circ}\\)\n            </div>\n<div class=\"one_choice ks_button\">\\(18\\phantom{\\sqrt{2}}\\)</div>\n<div class=\"one_choice ks_button\">\\(9\\sqrt{6}\\)</div>\n</li>\n<li><br/></li>\n<hr/>\n<li>\n<div class=\"fixed_width\" data-width=\"250px\"></div>\n<div class=\"one_choice ks_button\">\\(17,5\\phantom{\\sqrt{2}}\\)</div>\n<div class=\"one_choice ks_button\">\\(35\\phantom{\\sqrt{2}}\\)</div>\n<br/>\n<div class=\"statement\" data-width=\"250px\">\n                \\(a=10,\\;b=7,\\; \\alpha=150^{\\circ}\\)\n            </div>\n<div class=\"one_choice ks_button\">\\(35\\sqrt{3}\\)</div>\n<div class=\"one_choice ks_button\">\\(17,5\\sqrt{3}\\)</div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "potwierdź "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi: \n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8049c758de3fb8790f2c3b26e2c40193212c0d1168fe70ca63133d2993980adf"
+}

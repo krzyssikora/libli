@@ -1,0 +1,155 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Podobieństwo wielokątów, a w szczególności czworokątów, można opisać trochę łatwiej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Dwa wielokąty są podobne, jeśli ich kolejne kąty są takie same i odpowiednie boki są w tej samej proporcji.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W przypadku czworokątów możemy być bardziej precyzyjni:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Czworokąty \\(A_1B_1C_1D_1\\) i \\(A_2B_2C_2D_2\\) są <strong>podobne</strong> (\\(A_1B_1C_1D_1\\sim A_2B_2C_2D_2\\)) jeśli\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            równe są kolejne kąty wewnętrzne:\n            <div class=\"table_wrapper\">\n                \\[\n                \\color{red}{A_1}=\\color{red}{A_2},\\quad \\color{green}{B_1}=\\color{green}{B_2},\\quad \\color{orange}{C_1}=\\color{orange}{C_2},\\quad \\color{blue}{D_1}=\\color{blue}{D_2}\n                \\]\n            </div>\n</li>\n<li>\n            odpowiednie boki są proporcjonalne:\n            <div class=\"table_wrapper\">\n                \\[\n                \\color{red}{\\frac{A_2B_2}{A_1B_1}}=\\color{green}{\\frac{B_2C_2}{B_1C_1}}=\\color{orange}{\\frac{C_2D_2}{C_1D_1}}=\\color{blue}{\\frac{D_2A_2}{D_1A_1}}\n                \\]\n            </div>\n</li>\n</ul>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/czworokaty_podobne_def_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wartość każdego ułamka z powyższych to <strong>skala podobieństwa</strong> czworokąta \\(A_2B_2C_2D_2\\) do \\(A_1B_1C_1D_1\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Niech liczba \\(k\\gt 0\\) będzie skalą podobieństwa figury \\(F_2\\) to \\(F_1\\). Zwróć uwagę, że \n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(k\\gt 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "figura \\(F_2\\) jest większa od \\(F_1\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(k= 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "figury \\(F_2\\) i \\(F_1\\) są przystające",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(k\\lt 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "figura \\(F_2\\) jest mniejsza od \\(F_1\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na rysunku poniżej kąty w obu czworokątach zaznaczone tymi samymi kolorami mają równe miary.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/czworokaty_podobne_przyklad_1.png",
+      "alt": "",
+      "figcaption": "(rysunek nie zachowuje skali)"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Narysowane czworokąty <strong>są podobne</strong>.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "dlaczego?",
+      "body": "\n\n<ol class=\"bold\">\n<li>\n                Kolejne kąty wewnętrzne są równe. \n            </li>\n<li>\n                Odpowiednie boki są proporcjonalne, bo:\n                \\[\n                \\begin{align}\n                \\color{red}{\\frac{6}{4}}&amp;=1,5\\\\\n                \\color{green}{\\frac{3}{2}}&amp;=1,5\\\\\n                \\color{orange}{\\frac{3,75}{2,5}}&amp;=1,5\\\\\n                \\color{blue}{\\frac{7,5}{5}}&amp;=1,5\n                \\end{align}\n                \\]\n            </li>\n</ol>\n<p>\n            Oznacza to, że czworokąt z prawej jest podobny o czworokąta z lewej w skali \\(1,5\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na rysunku poniżej kąty w obu czworokątach zaznaczone tymi samymi kolorami mają równe miary.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/czworokaty_podobne_przyklad_2.png",
+      "alt": "",
+      "figcaption": "(rysunek nie zachowuje skali)"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Narysowane czworokąty <strong>nie są podobne</strong>.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "dlaczego?",
+      "body": "\n\n<p>\n            Co prawda kolejne kąty wewnętrzne są równe, jednak odpowiednie boki nie są proporcjonalne.\n        </p>\n<p>\n            Odpowiednie boki, czyli będące ramionami takich samych kątów, czyli:\n        </p>\n<ul class=\"nolist\">\n<li>\n                ramiona kąta <span style=\"color: red;\">czerwonego</span> i <span style=\"color: green;\">zielonego</span>:\n                <table class=\"my_table_TL\">\n<tr>\n<td>po lewej</td>\n<td>po prawej</td>\n</tr>\n<tr>\n<td>\\(\\color{red}{4}\\)</td>\n<td>\\(\\color{red}{6}\\)</td>\n</tr>\n</table>\n</li>\n<li>\n                ramiona kąta <span style=\"color: blue;\">niebieskiego</span> i <span style=\"color: red;\">czerwonego</span>:\n                <table class=\"my_table_TL\">\n<tr>\n<td>po lewej</td>\n<td>po prawej</td>\n</tr>\n<tr>\n<td>\\(\\color{blue}{3}\\)</td>\n<td>\\(\\color{blue}{4}\\)</td>\n</tr>\n</table>\n</li>\n</ul>\n<p>\n            Te dwie pary boków nie są proporcjonalne, bo\n        </p>\n        \\[\n        \\begin{align}\n        \\color{red}{\\frac{6}{4}}&amp;=\\frac{3}{2}=\\frac{9}{6}\\\\\n        \\color{blue}{\\frac{4}{3}}&amp;=\\frac{8}{6}\\ne\\frac{9}{6}\n        \\end{align}\n        \\]\n        <p>\n            Oznacza to, że czworokąty nie są podobne.\n        </p>\n<p>\n            Zauważ, że nie musimy porównywać, ani nawet znać wszystkich boków. Dla wykazania, że czworokąty nie są podobne wystarczy pokazać, że dwie pary odpowiednich boków nie są proporcjonalne.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na rysunku poniżej kąty w obu czworokątach zaznaczone tymi samymi kolorami mają równe miary. Oba zaznaczone kąty są wypukłe (tj. mają mniej niż \\(180^{\\circ}\\)).\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/czworokaty_podobne_przyklad_3.png",
+      "alt": "",
+      "figcaption": "(rysunek nie zachowuje skali)"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Narysowane czworokąty <strong>nie są podobne</strong>.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "dlaczego?",
+      "body": "\n\n<p>\n            Tym razem kolejne boki są proporcjonalne:\n        </p>\n        \\[\n        \\begin{align}\n        \\color{red}{\\frac{10}{5}}&amp;=2\\\\\n        \\color{orange}{\\frac{8}{4}}&amp;=2\\\\\n        \\color{green}{\\frac{6}{3}}&amp;=2\\\\\n        \\color{blue}{\\frac{6}{3}}&amp;=2\n        \\end{align}\n        \\]\n        <p>\n            Co z tego, skoro kąty wewnętrzne są różne? Ich miary są nieistotne, wystarczy dostrzec, że czworokąt po lewej jest wypukły (wszystkie kąty poniżej \\(180^{\\circ}\\)), a ten po prawej wklęsły (ma kąt powyżej \\(180^{\\circ}\\)).\n        </p>\n<p>\n            Oznacza to, że czworokąty nie są podobne.\n        </p>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8ec5669cefe31c2340d74709007a436aa5525640df0861dae6189212f56b4d8e"
+}

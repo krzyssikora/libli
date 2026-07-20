@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n<strong>Ułamkiem algebraicznym</strong> będziemy nazywać ułamek, który w liczniku i w mianowniku ma wyrażenia algebraiczne, a dokładniej: wielomiany.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Oto przykłady ułamków algebraicznych:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    \\frac{x+2}{x-3},\\quad\n    \\frac{x^2-4}{x},\\quad\n    \\frac{3x^5+x+2}{x^4-1},\\quad\n    \\frac{-2x^2-x-1}{-x^4+4x^3+3x^2+3x+1},\\quad\n    \\frac{-2x^3+3x^2+3x+1}{-x^4+x^3+2x^2-x+4},\\quad\n    \\frac{x^3-x^2+x}{4x^3+2x^2-x},\\quad\n    \\frac{-x^4-2x^3+3x^2-x-1}{-x^3+4x^2+3x-1},\\quad\n    \\frac{4x^3+4}{x^3-x+3},\\quad\n    \\frac{3x^3-x^2+3x+1}{x^2+2x-1},\\quad\n    \\frac{-x^4-x^3-x^2-x+3}{x^3+x^2+x+2},\\quad\n    \\frac{x^4+x^3+4x}{-2},\\quad\n    \\frac{x}{1},\\quad\n    \\frac{3}{x}\n    \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Skoro licznik i mianownik ułamka algebraicznego to wielomian, warto powtórzyć sobie\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        rozdział o wielomianach, a zwłaszcza rozkład wielomianów na czynniki i dzielenie wielomianów,\n    </li>\n<li>\n        a także rozkład wyrażeń kwadratowych na czynniki - i tym po krótce zajmiemy się dalej. \n    </li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ae7e0ffd4d2a5eafe67b5e4ddb82c6de41994452864d5408c28d7d52220739a0"
+}

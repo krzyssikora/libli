@@ -1,0 +1,110 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wiemy już, jak liczyć <strong>symbol Newtona</strong>, czyli liczbę możliwych wyborów \\(k\\) obiektów z \\(n\\), gdy <u>kolejność wyboru nie ma znaczenia</u>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Pamiętajmy, że takie wybory nazywamy <strong>kombinacjami</strong>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Teraz poznamy alternatywną metodę obliczania symbolu Newtona, której użycie ma sens, gdy wartość \\(n\\) (czyli liczba elementów zbioru, z którego wybieramy) jest stosunkowo niewielka.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W tym celu nauczymy się tworzyć tzw. trójkąt Pascala.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Trójkąt Pascala\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Trójkąt Pascala to trójkąt złożony z liczb całkowitych. Może być dowolnie duży. My stworzymy tylko kilka rzędów - bo trójkąt będzie składał się z kolejnych rzędów liczb. W każdym kolejnym rzędzie będzie o jedną liczbę więcej niż w poprzednim.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zaczniemy od tego, że na ramionach trójkąta wpiszemy jedynki.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trojkat_pascala_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Teraz wpisujemy od góry liczby w miejsca szrych kwadratów. Każda liczba będzie <strong>sumą dwóch liczb nad nią</strong>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Najpierw dwie jedynki dadzą nam dwójkę:\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trojkat_pascala_2.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Potem dodajemy \\(1\\) i \\(2\\), by dostać \\(3\\):\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trojkat_pascala_3.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    I tak dalej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Uzupełnij kilka pierwszych rzędów trójkąta Pascala.\n        <p>\n<small>W razie probleów - zerknij poniżej</small>\n</p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder narrow_table\">\n<tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>\n<tr data-row-number=\"0\"><td colspan=\"7\"></td><td colspan=\"2\">1</td><td colspan=\"7\"></td></tr>\n<tr data-row-number=\"1\"><td colspan=\"6\"></td><td colspan=\"2\">1</td><td colspan=\"2\">1</td><td colspan=\"6\"></td></tr>\n<tr data-row-number=\"2\"><td colspan=\"5\"></td><td colspan=\"2\">1</td><td colspan=\"2\">2</td><td colspan=\"2\">1</td><td colspan=\"5\"></td></tr>\n<tr data-row-number=\"3\"><td colspan=\"4\"></td><td colspan=\"2\">1</td><td colspan=\"2\">3</td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\">1</td><td colspan=\"4\"></td></tr>\n<tr data-row-number=\"4\"><td colspan=\"3\"></td><td colspan=\"2\">1</td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\">1</td><td colspan=\"3\"></td></tr>\n<tr data-row-number=\"5\"><td colspan=\"2\"></td><td colspan=\"2\">1</td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\">10</td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\">1</td><td colspan=\"2\"></td></tr>\n<tr data-row-number=\"6\"><td colspan=\"1\"></td><td colspan=\"2\">1</td><td colspan=\"2\">6</td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\">15</td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\">1</td><td colspan=\"1\"></td></tr>\n<tr data-row-number=\"7\"><td colspan=\"2\">1</td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\">1</td></tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n        Świetnie!\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": " \n        Przesuwając poniższy suwak możesz zobaczyć kolejne rzędy trójkąta Pascala - aż do rzędu dwunastego.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n<input class=\"slider\" id=\"pascal_slider\" max=\"12\" min=\"1\" type=\"range\" value=\"1\"/>\n        \\(n=\\)<span id=\"pascal_slider_value\"></span>\n"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<table class=\"my_table_noborder narrow_table\" id=\"pascal_triangle_table\" style=\"font-size: x-small;\">\n<tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>\n<tr class=\"hidden\" data-row-number=\"0\"><td colspan=\"12\"></td><td colspan=\"2\">1</td><td colspan=\"12\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"1\"><td colspan=\"11\"></td><td colspan=\"2\">1</td><td colspan=\"2\">1</td><td colspan=\"11\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"2\"><td colspan=\"10\"></td><td colspan=\"2\">1</td><td colspan=\"2\">2</td><td colspan=\"2\">1</td><td colspan=\"10\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"3\"><td colspan=\"9\"></td><td colspan=\"2\">1</td><td colspan=\"2\">3</td><td colspan=\"2\">3</td><td colspan=\"2\">1</td><td colspan=\"9\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"4\"><td colspan=\"8\"></td><td colspan=\"2\">1</td><td colspan=\"2\">4</td><td colspan=\"2\">6</td><td colspan=\"2\">4</td><td colspan=\"2\">1</td><td colspan=\"8\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"5\"><td colspan=\"7\"></td><td colspan=\"2\">1</td><td colspan=\"2\">5</td><td colspan=\"2\">10</td><td colspan=\"2\">10</td><td colspan=\"2\">5</td><td colspan=\"2\">1</td><td colspan=\"7\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"6\"><td colspan=\"6\"></td><td colspan=\"2\">1</td><td colspan=\"2\">6</td><td colspan=\"2\">15</td><td colspan=\"2\">20</td><td colspan=\"2\">15</td><td colspan=\"2\">6</td><td colspan=\"2\">1</td><td colspan=\"6\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"7\"><td colspan=\"5\"></td><td colspan=\"2\">1</td><td colspan=\"2\">7</td><td colspan=\"2\">21</td><td colspan=\"2\">35</td><td colspan=\"2\">35</td><td colspan=\"2\">21</td><td colspan=\"2\">7</td><td colspan=\"2\">1</td><td colspan=\"5\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"8\"><td colspan=\"4\"></td><td colspan=\"2\">1</td><td colspan=\"2\">8</td><td colspan=\"2\">28</td><td colspan=\"2\">56</td><td colspan=\"2\">70</td><td colspan=\"2\">56</td><td colspan=\"2\">28</td><td colspan=\"2\">8</td><td colspan=\"2\">1</td><td colspan=\"4\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"9\"><td colspan=\"3\"></td><td colspan=\"2\">1</td><td colspan=\"2\">9</td><td colspan=\"2\">36</td><td colspan=\"2\">84</td><td colspan=\"2\">126</td><td colspan=\"2\">126</td><td colspan=\"2\">84</td><td colspan=\"2\">36</td><td colspan=\"2\">9</td><td colspan=\"2\">1</td><td colspan=\"3\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"10\"><td colspan=\"2\"></td><td colspan=\"2\">1</td><td colspan=\"2\">10</td><td colspan=\"2\">45</td><td colspan=\"2\">120</td><td colspan=\"2\">210</td><td colspan=\"2\">252</td><td colspan=\"2\">210</td><td colspan=\"2\">120</td><td colspan=\"2\">45</td><td colspan=\"2\">10</td><td colspan=\"2\">1</td><td colspan=\"2\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"11\"><td colspan=\"1\"></td><td colspan=\"2\">1</td><td colspan=\"2\">11</td><td colspan=\"2\">55</td><td colspan=\"2\">165</td><td colspan=\"2\">330</td><td colspan=\"2\">462</td><td colspan=\"2\">462</td><td colspan=\"2\">330</td><td colspan=\"2\">165</td><td colspan=\"2\">55</td><td colspan=\"2\">11</td><td colspan=\"2\">1</td><td colspan=\"1\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"12\"><td colspan=\"2\">1</td><td colspan=\"2\">12</td><td colspan=\"2\">66</td><td colspan=\"2\">220</td><td colspan=\"2\">495</td><td colspan=\"2\">792</td><td colspan=\"2\">924</td><td colspan=\"2\">792</td><td colspan=\"2\">495</td><td colspan=\"2\">220</td><td colspan=\"2\">66</td><td colspan=\"2\">12</td><td colspan=\"2\">1</td></tr>\n</table>",
+      "reason": "table uses rowspan/colspan"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Dwa ważne pytania\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n        Czy rzędów w powyższym nie jest przypadkiem o jeden więcej, niż wskazuje liczba, którą zmienia suwak?\n    </li>\n<li>\n        Co ma wspólnego trójkąt Pascala z dwumianem Newtona i kombinacjami?\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przejdź dalej.\n</p>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "b1aa9f837e932583e9839e83ce266d960ddd42184f18c83ff9efaa83f9730ed3"
+}

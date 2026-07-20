@@ -16,6 +16,8 @@ from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SpoilerElement
+from courses.models import SwitchGateElement
+from courses.models import SwitchGridElement
 from courses.models import TableElement
 from courses.models import TextElement
 from courses.models import VideoElement
@@ -51,6 +53,36 @@ def build_element(course, unit, el, *, source_root, source_dir, allow_html):
         # next gate); this builds only the gate divider itself.
         return _attach(
             unit, RevealGateElement.objects.create(label=el.get("label", "")[:120])
+        )
+    if etype == "switch_gate":
+        # Group B #2: a cycler-triggered reveal gate. The stem's sentinel token
+        # marks the cycler position; segments are sanitized here (the form's
+        # clean()-time sanitize is bypassed by the import).
+        from courses.switchgrid import sanitize_stem_segments
+
+        return _attach(
+            unit,
+            SwitchGateElement.objects.create(
+                stem=sanitize_stem_segments(el.get("stem", "")),
+                options=el.get("options", []),
+                answer=int(el.get("answer", 0)),
+            ),
+        )
+    if etype == "switch_grid":
+        # Group B #3: a confirmed switch grid. Sanitize each line's stem segments
+        # (cycler options are sanitized by SwitchGridElement.save).
+        from courses.switchgrid import sanitize_stem_segments
+
+        lines = [
+            {
+                "stem": sanitize_stem_segments(ln.get("stem", "")),
+                "cyclers": ln.get("cyclers", []),
+            }
+            for ln in el.get("lines", [])
+        ]
+        return _attach(
+            unit,
+            SwitchGridElement.objects.create(prompt=el.get("prompt", ""), lines=lines),
         )
     if etype == "iframe":
         url = canonicalize_geogebra_url(el["url"])

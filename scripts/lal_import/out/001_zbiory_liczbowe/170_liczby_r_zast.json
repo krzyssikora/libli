@@ -1,0 +1,97 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Aby błąd przybliżenia był jak najmniejszy, stosujemy następującą regułę.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    \"Obcinamy\" liczbę w miejscu, do którego chcemy przybliżyć i patrzymy na kolejną cyfrę.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        jesli cyfra ta to 5, 6, 7, 8 lub 9 - zaokrąglamy \"w górę\" (z nadmiarem)\n    </li>\n<li>\n        jesli cyfra ta to 0, 1, 2, 3 lub 4 - zaokrąglamy \"w dół\" (z niedomiarem)\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Regułę ilustrują poniższe diagramy.\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "<img alt=\"przybliżanie\" src=\"static/przyblizanie_1.png\" width=\"200\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<img alt=\"przybliżanie\" src=\"static/przyblizanie_2.png\" width=\"200\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<img alt=\"przybliżanie\" src=\"static/przyblizanie_3.png\" width=\"200\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "np. \\(0,007735... \\approx 0,0077\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "np. \\(1,492 \\approx 1,5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "np. \\(299,71 \\approx 300\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "do \\(0,00001\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "do \\(0,1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "do \\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wpisz przybliżenia do podanego stopnia dokładności\n    "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                    liczba\n                </td>\n<td>\n                    dokładność\n                </td>\n<td>\n                    przybliżenie\n                </td>\n</tr>\n<tr>\n<td>\n                    \\(2,5555\\)\n                </td>\n<td>\n                    \\(0,01\\)\n                </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                    \\(0,9993\\)\n                </td>\n<td>\n                    \\(0,001\\)\n                </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                    \\(236\\)\n                </td>\n<td>\n                    \\(10\\)\n                </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                    \\(4,509\\)\n                </td>\n<td>\n                    \\(0,1\\)\n                </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>",
+      "reason": "interactive_widget (Group B): table_input"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "582e670a2e75f0f112d74420ae2a7c190d3a4b44be1665fce31394958972a950"
+}

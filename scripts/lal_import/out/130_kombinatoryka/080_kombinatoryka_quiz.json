@@ -1,0 +1,24 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Pan Edgar ubiera się przed wyjściem na koncert w filharmoni.\n</p><p>Ma do wyboru:</p><p>Ile różnych zestawów może założyć pan Edgar?</p>",
+      "value": "120",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Mikołaj ubierając się rano otworzył szafę ze spodniami i zaczął się zastanawiać, co założyć spośród:\n</p>",
+      "value": "11",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Kasia zastnawia się, czy pójść na lunch do Restauracji Czosnkowej czy do Restauracji Pietruszkowej.</p><p>Z ilu różnych zestawów zupa - danie główne może wybrać Kasia?</p>",
+      "value": "31",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "360dc19ac8873f57cd0c69ef1c7219ce5d2ab7e9ca3e80bbf7c7bb419b996392"
+}

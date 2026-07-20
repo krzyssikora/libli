@@ -1,0 +1,14 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        W poniższym aplecie widzisz wykres funkcji homograficznej zdefiniowanej równaniem\n        <div class=\"table_wrapper\">\\[\n        y=\\frac{ax+b}{cx+d}\n        \\]</div>\n        W aplecie możesz:\n        <ul>\n<li>\n                zmieniać suwakami wartości współczynników \\(a\\), \\(b\\), \\(c\\) i \\(d\\)\n            </li>\n<li>\n                wybrać, czy chcesz widzieć wyliczenie jednego z punktó na osi lub asymptoty\n            </li>\n</ul>\n        Użyj apletu, żeby powtórzyć nasze ustalenia z poprzedniej lekcji.\n        <figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"700px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/n9r46yym/width/800/height/700/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"homograficzna - własności\" width=\"800px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e9353cd569bbe88df4789944c6ab56b694e95803cd3e8b08973665c29da93d04"
+}

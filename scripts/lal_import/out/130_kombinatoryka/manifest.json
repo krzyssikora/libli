@@ -1,0 +1,287 @@
+{
+  "part": {
+    "source_folder": "130_kombinatoryka",
+    "order": 18,
+    "title": "kombinatoryka"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "010_kombinatoryka.json",
+          "source_html": "010_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Wprowadzenie"
+        },
+        {
+          "order": 1,
+          "unit_json": "020_kombinatoryka.json",
+          "source_html": "020_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Reguła mnożenia 1"
+        },
+        {
+          "order": 2,
+          "unit_json": "030_kombinatoryka.json",
+          "source_html": "030_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Reguła mnożenia 2"
+        },
+        {
+          "order": 3,
+          "unit_json": "040_kombinatoryka.json",
+          "source_html": "040_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 4,
+          "unit_json": "050_kombinatoryka.json",
+          "source_html": "050_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Reguła dodawania"
+        },
+        {
+          "order": 5,
+          "unit_json": "060_kombinatoryka.json",
+          "source_html": "060_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Reguły mnożenia i dodawania"
+        },
+        {
+          "order": 6,
+          "unit_json": "070_kombinatoryka.json",
+          "source_html": "070_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 7,
+          "unit_json": "080_kombinatoryka_quiz.json",
+          "source_html": "080_kombinatoryka_quiz.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "quiz",
+          "title": "kombinatoryka quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "090_kombinatoryka.json",
+          "source_html": "090_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Silnia"
+        },
+        {
+          "order": 1,
+          "unit_json": "100_kombinatoryka.json",
+          "source_html": "100_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Działania na silniach"
+        },
+        {
+          "order": 2,
+          "unit_json": "110_kombinatoryka.json",
+          "source_html": "110_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 3,
+          "unit_json": "120_kombinatoryka.json",
+          "source_html": "120_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Permutacje"
+        },
+        {
+          "order": 4,
+          "unit_json": "130_kombinatoryka.json",
+          "source_html": "130_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Permutacje - zadania"
+        },
+        {
+          "order": 5,
+          "unit_json": "140_kombinatoryka.json",
+          "source_html": "140_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 6,
+          "unit_json": "150_kombinatoryka_quiz.json",
+          "source_html": "150_kombinatoryka_quiz.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "quiz",
+          "title": "kombinatoryka quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "160_kombinatoryka.json",
+          "source_html": "160_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Wariacje z powtórzeniami"
+        },
+        {
+          "order": 1,
+          "unit_json": "170_kombinatoryka.json",
+          "source_html": "170_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 2,
+          "unit_json": "180_kombinatoryka.json",
+          "source_html": "180_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Wariacje bez powtórzeń"
+        },
+        {
+          "order": 3,
+          "unit_json": "190_kombinatoryka.json",
+          "source_html": "190_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 4,
+          "unit_json": "200_kombinatoryka_quiz.json",
+          "source_html": "200_kombinatoryka_quiz.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "quiz",
+          "title": "kombinatoryka quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "210_kombinatoryka.json",
+          "source_html": "210_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Kombinacje - wprowadzenie"
+        },
+        {
+          "order": 1,
+          "unit_json": "220_kombinatoryka.json",
+          "source_html": "220_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Kombinacje i symbol Newtona"
+        },
+        {
+          "order": 2,
+          "unit_json": "230_kombinatoryka.json",
+          "source_html": "230_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Własności symbolu Newtona 1"
+        },
+        {
+          "order": 3,
+          "unit_json": "240_kombinatoryka.json",
+          "source_html": "240_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Symbol Newtona i trójkąt Pascala"
+        },
+        {
+          "order": 4,
+          "unit_json": "250_kombinatoryka.json",
+          "source_html": "250_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Trójkąt Pascala a symbol Newtona"
+        },
+        {
+          "order": 5,
+          "unit_json": "260_kombinatoryka.json",
+          "source_html": "260_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Własności symbolu Newtona 2"
+        },
+        {
+          "order": 6,
+          "unit_json": "270_kombinatoryka.json",
+          "source_html": "270_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 7,
+          "unit_json": "280_kombinatoryka.json",
+          "source_html": "280_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Różne zadania z kombinatoryki"
+        },
+        {
+          "order": 8,
+          "unit_json": "290_kombinatoryka.json",
+          "source_html": "290_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 9,
+          "unit_json": "300_kombinatoryka_quiz.json",
+          "source_html": "300_kombinatoryka_quiz.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "quiz",
+          "title": "kombinatoryka quiz"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "__PLACEHOLDER chapter 5__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "310_kombinatoryka.json",
+          "source_html": "310_kombinatoryka.html",
+          "source_dir": "130_kombinatoryka",
+          "unit_type": "lesson",
+          "title": "Podsumowanie"
+        }
+      ]
+    }
+  ]
+}

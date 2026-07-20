@@ -1,0 +1,94 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W kolejnych miesiącach cena bochenka chleba żytniego z piekarni na rogu rosła, jak zapisano niżej:\n        </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "miesiąc",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wzrost ceny",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "wrzesień",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10\\%\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "październik",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(13\\%\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "listopad",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\%\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "grudzień",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\%\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdyby cena rosła o ten sam procent każdego z czterech miesięcy, jaki byłby ten średni miesięczny wzrost?\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"fill_steps\">\n<p>\n            Uwaga! W tym zadaniu łatwo popełnić prosty błąd, polegający na policzeniu średniej arytmetycznej:\n        </p>\n        \\[\n        \\frac{10+13+5+8}{4}=9\n        \\]\n        <p>\n            Poprawny wynik jest bliski, ale nie równy \\(9\\%\\).\n        </p>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                Musimy pamiętać, że procent jest zawsze liczony z czegoś, więc \\(1\\%\\) to nie zawsze to samo, co... \\(1\\%\\).\n            </p>\n<p>\n                \\(1\\%\\) z \\(8\\) złotych to zupełnie inna kwota, niż z \\(9\\) złotych!\n            </p>\n<p>\n</p>\n<p>\n                Jak policzyć średni wzrost ceny? Zacznijmy od pytania: o ile cena była wyższa po dwóch, trzech, czterech miesiącach?\n            </p>\n<p>\n                Przypomnijmy, że podnosząc lub obniżając liczbę o jakiś procent możemy to zrobić za pomocą mnożenia:\n            </p>\n<div class=\"important\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\n                                zmiana procentowa\n                            </th>\n<th>\n                                przez co mnożymy\n                            </th>\n</tr>\n<tr>\n<td>\n                                wzrost o \\(40\\%\\)\n                            </td>\n<td>\n                                \\(40\\%\\) to \\(0,4\\), więc przez \\(1+0,4=1,4\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                spadek o \\(40\\%\\)\n                            </td>\n<td>\n                                \\(40\\%\\) to \\(0,4\\), więc przez \\(1-0,4=0,6\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                wzrost o \\(30\\%\\)\n                            </td>\n<td>\n                                \\(9\\%\\) to \\(0,09\\), więc przez \\(1,09\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                spadek o \\(25\\%\\)\n                            </td>\n<td>\n                                \\(25\\%\\) to \\(0,25\\), więc przez \\(0,75\\)\n                            </td>\n</tr>\n</table>\n</div>\n</div>\n<p>\n                Wpisz, przez co mnożymy liczbę, jeśli chcemy ją zwiększyć o \\(10\\%\\)\n                <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                Wpisz, przez co mnożymy liczbę, jeśli chcemy ją zwiększyć o \\(13\\%\\)\n                <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                We wrześniu cena wzrosła o \\(10\\%\\), więc została pomnożona przez \\(1,1\\).\n            </p>\n<p>\n                We wrześniu cena wzrosła o \\(13\\%\\), więc została pomnożona przez \\(1,13\\).\n            </p>\n<p>\n                Aby obliczyć wzrost przez te dwa miesiące, musimy pomnożyć \\(1,1\\cdot 1,13=1,243\\).\n            </p>\n<p>\n                Aby obliczyć wzrost ceny na przestrzeni czterech miesięcy (kolejno o \\(10\\%\\), \\(13\\%\\), \\(5\\%\\) i \\(8\\%\\)), musimy obliczyć:\n                <span class=\"myequation\">\n                    \\(1,1\\cdot 1,13\\cdot 1,05\\cdot \\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                Ten iloczyn wskazuje na wzrost ceny przez 4 miesiące. By znaleźć średni miesięczny wzrost, użyjemy\n                <strong>\n                    średniej geometrycznej\n                </strong>\n                :\n            </p>\n            \\[\n            S=\\sqrt[n]{a_1\\cdot a_2\\cdot a_3\\cdot ...\\cdot a_n}\n            \\]\n            <p>\n                z tych czterech liczb:\n            </p>\n            \\[\n            \\sqrt[4]{1,1\\cdot 1,13\\cdot 1,05\\cdot 1,08}\\approx 1,0896\n            \\]\n            <p>\n                Oznacza to, że średni miesięczny wzrost był wysokości\n                <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n                \\(\\%\\)\n            </p>\n<small>\n                (wpisz samą liczbę z dokładnością do 2 miejsc po przecinku, bez znaku procenta)\n            </small>\n</div>\n</div>",
+      "reason": "interactive_widget (Group B): fill_answer,fill_show_next,fill_step"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "67cf2804cdc33387d68142b44ce5bf01a5dfb5fcb656b505480a397c68b18dfb"
+}

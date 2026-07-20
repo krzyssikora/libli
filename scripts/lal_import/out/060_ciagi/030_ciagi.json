@@ -1,0 +1,66 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n    Wygodnym sposobem definiowania ciągu jest <strong>wzór ogólny</strong>, czyli taki wzór, do którego podstawiamy <em>indeks</em> (numer) wyrazu i możemy obliczyć jego wartość.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Ciąg \\((b_n)\\) jest zdefiniowany wzorem ogólnym\n        </p>\n        \\[\n        b_n = \\frac{n^2+1}{n+2},\\quad n\\in\\mathbb{N}^{+}\n        \\]\n        Obliczmy pięć pierwszych wyrazów ciągu \\((b_n)\\).\n        <ul class=\"nolist\">\n<li>\n                \\(b_1=\\frac{1^2+1}{1+2}=\\frac{2}{3}\\)\n            </li>\n<li>\n                \\(b_2=\\frac{2^2+1}{2+2}=\\frac{5}{4}\\)\n            </li>\n<li>\n                \\(b_3=\\frac{3^2+1}{3+2}=2\\)\n            </li>\n</ul>  \n        Znajdź kolejne dwie wartości i wpisz je do tabeli:\n        <div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\\(n\\)</td>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n</tr>\n<tr>\n<td>\\(b_n\\)</td>\n<td>\\(\\frac{2}{3}\\)</td>\n<td>\\(\\frac{5}{4}\\)</td>\n<td>\\(2\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n    Świetnie!\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Ciąg, jak każdą inną funkcję liczbową, możemy przedstawić za pomocą wykresu. Poniżej widzisz wykres ciągu \\((b_n)\\) z powyższego zadania.</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/ciag_wykres.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Zwróć uwagę, że wykres ciągu składa się z odrębnych punktów, bo ciąg jest funkcją określoną tylko na zbiorze liczb naturalnych dodanich (lub jego podzbiorze).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Ciąg \\((c_n)\\) jest zdefiniowany wzorem ogólnym\n        </p>\n        \\[\n        c_n = \\frac{1}{2}n^2-4n+5,\\quad n\\in\\mathbb{N}^{+}\n        \\]\n        Które wyrazy ciągu \\((c_n)\\) są dodatnie? Wskaż ich numery (indeksy).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Szukamy wyrazów <strong>dodatnich</strong>, czyli\n                \\[\n                c_n\\gt 0\n                \\]\n                Chcemy więc rozwiązać nierówność\n                \\[\n                \\frac{1}{2}n^2-4n+5\\gt 0\n                \\]\n                <div class=\"switch_line\">\n                    albo równoważnie\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(n^2-4n+5\\gt 0\\)</div>\n<div class=\"switch_value\">\\(n^2-4n+5\\lt 0\\)</div>\n<div class=\"switch_value\">\\(n^2-8n+10\\gt 0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Aby rozwiązać nierówność \\(n^2-8n+10\\gt 0\\) najpierw musimy znaleźć pierwiastki równania \\(n^2-8n+10= 0\\).\n                <details>\n<summary>nie pamiętasz wzorów na pierwiastki równania kwadratowego?</summary>\n<p>\n                        Dla równania \\(ax^2+bx+c=0\\) jego wyróżnik (delta) to\n                    </p>\n                    \\[\n                    \\Delta=b^2-4ac\n                    \\]\n                    a pierwiastki są dane wzorami\n                    <div class=\"centered\">\n                        \\(x=\\frac{-b-\\sqrt{\\Delta}}{2a}\\quad\\) i \\(\\quad x=\\frac{-b+\\sqrt{\\Delta}}{2a}\\)\n                    </div>\n</details>\n<div class=\"switch_line\">\n                    Te pierwiastki to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(-8\\) oraz \\(16\\)</div>\n<div class=\"switch_value\">\\(4-\\sqrt{6}\\) oraz \\(4+\\sqrt{6}\\)</div>\n<div class=\"switch_value\">\\(4-2\\sqrt{6}\\) oraz \\(4+2\\sqrt{6}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Przyjmując, że \\(\\sqrt{6}\\approx 2,4\\), przybliżone wartości pierwiastków to \\(1,6\\) oraz \\(6,4\\).\n                </p>\n<p>\n                    Dla rozwiązania nierówności\n                </p>\n                \\[\n                n^2-8n+10\\gt 0\n                \\]\n                <p>\n                    użyjemy szkicu wykresu \\(y=n^2-8n+10\\). Współczynnik przy \\(n^2\\) wyrażenia kwadratowego jest dodatni, więc ramiona paraboli są skierowane do góry.\n                </p>\n<figure class=\"centered\">\n<img src=\"static/zadanie_wyrazy_dodatnie_1.png\" style=\"max-width: 80%\"/>\n</figure>\n<div class=\"switch_line\">\n                    Zbiór rozwiązań nierówności to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((4-\\sqrt{6}, 4+\\sqrt{6})\\)</div>\n<div class=\"switch_value\">\\((-\\infty, 4-\\sqrt{6})\\cup(4+\\sqrt{6},+\\infty)\\)</div>\n<div class=\"switch_value\">\\(\\langle 4-\\sqrt{6}, 4+\\sqrt{6}\\rangle\\)</div>\n<div class=\"switch_value\">\\((-\\infty, 4-\\sqrt{6}\\rangle\\cup\\langle 4+\\sqrt{6},+\\infty)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Pamiętajmy jednak, że szukamy wyrazów ciągu, czyli ich numerów / indeksów - a te są liczbami <strong>naturalnymi dodatnimi</strong>:\n                <figure class=\"centered\">\n<img src=\"static/zadanie_wyrazy_dodatnie_2.png\" style=\"max-width: 80%\"/>\n</figure>\n<div class=\"switch_line\">\n                    Dlatego indeksy wyrazów dodatnich to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(1\\), a potem \\(7, 8, 9, 10,\\dots\\)</div>\n<div class=\"switch_value\">\\(7, 8, 9, 10,\\dots\\)</div>\n<div class=\"switch_value\">\\(2, 3, 4, 5, 6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Zgadza się. Po lewej stronie paraboli znajdziemy tylko jedno rozwiązanie: \\(n=1\\), a po prawej rozwiązaniami będą wszystkie wartości \\(n\\) począwszy od \\(n=7\\).\n                <figure class=\"centered\">\n<img src=\"static/zadanie_wyrazy_dodatnie_3.png\" style=\"max-width: 80%\"/>\n</figure>\n                Wyrazy dodatnie ciągu \\((c_n)\\) zdefiniowanego\n                \\[\n                c_n = \\frac{1}{2}n^2-4n+5,\\quad n\\in\\mathbb{N}^{+}\n                \\]\n                to\n                \\[\n                1, 7, 8, 9, 10, \\dots\n                \\]\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Ciąg \\((d_n)\\) zdefiniowany jest wzorem:\n        \\[\n        d_n=2n^2-n+3\n        \\]\n        Znajdź wyrażenia wyrazów \\((c_{n+1})\\), \\((c_{n+2})\\) i \\((c_{2n})\\) tego ciągu.\n        <p>\n<small>\n                Spróbuj samodzielnie, a następnie sprawdź rozwiązania.\n            </small>\n</p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"table_wrapper\">\n            \\[\n            \\begin{align}\n            d_{\\color{red}{n+1}}&amp;=2(\\color{red}{n+1})^2-(\\color{red}{n+1})+3=2(n^2+2n+1)-n-1+3=2n^2+4n+2-n-1+3=\\\\\n            &amp;=2n^2+3n+4\n            \\end{align}\n            \\]\n        </div>\n<div class=\"table_wrapper\">\n            \\[\n            \\begin{align}\n            d_{\\color{red}{n+2}}&amp;=2(\\color{red}{n+2})^2-(\\color{red}{n+2})+3=2(n^2+4n+4)-n-2+3=2n^2+8n+8-n-2+3=\\\\\n            &amp;=2n^2+7n+9\n            \\end{align}\n            \\]\n        </div>\n<div class=\"table_wrapper\">\n            \\[\n            \\begin{align}\n            d_{\\color{red}{2n}}&amp;=2(\\color{red}{2n})^2-\\color{red}{2n}+3=2(4n^2)-2n+3=8n^2-2n+3=\\\\\n            &amp;=8n^2-2n+3\n            \\end{align}\n            \\]\n        </div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c5f444de08b6293e1b799fce593c768d6566e55d682348c74e6ac3c1f5b37a26"
+}

@@ -1,0 +1,79 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Równoległobok</strong> to czworokąt, który ma dwie pary boków równoległych.\n    </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/hhhfec3d/width/475/height/328/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Własności równoległoboku\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W poniższym aplecie możesz przesuwać trzy wierzchołki równoległoboku, by zmieniać jego kształt, wielkość i położenie.\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"428px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/jqvznsrb/width/675/height/428/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"własności równoległoboku\" width=\"675px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n<p>\n            Przyjrzyj się uważnie równoległobokowi i zastanów się, jakie własności mają wymienione niżej elementy.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "długości boków",
+      "body": "\n                        Długości przeciwległych boków równoległoboku są sobie równe.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "przeciwległe kąty",
+      "body": "\n                        Miary przeciwległych kątów są sobie równe.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "sąsiednie kąty",
+      "body": "\n                        Sumy miar sąsiednich kątów (tj. kątów ze wspólnym ramieniem) są równe \\(180^{\\circ}\\).\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "przekątne",
+      "body": "\n                        Przekątne przecinają się w połowie.\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<h3>Wysokości</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Wysokość</strong> równoległoboku to najkrótszy odcinek łączący boki równoległe.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small><i>Innymi słowy:</i></small>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Wysokość</strong> równoległoboku to odcinek prostopadły do boków równoległych, którego końce leżą na tych bokach lub na prostych zawierających te boki.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Wysokością</strong> nazywamy też liczbę - długość odcinka - wysokości.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli boki równoległoboku są różnej długości, to wtedy wysokości równoległoboku także są różnej długości.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W poniższym aplecie możesz przesuwać trzy wierzchołki równoległoboku, by zmieniać jego kształt, wielkość i położenie.\n        </p>\n<p>\n            Możesz też przesuwać wysokości. Sprawdź ich różne położenia.\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"628px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/vxjwqs5v/width/675/height/628/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"wysokości równoległoboku\" width=\"675px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "9fd0ec6ad6b968dda792a399268af68df121bd3e2e0e556c2040203c79c59c72"
+}

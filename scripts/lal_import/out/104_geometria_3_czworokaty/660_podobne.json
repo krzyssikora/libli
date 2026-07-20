@@ -1,0 +1,201 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Odległość w linii prostej z Mrągowa do Mikołajek to około \\(20\\) kilometrów.\\(^{\\ast}\\)\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/mragowo_mikolajki.png",
+      "alt": "",
+      "figcaption": "Źródło:openstreetmap.org"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na mapie ta sama odległość mierzy \\(8\\) centymetrów.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaka jest skala mapy?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(^{\\ast}\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<small>\n            w linii prostej, czyli wzdłuż odcinka zaznaczonego na mapie. Poniżej odcinka widzimy linię łamaną wskazującą najkrószą realną drogę między miastami po drogach - ta ma długość około \\(25\\) kilometrów.\n        </small>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "na mapie",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "w rzeczywistości",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(8\\,\\text{cm}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(20\\,\\text{km}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "podzielmy obie odległości na \\(8\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(1\\,\\text{cm}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2,5\\,\\text{km}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "zamieńmy kilometry na centymetry",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(1\\,\\text{cm}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(250\\,000\\,\\text{cm}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Skala mapy jest równa\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        1:250\\,000\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Co to oznacza?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Skala zapisana w postaci\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    1:250\\,000\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        oznacza, że jedna (dowolna) jednostka odległości na mapie odpowiada \\(250\\,000\\) takich samych jednostek w rzeczywistości.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>innymi słowy</strong>:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Każda rzeczywista odległość jest \\(250\\,000\\) razy większa od odpowiadającej jej odległości na tej mapie.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>jeszcze inaczej</strong>:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jest to skala podobieństwa kształtów na mapie do odpowiadających im kształtów w rzeczywistości.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Niedaleko Mikołajek są Śniardwy - największe jezioro w Polsce.\n        </p>\n<figure>\n<img src=\"static/sniardwy.png\" style=\"max-height: 300px;\"/>\n<figcaption>Źródło: <a href=\"https://www.openstreetmap.org/\">openstreetmap.org</a></figcaption>\n</figure>\n<p>\n            Rzeczywista powierzchnia Śniardw to około \\(113,4\\,\\text{km}^2\\).\n        </p>\n<p>\n            Jaka jest powierzchnia tego jeziora na mapie w skali \\(1:250\\,000\\)? Wynik podaj z dokładnością do jednego miejsca dziesiętnego.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Jak możemy się łatwo domyślać, powierzchni na mapie nie będzie wygodnie przedstawiać w kilometrach kwadratowych, lecz raczej w centymetrach kwadratowych.\n                </p>\n<p>\n                    Przedstawmy więc najpierw powierzchnię Śniardw, \\(113,4\\,\\text{km}^2\\), w centymetrach kwadratowych. Jak pamiętasz:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    1\\,\\text{cm}\\xrightarrow[]{\\cdot 10}1\\,\\text{dm}\\xrightarrow[]{\\cdot 10}1\\,\\text{m}\\xrightarrow[]{\\cdot 1000}1\\,\\text{km}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Dlatego \\(113,4\\,\\text{km}^2=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(1,134\\cdot 10^7\\,\\text{cm}^2\\)</div>\n<div class=\"switch_value\">\\(1,134\\cdot 10^9\\,\\text{cm}^2\\)</div>\n<div class=\"switch_value\">\\(1,134\\cdot 10^{12}\\,\\text{cm}^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Mnożymy przez \\(\\left(10^5\\right)^2\\), czyli przesuwamy przecinek w prawo o \\(5\\cdot 2=10\\) miejsc. Stąd rzeczywista powierzchnia Śniardw to \\(113,4\\cdot 10^{10}\\,\\text{cm}^2=1,134\\cdot 10^{12}\\,\\text{cm}^2\\).\n                </p>\n<p>\n                    Skala mapy to \\(1:250\\,000\\), jest to więc skala podobieństwa mapy do rzeczywistości, którą możemy zapisać w postaci ułamka \\(k=\\frac{1}{250\\,000}\\).\n                </p>\n<p>\n                    Jeśli rozszerzymy ułamek przez \\(4\\) otrzymamy:\n                </p>\n                \\[\n                \\begin{align}\n                k&amp;=\\frac{1}{250\\,000}=\\\\\n                &amp;=\\frac{4}{1\\,000\\,000}=\\\\\n                &amp;=\\frac{4}{10^6}\n                \\end{align}\n                \\]\n                <p>\n                    czyli \\(k=4\\cdot 10^{-6}\\).\n                </p>\n<div class=\"switch_line\">\n                    Aby wyliczyć pole Śniardw na mapie, musimy rzeczywiste pole jeziora\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">pomnożyć przez \\(k\\)</div>\n<div class=\"switch_value\">pomnożyć przez \\(k^2\\)</div>\n<div class=\"switch_value\">podzielić przez \\(k\\)</div>\n<div class=\"switch_value\">podzielić przez \\(k^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Mamy więc do wykonania działanie:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    1,134\\cdot 10^{12}\\cdot k^2&amp;=\\\\\n                    =1,134\\cdot 10^{12}\\cdot \\left(4\\cdot 10^{-6}\\right)^2&amp;=&amp;\\leftarrow\\text{podnieśmy \\(k\\) do kwadratu} \\\\\n                    =1,134\\cdot 10^{12}\\cdot 4^2\\cdot \\left(10^{-6}\\right)^2&amp;=&amp;\\leftarrow\\text{potęgowanie potęg to mnożenie wykładników} \\\\\n                    =1,134\\cdot 10^{12}\\cdot 16\\cdot 10^{-6\\cdot 2}&amp;=&amp;\\leftarrow\\text{wymnóżmy wykładniki}\\\\\n                    =1,134\\cdot 10^{12}\\cdot 16\\cdot 10^{-12}&amp;=&amp;\\leftarrow\\text{zamieńmy \\(10^{12}\\) i \\(16\\) miejscami}\\\\\n                    =1,134\\cdot 16\\cdot 10^{12}\\cdot 10^{-12}&amp;=&amp;\\leftarrow\\text{pomnożmy \\(1,134\\) przez \\(16\\) i  potęgi \\(10\\) przez siebie}\\\\\n                    =18,144\\cdot 10^{12+(-12)}&amp;=\\\\\n                    =18,144\\cdot 10^0\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Interesuje nas wynik z dokładnością do jednego miejsca dziesiętnego, więc pole jeziora na mapie jest równe\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(18,1\\,\\text{cm}^2\\)</div>\n<div class=\"switch_value\">\\(18,2\\,\\text{cm}^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Na mapie w skali \\(1:250\\,000\\) powierzchnia Śniardw to około \\(18,1\\,\\text{cm}^2\\).\n            </div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "318839b96e1798db9618860d106614ad3ec0b76caccfdf3f08d858ee6db4ad93"
+}

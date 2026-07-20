@@ -1,0 +1,230 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdziemy nachylenie prostej o równaniu \\(Ax+By+C=0\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Nachylenie, czyli współczynnik kierunkowy tej prostej zapisanej w postaci \\(y=ax+b\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "pokaż"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Najpierw przeniesiemy wyrazy \\(Ax\\) i \\(C\\) na prawą stronę:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            By=-Ax-C\n            "
+    },
+    {
+      "type": "text",
+      "body": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Następnie podzielimy obie strony równania przez \\(B\\).\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            y=-\\frac{A}{B}x-\\frac{C}{B}\n            "
+    },
+    {
+      "type": "text",
+      "body": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Tak więc nachylenie prostej zależy wyłącznie od współczynników \\(A\\) i \\(B\\), ale nie od współczynnika \\(C\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Proste o równaniach\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(y=a_1x+b_1\\quad\\) oraz \\(\\quad y=a_2x+b_2\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        są równoległe, jeśli\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    a_1=a_2\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czy masz pomysł, jaki jest warunek, aby proste o równaniach\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\(A_1x+B_1y+C_1=0\\quad\\) oraz \\(\\quad A_2x+B_2y+C_2=0\\)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    były równoległe?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Pierwsza obserwacja jest prosta (choć nie kompletna).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(A_1=A_2\\quad\\) oraz \\(\\quad B_1=B_2\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to proste\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(A_1x+B_1y+C_1=0\\quad\\) oraz \\(\\quad A_2x+B_2y+C_2=0\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        są równoległe.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Proste o równaniach\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(\\color{blue}{2x-3y+6=0}\\quad\\) oraz \\(\\quad \\color{red}{2x-3y+1,5=0}\\)\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            są równoległe.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_proste_rownolegle_postac_ogolna_przyklad.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "wyjaśnienie",
+      "body": "\n\n<p>\n            Jeśli równania prostych przedstawimy w postaci kierunkowej, dostaniemy\n        </p>\n<div class=\"table_wrapper centered\">\n            \\(\\color{blue}{y=\\frac{2}{3}x+2}\\quad\\) oraz \\(\\quad \\color{red}{y=\\frac{2}{3}x+\\frac{1}{2}}\\)\n        </div>\n<p>\n            Obie proste mają taki sam współczynnik kierunkowy, \\(\\frac{2}{3}\\), są więc równoległe.\n        </p>\n<p>\n            Dlatego proste o równaniach ogólnych z identycznymi współczynnikami przy \\(x\\)-ach i przy \\(y\\)-ach są równoległe.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Ten sam przykład możemy zapisać inaczej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Proste o równaniach\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(\\color{blue}{2x-3y+6=0}\\quad\\) oraz \\(\\quad \\color{red}{4x-6y+3=0}\\)\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            są równoległe (<small>mimo, że współczynniki przy \\(x\\)-ach i przy \\(y\\)-ach nie są identyczne</small>).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "wyjaśnienie",
+      "body": "\n\n<div class=\"steps\">\n<p>\n                Dlaczego te proste są równoległe? \n            </p>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Zauważ, że równanie\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\color{red}{4x-6y+3=0}\n                    \\]\n                </div>\n<p>\n                    można uzyskać z równania\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\color{red}{2x-3y+1,5=0}\n                    \\]\n                </div>\n<p>\n                    z poprzedniego przykładu przez pomnożenie go przez \\(2\\).\n                </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Są to więc równania równoważne, czyli opisują <strong>tę samą prostą</strong>.\n                </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Zwróć uwagę na współczynniki \\(x\\)-ów i \\(y\\)-ów w obu równaniach.\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TC\">\n<tr>\n<td>równanie</td>\n<td>współczynnik \\(x\\)</td>\n<td>współczynnik \\(y\\)</td>\n</tr>\n<tr>\n<td>\n                                \\(\\color{blue}{2x-3y+6=0}\\)\n                            </td>\n<td>\\(\\color{blue}{2}\\)</td>\n<td>\\(\\color{blue}{-3}\\)</td>\n</tr>\n<tr>\n<td>\n                                \\(\\color{red}{4x-6y+3=0}\\)\n                            </td>\n<td>\\(\\color{red}{4}\\)</td>\n<td>\\(\\color{red}{-6}\\)</td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Czy widzisz, jaka jest między nimi relacja?\n                </p>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czas na drugą, kopletną obserwację.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Proste o równaniach\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(A_1x+B_1y+C_1=0\\quad\\) oraz \\(\\quad A_2x+B_2y+C_2=0\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        są <strong>równoległe</strong> <u>wtedy i tylko wtedy</u> gdy\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        współczynniki \\(x\\)-ów i \\(y\\)-ów są proporcjonalne, czyli\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\frac{A_1}{B_1}=\\frac{A_2}{B_2}\\quad\\text{jeśli}\\quad B_1\\ne 0\\text{ i }B_2\\ne 0\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        lub\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\frac{B_1}{A_1}=\\frac{B_2}{A_2}\\quad\\text{jeśli}\\quad A_1\\ne 0\\text{ i }A_2\\ne 0\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Przykłady równań ogólnych prostych równoległych.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "pokaż"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                        Proste o równaniach\n                        <div class=\"table_wrapper centered\">\n                            \\(3x-4y+1=0\\quad\\) oraz \\(\\quad 6x-8y+5=0\\)\n                        </div>\n                        są równoległe, bo\n                        \\[\n                        \\frac{3}{-4}=\\frac{6}{-8}\\quad=-\\frac{3}{4}\n                        \\]\n                    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" start=\"2\">\n<li>\n                        Proste o równaniach\n                        <div class=\"table_wrapper centered\">\n                            \\(6x-9y-5=0\\quad\\) oraz \\(\\quad -10x+15y+7=0\\)\n                        </div>\n                        są równoległe, bo\n                        \\[\n                        \\frac{6}{-9}=\\frac{-10}{15}\\quad=-\\frac{2}{3}\n                        \\]\n                    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" start=\"3\">\n<li>\n                        Proste poziome o równaniach\n                        <div class=\"table_wrapper centered\">\n                            \\(-9y+4=0\\quad\\) oraz \\(\\quad 14y-5=0\\)\n                        </div>\n                        są równoległe, bo\n                        \\[\n                        \\frac{0}{-9}=\\frac{0}{14}\\quad =0\n                        \\]\n                        (<small>no i po prostu: bo obie są poziome.</small>)\n                    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" start=\"4\">\n<li>\n                        Proste pionowe o równaniach\n                        <div class=\"table_wrapper centered\">\n                            \\(7x+4=0\\quad\\) oraz \\(\\quad 11x-9=0\\)\n                        </div>\n                        są równoległe, bo\n                        \\[\n                        \\frac{0}{7}=\\frac{0}{11}\\quad =0\n                        \\]\n                        <p>\n                            (<small>no i po prostu: bo obie są pionowe.</small>)\n                        </p>\n<hr/>\n                        Zwróć uwagę, że w pierwszych trzech przypadkach sprawdzaliśmy stosunek współczynnika \\(x\\)-a do współczynnika \\(y\\)-a. W ostatnim przypadku zmieniliśmy kolejność i sprawdziliśmy stosunek współczynnika \\(y\\)-a do współczynnika \\(x\\)-a, aby nie dzielić przez \\(0\\).\n                    </li>\n</ol>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a34155c9b445eb3478821459ac4bb2ee3b5b1d8a77d8d87c8963ed113b9d884b"
+}

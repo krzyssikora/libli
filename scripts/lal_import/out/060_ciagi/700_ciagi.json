@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Warto wiedzieć\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W <a href=\"/jump_to_id/6a14217a2a954f108a0cceb1c1436295\">lekcji na temat użyteczności wzorów rekurencyjnych</a> wspomniałem o problemie okręgu Mosera (ang. <em>Moser's circle problem</em>). Poniżej możesz obejrzeć nagranie znakomitego kanału YouTube <a href=\"https://www.youtube.com/c/3blue1brown\">3Blue1Brown</a> wyjaśniające ten problem. Nagranie jest po angielsku.\n</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<figure>\n<embed src=\"https://www.youtube.com/embed/YtkIWDE36qU?si=SrB76Iz_BJh4TuYT\"/>\n</figure>",
+      "reason": "figure without video, img, or iframe"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A jeśli przypadkiem znasz utwór Leonarda Cohena \"Hallelujah\", może spodoba Ci się ta jego wersja, z której dowiesz się o kilku innych ciągach, które w niepokojący sposób burzą naszą intuicję.\n</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<figure>\n<embed src=\"https://www.youtube.com/embed/NOCsdhzo6Jg?si=aNtvGN9yoDALZ_wy\"/>\n</figure>",
+      "reason": "figure without video, img, or iframe"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "2716ea84b9801a51defca0bc8d4e01427dba59f86df324089d9dc5cc7039ca32"
+}

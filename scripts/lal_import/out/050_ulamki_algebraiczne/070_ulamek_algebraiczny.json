@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Ułamek\n        <div class=\"table_wrapper\">\\[\n        \\frac{x-2}{2x+3}\n        \\]</div>\n        rozszerzono w taki sposób, że jego mianownik to \\(2x^2-7x-15\\).\n        <p>\n            Jaki jest licznik rozszerzonego ułamka?\n        </p>\n<p>\n            Obejrzyj nagranie z rozwiązaniem, lub spróbuj całość rozwiązać samodzielnie i sprawdź wynik.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li><a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a></li>\n<li><a href=\"#tabcontent-1-2\" id=\"tab-1-2\">wynik</a></li>\n</ul>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/ulamek_alg_rozszerzanie.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>Licznik rozszerzonego ułamka to</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            x^2-7x+10\n            \\]"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "e3aaec63f3ae22bcf11801a80bb04966a03b4e4b3c72b6295748aab40e2baa08"
+}

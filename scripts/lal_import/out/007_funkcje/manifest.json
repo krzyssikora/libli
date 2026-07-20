@@ -1,0 +1,203 @@
+{
+  "part": {
+    "source_folder": "007_funkcje",
+    "order": 3,
+    "title": "funkcje"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "funkcje_010_def.json",
+          "source_html": "funkcje_010_def.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Co to jest funkcja?"
+        },
+        {
+          "order": 1,
+          "unit_json": "funkcje_020_def.json",
+          "source_html": "funkcje_020_def.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Funkcja liczbowa"
+        },
+        {
+          "order": 2,
+          "unit_json": "funkcje_030_def.json",
+          "source_html": "funkcje_030_def.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Równanie i wykres"
+        },
+        {
+          "order": 3,
+          "unit_json": "funkcje_040_def.json",
+          "source_html": "funkcje_040_def.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Wykres 1"
+        },
+        {
+          "order": 4,
+          "unit_json": "funkcje_050_def.json",
+          "source_html": "funkcje_050_def.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Wykres 2"
+        },
+        {
+          "order": 5,
+          "unit_json": "funkcje_059_def_quiz.json",
+          "source_html": "funkcje_059_def_quiz.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "quiz",
+          "title": "funkcje 059 def quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "funkcje_060_wlasnosci.json",
+          "source_html": "funkcje_060_wlasnosci.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Dziedzina 1"
+        },
+        {
+          "order": 1,
+          "unit_json": "funkcje_070_wlasnosci.json",
+          "source_html": "funkcje_070_wlasnosci.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Dziedzina 2"
+        },
+        {
+          "order": 2,
+          "unit_json": "funkcje_080_wlasnosci.json",
+          "source_html": "funkcje_080_wlasnosci.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Dziedzina 3"
+        },
+        {
+          "order": 3,
+          "unit_json": "funkcje_090_wlasnosci.json",
+          "source_html": "funkcje_090_wlasnosci.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Zbiór wartości 1"
+        },
+        {
+          "order": 4,
+          "unit_json": "funkcje_100_wlasnosci.json",
+          "source_html": "funkcje_100_wlasnosci.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Zbiór wartości 2"
+        },
+        {
+          "order": 5,
+          "unit_json": "funkcje_110_wlasnosci.json",
+          "source_html": "funkcje_110_wlasnosci.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Zbiór wartości 3"
+        },
+        {
+          "order": 6,
+          "unit_json": "funkcje_119_wlasnosci_quiz.json",
+          "source_html": "funkcje_119_wlasnosci_quiz.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "quiz",
+          "title": "funkcje 119 wlasnosci quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "funkcje_120_wlasnosci.json",
+          "source_html": "funkcje_120_wlasnosci.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Miejsce zerowe"
+        },
+        {
+          "order": 1,
+          "unit_json": "funkcje_130_wlasnosci.json",
+          "source_html": "funkcje_130_wlasnosci.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Obliczanie miejsc zerowych"
+        },
+        {
+          "order": 2,
+          "unit_json": "funkcje_140_wlasnosci.json",
+          "source_html": "funkcje_140_wlasnosci.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Monotoniczność funkcji - wprowadzenie"
+        },
+        {
+          "order": 3,
+          "unit_json": "funkcje_150_wlasnosci.json",
+          "source_html": "funkcje_150_wlasnosci.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Monotoniczność funkcji - definicje"
+        },
+        {
+          "order": 4,
+          "unit_json": "funkcje_160_wlasnosci.json",
+          "source_html": "funkcje_160_wlasnosci.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Monotoniczność funkcji - przykłady"
+        },
+        {
+          "order": 5,
+          "unit_json": "funkcje_170_wlasnosci.json",
+          "source_html": "funkcje_170_wlasnosci.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Różnowartościowość"
+        },
+        {
+          "order": 6,
+          "unit_json": "funkcje_180_wlasnosci.json",
+          "source_html": "funkcje_180_wlasnosci.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Różnowartościowość - zadania"
+        },
+        {
+          "order": 7,
+          "unit_json": "funkcje_190_wlasnosci.json",
+          "source_html": "funkcje_190_wlasnosci.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "lesson",
+          "title": "Odczytywanie własności funkcji z wykresu"
+        },
+        {
+          "order": 8,
+          "unit_json": "funkcje_199_wlasnosci_quiz.json",
+          "source_html": "funkcje_199_wlasnosci_quiz.html",
+          "source_dir": "007_funkcje",
+          "unit_type": "quiz",
+          "title": "funkcje 199 wlasnosci quiz"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Agata jedzie do szkoły z przesiadką.  Ma dwie możliwości:\n        </p>\n<ul class=\"nolist\">\n<li>\n                albo jedzie spod swojego domu jednym z autobusów: 115, 123 lub 148 do Placu Głębokiego Błękitu, skąd ma 5 różnych autobusów do szkoły,\n            </li>\n<li>\n                albo jednym z dwóch tramwajów  jedzie spod domu do Ronda Płytkiej Wody, skąd do szkoły może pojechać autobusami: 208, 306, 504, 567.\n            </li>\n</ul>\n<figure>\n<img src=\"static/dojazdy_agaty.png\" style=\"max-width: 80%\"/>\n</figure>\n<p>\n            Na ile różnych sposobów Agata może dojechać do szkoły?\n        </p>\n<p>\n<small>\n                (Przez sposób rozumiemy przejazd dwiema konkretnymi liniami autobusowymi lub tramwajowymi z przesiadką pomiędzy.)\n            </small>\n</p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(3\\cdot 5+2\\cdot 4=15+8=23\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Agnieszka ubiera się przed wyjściem z domu. Zastanawia się, czy założyć\n        </p>\n<ul class=\"nolist\">\n<li>czerwoną spódnicę</li>\n<li>niebieską spódnicę</li>\n<li>czy jedną z trzech czarnych spódnic.</li>\n</ul>\n<p>\n            Do spódnicy musi dobrać odpowiednią bluzkę. I tu ma następujące opcje:\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>kolor spódnicy</th>\n<th>liczba pasujących bluzek</th>\n</tr>\n<tr>\n<td style=\"color: red\">czerwona</td>\n<td>\\(4\\)</td>\n</tr>\n<tr>\n<td style=\"color: blue\">niebieska</td>\n<td>\\(5\\)</td>\n</tr>\n<tr>\n<td>czarna</td>\n<td>\\(8\\)</td>\n</tr>\n</table>\n</div>\n<p>\n            Na ile sposobów może ubrać się Agnieszka?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(\\color{red}{1}\\cdot 4+\\color{blue}{1}\\cdot 5+2\\cdot 8=25\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dorota i Damian postanowili zrobić sobie wieczór filowy i obejrzeć <strong>dwa</strong> filmy. Zaczęli od spisania propozycji filmów.\n        </p>\n<p>\n            Okazało się, że Dorota zapisała tytuły pięciu horrorów i ośmiu thrillerów, a Damian - dwunastu komedii romantycznych.\n        </p>\n<p>\n            Po krótkiej rozmowie uznali, że obejrzą <u>albo</u> horror i komedię romantyczną, <u>albo</u> thriller i komedię romantyczną.  \n        </p>\n<p>\n            Ile różnych zestawów filmowych mogą wybrać?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(5\\cdot 12+8\\cdot 12=156\\) lub \\((5+8)\\cdot 13=156\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Poniższy rysunek przedstawia bardzo schematycznie fragment mapy pokazujący wszystkie drogi (zaznaczone na niebiesko) między miastami <strong style=\"color: red;\">A</strong> i <strong style=\"color: red;\">B</strong>.\n        </p>\n<figure>\n<img src=\"static/mapa_A_do_B.png\" style=\"max-width: 80%;\"/>\n</figure>\n<p>\n            Odległość między miastami jest spora, więc każda z dróg prowadzi przez jedną z trzech stacji benzynowych znajdujących się miedzy miastami.\n        </p>\n<p>\n            Ile jest możliwych dróg prowadzących z <strong style=\"color: red;\">A</strong> do <strong style=\"color: red;\">B</strong>?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(3\\cdot 2+2\\cdot 4+3\\cdot 4=26\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Pan Gerard Sztywny zszedł na śniadanie do hotelowej restauracji. Chciał zjeść płatki z mlekiem lub kanapkę i wypić kawę lub sok.\n        </p>\n<p>\n            Do wyboru miał:\n        </p>\n<ul class=\"nolist\">\n<li>\n                płatki kukurydziane, czekoladowe, cynamonowe i owsiane,\n            </li>\n<li>\n                mleko krowie, kozie, owsiane i sojowe,\n            </li>\n<li>\n                kanapki z serem, z szynką, z salami, z makrelą i z pastą słonecznikową,\n            </li>\n<li>\n                sok jabłkowy, pomarańczowy i grejpfrutowy,\n            </li>\n<li>\n                kawy: espresso, latte, flat white i americano.\n            </li>\n</ul>\n<p>\n            Ile różnych zestawów śniadaniowych mógł ułożyć? \n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<ul class=\"nolist\">\n<li>\n                Płatki z mlekiem: \\(4\\cdot 4=16\\).\n            </li>\n<li>\n                Kanapki: \\(5\\).\n            </li>\n</ul>\n<p>\n            Jedzenie razem: \\(16+5=21\\).\n        </p>\n<ul class=\"nolist\">\n<li>\n                Kawa: \\(4\\).\n            </li>\n<li>\n                Soki: \\(3\\)\n            </li>\n</ul>\n<p>\n            Napoje razem: \\(4+3=7\\).\n        </p>\n<p>\n            Całe śniadanie: \\(21\\cdot 7=147\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Państwo Mieszczańscy chcą kupić meble ogrodowe w MegaMarkecie. W ofercie MegaMarketu są:\n        </p>\n<ul>\n<li>\n                3 modele stołów plastikowych, 4 modele stołów drewnianych i 6 modeli stołów metalowych,\n            </li>\n<li>\n                5 modeli krzeseł plastikowych, 3 modele krzeseł drewnianych i 6 modeli krzeseł metalowych.\n            </li>\n</ul>\n<p>\n            Mieszczańscy chą kupić stół i krzesła zrobione z tego samego materiału. Ile mają możliwości?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(2\\cdot 5+4\\cdot 3+6\\cdot 6=58\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Ile jest liczb między \\(100\\) a \\(800\\), w których dokładnie jedna cyfra jest piątką?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<ul>\n<li>\n                Jeśli pierwsza cyfra jest piątką: \\(1\\cdot 9\\cdot 9\\).\n            </li>\n<li>\n                Jeśli druga cyfra jest piątką: \\(8\\cdot 1\\cdot 9\\)\n            </li>\n<li>\n                Jeśli trzecia cyfra jest piątką: \\(8\\cdot 9\\cdot 1\\)\n            </li>\n</ul>\n<p>\n            Razem: \\(81+2\\cdot 72=225\\)\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Ile różnych liczb czterocyfrowych większych od \\(5\\,555\\) można stworzyć używając cyfr \\(4\\), \\(5\\), \\(6\\), \\(7\\) i \\(8\\)?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        Rozpatrzmy, jakie mogą być kolejne cyfry, aby liczba była większa od \\(5\\,555\\).\n        <div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>pierwsza</th>\n<th>druga</th>\n<th>trzecia</th>\n<th>czwarta</th>\n<td>liczba możliwości</td>\n</tr>\n<tr>\n<td>\\(6\\), \\(7\\) lub \\(8\\)</td>\n<td>dowolna</td>\n<td>dowolna</td>\n<td>dowolna</td>\n<td>\\(3\\cdot 5^3=375\\)</td>\n</tr>\n<tr>\n<td rowspan=\"5\">\\(5\\)</td>\n<td>\\(6\\), \\(7\\) lub \\(8\\)</td>\n<td>dowolna</td>\n<td>dowolna</td>\n<td>\\(1\\cdot 3\\cdot 5^2=75\\)</td>\n</tr>\n<tr>\n<!-- <td></td> -->\n<td rowspan=\"3\">\\(5\\)</td>\n<td>\\(6\\), \\(7\\) lub \\(8\\)</td>\n<td>dowolna</td>\n<td>\\(1\\cdot 1\\cdot 3\\cdot 5=15\\)</td>\n</tr>\n<tr>\n<!-- <td></td> -->\n<!-- <td></td> -->\n<td>\\(5\\)</td>\n<td>\\(6\\), \\(7\\) lub \\(8\\)</td>\n<td>\\(1\\cdot 1\\cdot 1\\cdot 3=3\\)</td>\n</tr>\n<tr>\n<!-- <td></td> -->\n<!-- <td></td> -->\n<td>\\(4\\)</td>\n<td>żadna</td>\n<td>\\(0\\)</td>\n</tr>\n<tr>\n<!-- <td></td> -->\n<td>\\(4\\)</td>\n<td>żadna</td>\n<td>żadna</td>\n<td>\\(0\\)</td>\n</tr>\n<tr>\n<td>\\(4\\)</td>\n<td>żadna</td>\n<td>żadna</td>\n<td>żadna</td>\n<td>\\(0\\)</td>\n</tr>\n<tr>\n<td rowspan=\"2\"></td>\n<td rowspan=\"2\"></td>\n<td rowspan=\"2\"></td>\n<td rowspan=\"2\"><strong>razem</strong></td>\n<td rowspan=\"2\">\\(375+75+15+3=\\)<br/>\\(=468\\)</td>\n</tr>\n</table>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "5c9df357d57412a56061c3e8eefa1db0f59016a39ce960b511aa11dfbe18b860"
+}

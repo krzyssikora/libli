@@ -1,0 +1,46 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>Równaniem wymiernym</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>nazywamy równanie, które</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"color: red\">możemy przekształcić</span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>w równanie równoważne postaci</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    \\frac{W(x)}{V(x)}=0\n    \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>gdzie \\(W(x)\\) i \\(V(x)\\) to wielomiany zmiennej \\(x\\), przy czym \\(V(x)\\ne 0\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zwróć uwagę na słowa zaznaczone na <span style=\"color: red\">czerwono</span>. Równania wymierne mogą być bardzo różnej postaci. Spójrz na przykłady poniżej:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    \\frac{x+2}{x-3}-\\frac{x^2-4}{x}=0,\\quad\\quad\n    \\frac{3x^5+x+2}{x^4-1}=\\frac{-2x^2-x-1}{x^4+2x^2+1},\\quad\\quad\n    \\frac{4x^2+4}{x^2-x+3}-2x=\\frac{1}{2-x},\\quad\\quad\n    \\frac{3x+1}{2x-1}=\\frac{-x+3}{5x+2},\\quad\\quad\n    \\frac{x^2+x+4}{-2x}=\\frac{x+1}{x^2},\\quad\\quad\n    \\frac{x}{1}=\\frac{3}{x}\n    \\]"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        Czy <strong>wszystkie</strong> powyższe równania są równaniami wymiernymi?\n        <details>\n<summary>\n<strong>Tak!</strong> Dlaczego?\n            </summary>\n            Wystarczy:\n            <ol class=\"bold\">\n<li>\n                    przenieść wszystkie wyrażenia na jedną stronę równania (dodając lub odejmując),\n                </li>\n<li>\n                    przedstawić je wszystkie jako ułamki (o ile już nimi nie są),\n                </li>\n<li>\n                    znaleźć wspólny mianownik\n                </li>\n<li>\n                    i wykonać działania - dodawania i odejmowania.\n                </li>\n</ol>\n            I wówczas każde z równań będzie postaci \\(\\frac{W(x)}{V(x)}=0\\), gdzie \\(W(x)\\) i \\(V(x)\\) to wielomiany zmiennej \\(x\\).\n        </details>\n</li>\n<li>\n<p>\n            Czy musimy sprowadzić równanie wymierne do postaci \\(\\frac{W(x)}{V(x)}=0\\), aby je rozwiązać?\n        </p>\n<details>\n<summary><strong>Nie zawsze.</strong> Przyjrzyj się przykładowi.</summary>\n<div class=\"ks_example\">\n                Równanie postaci:\n                <div class=\"table_wrapper\">\\[\n                \\frac{A}{B}=\\frac{C}{D}\n                \\]</div>\n                (gdzie \\(A\\), \\(B\\), \\(C\\) i \\(D\\) to wielomiany) możemy rozwiązać mnożąc na skos, czyli\n                <div class=\"table_wrapper\">\\[\n                AD=BC\n                \\]</div>\n                Sprawdź, że jeśli pomnożysz równanie \\(\\frac{A}{B}=\\frac{C}{D}\\) obustronnie przez \\(BD\\), otrzymasz \\(AD=BC\\).\n                <div class=\"important\">\n<p>\n<strong>Uwaga!</strong> Równania \\(\\frac{A}{B}=\\frac{C}{D}\\) oraz \\(AD=BC\\) <strong>nie są</strong> równoważne, bo w pierwszym \\(B\\) i \\(D\\) muszą być różne od \\(0\\), a w drugim nie.\n                    </p>\n<p>\n                        Możemy je uczynić równoważnymy, jeśli pamiętamy o dziedzinie.\n                    </p>\n<div class=\"centered\">\n                        \\(\\left(\\frac{A}{B}=\\frac{C}{D}\\quad \\Leftrightarrow\\quad AD=BC\\right)\\) jeśli \\(B\\ne 0\\) oraz \\(D\\ne 0\\)\n                    </div>\n</div>\n</div>\n</details>\n</li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8a7311e0eebdb39cb97e4e87361ade8dd14c87688045f4aacb7759206ee915d2"
+}

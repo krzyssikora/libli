@@ -1,0 +1,388 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Dla koła o promieniu \\(r\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n</li>\n<li>\n            obwód = \\(2\\pi r\\)\n        </li>\n<li>\n</li>\n<li>\n            pole = \\(\\pi r^2\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Czy pamiętasz, czym są:\n        <ul class=\"nolist\">\n<li>\n                łuk,\n            </li>\n<li>\n                wycinek koła,\n            </li>\n<li>\n                odcinek koła?\n            </li>\n</ul>\n        Jeśli nie, spójrz poniżej i kliknij odpowiednie pojęcia - to wspomniane wyżej i inne, których znaczenia nie pamiętasz.\n        <div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"500px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/rx6mxmqg/width/600/height/500/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"okrąg i koło - podstawowe pojęcia\" width=\"600px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poniższe zadanie jest prostym wprowadzeniem do pól wycinków koła i do długości łuków.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Długość promienia koła to \\(5\\) cm.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Wówczas pole koła jest równe</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(25\\) cm\\(^2\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(10\\pi\\) cm\\(^2\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(25\\pi\\) cm\\(^2\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(10\\pi\\) cm\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(10\\) cm\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Obwód koła jest natomiast równy</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(25\\) cm\\(^2\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(10\\pi\\) cm\\(^2\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(25\\pi\\) cm\\(^2\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(10\\pi\\) cm\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(10\\) cm\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "image",
+      "media_src": "static/wycinek_kola_zadanie_1.png",
+      "alt": "połowa koła",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Pole</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"color: blue;\">\n                        połowy koła\n                    </span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>jest równe</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        &gt;&gt; wybierz &gt;&gt;\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(12,5\\) cm\\(^2\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(12,5\\pi\\) cm\\(^2\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(25\\) cm\\(^2\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        zatwierdź\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Długość</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"color: orange;\">\n                        połowy okręgu\n                    </span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>jest równa</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        &gt;&gt; wybierz &gt;&gt;\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(5\\pi\\) cm\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(5\\) cm\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(12,5\\pi\\) cm\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        zatwierdź\n                    "
+    },
+    {
+      "type": "image",
+      "media_src": "static/wycinek_kola_zadanie_2.png",
+      "alt": "ćwierć koła",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Pole</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"color: blue;\">\n                        ćwiartki koła\n                    </span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>jest równe</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        &gt;&gt; wybierz &gt;&gt;\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(6,25\\) cm\\(^2\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(6,25\\pi\\) cm\\(^2\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(12,5\\) cm\\(^2\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        zatwierdź\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Długość</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"color: orange;\">\n                        ćwiartki okręgu\n                    </span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>jest równa</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        &gt;&gt; wybierz &gt;&gt;\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(2,5\\pi\\) cm\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(2,5\\) cm\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(6,25\\pi\\) cm\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        zatwierdź\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Oznaczmy pole koła \\(P_{\\circ}\\), a długość okręgu \\(O_{\\circ}\\).\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/wycinek_kola_zadanie_3.png",
+      "alt": "połowa koła",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Pole połowy koła to po prostu \\(\\frac{1}{2}\\cdot P_{\\circ}\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Długość połowy okręgu to po prostu \\(\\frac{1}{2}\\cdot O_{\\circ}\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Nic dziwnego, połowa koła to wycinek o kącie środkowym \\(180^{\\circ}\\), który stanowi połowę kąta pełnego.\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                \\frac{180^{\\circ}}{360^{\\circ}}=\\frac{1}{2}\n                "
+    },
+    {
+      "type": "image",
+      "media_src": "static/wycinek_kola_zadanie_4.png",
+      "alt": "ćwiartka koła",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Pole ćwiartki koła to po prostu \\(\\frac{1}{4}\\cdot P_{\\circ}\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Długość ćwiartki okręgu to po prostu \\(\\frac{1}{4}\\cdot O_{\\circ}\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Nic dziwnego, ćwiartka koła to wycinek o kącie środkowym \\(90^{\\circ}\\), który stanowi ćwiartkę kąta pełnego.\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                \\frac{90^{\\circ}}{360^{\\circ}}=\\frac{1}{4}\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                A jak wygląda sytuacja dla innych wycinków?\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/wycinek_kola_pole_dlugosc_luku.png",
+      "alt": "wycinek koła",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wycinek koła o promieniu \\(r\\) ma kąt środkowy o mierze \\(\\alpha\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Pole wycinka dane jest wzorem\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    P=\\frac{\\alpha}{360^{\\circ}}\\cdot \\pi r^2\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Długość łuku na brzegu wycinka dana jest wzorem\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    L=\\frac{\\alpha}{360^{\\circ}}\\cdot 2\\pi r=\\frac{\\alpha}{180^{\\circ}}\\cdot \\pi r\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Skorzystaliśmy z prostej obserwacji, że\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n        pole wycinka jest proporcjonalne do kąta środkowego oraz\n    </li>\n<li>\n        długość łuku jest proporcjonalna do kąta środkowego.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    To oznacza, że także\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n        pole wycinka jest proporcjonalne do długości łuku.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Jeśli \\(r\\) to promień koła, \\(\\alpha\\) to kąt środkowy wycinka tego koła, a \\(d\\) to długość łuku na brzegu wycinka, to pole wycinka\n    \\[\n    \\begin{align*}\n    P&amp;=\\frac{d}{2\\pi r}\\cdot \\pi r^2=\\\\\n    &amp;=\\frac{d}{2}\\cdot r\n    \\end{align*}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Jeśli \\(r\\) to promień koła, a \\(d\\) to długość łuku na brzegu wycinka tego koła, to pole wycinka\n        \\[\n        P=\\frac{d}{2}\\cdot r\n        \\]\n        Zauważmy, że ten wzór jest identyczny z wzorem na pole trójkąta o podstawie \\(d\\) i wysokości \\(r\\).\n        <p>\n            W poniższym aplecie do wycinka dorysowany jest trójkąt o podstawie długości \\(d\\) stycznej do łuku wycinka i trzecim wierzchołku w środku okręgu, dzięki czemu wysokość trójkąta to \\(r\\).\n        </p>\n<p>\n            Przesuwaj zaznaczonym na pomarańczowo punktem kończącym łuk, by zmieniać wielkość wycinka i trójkąta. Zwróć uwagę, że oba jednocześnie rosną lub maleją, a ich pola są sobie równe.\n        </p>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"600px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/kqk2ury2/width/700/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"pole wycinka\" width=\"700px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "40b7bc6a4594ac6b59b3f33ea27f22e837befdd82ddf4080293462064fbd60c7"
+}

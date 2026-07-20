@@ -1,0 +1,178 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Wyliczając największą możliwą dziedzinę funkcji musimy pamiętać o dwóch podstawowych regułach:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            nie można dzielić przez \\(0\\),\n        </li>\n<li>\n            nie można obliczyć pierwiastka parzystego stopnia z liczby ujemnej.\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<small>\n    Później, poznając pewne szczególne funkcje, poznamy też inne warunki potrzebne dla ustalenia dziedziny. Na razie tw dwa będą w pełni wystarczające.\n</small>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Przyjrzyjmy się prostym przykładom.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                Jaka jest największa możliwa dziedzina funkcji\n                \\[\n                h(x)=\\frac{2+x}{2x-1}\n                \\]\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>W równaniu funkcji widzimy ułamek, mamy więc do czynienia z dzieleniem. Dlatego musimy rozpatrzeć warunek</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(2+x\\ne 0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(2x-1\\ne 0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(2+x\\ge 0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(2x+1\\ge 0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Dzielimy przez \\(2x-1\\), więc to wyrażenie musi być różne od zera.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Rozwiązując tę nierówność otrzymujemy</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x=2\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x\\ne 2\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x=\\tfrac{1}{2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x\\ne\\tfrac{1}{2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Tak więc dziedziną funkcji \\(h\\) jest zbiór:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                D_h=\\mathbb{R}\\setminus\\left\\{\\tfrac{1}{2}\\right\\}\n                                                                                                "
+    },
+    {
+      "type": "text",
+      "body": "\n                Jaka jest największa możliwa dziedzina funkcji\n                \\[\n                g(x)=\\sqrt{9-3x}\n                \\]\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>W równaniu funkcji widzimy pierwiastek, więc liczba pod pierwiastkiem nie może być ujemna. Oznacza to, że</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(9-3x \\gt 0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(9-3x \\lt 0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(9-3x \\ge 0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(9-3x \\le 0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Wyrażenie \\(9-3x\\) nie może być ujemne, więc musi być dodatnie lub równe \\(0\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Rozwiązując nierówność \\(9-3x\\ge 0\\) otrzymamy najpierw\n                \\[\n                -3x\\ge -9\n                \\]\n                a następnie, dzieląc obie strony przez \\(-3\\) (i pamiętając, że przy dzieleniu przez liczbę ujemną należy zmienić znak nierówności na przeciwny), otrzymamy:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x \\gt 3\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x \\lt 3\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x \\ge 3\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x \\le 3\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Tak więc dziedziną funkcji \\(g\\) jest zbiór:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                D_g=(-\\infty,3\\rangle\n                                                                                                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Przejdź dalej, by zobaczyć jeszcze jeden, bardziej skomplikowany przykład.\n            </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e389824c8fb9f8ad0ee23686d0d10fccdc0f2e398f9083a75373c9d50cb8cd6e"
+}

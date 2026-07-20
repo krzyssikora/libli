@@ -1,0 +1,58 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Odpowiedz na wszystkie pytania i wtedy zatwierdź, żeby sprawdzić swoje odpowiedzi.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Okrąg \\(o\\) ma obwód \\(30\\pi\\) cm. Prosta \\(k\\) przebiega w odległości \\(15\\) cm od środka okręgu \\(o\\).\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Ile punktów wspólnych mają prosta \\(k\\) i okrąg \\(o\\)?\n            </div>\n<div class=\"one_choice ks_button\">\n                wcale\n            </div>\n<div class=\"one_choice ks_button\">\n                jedno\n            </div>\n<div class=\"one_choice ks_button\">\n                dwa\n            </div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Okrąg \\(o\\) ma promień \\(r=7\\) cm. Prosta \\(k\\) przebiega w odległości \\(6,5\\) cm od środka okręgu \\(o\\).\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Ile punktów wspólnych mają prosta \\(k\\) i okrąg \\(o\\)?\n            </div>\n<div class=\"one_choice ks_button\">\n                wcale\n            </div>\n<div class=\"one_choice ks_button\">\n                jedno\n            </div>\n<div class=\"one_choice ks_button\">\n                dwa\n            </div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Okrąg \\(o\\) ma pole \\(36\\pi\\) cm\\(^2\\). Prosta \\(k\\) przebiega w odległości \\(12\\) cm od środka okręgu \\(o\\).\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Ile punktów wspólnych mają prosta \\(k\\) i okrąg \\(o\\)?\n            </div>\n<div class=\"one_choice ks_button\">\n                wcale\n            </div>\n<div class=\"one_choice ks_button\">\n                jedno\n            </div>\n<div class=\"one_choice ks_button\">\n                dwa\n            </div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n        potwierdź\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi:\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "9eddd4da8e52e6cb57956da4f685b6710bf80a1e5299e8b125894ac0c14ebe2d"
+}

@@ -1,0 +1,218 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz miejsca zerowe funkcji\n        \\[\n        f:(-\\infty, 1)\\longrightarrow\\mathbb{R}\n        \\]\n        zdefiniowanej równaniem\n        \\[\n        f(x)=x^2-9\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Miejsca zerowe to argumenty (\\(x\\)) dla których wartość jest równa \\(0\\). Musimy więc</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    rozwiązać równanie \\(x^2-9=0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    podstawić \\(x=0\\) do równania funkcji\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>Równanie \\(x^2-9=0\\) możemy zmienić w \\(x^2=9\\), więc</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    rozwiązaniem jest \\(x=3\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    rozwiązaniami są \\(x=-3\\) oraz \\(x=3\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    rozwiązaniami są \\(x=-9\\) oraz \\(x=9\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                    Uwaga!\n                </strong>\n                Rozwiązaniami równania są \\(x=-3\\) oraz \\(x=3\\), ale\n                <strong>\n                    to nie są miejsca zerowe!\n                </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Dlaczego? Zwróć uwagę na dziedzinę funkcji \\(f\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Uwzględniając dziedzinę, i odrzucając rozwiązanie spoza dziedziny otrzymujemy</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x=3\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x=-3\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Ze względu na dziedzinę \\((-\\infty, 1)\\), jedynym miejscem zerowym jest \\(x=-3\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz miejsca zerowe funkcji zdefiniowanej równaniem\n        \\[\n        g(x)=\\frac{x^2-4}{\\sqrt{x-1}}\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Tym razem dziedzina nie jest podana, musimy więc wyznaczyć ją samodzielnie. W tym celu musimy rozwiązać</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    równanie \\(x^2-4=0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    nierówność \\(x-1\\ge 0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    nierówność \\(x-1\\gt 0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Wyrażenie pod pierwiastkiem musi być większe lub równe \\(0\\), czyli \\(x-1\\ge 0\\), ale też mianownik musi być różny od \\(0\\), czyli \\(x-1\\ne 0\\). Zestawiając te dwa warunki otrzymujemy \\(x-1\\gt 0\\), czyli \\(x\\gt 1\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Teraz, gdy znamy już dziedzinę, czas na miejsca zerowe. Musimy rozwiązać równanie\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                g(x)=0\n                                                                                                \\]\n                                                                                                czyli\n                                                                                                \\[\n                                                                                                \\frac{x^2-4}{\\sqrt{x-1}}=0\n                                                                                                "
+    },
+    {
+      "type": "text",
+      "body": "<p>To równanie jest równoważne równaniu</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x^2-4=0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x-1=0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x^2-4=x-1\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>Rozwiązując równanie \\(x^2-4=0\\), czyli równoważnie \\(x^2=4\\), otrzymujemy</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x=-2\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x=-2\\) oraz \\(x=2\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>Uwzględniając dziedzinę, i odrzucając rozwiązanie spoza dziedziny otrzymujemy</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x=2\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x=-2\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Ze względu na dziedzinę \\((1,+\\infty)\\), jedynym miejscem zerowym jest \\(x=2\\).\n            </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a4d65855aefc003898d7ca4cea656c4539278440d0f6c992be0713f4f2e77349"
+}

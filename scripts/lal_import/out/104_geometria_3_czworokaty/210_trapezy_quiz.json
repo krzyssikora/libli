@@ -1,0 +1,68 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>W trapezie równoramiennym równe są:</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "kąty przy dłuższej podstawie",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "kąty przy krótszej podstawie",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "ramiona",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "przekątne",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "podstawy",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>W trapezie równoramiennym o podstawach długości  \\(7\\) i \\(11\\) wysokość opuszczona z końca krótszej podstawy dzieli dłuższą podstawę na dwa odcinki. Długość</p><p>z nich to</p>",
+      "value": "9",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>W trapezie równoramiennym o podstawach długości  \\(7\\) i \\(11\\) wysokość opuszczona z końca krótszej podstawy dzieli dłuższą podstawę na dwa odcinki. Długość</p><p>z nich to</p>",
+      "value": "2",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Podstawy trapezu mają długości \\(9\\) i \\(15\\).</p><p>Jaka jest długość odcinka łączącego śodki ramion?</p>",
+      "value": "12",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jedna z podstaw trapezu ma długość \\(8\\), a odcinek łączący środki ramion ma długość \\(11\\).</p><p>Jaka jest długość drugiej podstawy?</p>",
+      "value": "14",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jedna z podstaw trapezu ma długość \\(7\\), a wysokość \\(6\\).</p><p>Pole tego trapezu jest równe \\(45\\).</p><p>Jaka jest długość drugiej podstawy?</p>",
+      "value": "8",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a25e571b530fe0869fc28818fb30c2e746ccb1ca819a1f450fdea863312e81b8"
+}

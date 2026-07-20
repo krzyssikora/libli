@@ -1,0 +1,115 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Mając dane punkty \\(A=(-4, 2)\\), \\(B=(2, -2)\\), \\(C=(4, 1)\\) i \\(D=(-2, 5)\\), udowodnij, że czworokąt \\(ABCD\\) jest prostokątem i oblicz jego pole.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n<p>\n            Współczynniki kierunkowe boków \\(AB\\) i \\(CD\\) to \\(-\\frac{2}{3}\\), a boków \\(BC\\) i \\(AD\\) to \\(\\frac{3}{2}\\). Kąty są proste, bo \\(\\left(-\\frac{2}{3}\\right)\\cdot\\left(\\frac{3}{2}\\right)=-1\\).\n        </p>\n<p>\n            Pole prostokąta jest równe \\(26\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dane są punkty \\(A=(-6, -3)\\), \\(B=(6, 0)\\) i \\(C=(0, 7)\\).\n        </p>\n<ol class=\"bold\" type=\"A\">\n<li>\n                Znajdź równanie ogólne prostej zawierającej bok \\(AB\\).\n            </li>\n<li>\n                Oblicz pole trójkąta \\(ABC\\).\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n<ol class=\"bold\" type=\"A\">\n<li>\n                \\(x-4y-6=0\\)\n            </li>\n<li>\n                \\(51\\)\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dane są punkty \\(A=(-6, 4)\\), \\(B=(9, 1)\\) i \\(C=(-2, 11)\\).\n        </p>\n<ol class=\"bold\" type=\"A\">\n<li>\n                Znajdź równanie ogólne prostej zawierającej bok \\(AB\\).\n            </li>\n<li>\n                Oblicz pole trójkąta \\(ABC\\).\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n<ol class=\"bold\" type=\"A\">\n<li>\n                \\(x+5y-14=0\\)\n            </li>\n<li>\n                \\(58,5\\)\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz pole równoległoboku \\(ABCD\\), gdzie \\(A=(-8, -8)\\), \\(B=(1, -11)\\), \\(C=(4, -5)\\) i \\(D=(-5, -2)\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(63\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz pole równoległoboku \\(ABCD\\), gdzie \\(A=(-4, -7)\\), \\(B=(2, -3)\\), \\(C=(0, 1)\\) i \\(D=(-6, -3)\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(32\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz pole trapezu \\(ABCD\\), w którym bok \\(AB\\) jest równoległy do \\(CD\\) oraz \\(A=(-11, -6)\\), \\(B=(4, 3)\\), \\(C=(-4, 5)\\) i \\(D=(-9, 2)\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(68\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dany jest czworokąt \\(ABCD\\), w którym \\(A=(-6, -4)\\), \\(B=(-3, 5)\\), \\(C=(-8, 5)\\) i \\(D=(-10, -1)\\).\n        </p>\n<ol class=\"bold\" type=\"A\">\n<li>\n                Odowodnij, że boki \\(AB\\) i \\(CD\\) są równoległe.\n            </li>\n<li>\n                Oblicz pole czworokąta.\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n<ol class=\"bold\" type=\"A\">\n<li>\n                Współczynniki kierunkowe \\(AB\\) i \\(CD\\) są równe \\(3\\), więc boki są równoległe.\n            </li>\n<li>\n                \\(37,5\\)\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Oblicz pole czworokąta \\(ABCD\\), w którym \\(A=(-7, 2)\\), \\(B=(-1, 4)\\), \\(C=(1, 8)\\) i \\(D=(-7, 7)\\).\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "wskazówka",
+      "body": "\n\n<p>\n            Podziel czworokąt \\(ABCD\\) przekątną \\(BD\\) na dwa trójkąty.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(P_{ABD}+P_{BCD}=15+15=30\\)\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "63cf4bb68eb25745c5d6a2568e0529ac3ce15d368ee2e99b090c12c4653aa232"
+}

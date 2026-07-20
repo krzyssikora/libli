@@ -1,0 +1,326 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Mnożnie wyrazu przez sumę algebraiczną\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wymnażając wyraz przez sumę algebraiczną:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n2a(3ab-2b)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    mnożymy ten wyraz (\\(\\color{red}{2a}\\)) przez każdy wyraz sumy (tj. przez \\(\\color{blue}{3ab}\\) oraz przez \\(\\color{BlueViolet}{-2b}\\))\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\begin{align*}\n\\color{red}{2a}(\\color{blue}{3ab}\\color{BlueViolet}{-2b})&=\\\\\n&=\\color{red}{2a}\\cdot\\color{blue}{3ab} +\\color{red}{2a}\\cdot\\color{BlueViolet}{(-2b)}=\\\\\n&=6a^2b-4ab\n\\end{align*}\n"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Mnożnie dwóch sum algebraicznych\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wymnażając dwie sumy algebraiczne:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n(2a+5b)(3ab-2b)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    mnożymy każdy wyraz z pierwszej sumy (\\(\\color{red}{2a}\\), \\(\\color{orange}{5b}\\)) przez drugą sumę, czyli przez każdy jej wyraz (tj. przez \\(\\color{blue}{3ab}\\) oraz przez \\(\\color{BlueViolet}{-2b}\\))\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\begin{align*}\n(\\color{red}{2a}\\color{orange}{+5b})(\\color{blue}{3ab}\\color{BlueViolet}{-2b})&=\\\\\n&=\\color{red}{2a}\\cdot\\color{blue}{3ab} +\\color{red}{2a}\\cdot\\color{BlueViolet}{(-2b)}+\\color{orange}{5b}\\cdot\\color{blue}{3ab} +\\color{orange}{5b}\\cdot\\color{BlueViolet}{(-2b)}=\\\\\n&=6a^2b-4ab+15ab^2-10b^2\n\\end{align*}\n"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Dla wzrokowców\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Nie jest tajemnicą, że są wśród nas osoby, którym mniej po drodze z cyframi i zmiennymi, a bardziej ze schematami graficznymi. Takim osobom łatwiej zapisać mnożenie sum algebraicznych w tabelce.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zrobimy to na przykładzie takiego iloczynu sum:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n(\\color{red}{2a}\\color{orange}{+5b})(\\color{blue}{3ab}\\color{BlueViolet}{-2b}\\color{CornflowerBlue}{+7a})\n"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        Pierwszą sumę zapiszemy w pierwszej kolumnie tabeli, każdy wyraz w oddzielnym wierszu.\n    </li>\n<li>\n        Drugą sumę zapiszemy w pierwszym wierszu tabeli, każdy wyraz w oddzielnej kolumnie.\n    </li>\n</ul>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{3ab}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{BlueViolet}{-2b}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{CornflowerBlue}{+7a}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{red}{2a}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{orange}{+5b}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W kadej komórce tabeli mnożymy wyraz z pierwszej kolumny z wyrazem z pierwszego rzędu.\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{3ab}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{BlueViolet}{-2b}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{CornflowerBlue}{+7a}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{red}{2a}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{2a}\\cdot\\color{blue}{3ab}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{2a}\\cdot(\\color{BlueViolet}{-2b})\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{2a}\\cdot\\color{CornflowerBlue}{7a}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{orange}{+5b}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{orange}{5b}\\cdot\\color{blue}{3ab}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{orange}{5b}\\cdot(\\color{BlueViolet}{-2b})\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{orange}{5b}\\cdot\\color{CornflowerBlue}{7a}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Otrzymujemy następujące wyniki:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{3ab}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{BlueViolet}{-2b}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{CornflowerBlue}{+7a}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{red}{2a}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6a^2b\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-4ab\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(14a^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{orange}{+5b}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(15ab^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-10b^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(35ab\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wynikiem mnożenia jest:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n(2a+5b)(3ab-2b+7a)=6a^2b-4ab+14a^2+15ab^2-10b^2+35ab\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wśród sześciu wyrazów w uzyskanym wyniku dwa są podobne:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n(2a+5b)(3ab-2b+7a)=6a^2b \\underline{-4ab}+14a^2+15ab^2-10b^2 \\underline{+35ab}\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    I dlatego ostateczny wynik przyjmuje następującą, uproszczoną postać:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n(2a+5b)(3ab-2b+7a)=6a^2b +31ab+14a^2+15ab^2-10b^2\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "0e42f6cc6fef02658d9da1d2bc19ee1a8fb62e11a3321e4f8fd5c406343c61a1"
+}

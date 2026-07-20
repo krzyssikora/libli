@@ -1,0 +1,28 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wszystkie poznane wzory są prawdziwe dla wykładników rzeczywistych, dodatnich i ujemnych, całkowitych i niecałkowitych, wymiernych i niewymiernych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n                                                                                        \\begin{align*}\n                                                                                        a^n\\cdot a^k&amp;=a^{n+k}\\\\\n                                                                                        a^n: a^k&amp;=a^{n-k}\\\\\n                                                                                        \\left(a^n\\right)^k&amp;=a^{n\\cdot k}\\\\[10pt]\n                                                                                        a^n\\cdot b^n&amp;=(ab)^n\\\\\n                                                                                        a^n: b^n&amp;= \\left(\\frac{a}{b}\\right)^n\\\\[10pt]\n                                                                                        a^{-n}&amp;=\\left(\\frac{1}{a}\\right)^n\\\\\n                                                                                        a^{\\frac{1}{n}}&amp;=\\sqrt[n]{a}\n                                                                                        \\end{align*}\n                                                                                        \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uzupełnij obliczenia:\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<ul>\n<li>\n                \\(\\left(5^{\\sqrt{2}}\\right)^{\\sqrt{2}}=5\\)\n                <sup>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</sup>\n                \\(=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n                \\((2-\\sqrt{3})^7(2+\\sqrt{3})^7=((2-\\sqrt{3})(2+\\sqrt{3}))^7=\\left(2^2-(\\sqrt{3})^2\\right)^7=(\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                \\()^7=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n</ul>",
+      "reason": "interactive_widget (Group B): table_input"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "0e678917a592eebd789d623a7ce10ab0f7d2e4bab97d04288e99020a77289525"
+}

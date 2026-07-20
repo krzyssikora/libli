@@ -1,0 +1,114 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<i>\n        We wszystkich zadaniach poniżej \\(a\\), \\(b\\), \\(c\\) są długościami boków trójkąta, a \\(A\\), \\(B\\) i \\(C\\) miarami kątów przeciwległych do tych boków.\n    </i>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL_80\">\n<tr>\n<td>\n                        W trójkącie \\(ABC\\) dane są długości boków \\(a=3\\), \\(b=7\\), \\(c=8\\).\n                        <br/>\n                        Znajdź miarę kąta \\(B\\).\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(B=60^{\\circ}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL_80\">\n<tr>\n<td>\n                        W trójkącie \\(ABC\\) dane są boki \\(b=8\\), \\(c=5\\) i kąt \\(A=60^{\\circ}\\).\n                        <br/>\n                        Znajdź długość boku \\(a\\).\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(a=7\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL_80\">\n<tr>\n<td>\n                        W trójkącie \\(ABC\\) dane są długości boków \\(a=11\\sqrt{3}\\), \\(b=21\\) i kąt \\(A=120^{\\circ}\\).\n                        <br/>\n                        Znajdź długość boku \\(c\\).\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(c=2\\sqrt{3}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL_80\">\n<tr>\n<td>\n                        W trójkącie \\(ABC\\) dane są boki \\(a=3\\sqrt{2}\\), \\(c=7\\) i kąt \\(B=45^{\\circ}\\).\n                        <br/>\n                        Znajdź długość boku \\(b\\).\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(b=5\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL_80\">\n<tr>\n<td>\n                        W trójkącie \\(ABC\\) dane są długości boków \\(a=3\\sqrt{2}\\), \\(b=1\\), \\(c=5\\).\n                        <br/>\n                        Znajdź miarę kąta \\(C\\).\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(C=135^{\\circ}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL_80\">\n<tr>\n<td>\n                        W trójkącie \\(ABC\\) dane są boki \\(a=8\\sqrt{2}\\), \\(b=7\\) i kąt \\(C=135^{\\circ}\\).\n                        <br/>\n                        Znajdź długość boku \\(c\\).\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(c=17\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL_80\">\n<tr>\n<td>\n                        W trójkącie \\(ABC\\) dane są długości boków \\(c=7\\), \\(b=2\\) i kąt \\(C=30^{\\circ}\\).\n                        <br/>\n                        Znajdź długość boku \\(a\\).\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(a=\\sqrt{3}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL_80\">\n<tr>\n<td>\n                        W trójkącie \\(ABC\\) dane są długości boków \\(c=7\\), \\(a=5\\sqrt{3}\\) i kąt \\(C=150^{\\circ}\\).\n                        <br/>\n                        Znajdź długość boku \\(b\\).\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(b=2\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL_80\">\n<tr>\n<td>\n                        W trójkącie \\(ABC\\) dane są długości boków \\(a=11\\), \\(b=5\\sqrt{3}\\), \\(c=19\\).\n                        <br/>\n                        Znajdź miarę kąta \\(C\\).\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(C=150^{\\circ}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL_80\">\n<tr>\n<td>\n                        W trójkącie \\(ABC\\) dane są długości boków \\(a=3\\sqrt{2}\\), \\(b=3\\) i miara kąta \\(C=75^{\\circ}\\).\n                        <br/>\n                        Znajdź miarę kąta \\(B\\).\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(B=60^{\\circ}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL_80\">\n<tr>\n<td>\n                        W trójkącie \\(ABC\\) dane są długości boków \\(b=4\\) i \\(c=2\\sqrt{6}\\) oraz miara kąta \\(B=45^{\\circ}\\).\n                        <br/>\n                        Oblicz miarę kąta \\(C\\).\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(C=60^{\\circ}\\) lub \\(C=120^{\\circ}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL_80\">\n<tr>\n<td>\n                        W trójkącie \\(ABC\\) dane są długości boków \\(b=\\sqrt{2}\\), \\(c=2\\) i miara kąta \\(B=30^{\\circ}\\).\n                        <br/>\n                        Oblicz miarę kąta \\(A\\).\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(A=15^{\\circ}\\) lub \\(A=105^{\\circ}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL_80\">\n<tr>\n<td>\n                        W trójkącie \\(ABC\\) dana jest długość boku \\(c=6\\) oraz miary kątów \\(A=45^{\\circ}\\) i \\(B=75^{\\circ}\\).\n                        <br/>\n                        Znajdź długość boku \\(a\\).\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(a=2\\sqrt{6}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "978573eb9806207a6f296a07eb764934eac0b6d399b2d1fbb64544da31e129b0"
+}

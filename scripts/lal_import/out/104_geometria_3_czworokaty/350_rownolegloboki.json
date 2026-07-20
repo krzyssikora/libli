@@ -1,0 +1,62 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "poleprostokąta",
+      "body": "\n\n<figure>\n<img src=\"static/prostokat_pole_ab.png\" style=\"max-width: 100%; max-height: 250px;\"/>\n</figure>\n<p>\n                    \\(P\\), pole prostokąta o bokach \\(a\\) i \\(b\\) jest dane wzorem\n                </p>\n                \\[\n                P=ab\n                \\]\n            "
+    },
+    {
+      "type": "spoiler",
+      "label": "polekwadratu",
+      "body": "\n\n<figure>\n<img src=\"static/kwadrat_pole_aa.png\" style=\"max-width: 100%; max-height: 250px;\"/>\n</figure>\n<p>\n                    \\(P\\), pole kwadratu o boku \\(a\\) jest dane wzorem\n                </p>\n                \\[\n                P=a^2\n                \\]\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poznaliśmy też wzór na pole równoległoboku w zależności od obu przekątnych i kąta między nimi.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Pole równoległoboku jest równe iloczynowi długości <span style=\"color: blue\">przekątnych</span> równoległoboku i sinusa <span style=\"color:red\">kąta</span> między przekątnymi.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/rownoleglobok_pole_5.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "math",
+      "latex": "\n    P=\\frac{1}{2}\\cdot d_1\\cdot d_2\\cdot \\sin\\beta\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Zarówno prostokąt jak i kwadrat są równoległobokami. \n        </p>\n<p>\n            Jak wyglądają wzory na pola prostokąta i kwadratu w zależności od długości przekątnych?\n        </p>\n<div class=\"important\">\n<div class=\"table_wrapper\" style=\"width: 100%; display: flex; flex-wrap: wrap;\">\n<div style=\"min-width: 300px; width: 50%;\">\n<figure>\n<img src=\"static/prostokat_pole_przekatne.png\" style=\"max-width: 100%; max-height: 250px;\"/>\n</figure>\n<details>\n<summary>pole <strong>prostokąta</strong></summary>\n<p>\n                            \\(P\\), pole prostokąta o przekątnych długości \\(d\\) i kącie między nimi o mierze \\(\\beta\\) jest dane wzorem\n                        </p>\n                        \\[\n                        P=\\frac{1}{2}d^2\\sin\\beta\n                        \\]\n                    </details>\n</div>\n<div style=\"min-width: 300px; width: 50%;\">\n<figure>\n<img src=\"static/kwadrat_pole_przekatne.png\" style=\"max-width: 100%; max-height: 250px;\"/>\n</figure>\n<details>\n<summary>pole <strong>kwadratu</strong></summary>\n<p>\n                            \\(P\\), pole kwadratu o przekątnych długości \\(d\\) jest dane wzorem\n                        </p>\n                        \\[\n                        P=\\frac{1}{2}d^2\n                        \\]\n                    </details>\n</div>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Pole kwadratu o przekątnej długości \\(d\\) jest równe \\(P\\).\n        </p>\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n<strong>1.</strong> Jeśli \\(d=6\\), to \\(P=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(36\\)</div>\n<div class=\"switch_value\">\\(18\\)</div>\n<div class=\"switch_value\">\\(9\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n<strong>2.</strong> Jeśli \\(d=7\\), to \\(P=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(49\\)</div>\n<div class=\"switch_value\">\\(\\tfrac{49}{2}\\)</div>\n<div class=\"switch_value\">\\(\\tfrac{49}{4}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n<strong>3.</strong> Jeśli \\(P=8\\), to \\(d=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2\\sqrt{2}\\)</div>\n<div class=\"switch_value\">\\(4\\)</div>\n<div class=\"switch_value\">\\(4\\sqrt{2}\\)</div>\n<div class=\"switch_value\">\\(8\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n<strong>4.</strong> Jeśli \\(P=25\\), to \\(d=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(5\\)</div>\n<div class=\"switch_value\">\\(5\\sqrt{2}\\)</div>\n<div class=\"switch_value\">\\(10\\)</div>\n<div class=\"switch_value\">\\(10\\sqrt{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Świetnie!\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Pole prostokąta o przekątnej długości \\(d\\) i kącie między przekątnymi o mierze \\(\\alpha\\) jest równe \\(P\\).\n        </p>\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n<strong>1.</strong> Jeśli \\(d=6\\) i \\(\\alpha=30^{\\circ}\\), to \\(P=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(36\\)</div>\n<div class=\"switch_value\">\\(18\\)</div>\n<div class=\"switch_value\">\\(9\\)</div>\n<div class=\"switch_value\">\\(9\\sqrt{3}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n<strong>2.</strong> Jeśli \\(d=7\\) i \\(\\alpha=45^{\\circ}\\), to \\(P=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(49\\)</div>\n<div class=\"switch_value\">\\(49\\sqrt{2}\\)</div>\n<div class=\"switch_value\">\\(\\tfrac{49}{2}\\)</div>\n<div class=\"switch_value\">\\(\\tfrac{49\\sqrt{2}}{4}\\)</div>\n<div class=\"switch_value\">\\(\\tfrac{49}{4}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n<strong>3.</strong> Jeśli \\(d=8\\) i \\(P=16\\), to \\(\\alpha=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(30^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(45^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(60^{\\circ}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n<strong>4.</strong> Jeśli \\(d=6\\) i \\(P=9\\sqrt{3}\\), to \\(\\alpha=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(30^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(45^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(60^{\\circ}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n<strong>5.</strong> Jeśli \\(P=6\\sqrt{2}\\) i \\(\\alpha=45^{\\circ}\\), to \\(d=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2\\sqrt{6}\\)</div>\n<div class=\"switch_value\">\\(2\\sqrt{3}\\)</div>\n<div class=\"switch_value\">\\(3\\sqrt{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Świetnie!\n            </div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2ae7e535baf1da66fa545fa7184c3a043e9b6105e7bce661feb150a521ce2fc3"
+}

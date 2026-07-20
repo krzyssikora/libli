@@ -1,0 +1,354 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Pierwiastek stopnia \\(n\\) z liczby \\(a\\) to taka liczba \\(b\\), której \\(n\\)-ta potęga jest równa \\(a\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zapisujemy to:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\sqrt[n]{a}=b\\quad\\quad\\Leftrightarrow\\quad\\quad a=b^n\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Uzupełnij puste pola liczbami.</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<ul class=\"nolist\">\n<li>\n                \\(3^5=243\\), więc\n                <span class=\"myequation\">\n                    \\(\\sqrt[5]{243}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n                \\(5^4=625\\), więc\n                <span class=\"myequation\">\n                    \\(\\sqrt[4]{625}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n                \\(2^7=128\\), więc\n                <span class=\"myequation\">\n                    \\(\\sqrt[7]{128}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n</ul>",
+      "reason": "interactive_widget (Group B): table_input"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Przyjrzyj się potęgom w poniższej tabeli i użyj ich w kolejnym zadaniu.\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(a\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a^3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a^4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a^5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a^6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a^7\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a^8\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(16\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(32\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(64\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(128\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(256\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(9\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(27\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(81\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(243\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(729\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(16\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(64\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(256\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1024\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(25\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(125\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(625\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(36\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(216\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(7\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(49\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(343\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Oblicz i wpisz wyniki w puste pola.</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<ul class=\"nolist\">\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[4]{256}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[6]{729}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[3]{343}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n</ul>",
+      "reason": "interactive_widget (Group B): table_input"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "ecfcfa749ecddf481ccf90ca224b9015a782d281278d8ccc5b635f61b59d3de4"
+}

@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Podsumujmy wszystkie kroki, jakie podejmowaliśmy, by rozwiązywać równania wielomianowe.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n        szukaliśmy pierwiastków całkowitych rozpatrując dzielniki wyrazu wolnego,\n        <!-- INTERNAL LINK 1 -->\n</li>\n<li>\n        szukaliśmy pierwiastków wymiernych rozpatrując dzielniki wyrazu wolnego i dzielniki współczynnika najwyższej potęgi, i dzieląc pierwsze przez drugie,\n        <!-- INTERNAL LINK 1 -->\n</li>\n<li>\n        po znalezieniu pierwiastka dzieliliśmy przez odpowiedni dwumian liniowy (twierdzenie Bézout),\n        <!-- INTERNAL LINK 1 -->\n</li>\n<li>\n        rozkładaliśmy wielomian na czynniki z pomocą wzorów skróconego mnożenia,\n        <!-- INTERNAL LINK 1 -->\n</li>\n<li>\n        wyłączaliśmy wspólne czynniki przed nawias.\n        <!-- INTERNAL LINK 1 -->\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli potrzebujesz lub masz ochotę, możesz jeszcze poćwiczyć powyższe metody. A na zakończenie zajmiemy się rozwiązywaniem zadań z użyciem równań wielomianowych.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7c20db0c46f1dca03488ed29e4f6536331858eca6c81fe43c7de15fb3a169d13"
+}

@@ -1,0 +1,28 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zbiór \\(A\\) jest dowolnym,\n            <strong>\n                niepustym\n            </strong>\n            zbiorem.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Klikaj pola zaznaczone na niebiesko, aż zobaczysz działanie prawdziwe\n            <strong>\n                dla każdego niepustego\n            </strong>\n            zbioru \\(A\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pamiętaj, że symbol \"\\(\\emptyset\\)\" oznacza\n            <strong>\n                zbiór pusty\n            </strong>\n            .\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\cap\\emptyset=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\cup\\emptyset=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\setminus\\emptyset=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(\\emptyset\\cap A=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(\\emptyset\\setminus A=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\cup A=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\cap A=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\setminus A=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_confirm ks_button\">\n            zatwierdź\n        </div>\n\n</div>",
+      "reason": "interactive_widget (Group B): switch_around,switch_confirm,switch_line,switch_options,switch_value"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "1c82ed9a8b7d6068bc393ae17ed2d80fa348331a783e8513ccebd66f0659c0a1"
+}

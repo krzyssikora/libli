@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/zasady_podobienstwa.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n<u>\n                ZASADY PODOBIEŃSTWA TRÓJKĄTÓW\n            </u>\n</strong>\n        (kliknij, żeby zobaczyć opis)\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul style=\"list-style: none;\">\n<li>\n<details>\n<summary>\n<strong>\n                        bok-bok-bok\n                    </strong>\n</summary>\n<p>\n                    Trójkąty są podobne, jeśli wszystkie trzy boki są w tym samym stosunku.\n                </p>\n</details>\n</li>\n<li>\n<details>\n<summary>\n<strong>\n                        bok-kąt-bok\n                    </strong>\n</summary>\n<p>\n                    Trójkąty są podobne, jeśli dwa boki są w tym samym stosunku, a kąt między nimi ma tę samą miarę.\n                </p>\n</details>\n</li>\n<li>\n<details>\n<summary>\n<strong>\n                        kąt-kąt-kąt\n                    </strong>\n</summary>\n<p>\n                    Trójkąty są podobne, jeśli mają wszystkie kąty tej samej miary.\n                </p>\n</details>\n</li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f42dd4661014f862ffd7c35e36aa08e126c78010f041b66ddb28a50d8ab07ed0"
+}

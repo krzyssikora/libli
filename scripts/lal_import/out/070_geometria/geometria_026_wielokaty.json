@@ -1,0 +1,146 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Ile jest przekątnych w wielokącie?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rozpatrzmy \\(n\\)-kąt - wielokąt o \\(n\\) wierzchołkach. Jak wspomnieliśmy w powyższym nagraniu dotyczącym sumy kątów w wielokącie, z każdego wierzchołka wychodzą \\(n-3\\) przekątne.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy sobie: \\(n-3\\), bo z wierzchołka nie wychodzi przekątna do siebie samego ani do jego dwóch sąsiadów, i dlatego ze wszystkich wierzchołków musimy wykluczyć trzy.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Znając liczbę wszystkich przekątnych wychodzących z jednego wierzchołka (\\(n-3\\)), aby uzyskać liczbę wszystkich przekątnych w wielokącie, pomnóżmy tę liczbę przez liczbę wszystkich wierzchołków.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Stąd wydaje się, że liczba przekątnych w \\(n\\)-kącie powinna być równa\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n(n-3)\\cdot n\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Sprawdźmy ten wzór na kilku prostych przykładach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Uzupełnij wartości w tabeli\n    "
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(n\\), liczba wierzchołków",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wartość ze wzoru \\((n-3)\\cdot n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rysunek",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "prawdziwa liczba przekątnych",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<img alt=\"\" height=\"268\" src=\"static/4kat_przekatne.png\" style=\"width: 300px; height: 268px;\" width=\"300\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<img alt=\"\" height=\"268\" src=\"static/5kat_przekatne.png\" style=\"width: 300px; height: 268px;\" width=\"300\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n    Twoje odpowiedzi są poprawne, ale... czy widzisz, że coś się nie zgadza?\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Z wzoru wynika, że przekątnych jest dwukrotnie więcej, niż jest ich w rzeczywistości. Dlaczego?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Spójrz na rysunek.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"\" height=\"425\" src=\"static/przekatne.png\" style=\"width: 800px; height: 425px;\" width=\"800\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Oznaczoną przekątną policzyliśmy z dwóch stron oznaczonych strzałkami: zarówno od strony wierzchołka znajdującego się na jednym, jak i na drugim końcu tej przekątnej. I dlatego prawdziwy wzór jest trochę inny.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wzór na liczbę przekątnych w \\(n\\)-kącie to\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\frac{n(n-3)}{2}\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a2aad92a9363210f20b337b8004430106d3e39ece0d04bdab713babcbd6bb412"
+}

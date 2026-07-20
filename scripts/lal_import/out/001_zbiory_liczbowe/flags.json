@@ -1,0 +1,146 @@
+[
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): switch_around,switch_confirm,switch_line,switch_options,switch_value",
+    "raw_excerpt": "<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cup\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cap\\)\n            </div>\n<div class=\"switch_value\">\n       ",
+    "unit_json": "035_zbiory.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): switch_around,switch_confirm,switch_line,switch_options,switch_value",
+    "raw_excerpt": "<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\cap\\emptyset=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=",
+    "unit_json": "037_zbiory.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): confirm_multiple,multi_many_ans,multi_many_option",
+    "raw_excerpt": "<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\((2,3)\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            otwarty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            domknięty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n       ",
+    "unit_json": "080_liczby_r_przedzialy.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): mark_done",
+    "raw_excerpt": "<div>\n<div class=\"mark_done statement\" data-width=\"200px\">\n                \\(\\langle 3, 5)\\)\n            </div>\n<input type=\"checkbox\"/>\n</div>",
+    "unit_json": "100_liczby_r_przedzialy.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): switch_around,switch_confirm,switch_line,switch_options,switch_value",
+    "raw_excerpt": "<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\((-5,2)\\cup \\langle-1,5\\rangle\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,5)\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,5\\rangle\\)\n            </d",
+    "unit_json": "110_liczby_r_przedzialy.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): fill_answer,fill_show_next,fill_step",
+    "raw_excerpt": "<div class=\"fill_steps\">\n<p>\n            Jeśli przeniesiemy \\(-7\\) z lewej strony na prawą, otrzymamy tam\n            \\[1+7=8\\]\n        </p>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                Przenieś wszystkie \\(x\\)-y na lewą stronę równa",
+    "unit_json": "120_liczby_r_zast.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): fill_answer,fill_show_next,fill_step",
+    "raw_excerpt": "<div class=\"fill_steps\">\n<p>\n            Jeśli przeniesiemy \\(x\\)-y z prawej strony na lewą, otrzymamy tam\n            \\[3x-2x-x=0\\cdot x=0\\].\n        </p>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                Przenieś liczby na prawą stronę ",
+    "unit_json": "120_liczby_r_zast.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): fill_answer,fill_show_next,fill_step",
+    "raw_excerpt": "<div class=\"fill_steps\">\n<p>\n            Jeśli przeniesiemy \\(1\\) z lewej strony na prawą, otrzymamy tam\n            \\[7-1=6\\].\n        </p>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                Przenieś wszystkie \\(x\\)-y na lewą stronę równa",
+    "unit_json": "120_liczby_r_zast.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): ks_tabs",
+    "raw_excerpt": "<details>\n<summary>\n        obliczenia procentu z liczby\n    </summary>\n<div id=\"question10\">\n<p class=\"question\">\n</p>\n<div class=\"question_text\">\n            Oblicz \\(15\\%\\) z liczby \\(240\\).\n        </div>\n</div>\n<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\"",
+    "unit_json": "130_liczby_r_zast.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): more_less_input",
+    "raw_excerpt": "<div class=\"more_less_guess\">\n<div>\n<span>\n<input class=\"more_less_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</div>\n\n\n\n</div>",
+    "unit_json": "140_liczby_r_zast.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): more_less_input",
+    "raw_excerpt": "<div class=\"more_less_guess\">\n<div>\n<span>\n<input class=\"more_less_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</div>\n\n\n\n</div>",
+    "unit_json": "140_liczby_r_zast.json"
+  },
+  {
+    "kind": "table_span",
+    "reason": "table uses rowspan/colspan",
+    "raw_excerpt": "<table class=\"my_table_border\">\n<tr>\n<th>\n                    OpenArch\n                </th>\n<th>\n                    TeraSoft\n                </th>\n</tr>\n<tr>\n<td>\n                    20 tysięcy tabletów\n                </td>\n<td>\n                    40 tysięcy tabletów\n                </td>\n</tr>\n",
+    "unit_json": "140_liczby_r_zast.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): table_input",
+    "raw_excerpt": "<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                        prawdziwy wymiar\n                    </td>\n<td>\n                        zmierzona długość\n                    </td>\n<td>\n                        obliczenie błędu\n                    </td>\n<td>\n       ",
+    "unit_json": "150_liczby_r_zast.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): table_input",
+    "raw_excerpt": "<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                        błąd względny Artura\n                    </td>\n<td>\n                        \\(\\frac{|50,5-51|}{|50,5|}=\\frac{0,5}{50,5}\\approx 0,0099\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                      ",
+    "unit_json": "150_liczby_r_zast.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): table_input",
+    "raw_excerpt": "<p>\n<input class=\"table_input\" placeholder=\"tak/nie\" type=\"text\"/>\n</p>",
+    "unit_json": "150_liczby_r_zast.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): table_input",
+    "raw_excerpt": "<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td style=\"border: none\">\n</td>\n<td>\n                            wartość przybliżona\n                        </td>\n<td>\n                            wyliczenie błędu bezwzględnego\n                        </td>\n<td>\n               ",
+    "unit_json": "160_liczby_r_zast.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): table_input",
+    "raw_excerpt": "<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                    liczba\n                </td>\n<td>\n                    dokładność\n                </td>\n<td>\n                    przybliżenie\n                </td>\n</tr>\n<tr>\n<td>\n                    \\(2,5555\\)\n                ",
+    "unit_json": "170_liczby_r_zast.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): table_input",
+    "raw_excerpt": "<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\" style=\"background-color: white;\">\n<tr>\n<td>\n                            działanie\n                        </td>\n<td>\n                            dodawanie i odejmowanie\n                        </td>\n<td>\n                            mno",
+    "unit_json": "180_liczby_q.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): confirm_choice,one_choice",
+    "raw_excerpt": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Czy \\(1\\) jest liczbą pierwszą?\n            </div>\n<div class=\"one_choice ks_button\">\n                tak\n            </div>\n<div class=\"one_choice ks_button\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement",
+    "unit_json": "210_liczby_n.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): confirm_multiple,multi_many_ans,multi_many_option",
+    "raw_excerpt": "<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\(432\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(3\\)\n        </div>\n<div class=\"",
+    "unit_json": "230_liczby_n.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): fill_answer,fill_show_next,fill_step",
+    "raw_excerpt": "<div class=\"fill_steps\">\n<p>\n            W tym celu najpierw oddziel 3 ostatnie cyfry od reszty liczby\n        </p>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                Otrzymamy \\(16\\) i \\(492\\).\n            </p>\n<p>\n                Oblicz ",
+    "unit_json": "230_liczby_n.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): fill_answer,fill_show_next,fill_step",
+    "raw_excerpt": "<div class=\"fill_steps\">\n<p>\n            W tym celu musimy oddzielnie rozpatrzeć cyfry na miejscach\n            <span style=\"color: red;\">\n                nieparzystych\n            </span>\n            i\n            <span style=\"color: blue;\">\n                parzystych\n            </span>\n          ",
+    "unit_json": "230_liczby_n.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): ks_tabs",
+    "raw_excerpt": "<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                nagranie\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                animacja\n            </a>\n</li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-1-1\">\n<figure>\n<vi",
+    "unit_json": "240_liczby_n.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): table_input",
+    "raw_excerpt": "<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                    \\(NWD(15, 16)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                    \\(NWW(15, 16)=\\)\n                    <input class=\"table_input\" placeholder=\"wp",
+    "unit_json": "250_liczby_n.json"
+  }
+]

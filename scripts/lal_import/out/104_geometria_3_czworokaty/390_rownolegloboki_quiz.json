@@ -1,0 +1,94 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>Wewnętrzny kąt rozwarty równoległoboku jest trzykrotnie większy od kąta ostrego. Podaj miarę kąta ostrego (samą liczbę, bez znaku stopnia)</p>",
+      "value": "45",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>W równoległoboku punkt wspólny przekątnych:</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "dzieli jedną z nich na połowy, ale niekoniecznie drugą",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "dzieli obie przekątne na połowy",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "jest punktem, w którym przekątne przecinają się pod kątem prostym",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Przekątne przecinają się pod kątem prostym w każdym</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "równoległoboku",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "rombie",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "prostokącie",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "kwadracie",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Przekątne równoległoboku są równej długości.</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "Tak jest w każdym równoległoboku.",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Ten równoległobok jest prostokątem.",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Ten równoległobok jest rombem.",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Ten równoległobok jest kwadratem.",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Przekątne rombu są długości \\(6\\) i \\(8\\).</p><p>Podaj długość boku rombu.</p>",
+      "value": "5",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "888f405657779918725e90c6dca89346905240cb5736deb94beb6ad7e6d20b7e"
+}

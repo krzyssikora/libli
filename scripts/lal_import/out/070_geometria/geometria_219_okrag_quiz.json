@@ -1,0 +1,73 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<div class=\"centered\">\n<img alt=\"quiz zadanie 1\" height=\"400\" src=\"static/quiz_katy_w_kole_1.png\"/>\n</div><p>\n    Rysunek przedstawia okrąg o środku w punkcie \\(D\\). Punkty \\(A\\), \\(B\\) i \\(C\\) leżą na okręgu.\n</p><p>\n    Wskaż wszystkie kąty o mierze równej zielonemu kątowi z wierzchołkiem w punkcie \\(A\\).\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "czerwony o wierzchołku w punkcie \\(B\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "żółty o wierzchołku w punkcie \\(C\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "niebieski o wierzchołku w punkcie \\(D\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<div class=\"centered\">\n<img alt=\"quiz zadanie 2\" height=\"400\" src=\"static/quiz_katy_w_kole_2.png\"/>\n</div><p>\n    Rysunek przedstawia okrąg o środku w punkcie \\(S\\). Punkty \\(A\\), \\(B\\) i \\(C\\) leżą na okręgu, a odcinek \\(AB\\) przechodzi przez punkt \\(S\\).\n</p><p>\n    Kąt \\(\\angle ABC\\) ma miarę \\(48^{\\circ}\\).\n</p><p>\n    Jaka jest miara kąta \\(\\angle BAC\\)? Wpisz samą liczbę, w stopniach.\n</p>",
+      "value": "42",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<div class=\"centered\">\n<img alt=\"quiz zadanie 3\" height=\"400\" src=\"static/quiz_katy_w_kole_3.png\"/>\n</div><p>\n    Rysunek przedstawia okrąg, na którym leżą punkty \\(A\\), \\(B\\), \\(C\\) i \\(D\\). Przez punkt \\(D\\) przebiega styczna do okręgu.\n</p><p>\n    Wskaż wszystkie kąty o mierze równej zielonemu kątowi między styczną a cięciwą \\(CD\\).\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "niebieski o wierzchołku w punkcie \\(A\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "szary o wierzchołku w punkcie \\(A\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "żółty o wierzchołku w punkcie \\(B\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "czerwony o wierzchołku w punkcie \\(C\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<div class=\"centered\">\n<img alt=\"quiz zadanie 4\" height=\"400\" src=\"static/quiz_katy_w_kole_4.png\"/>\n</div><p>\n    Rysunek przedstawia czworokąt \\(ABCD\\) wpisany w koło. Zaznaczony na czerwono kąt \\(\\angle BCD\\) ma miarę \\(110^{\\circ}\\).\n</p><p>\n    Jaka jest miara kąta \\(\\angle BAD\\)? Wpisz samą liczbę, w stopniach.\n</p>",
+      "value": "70",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<div class=\"centered\">\n<img alt=\"quiz zadanie 5\" height=\"400\" src=\"static/quiz_katy_w_kole_5.png\"/>\n</div><p>\n    Rysunek przedstawia okrąg i punkt \\(P\\) poza okręgiem.\n</p><p>\n    Jedna sieczna okręgu z punktu \\(P\\) przecina okrąg kolejno w punktach \\(A\\) i \\(B\\) w taki sposób, że \\(PA=4\\) i \\(AB=4\\).\n</p><p>\n    Druga sieczna okręgu z punktu \\(P\\) przecina okrąg kolejno w punktach \\(C\\) i \\(D\\) w taki sposób, że \\(PC=2\\).\n</p><p>\n    Oblicz i wpisz poniżej długość odcinka \\(CD\\).\n</p>",
+      "value": "14",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "32b9549511a0a287073119b1d2cf38efd08af5959c9cdfbbb163a853556db8b0"
+}

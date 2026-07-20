@@ -1,0 +1,28 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Liczby wymierne to po prostu ułamki zwykłe.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy sobie krótko, jak wykonujemy podstawowe działania na ułamkach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Uzupełnij tabelę. Wpisz tylko końcowe wyniki.</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\" style=\"background-color: white;\">\n<tr>\n<td>\n                            działanie\n                        </td>\n<td>\n                            dodawanie i odejmowanie\n                        </td>\n<td>\n                            mnożenie\n                        </td>\n<td>\n                            dzielenie\n                        </td>\n</tr>\n<tr>\n<td>\n                            metoda\n                        </td>\n<td>\n                            wspólny mianownik czyli\n                            <br/>\n                            najmniejsza wspólna wielokrotność (\\(NWW\\))\n                        </td>\n<td>\n                            skracamy liczniki z mianownikami\n                            <br/>\n                            potem mnożymy oddzielnie liczniki,\n                            <br/>\n                            oddzielnie mianowniki\n                        </td>\n<td>\n                            zamieniamy na mnożenie\n                            <br/>\n                            pierwszego ułamka przez odwrotność drugiego\n                        </td>\n</tr>\n<tr>\n<td>\n                            przykład\n                        </td>\n<td>\n                            \\[\\frac{5}{6}+\\frac{3}{4}=\\]\n                                                                               \\[[NWW(6,4)=12]\\]\n                                                                               \\[=\\frac{10}{12}+\\frac{9}{12}=\\frac{19}{12}\\]\n                        </td>\n<td>\n                            \\[\\frac{4}{9}\\cdot\\frac{15}{14}=\\]\n                                                                               skracamy przez \\(2\\) i przez \\(3\\)\n                                                                               \\[=\\frac{2}{3}\\cdot\\frac{5}{7}=\\]\n                                                                               mnożymy\n                                                                               \\[=\\frac{10}{21}\\]\n                        </td>\n<td>\n                            \\[\\frac{4}{9}:\\frac{14}{15}=\\]\n                                                                               zamieniamy na mnożenie\n                                                                               \\[\\frac{4}{9}\\cdot\\frac{15}{14}=\\]\n                                                                               i dalej tak samo, jak poprzednio\n                                                                               \\[=\\frac{10}{21}\\]\n                        </td>\n</tr>\n<tr>\n<td>\n                            ćwiczenie\n                        </td>\n<td>\n                            \\(\\frac{9}{10}-\\frac{8}{15}=\\)\n                            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            \\(\\frac{75}{14}\\cdot\\frac{21}{27}=\\)\n                            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            \\(\\frac{1}{2}:\\frac{1}{4}=\\)\n                            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>",
+      "reason": "interactive_widget (Group B): table_input"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "623ebe110f6cceeaf4fba4790acc55708613c716b585adad94d1455f81021553"
+}

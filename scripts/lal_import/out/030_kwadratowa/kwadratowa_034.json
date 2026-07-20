@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    A na zakończenie, możemy naszkicować parabolę z poprzedniego nagrania, czyli daną równaniem:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "y=2x^2-10x+11"
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_podstawy_05.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2238710694449023ab5ecd454eda57d5ab6be822a5e7dc0a0b38fb43edf48fc6"
+}

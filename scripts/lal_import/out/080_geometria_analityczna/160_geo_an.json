@@ -1,0 +1,268 @@
+{
+  "elements": [
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "Równanie\n                    <strong>\n                        kierunkowe\n                    </strong>\n                    prostej:",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=ax+b\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "Równanie\n                    <strong>\n                        ogólne\n                    </strong>\n                    prostej:",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(Ax+By+C=0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Prostopadłość prostych o równaniach kierunkowych\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n        Przypomnienie:\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Proste\n        <div class=\"centered\">\n            \\(y=a_1x+b_1\\quad\\quad\\) oraz \\(\\quad\\quad y=a_2x+b_2\\)\n        </div>\n        są prostopadłe jeśli:\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<div class=\"one_choice ks_button\">\n                \\(a_1=a_2\\)\n                <span style=\"visibility: hidden;\">\n                    1\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                \\(b_1=b_2\\)\n                <span style=\"visibility: hidden;\">\n                    1\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                \\(a_1\\cdot a_2=-1\\)\n                <span style=\"visibility: hidden;\">\n                    1\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                \\(a_1\\cdot a_2=1\\)\n                <span style=\"visibility: hidden;\">\n                    1\n                </span>\n</div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n        potwierdź\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Brawo! To jest poprawna odpowiedź.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Iloczyn współczynników kierunkowych prostych prostopadłych jest równy \\(-1\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Prostopadłość prostych o równaniach ogólnych\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Proste o równaniach \n        \\[\n        A_1x+B_1y+C_1=0\n        \\]\n        oraz\n        \\[\n        A_2x+B_2y+C_2=0\n        \\]\n        są prostopadłe.\n        <p>\n            Jaki warunek muszą spełniać współczynniki w równaniach prostych?\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Najpierw przedstawimy równania prostych w postaci kierunkowej.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Pierwsze równanie, po przeniesieniu wyrazów \\(A_1x\\) oraz \\(C_1\\) na prawą stronę przyjmuje postać:\n            \\[\n            B_1y=-A_1x-C_1\n            \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Teraz wystarczy podzielić obie strony przez \\(B_1\\), by zobaczyć, że równanie kierunkowe tej prostej to</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(y=\\tfrac{A_1}{B_1}x+\\tfrac{C_1}{B_1}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(y=-\\tfrac{A_1}{B_1}x+\\tfrac{C_1}{B_1}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(y=-\\tfrac{A_1}{B_1}x-\\tfrac{C_1}{B_1}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>Podobnie możemy przekształcić równanie drugiej prostej do postaci kierunkowej, by uzyskać</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(y=-\\tfrac{A_2}{B_2}x-\\tfrac{C_2}{B_2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(y=\\tfrac{A_2}{B_2}x+\\tfrac{C_2}{B_2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(y=\\tfrac{A_2}{B_2}x-\\tfrac{C_2}{B_2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>Współczynniki kierunkowe tych dwóch prostych to</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\tfrac{A_1}{B_1}\\) oraz \\(\\tfrac{A_2}{B_2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(-\\tfrac{A_1}{B_1}\\) oraz \\(-\\tfrac{A_2}{B_2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(-\\tfrac{C_1}{B_1}\\) oraz \\(-\\tfrac{C_2}{B_2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>Jak wiemy, iloczyn współczynników kierunkowych prostych prostopadłych to \\(-1\\).\n            \\[\n            \\left(-\\tfrac{A_1}{B_1}\\right)\\cdot \\left(-\\tfrac{A_2}{B_2}\\right)=-1\n            \\]\n            Wymnażając ułamki po lewej stronie otrzymamy\n            \\[\n            \\tfrac{A_1 A_2}{B_1 B_2}=-1\n            \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>I wreszcie mnożąc obie strony równania przez \\(B_1 B_2\\), po czym przenosząc wszystkie wyrazy na lewą stronę dostaniemy</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(A_1A_2-B_1B_2=0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(A_1A_2+B_1B_2=0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(A_1A_2B_1B_2=0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>some more text inline with choices blah blah blah</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>line of text</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            Proste o równaniach \\(A_1x+B_1y+C_1=0\\) oraz \\(A_2x+B_2y+C_2=0\\) są prostopadłe wtedy i tylko wtedy, gdy\n            \\[\n            A_1A_2+B_1B_2=0\n            \\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>Proste o równaniach</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(A_1x+B_1y+C_1=0\\) oraz\n        </li>\n<li>\n            \\(A_2x+B_2y+C_2=0\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>są prostopadłe wtedy i tylko wtedy, gdy\n    \\[\n    A_1A_2+B_1B_2=0\n    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n    Uwaga!\n</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zwróć uwagę, że gdy\n    <ul class=\"nolist\">\n<li>\n            zamienimy miejscami współczynniki \\(x\\)-a i \\(y\\)-a\n        </li>\n<li>\n            i zmienimy znak jednego z nich\n        </li>\n</ul>\n    to otrzymamy prostą równoległą.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rzeczywiście, dla prostych\n    <ul class=\"nolist\">\n<li>\n            \\(A_1x+B_1y+C_1=0\\)\n        </li>\n<li>\n            \\(A_2x+B_2y+C_2=0\\)\n        </li>\n</ul>\n    jeśli \\(A_2=B_1\\) i \\(B_2=-A_1\\) to wyrażenie \\(A_1A_2+B_1B_2\\) przyjmuje wartość:\n    \\[\n    A_1A_2+B_1B_2=A_1B_1+B_1(-A_1)=A_1B_1-A_1B_1=0\n    \\]\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Aby znaleźć równanie ogólne prostej prostopadłej do prostej\n    \\[\n    Ax+By+C=0\n    \\] \n    musimy zamienić współczynniki \\(A\\) i \\(B\\) miejscami i zmienić znak jednego z nich.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Tak więc proste\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(Bx-Ay+D=0\\) oraz\n        </li>\n<li>\n            \\(-Bx+Ay+D=0\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>są prostopadłe do  \\(Ax+By+C=0\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Z powyższego wynika jeszcze jeden sposób na sprawdzenie, czy dwie proste są prostopadłe.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        By sprawdzić, czy dwie proste o równaniach ogólnych są prostopadłe, wystarczy zmienić jedną z nich w prostopadłą (zamieniając współczynniki i znak jednego z nich) i potem sprawdzić, czy jest równoległa do drugiej.\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "5494d706173e7c83f932b5a6b23fe4d9ff6e6603ab5341ffb22579f6a2617266"
+}

@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Dwusieczna\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Dwusieczna kąta\n        </strong>\n        to półprosta rozpoczynająca się w wierzchołku kąta i dzieląca ten kąt na dwa równe.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Najważniejszą cechą dwusiecznej jest fakt, że każdy punkt na dwusiecznej leży w równej odległości od obu ramion kąta.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W poniższym aplecie możesz obejrzeć, że punkty na dwusiecznej leżą w równej odległości od obu ramion kąta.\n        </p>\n<p>\n            Pomarańczowa półprosta to dwusieczna niebieskiego kąta.\n        </p>\n<p>\n            Możesz przesuwać niebieski punkt na dwusiecznej, a gdy naciśniejsz \"start\", zobaczysz, że odległości od niebieskiego punktu do obu ramion kąta są identyczne.\n        </p>\n<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"509px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/wg7jr5e3/width/591/height/509/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"dwusieczna\" width=\"591px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "4083ca4d35005219c8483a2e0524c93429e78adcbd03707ac25992891c15d81d"
+}

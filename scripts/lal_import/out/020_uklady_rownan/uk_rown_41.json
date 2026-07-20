@@ -1,0 +1,300 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Suma trzech liczb to 68. Druga liczba jest trzykrotnością pierwszej.\n        </p>\n<p>\n            Suma pierwszej liczby, dwukrotności drugiej i trzykrotności trzeciej to 144.\n        </p>\n<p>\n            Znajdź te liczby.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    nagranie\n                </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    opis rozwiązania\n                </a>\n</li>\n</ul>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/uklad_rownan_5.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Skoro \"\n                <em>\n                    suma trzech liczb to 68\n                </em>\n                \", moglibyśmy do oznaczenia tych liczb użyć zmiennych \\(\\color{red}{a}\\), \\(\\color{green}{b}\\) oraz \\(\\color{blue}{c}\\):\n            </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "pierwsza liczba",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "druga liczba",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "trzecia liczba",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{red}{a}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{green}{b}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{c}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                i zapisać:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\\color{red}{a}+\\color{green}{b}+\\color{blue}{c}=68"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Skoro jednak \"\n                <em>\n                    druga liczba jest trzykrotnością pierwszej\n                </em>\n                \", nie warto wprowadzać niewiadomej \\(\\color{green}{b}\\), lecz lepiej w jej miejsce użyć \\(\\color{green}{3a}\\):\n            </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "pierwsza liczba",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "druga liczba",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "trzecia liczba",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{red}{a}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{green}{3a}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{c}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                i zapisać:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\\color{red}{a}+\\color{green}{3a}+\\color{blue}{c}=68"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Wiemy też, że \"\n                <em>\n                    suma pierwszej liczby, dwukrotności drugiej i trzykrotności trzeciej to 144\n                </em>\n                \", czyli:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\\color{red}{a}+2\\cdot\\color{green}{3a}+3\\cdot\\color{blue}{c}=144"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Te dwa powyższe równania możemy uprościć do postaci:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            \\begin{cases}\n            4a+c=68\\\\\n            7a+3c=144\n            \\end{cases}\n            "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n<p>\n                    Z pierwszego równania wyznaczmy \\(c\\):\n                </p>\n                \\[c=68-4a\\]\n                <p>\n                    I podstawmy do drugiego równania:\n                </p>\n                \\[7a+3(68-4a)=144\\]\n                <p>\n                    Wymnóżmy, uprośćmy, wyliczmy wartość \\(a\\):\n                </p>\n                \\[\\begin{align}\n                7a+204-12a&amp;=144\\\\\n                7a-12a&amp;=144-204\\\\\n                -5a&amp;=-60\\\\\n                a&amp;=12\n                \\end{align}\n                \\]\n                <p>\n                    Teraz możemy jeszcze wyliczyć wartość niewiadomej \\(c\\):\n                </p>\n                \\[c=68-4a=68-4\\cdot 12=68-48=20\\]\n            </div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Rozwiązując układ równań otrzymamy:\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                \\begin{cases}\n                a=12\\\\\n                c=20\n                \\end{cases}\n                "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">\n                Rozwiązanie układu równań - zobacz\n            </div>",
+      "reason": "show_solution button without solution"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                I już mamy gotową odpowiedź:\n            </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "pierwsza liczba",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "druga liczba",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "trzecia liczba",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{red}{a}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{green}{3a}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{c}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{red}{12}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{green}{36}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{20}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Na zakończenie warto sprawdzić naszą odpowiedź:\n            </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\"\n                                <em>\n                                    Suma trzech liczb to 68\n                                </em>\n                                \":",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{12}+\\color{green}{36}+\\color{blue}{20}=68\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "✓",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\"\n                                <em>\n                                    Druga liczba jest trzykrotnością pierwszej\n                                </em>\n                                \":",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{12}\\cdot 3=\\color{green}{36}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "✓",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\"\n                                <em>\n                                    Suma pierwszej liczby, dwukrotności drugiej i trzykrotności trzeciej to 144\n                                </em>\n                                \":",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{12}+2\\cdot\\color{green}{36}+3\\cdot\\color{blue}{20}=12+72+60=144\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "✓",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "0646afcb9460f4d79afcd814bc88f5e13bfc813a3877a11f82e4d28a246e0244"
+}

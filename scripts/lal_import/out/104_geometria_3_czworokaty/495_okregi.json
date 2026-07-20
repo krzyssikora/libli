@@ -1,0 +1,10 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n        Czworokąt nazywamy <strong>opisanym</strong> na kole, jeśli wszystkie boki czworokąta są <strong>styczne</strong> do okręgu ograniczającego koło.\n    </li>\n<li>\n        Czworokąt nazywamy <strong>wpisanym</strong> w koło, jeśli wszystkie wierzchołki czworokąta leżą na okręgu ograniczającym koło.\n    </li>\n<li>\n<div style=\"min-height: 270px;\">\n<figure style=\"float:right\">\n<img src=\"static/czworokat_opisany_na_kole_boki.png\" style=\"float: right; height: 230px;\"/>\n<figcaption style=\"color: blue;\">\n                    \\(a+c=b+d\\)\n                </figcaption>\n</figure>\n<p>\n                W czworokąt można wpisać okrąg, gdy sumy przeciwległych boków czworokąta są sobie równe.\n            </p>\n<p>\n                Taki czworokąt nazywamy opisanym na kole.\n            </p>\n<hr/>\n<p>\n                Oznacza to też, że każda suma przeciwległych boków, \\(a+c\\) oraz \\(b+d\\), jest równa <strong>połowie obwodu</strong>.\n            </p>\n</div>\n</li>\n<li>\n<div style=\"min-height: 270px;\">\n<figure style=\"float:right\">\n<img src=\"static/czworokat_wpisany_w_kolo_katy.png\" style=\"float: right; height: 230px;\"/>\n<figcaption style=\"color: blue;\">\n                    \\(\\color{green}{\\alpha}+\\color{green}{\\gamma}=180^{\\circ}=\\color{red}{\\beta}+\\color{red}{\\delta}\\)\n                </figcaption>\n</figure>\n<p>\n                Na czworokącie można opisać okrąg, gdy sumy przeciwległych kątów czworokąta są sobie równe.\n            </p>\n<p>\n                Taki czworokąt nazywamy wpisanym w koło.\n            </p>\n<hr/>\n<p>\n                Oznacza to też, że każda suma przeciwległych kątów, \\(\\color{green}{\\alpha}+\\color{green}{\\gamma}\\) oraz \\(\\color{red}{\\beta}+\\color{red}{\\delta}\\), jest równa \\(180^{\\circ}\\).\n            </p>\n</div>\n</li>\n</ol>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fb4a76a60dff3d3f1674e4a55c0b61a983b7d4eb0084e5982d8d395c62e50eba"
+}

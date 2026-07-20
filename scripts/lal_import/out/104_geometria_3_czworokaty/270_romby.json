@@ -1,0 +1,124 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Podsumujmy:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": true,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "Romb",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "to czworokąt, w którym wszystkie boki są równej długości.",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "Trapez",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "to czworokąt, który ma (co najmniej) jedną parę boków równoległych.",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "Deltoid",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "to czworokąt, w którym dwie pary sąsiednich boków są równej długości.",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "Równoległobok",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "to czworokąt, który ma dwie pary boków równoległych.",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważmy, że\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Każdy <strong>romb</strong> jest zarówno <strong>trapezem</strong>, jak i <strong>deltoidem</strong> oraz <strong>równoległobokiem</strong>.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Co to oznacza? \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Oznacza to, że każdy <strong>romb</strong> ma wszystkie własności, jakie ma trapez, deltoid i równoległobok. Z trapezu możemy w naszych rozważaniach zrezygnować - wystarczy ograniczyć się do równoległoboku, bo równoległobok jest też trapezem.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dodatkowo trapez sam w sobie nie ma szczególnych własności. Ma takie trapez równoramienny, ale romb nie jest trapezem równoramiennym. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Przypomnij sobie własności deltoidu i równoległoboku. Zapisz je, a następnie sprawdź poniżej.\n        </p>\n<div class=\"table_wrapper\" style=\"width: 100%; display: flex; flex-wrap: wrap;\">\n<div style=\"min-width: 300px; width: 50%;\">\n<details>\n<summary><strong>deltoid</strong></summary>\n<ol class=\"bold\">\n<li>\n                            Prosta przechodząca przez końce boków o równej długości jest osią symetrii deltoidu.\n                        </li>\n<li>\n                            Przekątne deltoidu przecinają się pod kątem prostym.\n                            <details>\n<summary>co więcej...</summary>\n                                A co więcej, na mocy pierwszej własności, jedna z przekątnych dzieli drugą na połowy.\n                            </details>\n</li>\n<li>\n                            Kąty między bokami o różnej długości są równe.\n                            <details>\n<summary>chyba, że...</summary>\n                                No, chyba, że wszystkie boki są tej samej długości - wówczas mamy dwie pary równych kątów.\n                            </details>\n</li>\n<li>\n                            Jeśli deltoid jest wypukły, można w niego wpisać okrąg.\n                        </li>\n</ol>\n</details>\n</div>\n<div style=\"min-width: 300px; width: 50%;\">\n<details>\n<summary><strong>równoległobok</strong></summary>\n<ol class=\"bold\">\n<li>\n                            Długości przeciwległych boków równoległoboku są sobie równe,\n                            <br/>\n<i>inaczej</i>: długości boków równoległych są sobie równe.\n                        </li>\n<li>\n                            Miary przeciwległych kątów równoległoboku są sobie równe.\n                        </li>\n<li>\n                            Sumy miar sąsiednich kątów (tj. kątów przy tym samym boku) równoległoboku są równe \\(180^{\\circ}\\).\n                        </li>\n<li>\n                            Przekątne równoległoboku przecinają się w połowie.\n                        </li>\n</ol>\n</details>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Romb ma wszystkie własności deltoidu i równoległoboku, ale nie wszystkie własności możemy zastosować w takim brzmieniu, jak powyżej. Na przykład, w przypadku rombu nie bardzo ma sens mówić, że \"kąty między bokami o różnej długości są równe\", bo w rombie wszystkie boki są równe. Jednak w tej własności deltoidu znajdujemy dopisek \"chyba, że\" - i ten ma zastosowanie do rombu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Które z poniższych własności są własnościami rombu?\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Przekątne przecinają się w połowie.\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Przekątne przecinają się pod kątem prostym.\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Przekątne są osiami symetrii.\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Przeciwległe kąty są równe.\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                W romb można wpisać okrąg.\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Sumy miar sąsiednich kątów są równe \\(180^{\\circ}\\).\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "potwierdź "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi: \n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "61b15ddf63040736f17e67bc98f5faea31c841a936868d1aebe507cc46240cc1"
+}

@@ -1,0 +1,10 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n<strong>Deltoid</strong> to czworokąt, w którym dwie pary sąsiednich boków są równej długości.\n    </li>\n<li>\n        Każdy czworokąt, którego przekątne przecinają się pod kątem prostym w taki sposób, że jedna z nich dzieli drugą na połowy, jest <strong>deltoidem</strong>.\n    </li>\n<li>\n        Własności deltoidów:\n        <ul>\n<li>\n                Prosta przechodząca przez końce boków o równej długości jest osią symetrii deltoidu.\n            </li>\n<li>\n                Przekątne deltoidu przecinają się pod kątem prostym.\n                <details>\n<summary>co więcej...</summary>\n                    A co więcej, na mocy pierwszej własności, jedna z przekątnych dzieli drugą na połowy.\n                </details>\n</li>\n<li>\n                Kąty między bokami o różnej długości są równe.\n                <details>\n<summary>chyba, że...</summary>\n                    No, chyba, że wszystkie boki są tej samej długości - wówczas mamy dwie pary równych kątów.\n                </details>\n</li>\n<li>\n                Jeśli deltoid jest wypukły, można w niego wpisać okrąg.\n            </li>\n</ul>\n</li>\n<li>\n        Jeśli przekątne deltoidu mają długości \\(d_1\\) i \\(d_2\\), to jego pole, \\(P\\), dane jest wzorem\n        \\[\n        P=\\frac{d_1\\cdot d_2}{2}\n        \\]\n        <figure>\n<img src=\"static/deltoid_pole_d1_d2_1.png\" style=\"max-width: 300px;\"/>\n</figure>\n</li>\n<li>\n        Jeśli deltoid \n        <ul class=\"nolist\">\n<li>\n                ma dwa boki o długościach \\(a\\) i dwa boki o długościach \\(b\\), \n            </li>\n<li>\n                a kąt między bokami o długościach \\(a\\) i \\(b\\) ma miarę \\(\\alpha\\), \n            </li>\n</ul>\n        to pole deltoidu, \\(P\\), dane jest wzorem\n        \\[\n        P=a\\cdot b\\cdot \\sin\\alpha\n        \\]\n        <figure>\n<img src=\"static/deltoid_pole_alpha_1.png\" style=\"max-width: 300px;\"/>\n</figure>\n</li>\n</ol>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "51947ca68f2232a7aaac3277fe06a48d7ef2e893d213f578a62782f8cec69361"
+}

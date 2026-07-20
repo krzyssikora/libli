@@ -1,0 +1,92 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wiemy już,  że prosta i okrąg mogą mieć \\(0\\), \\(1\\) lub \\(2\\) punkty wspólne. Jeśli mają \\(1\\) punkt wspólny,  mówimy,  że są  <strong>styczne</strong>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img src=\"static/geometria_analityczna_2_styczna_do_okregu_definicja.png\" style=\"height: 200px; float: right; margin: 0 0 0 15px;\"/>\n<strong>Styczna</strong> do okręgu to prosta, która ma z nim dokładnie jeden punkt wspólny.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Uwaga!</strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Taka definicja stycznej jest dobra dla okręgu, lecz nie dla dowolnej innej krzywej. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dlaczego?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Intuicyjnie możemy powiedzieć, że krzywa jest styczna do prostej, gdy się do niej zbliża, biegnie w kierunku coraz bliższym kierunkowi prostej, a potem się odbija. Nie jest to jednak precyzyjna definicja (i ma inne wady, teraz dla nas bez znaczenia).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dlatego w przypadku okręgu wygodniej powiedzieć \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    jeden punkt wspólny,  czyli styczna.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Ale w przypadku innych krzywych, na przykład paraboli, nie jest to prawda.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pionowa prosta \\(\\color{red}{x=2}\\) ma jeden punkt wspólny z parabolą \\(\\color{blue}{y=x^2}\\), jednak nie jest do niej styczna.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_styczne_przyklady_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Prosta \\(\\color{red}{y=2x-1}\\) ma jeden punkt wspólny z parabolą \\(\\color{blue}{y=x^2}\\) i jest do niej styczna.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_styczne_przyklady_2.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Prosta \\(\\color{red}{y=\\frac{1}{2}x-1}\\) ma dwa punkty wspólne z krzywą \\(\\color{blue}{y=-x^3+\\frac{7}{2}x+1}\\).\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_styczne_przyklady_3.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Mówimy, że ta prosta:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                jest styczna do krzywej w punkcie \\((-1, -1\\tfrac{1}{2})\\),\n            </li>\n<li>\n                przecina krzywą w punkcie \\((2, 0)\\).\n            </li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "023e093d1334ea693b042e3fe6b2ad8198bf296ba6a2ffb4b78d5ae81ddb4e51"
+}

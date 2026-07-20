@@ -1,0 +1,585 @@
+{
+  "part": {
+    "source_folder": "070_geometria",
+    "order": 11,
+    "title": "geometria"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "geometria_010_wprowadzenie.json",
+          "source_html": "geometria_010_wprowadzenie.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 010 wprowadzenie"
+        },
+        {
+          "order": 1,
+          "unit_json": "geometria_011_wprowadzenie.json",
+          "source_html": "geometria_011_wprowadzenie.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Na prostej"
+        },
+        {
+          "order": 2,
+          "unit_json": "geometria_012_wprowadzenie.json",
+          "source_html": "geometria_012_wprowadzenie.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Rodzaje kątów"
+        },
+        {
+          "order": 3,
+          "unit_json": "geometria_013_wprowadzenie.json",
+          "source_html": "geometria_013_wprowadzenie.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 013 wprowadzenie"
+        },
+        {
+          "order": 4,
+          "unit_json": "geometria_014_wprowadzenie.json",
+          "source_html": "geometria_014_wprowadzenie.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Odległości"
+        },
+        {
+          "order": 5,
+          "unit_json": "geometria_015_wprowadzenie.json",
+          "source_html": "geometria_015_wprowadzenie.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Dwusieczna i symetralna"
+        },
+        {
+          "order": 6,
+          "unit_json": "geometria_016_wprowadzenie.json",
+          "source_html": "geometria_016_wprowadzenie.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 016 wprowadzenie"
+        },
+        {
+          "order": 7,
+          "unit_json": "geometria_019_wprowadzenie_quiz.json",
+          "source_html": "geometria_019_wprowadzenie_quiz.html",
+          "source_dir": "070_geometria",
+          "unit_type": "quiz",
+          "title": "geometria 019 wprowadzenie quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "geometria_020_wielokaty.json",
+          "source_html": "geometria_020_wielokaty.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 020 wielokaty"
+        },
+        {
+          "order": 1,
+          "unit_json": "geometria_021_wielokaty.json",
+          "source_html": "geometria_021_wielokaty.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Wielokąty wypukłe, wielokąty wklęsłe"
+        },
+        {
+          "order": 2,
+          "unit_json": "geometria_022_wielokaty.json",
+          "source_html": "geometria_022_wielokaty.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Kąty w wielokątach"
+        },
+        {
+          "order": 3,
+          "unit_json": "geometria_023_wielokaty.json",
+          "source_html": "geometria_023_wielokaty.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 023 wielokaty"
+        },
+        {
+          "order": 4,
+          "unit_json": "geometria_024_wielokaty.json",
+          "source_html": "geometria_024_wielokaty.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 024 wielokaty"
+        },
+        {
+          "order": 5,
+          "unit_json": "geometria_025_wielokaty.json",
+          "source_html": "geometria_025_wielokaty.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 025 wielokaty"
+        },
+        {
+          "order": 6,
+          "unit_json": "geometria_026_wielokaty.json",
+          "source_html": "geometria_026_wielokaty.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Przekątne w wielokątach"
+        },
+        {
+          "order": 7,
+          "unit_json": "geometria_029_wielokaty_quiz.json",
+          "source_html": "geometria_029_wielokaty_quiz.html",
+          "source_dir": "070_geometria",
+          "unit_type": "quiz",
+          "title": "geometria 029 wielokaty quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "geometria_030_trojkaty_1.json",
+          "source_html": "geometria_030_trojkaty_1.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Klasyfikacja trójkątów ze względu na boki i kąty"
+        },
+        {
+          "order": 1,
+          "unit_json": "geometria_031_trojkaty_1.json",
+          "source_html": "geometria_031_trojkaty_1.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Klasyfikacja trójkątów ze względu na boki i kąty"
+        },
+        {
+          "order": 2,
+          "unit_json": "geometria_032_trojkaty_1.json",
+          "source_html": "geometria_032_trojkaty_1.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Nierówność trójkąta"
+        },
+        {
+          "order": 3,
+          "unit_json": "geometria_033_trojkaty_1.json",
+          "source_html": "geometria_033_trojkaty_1.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 033 trojkaty 1"
+        },
+        {
+          "order": 4,
+          "unit_json": "geometria_034_trojkaty_1.json",
+          "source_html": "geometria_034_trojkaty_1.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Odcinek łączący środki boków w trójkącie"
+        },
+        {
+          "order": 5,
+          "unit_json": "geometria_037_trojkaty_1.json",
+          "source_html": "geometria_037_trojkaty_1.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Twierdzenie Pitagorasa i twierdzenie odwrotne"
+        },
+        {
+          "order": 6,
+          "unit_json": "geometria_038_trojkaty_1.json",
+          "source_html": "geometria_038_trojkaty_1.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 038 trojkaty 1"
+        },
+        {
+          "order": 7,
+          "unit_json": "geometria_039_trojkaty_1_quiz.json",
+          "source_html": "geometria_039_trojkaty_1_quiz.html",
+          "source_dir": "070_geometria",
+          "unit_type": "quiz",
+          "title": "geometria 039 trojkaty 1 quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "geometria_040_trojkaty_2.json",
+          "source_html": "geometria_040_trojkaty_2.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 040 trojkaty 2"
+        },
+        {
+          "order": 1,
+          "unit_json": "geometria_041_trojkaty_2.json",
+          "source_html": "geometria_041_trojkaty_2.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Przystawanie trójkątów"
+        },
+        {
+          "order": 2,
+          "unit_json": "geometria_042_trojkaty_2.json",
+          "source_html": "geometria_042_trojkaty_2.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 042 trojkaty 2"
+        },
+        {
+          "order": 3,
+          "unit_json": "geometria_043_trojkaty_2.json",
+          "source_html": "geometria_043_trojkaty_2.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Zasady przystawania trójkątów"
+        },
+        {
+          "order": 4,
+          "unit_json": "geometria_044_trojkaty_2.json",
+          "source_html": "geometria_044_trojkaty_2.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Podobieństwo trójkątów"
+        },
+        {
+          "order": 5,
+          "unit_json": "geometria_045_trojkaty_2.json",
+          "source_html": "geometria_045_trojkaty_2.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 045 trojkaty 2"
+        },
+        {
+          "order": 6,
+          "unit_json": "geometria_046_trojkaty_2.json",
+          "source_html": "geometria_046_trojkaty_2.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 046 trojkaty 2"
+        },
+        {
+          "order": 7,
+          "unit_json": "geometria_047_trojkaty_2.json",
+          "source_html": "geometria_047_trojkaty_2.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 047 trojkaty 2"
+        },
+        {
+          "order": 8,
+          "unit_json": "geometria_048_trojkaty_2.json",
+          "source_html": "geometria_048_trojkaty_2.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 048 trojkaty 2"
+        },
+        {
+          "order": 9,
+          "unit_json": "geometria_049_trojkaty_2.json",
+          "source_html": "geometria_049_trojkaty_2.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 049 trojkaty 2"
+        },
+        {
+          "order": 10,
+          "unit_json": "geometria_050_trojkaty_2.json",
+          "source_html": "geometria_050_trojkaty_2.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 050 trojkaty 2"
+        },
+        {
+          "order": 11,
+          "unit_json": "geometria_055_trojkaty_2_quiz.json",
+          "source_html": "geometria_055_trojkaty_2_quiz.html",
+          "source_dir": "070_geometria",
+          "unit_type": "quiz",
+          "title": "geometria 055 trojkaty 2 quiz"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "__PLACEHOLDER chapter 5__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "geometria_060_twierdzenie_Talesa.json",
+          "source_html": "geometria_060_twierdzenie_Talesa.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 060 twierdzenie Talesa"
+        },
+        {
+          "order": 1,
+          "unit_json": "geometria_061_twierdzenie_Talesa.json",
+          "source_html": "geometria_061_twierdzenie_Talesa.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Sformułowanie twierdzenia Talesa"
+        },
+        {
+          "order": 2,
+          "unit_json": "geometria_062_twierdzenie_Talesa.json",
+          "source_html": "geometria_062_twierdzenie_Talesa.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 062 twierdzenie Talesa"
+        },
+        {
+          "order": 3,
+          "unit_json": "geometria_063_twierdzenie_Talesa.json",
+          "source_html": "geometria_063_twierdzenie_Talesa.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Zastosowanie twierdzenia Talesa"
+        },
+        {
+          "order": 4,
+          "unit_json": "geometria_064_twierdzenie_Talesa.json",
+          "source_html": "geometria_064_twierdzenie_Talesa.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 064 twierdzenie Talesa"
+        },
+        {
+          "order": 5,
+          "unit_json": "geometria_065_twierdzenie_Talesa.json",
+          "source_html": "geometria_065_twierdzenie_Talesa.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 065 twierdzenie Talesa"
+        },
+        {
+          "order": 6,
+          "unit_json": "geometria_066_twierdzenie_Talesa.json",
+          "source_html": "geometria_066_twierdzenie_Talesa.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Twierdzenie odwrotne do twierdzenia Talesa"
+        },
+        {
+          "order": 7,
+          "unit_json": "geometria_067_twierdzenie_Talesa.json",
+          "source_html": "geometria_067_twierdzenie_Talesa.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 067 twierdzenie Talesa"
+        },
+        {
+          "order": 8,
+          "unit_json": "geometria_069_twierdzenie_Talesa_quiz.json",
+          "source_html": "geometria_069_twierdzenie_Talesa_quiz.html",
+          "source_dir": "070_geometria",
+          "unit_type": "quiz",
+          "title": "geometria 069 twierdzenie Talesa quiz"
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "title": "__PLACEHOLDER chapter 6__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "geometria_080_okrag.json",
+          "source_html": "geometria_080_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Okrąg i koło"
+        },
+        {
+          "order": 1,
+          "unit_json": "geometria_090_okrag.json",
+          "source_html": "geometria_090_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Okrąg i prosta"
+        },
+        {
+          "order": 2,
+          "unit_json": "geometria_100_okrag.json",
+          "source_html": "geometria_100_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 3,
+          "unit_json": "geometria_110_okrag.json",
+          "source_html": "geometria_110_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Podstawowe twierdzenia"
+        },
+        {
+          "order": 4,
+          "unit_json": "geometria_120_okrag.json",
+          "source_html": "geometria_120_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Styczne do okręgów - ćwiczenie"
+        },
+        {
+          "order": 5,
+          "unit_json": "geometria_130_okrag.json",
+          "source_html": "geometria_130_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Styczne do okręgów - ćwiczenie"
+        },
+        {
+          "order": 6,
+          "unit_json": "geometria_135_okrag.json",
+          "source_html": "geometria_135_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Styczne do okręgów - ćwiczenie"
+        },
+        {
+          "order": 7,
+          "unit_json": "geometria_137_okrag.json",
+          "source_html": "geometria_137_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Styczne do okręgów - ćwiczenie"
+        },
+        {
+          "order": 8,
+          "unit_json": "geometria_140_okrag.json",
+          "source_html": "geometria_140_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Wzajemne położenie dwóch okręgów"
+        },
+        {
+          "order": 9,
+          "unit_json": "geometria_150_okrag.json",
+          "source_html": "geometria_150_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Wzajemne położenie dwóch okręgów - ćwiczenie"
+        },
+        {
+          "order": 10,
+          "unit_json": "geometria_160_okrag.json",
+          "source_html": "geometria_160_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Wzajemne położenie dwóch okręgów - ćwiczenie"
+        },
+        {
+          "order": 11,
+          "unit_json": "geometria_169_okrag_quiz.json",
+          "source_html": "geometria_169_okrag_quiz.html",
+          "source_dir": "070_geometria",
+          "unit_type": "quiz",
+          "title": "geometria 169 okrag quiz"
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "title": "__PLACEHOLDER chapter 7__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "geometria_170_okrag.json",
+          "source_html": "geometria_170_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Twierdzenia o kątach w kole"
+        },
+        {
+          "order": 1,
+          "unit_json": "geometria_180_okrag.json",
+          "source_html": "geometria_180_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Kąty w kołach - ćwiczenia"
+        },
+        {
+          "order": 2,
+          "unit_json": "geometria_190_okrag.json",
+          "source_html": "geometria_190_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Potęga punktu względem okręgu"
+        },
+        {
+          "order": 3,
+          "unit_json": "geometria_200_okrag.json",
+          "source_html": "geometria_200_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Dowody"
+        },
+        {
+          "order": 4,
+          "unit_json": "geometria_210_okrag.json",
+          "source_html": "geometria_210_okrag.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Kąty w kołach - ćwiczenia"
+        },
+        {
+          "order": 5,
+          "unit_json": "geometria_219_okrag_quiz.json",
+          "source_html": "geometria_219_okrag_quiz.html",
+          "source_dir": "070_geometria",
+          "unit_type": "quiz",
+          "title": "geometria 219 okrag quiz"
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "title": "__PLACEHOLDER chapter 8__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "geometria_220_trojkaty_3.json",
+          "source_html": "geometria_220_trojkaty_3.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "Szczególne proste i odcinki w trójkącie"
+        },
+        {
+          "order": 1,
+          "unit_json": "geometria_230_trojkaty_3.json",
+          "source_html": "geometria_230_trojkaty_3.html",
+          "source_dir": "070_geometria",
+          "unit_type": "lesson",
+          "title": "geometria 230 trojkaty 3"
+        },
+        {
+          "order": 2,
+          "unit_json": "geometria_239_trojkaty_3_quiz.json",
+          "source_html": "geometria_239_trojkaty_3_quiz.html",
+          "source_dir": "070_geometria",
+          "unit_type": "quiz",
+          "title": "geometria 239 trojkaty 3 quiz"
+        }
+      ]
+    }
+  ]
+}

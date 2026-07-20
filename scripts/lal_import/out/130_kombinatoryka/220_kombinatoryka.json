@@ -1,0 +1,76 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n<strong>Kombinacją</strong> nazywamy dowolny podzbiór zbiór skończonego. \n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeśli elementy zbioru to A, B, C, D oraz E, to elementy B i E stanowią dwuelementową kombinację.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kolejność, w jakiej zapisujemy elementy kombinacji nie ma znaczenia. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>Uwaga, kolejność nie ma znaczenia w sensie formalnym, jednak czasem wygodnie jest przyjąć konwencję, w jakiej kolejności zapisujemy elementy, żeby było łatwiej uniknąć błędów.</small>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>Naturalnymi konwencjami kolejności zapisu są, na przykład kolejność alfabetyczna dla liter / wyrazów lub według wielkości dla liczb.</small>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przykład wybierania trzech obiektów z pięciu pokazał nam, ile jest takich wyborów, czyli kombinacji \\(3\\)-elementowych ze zbioru \\(5\\)-elementowego.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Liczba kombinacji \\(k\\)-elementowych ze zbioru \\(n\\)-elementowego jest równa \n    \\[\n    C_n^k=\\frac{n!}{k!\\cdot(n-k)!}\n    \\]\n    przy czym \\(n, k\\in\\mathbb{N}\\) oraz \\(n\\ge k\\).\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wyrażenie opisujące liczbę kombinacji ma też inne zastosowania i znane jest też pod inną nazwą. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Symbol Newtona (albo współczynnik dwumianowy Newtona) zapisywany jest jako \\(\\binom{n}{k}\\) (co czytamy “\\(n\\) po \\(k\\)”) i zdefiniowany jest wyrażeniem:\n    \\[\n    \\binom{n}{k}=\\frac{n!}{k!\\cdot(n-k)}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Na ile sposobów można wybrać <strong>dwie</strong> osoby z <strong>sześciu</strong>?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Chcemy wybrać 2 osoby z 6, więc chodzi o kombinacje 2-elementowe ze zbioru 6-elementowego.\n                <div class=\"switch_line\">\n                    Takich kombinacji jest\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{6!}{2!}\\)</div>\n<div class=\"switch_value\">\\(\\frac{6!}{(6-2)!}\\)</div>\n<div class=\"switch_value\">\\(\\frac{6!}{2!\\cdot(6-2)!}\\)</div>\n<div class=\"switch_value\">\\(6^2\\)</div>\n<div class=\"switch_value\">\\(2^6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Upraszczamy wyrażenie:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    \\binom{6}{2}&amp;=\\frac{6!}{2!\\cdot(6-2)!}=\\\\\n                    &amp;=\\frac{6!}{2!\\cdot 4!}=\\\\\n                    &amp;=\\frac{\\color{red}{4!}\\cdot 5\\cdot 6}{2!\\cdot \\color{red}{4!}}=\\\\\n                    &amp;=\\frac{\\require{cancel}\\cancel{\\color{red}{4!}}\\cdot 5\\cdot 6}{2!\\cdot \\require{cancel}\\cancel{\\color{red}{4!}}}=\\\\\n                    &amp;=\\frac{5\\cdot 6}{1\\cdot 2}\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Dwie osoby z sześciu można wybrać na\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(15\\) sposobów</div>\n<div class=\"switch_value\">\\(30\\) sposobów</div>\n<div class=\"switch_value\">\\(10\\) sposobów</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Możliwych wyborów dwóch osób z sześciu jest\n                \\[\n                \\binom{6}{2}=15\n                \\]\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Na ile sposobów można wybrać <strong>cztery</strong> osoby z <strong>sześciu</strong>?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Chcemy wybrać 4 osoby z 6, więc chodzi o kombinacje 4-elementowe ze zbioru 6-elementowego.\n                <div class=\"switch_line\">\n                    Takich kombinacji jest\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{6!}{4!}\\)</div>\n<div class=\"switch_value\">\\(\\frac{6!}{(6-4)!}\\)</div>\n<div class=\"switch_value\">\\(\\frac{6!}{4!\\cdot(6-4)!}\\)</div>\n<div class=\"switch_value\">\\(6^4\\)</div>\n<div class=\"switch_value\">\\(4^6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Upraszczamy wyrażenie:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    \\binom{6}{4}&amp;=\\frac{6!}{4!\\cdot(6-4)!}=\\\\\n                    &amp;=\\frac{6!}{4!\\cdot 2!}=\\\\\n                    &amp;=\\frac{\\color{red}{4!}\\cdot 5\\cdot 6}{\\color{red}{4!}\\cdot 2!}=\\\\\n                    &amp;=\\frac{\\require{cancel}\\cancel{\\color{red}{4!}}\\cdot 5\\cdot 6}{\\require{cancel}\\cancel{\\color{red}{4!}}\\cdot 2!}=\\\\\n                    &amp;=\\frac{5\\cdot 6}{1\\cdot 2}\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Cztery osoby z sześciu można wybrać na\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(15\\) sposobów</div>\n<div class=\"switch_value\">\\(30\\) sposobów</div>\n<div class=\"switch_value\">\\(10\\) sposobów</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Możliwych wyborów czterech osób z sześciu jest\n                \\[\n                \\binom{6}{4}=15\n                \\]\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przejdź dalej, żeby wyciągnąć wnioski z rozwiązań tych dwóch zadań.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e7338dc9e297ce6137614b3be64ba1a42e0ff57e70ddaeef988e345866d40968"
+}

@@ -1,0 +1,88 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W poniższym aplecie dany jest wielomian o\n            <span style=\"color: red;\">\n                czerwonym wykresie\n            </span>\n            , którego równanie zapisane jest na czerwono.\n        </p>\n<p>\n            Na dole widzisz suwaki, którymi możesz zmienić współczynniki drugiego wielomianu, o\n            <span style=\"color: blue;\">\n                niebieskim\n            </span>\n            wykresie.\n        </p>\n<p>\n            Zmień je w taki sposób, by wielomiany były takie same, tj. by oba wykresy pokrywały się.\n        </p>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"800px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/yxn9crys/width/600/height/800/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"Wielomiany równe\" width=\"600px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<p>\n            Jakie muszą być współczynniki obu wielomianów?\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n    Dwa wielomiany są sobie równe, jeśli mają takie same współczynniki.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Uzupełnij brakujące współczynniki tak, by wielomiany po lewej stronie były równe tym po prawej.\n    "
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(y=5x^3-2x^2+4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(x^3-2x^2+\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(x+4\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(y=3x^4-5x^3+\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(x^2-2x+\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(x^4-5x^3+7x^2-2x+4\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(y=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(x^2+5x-7\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=-6x^2+\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(x+\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(y=11x^9+2x^7+\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(x+\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=-11x^9+2x^7+x\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n    Doskonale!\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6ccf877ae7c62ff0f971d15e5dd759ee53d9f3b46e19de61e08d449b0bc4e637"
+}

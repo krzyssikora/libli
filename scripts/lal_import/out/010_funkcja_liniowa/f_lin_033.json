@@ -1,0 +1,69 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Poćwicz, by uzyskać proste o następujących równaniach. Gdy już uzyskasz prostą o którymś równaniu, możesz je dla swojej wygody oznaczyć.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(y=3x-1\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(y=-2x+2\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(y=\\frac{2}{5}x+1\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(y=-x-3\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(y=-\\frac{1}{3}x+2\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/zyu3fn4x/width/1000/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "4a72de4f92e94ed5714512c4a7ab9e07cc0435b3134e3ece7dad625d5488047a"
+}

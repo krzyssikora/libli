@@ -1,0 +1,126 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Funkcja wykładnicza i logarytmiczna - warto wiedzieć\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Mówiąc o funkcjach wykładniczej należy wspomnieć o niezwykłej liczbie zwanej liczbą Eulera (sprawdź, kim był\n    <a href=\"https://pl.wikipedia.org/wiki/Leonhard_Euler\">\n        Leonhard Euler\n    </a>\n    ) a oznaczanej literą \\(e\\). Jest to liczba niewymierna, a  jej przybliżona wartość to:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\(2,71828182845904523536028747135266249775724709369995957496696762772407663035354759457138217852516642742746639193200305992181741359662904357290033429526059563073813232862794349076323382988075319525101901157383418793070215408914993488416750924476146066808226480...\\)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Aby zdefiniować liczbę \\(e\\), zacznijmy od obliczeń odsetek w banku.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/Eulers_number_1.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Pod koniec nagrania widzimy, jak wyglądają wyrażenia opisujące zgromadzony w banku kapitał po kilku kapitalizacjach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Gdyby liczba kapitalizacji była równa \\(n\\), kapitał wyniósłby:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\left(1+\\frac{1}{n}\\right)^n\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Liczbę Eulera, \\(e\\) definiujemy jako\n    <strong>\n        granicę\n    </strong>\n    tego wyrażenia, gdy \\(n\\) staje się coraz większe i większe - gdy dąży do nieskończoności. Zapisujemy to jako:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\ne=\\lim_{n\\rightarrow\\infty}\\left(1+\\frac{1}{n}\\right)^n\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Oznacza to, że liczba Eulera wskazuje na nieprzekraczalną kwotę, jaka pojawić się może na koncie przy oprocentowaniu 100%, niezależnie od tego, jak często dokonywalibyśmy kapitalizacji.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W nagraniu poniżej możesz obejrzeć, jak zmienia się wartość wyrażenia \\(\\left(1+\\frac{1}{n}\\right)^n\\) dla rosnącej wartości \\(n\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zobaczysz w nim także, jak efektywna jest druga, równoważna definicja liczby \\(e\\):\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\ne=\\sum_{n=0}^{\\infty}\\frac{1}{n!}\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Grecka litera\n    <em>\n        sigma\n    </em>\n    \\(\\left(\\Sigma\\right)\\) oznacza, że sumujemy wyrażenia postaci \\(\\frac{1}{n!}\\) dla \\(n\\) zmieniających wartość od 0, przez 1, 2, 3 i tak dalej aż do nieskończoności.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W mianowniku sumowanych wyrażeń widzimy\n    <strong>\n        silnię\n    </strong>\n    (wyrażenie \"\\(n!\\)\" czytamy \"n silnia\"), która jest zdefiniowana jako iloczyn wszystkich liczb naturalnych od 1 do \\(n\\). Dodatkowo silnia liczby 0 to 1:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\begin{align*}\n0!&=1\\\\\n1!&=1\\\\\n2!&=1\\cdot 2=2\\\\\n3!&=1\\cdot 2\\cdot 3=6\\\\\n4!&=1\\cdot 2\\cdot 3\\cdot 4=24\\\\\n&\\dots\n\\end{align*}\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Tym samym, tę drugą definicję możemy rozpisać następująco:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\ne=\\sum_{n=0}^{\\infty}\\frac{1}{n!}=\\frac{1}{1}+\\frac{1}{1}+\\frac{1}{1\\cdot 2}+\\frac{1}{1\\cdot 2\\cdot 3}+\\frac{1}{1\\cdot 2\\cdot 3\\cdot 4}+\\dots\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zobacz, jak działają obie definicje:\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/Eulers_number_2.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h2 id=\"e_funkcje\">\n    Liczba Eulera a funkcja wykładnicza i logarytmiczna\n</h2>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Funkcje wykładnicza i logarytmiczna są często używane do modelowania sytuacji rzeczywistych. No i na przykład, gdy modelujemy liczbą bakterii, warto wiedzieć nie tylko, ile jest bakterii w danym momencie, lecz też jak szybkie jest tempo wzrostu tej liczby. Spójrz na wykres poniżej. Oczywiście tempo wzrostu w punkcie A jest mniejsze niż w punkcie B. Wygodnym narzędziem do mierzenia tempa wzrostu jest nachylenie stycznej do wykresu. W punkcie A to nachylenie ma wartość \\(\\frac{1}{2}\\), zaś w punkcie B ma wartość \\(2\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"nachylenie\" height=\"439\" src=\"static/nachylenie_wykladnicza.png\" style=\"width: 800px; height: 439px;\" width=\"800\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W poniższym nagraniu zobaczysz, dlaczego liczba Eulera jest wygodna, gdy interesuje nas nachylenie do wykresu funkcji wykładniczej.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/Eulers_number_3.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Logarytm naturalny\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Na zakończenie dodajmy, że liczba \\(e\\) jest też ważna jako podstawa logarytmu. Logarytm o podstawie \\(e\\) nazywany jest\n    <strong>\n        logarymem naturalnym\n    </strong>\n    i zapisywany:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\ln x = \\log_e x\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Nachylenie funkcji \\(y=\\ln x\\) jest także łatwiejsze do ustalenia, niż w przypadku logarytmów o innych podstawach, i jest to niezwykle użyteczny fakt w analizie matematycznej. Ale to już zupełnie inna historia.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7926f560e7c493cf05ba8d1df52c74c11153b8fd222a4a4335b71d1257e7d8aa"
+}

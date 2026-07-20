@@ -1,0 +1,49 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Podaj definicje następujących czworokątów. Sprawdź swoje odpowiedzi.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "trapez",
+      "body": "\n                        Czworokąt, który ma (co najmniej) jedną parę boków równoległych.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "trapezoid",
+      "body": "\n                        Czworokąt, w którym żadne dwa boki nie są równoległe.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "równoległobok",
+      "body": "\n                        Czworokąt, który ma dwie pary boków równoległych. \n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "romb",
+      "body": "\n                        Czworokąt, w którym wszystkie boki są równej długości.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "prostokąt",
+      "body": "\n                        Czworokąt, w którym wszystkie kąty są proste.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "kwadrat",
+      "body": "\n                        Czworokąt, w którym wszystkie kąty są proste i którego wszystkie boki są równej długości.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "deltoid",
+      "body": "\n                        Czworokąt, w którym dwie pary sąsiednich boków są równej długości.\n                    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f6bc79f82871252ba6a66a1245c8de345c3038fdb19a4e37667d9557d9001c11"
+}

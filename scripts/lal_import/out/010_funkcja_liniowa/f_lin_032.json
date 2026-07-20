@@ -1,0 +1,32 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/rownanie_prostej_2.mp4"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "<img alt=\"\" src=\"static/rownanie_kierunkowe.png\" style=\"width: 100%; height: auto; min-width: 500px;\" width=\"636\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span style=\"color: red;\">\n                        \\(a\\)\n                    </span>\n                    - współczynnik kierunkowy (nachylenie)\n                    <br/>\n<span style=\"color: yellow;\">\n                        \\(b\\)\n                    </span>\n                    - wyraz wolny (przesunięcie góra-dół)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "0182105da2c7387a02f504b94b250a6d60896ee7da003d466b4831df0279c95b"
+}

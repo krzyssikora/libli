@@ -1,0 +1,207 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>Ciąg geometryczny</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to taki ciąg \\((a_n)\\), w którym iloraz:\n    \\[\n    \\frac{a_n}{a_{n-1}}=q\n    \\]\n    jest stały dla \\(n=2, 3, 4, \\dots\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Innymi słowy:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>każdy wyraz ciągu geometrycznego tworzymy przez pomnożenie poprzedniego wyrazu przez iloraz \\(q\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wyznacz wzór ogólny na \\(a_n\\) - wyraz ciągu geometrycznego przyjmując, że\n        <ul>\n<li>\n                pierwszy wyraz ciągu to \\(a_1\\)\n            </li>\n<li>\n                a iloraz ciągu to \\(q\\).\n            </li>\n</ul>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<blockquote>\n                    \"Każdy wyraz ciągu geometrycznego tworzymy przez pomnożenie poprzedniego wyrazu przez iloraz \\(q\\)...\"\n                </blockquote>\n<div class=\"switch_line\">\n                    więc skoro pierwszy wyraz to \\(a_1\\), to drugi wyraz\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_2=a_1: q\\)</div>\n<div class=\"switch_value\">\\(a_2=a_1\\cdot q\\)</div>\n<div class=\"switch_value\">\\(a_2=a_1+ q\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Dalej trzeci wyraz: \\(a_3=a_2\\cdot q\\), a podstawiając do tego otrzymane poprzednio \\(a_2=a_1\\cdot q\\) otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_3=a_1\\cdot q^2\\)</div>\n<div class=\"switch_value\">\\(a_3=a_1\\cdot 2q\\)</div>\n<div class=\"switch_value\">\\(a_3=a_2+q^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Teraz czwarty wyraz: \\(a_4=a_3\\cdot q\\), a podstawiając do tego otrzymane poprzednio \\(a_3=a_1\\cdot q^2\\) otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_4=a_1\\cdot q^4\\)</div>\n<div class=\"switch_value\">\\(a_4=a_1\\cdot q^3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                W ten sposób otrzymujemy:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    a_{\\color{red}{2}}&amp;=a_1\\cdot q^\\color{red}{1}\\\\\n                    a_{\\color{red}{3}}&amp;=a_1\\cdot q^\\color{red}{2}\\\\\n                    a_{\\color{red}{4}}&amp;=a_1\\cdot q^\\color{red}{3}\\\\\n                    a_{\\color{red}{5}}&amp;=a_1\\cdot q^\\color{red}{4}\\\\\n                    a_{\\color{red}{6}}&amp;=a_1\\cdot q^\\color{red}{5}\\\\\n                    \\end{align}\n                    \\]\n                    itd.\n                </div>\n                Czyli:\n                <div class=\"centered\">\n                    licząc wyraz o pewnym numerze \\({\\color{red}{n}}\\), pierwszy wyraz mnożymy przez <u style=\"color: red\">o jeden mniej</u> iloraz \\(q\\).\n                </div>\n<div class=\"switch_line\">\n                    I dlatego wzór na \\(n\\)-ty wyraz to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_n=a_1\\cdot q^n\\)</div>\n<div class=\"switch_value\">\\(a_n=a_1\\cdot q^{n-1}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Wzór ogólny na \\(n\\)-ty wyraz ciągu arytmetycznego to\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n    Jeśli \\((a_n)\\) to ciąg geometryczny o pierwszym wyrazie \\(a_1\\) i ilorazie \\(q\\), to\n    \\[\n    a_n=a_1 \\cdot q^{n-1}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rozwiążemy teraz cztery różne zadania z wykorzystaniem tego wzoru.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Do rozwiązania niektórych z nich warto znać początkowe potęgi dwójki:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(7\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(2^n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(16\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(32\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(64\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(128\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(256\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Pierwszy wyraz ciągu geometrycznego to \\(3\\), a iloraz tego ciągu jest równy \\(2\\).\n        <p>\n            Znajdź <u>dziesiąty</u> wyraz tego ciągu.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Dany jest pierwszy wyraz, \\(a_1=3\\), oraz iloraz \\(q=2\\). \n                <div class=\"switch_line\">\n                    Chcemy obliczyć\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_{10}\\)</div>\n<div class=\"switch_value\">\\(a_1\\cdot 10\\)</div>\n<div class=\"switch_value\">\\(a_1+10\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Skorzystamy, oczywiście, ze wzoru\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]\n                <div class=\"switch_line\">\n                    Do wzoru podstawimy \\(a_1=3\\), \\(q=2\\) oraz \\(n=10\\). Otrzymamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_{10}=3\\cdot 2^{10}\\)</div>\n<div class=\"switch_value\">\\(a_{10}=3\\cdot 2^9\\)</div>\n<div class=\"switch_value\">\\(a_{10}=2\\cdot 3^{10}\\)</div>\n<div class=\"switch_value\">\\(a_{10}=2\\cdot 3^9\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I dlatego\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_{10}=768\\)</div>\n<div class=\"switch_value\">\\(a_{10}=1536\\)</div>\n<div class=\"switch_value\">\\(a_{10}=3072\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dziesiąty wyraz ciągu ma wartość\n                \\[\n                a_{10}=1536\n                \\]\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Szósty wyraz ciągu geometrycznego to \\(-486\\), a iloraz tego ciągu jest równy \\(-3\\).\n        <p>\n            Znajdź <u>pierwszy</u> wyraz tego ciągu.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Dany jest szósty wyraz, \\(a_6=-486\\), oraz iloraz \\(q=-3\\). \n                <p>\n                    Chcemy znaleźć pierwszy wyraz, czyli \\(a_1\\).\n                </p>\n                Skorzystamy ze wzoru\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]\n                <div class=\"switch_line\">\n                    dla\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(q=-3\\) i \\(n=6\\)</div>\n<div class=\"switch_value\">\\(q=-3\\) i \\(n=-486\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Podstawiając do wzoru\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]\n                <div class=\"switch_line\">\n                    \\(n=6\\), \\(q=-3\\) oraz \\(a_n=a_6=-486\\) dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(-486=a_1\\cdot (-3)^6\\)</div>\n<div class=\"switch_value\">\\(-486=a_1\\cdot (-3)^5\\)</div>\n<div class=\"switch_value\">\\(6=a_1\\cdot (-3)^5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Rozwiązując równanie\n                \\[\n                \\begin{align}\n                -486&amp;=a_1\\cdot (-3)^5\\\\\n                -486&amp;=a_1\\cdot (-243)\n                \\end{align}\n                \\]\n                <div class=\"switch_line\">\n                    otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_1=2\\)</div>\n<div class=\"switch_value\">\\(a_1=-2\\)</div>\n<div class=\"switch_value\">\\(a_1=-243\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Pierwszy wyraz ciągu to\n                \\[\n                a_1=2\n                \\]\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Pierwszy wyraz ciągu geometrycznego to \\(3200\\), a ósmy wyraz tego ciągu jest równy \\(25\\).\n        <p>\n            Znajdź <u>iloraz</u> tego ciągu.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Dany jest pierwszy wyraz, \\(a_1=3200\\), oraz ósmy \\(a_8=25\\). \n                <p>\n                    Chcemy znaleźć iloraz, czyli \\(q\\).\n                </p>\n                Ponownie skorzystamy ze wzoru\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]\n                <div class=\"switch_line\">\n                    tym razem dla\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_1=3200\\), \\(n=25\\) i \\(a_n=a_{25}=8\\)</div>\n<div class=\"switch_value\">\\(a_1=3200\\), \\(n=8\\) i \\(a_n=a_8=25\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Podstawiając do wzoru\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]\n                <div class=\"switch_line\">\n                    \\(a_1=3200\\), \\(n=8\\) i \\(a_n=a_8=25\\) dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(25=3200\\cdot q^{24}\\)</div>\n<div class=\"switch_value\">\\(25=3200\\cdot q^7\\)</div>\n<div class=\"switch_value\">\\(3200=25\\cdot q^7\\)</div>\n<div class=\"switch_value\">\\(8=3200\\cdot q^{24}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Rozwiązując równanie\n                \\[\n                \\begin{align}\n                25&amp;=3200\\cdot q^7\\\\\n                \\frac{25}{3200}&amp;=q^7\\\\\n                \\frac{1}{128}&amp;=q^7\n                \\end{align}\n                \\]\n                <div class=\"switch_line\">\n                    otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(q=2\\)</div>\n<div class=\"switch_value\">\\(q=\\tfrac{1}{4}\\)</div>\n<div class=\"switch_value\">\\(q=\\tfrac{1}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Iloraz ciągu to\n                \\[\n                q=\\tfrac{1}{2}\n                \\]\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Pierwszy wyraz ciągu geometrycznego to \\(3\\), a różnica tego ciągu jest równa \\(-2\\).\n        <p>\n            Który wyraz ma wartość \\(192\\)?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Dany jest pierwszy wyraz, \\(a_1=3\\), oraz iloraz \\(q=-2\\). \n                <p>\n                    Znamy też wartość pewnego wyrazu, powiedzmy, że \n                    \\(n\\)-tego:\n                </p>\n                \\[\n                a_n=192\n                \\]\n                <p>\n                    Nie znamy indeksu tego wyrazu, \\(n\\).\n                </p>\n                Ponownie skorzystamy ze wzoru\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]\n                <div class=\"switch_line\">\n                    tym razem dla\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_1=3\\), \\(q=-2\\) i \\(a_{192}=n\\)</div>\n<div class=\"switch_value\">\\(a_1=3\\), \\(q=-2\\) i \\(a_n=192\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Podstawiając do wzoru\n                \\[\n                a_n=a_1\\cdot q^{n-1}\n                \\]\n                <div class=\"switch_line\">\n                    \\(a_1=3\\), \\(q=-2\\) i \\(a_n=192\\) dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(192=3\\cdot (-2)^{n-1}\\)</div>\n<div class=\"switch_value\">\\(192=3\\cdot 2^{n-1}\\)</div>\n<div class=\"switch_value\">\\(192=3\\cdot 2^n\\)</div>\n<div class=\"switch_value\">\\(192=3\\cdot (-2)^n\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Rozwiązując równanie\n                \\[\n                \\begin{align}\n                192&amp;=3\\cdot(-2)^{n-1}\\\\\n                64&amp;=(-2)^{n-1}\\\\\n                \\end{align}\n                \\]\n                <div class=\"switch_line\">\n                    otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(n=6\\)</div>\n<div class=\"switch_value\">\\(n=7\\)</div>\n<div class=\"switch_value\">\\(n=8\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Wyraz siódmy ma wartość \\(192\\).\n            </div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6459cdd8f04c2f1e7fb310a006de6fbff6faf10c63a695b5014e7c186f6fe914"
+}

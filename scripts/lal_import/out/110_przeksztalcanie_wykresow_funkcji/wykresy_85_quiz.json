@@ -1,0 +1,138 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Wykres funkcji \\(y=-2x+4\\) po odbiciu w symetrii w osi OX ma równanie:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=2x-4\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=2x+4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-2x-4\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wykres funkcji \\(y=-2x+4\\) po odbiciu w symetrii w osi OY ma równanie:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=2x-4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=2x+4\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-2x-4\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wykres funkcji \\(y=-2x+4\\) po odbiciu w symetrii w początku układu współrzędnych (tj. w punkcie \\((0,0)\\)) ma równanie:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=2x-4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=2x+4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-2x-4\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Poniższy rysunek przedstawia wykresy czterech funkcji ponumerowanych od 1 do 4\n</p><p>\n    Wykres numer 1 ma równanie \\(y=f(x)\\).\n</p><div>\n<img alt=\"wykresy-symetrie\" src=\"static/wykresy_symetrie.png\" width=\"100%\"/>\n</div><p>Jakie jest równanie wykresu numer 2?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=-f(x)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=f(-x)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-f(-x)\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Poniższy rysunek przedstawia wykresy czterech funkcji ponumerowanych od 1 do 4\n</p><p>\n    Wykres numer 1 ma równanie \\(y=f(x)\\).\n</p><div>\n<img alt=\"wykresy-symetrie\" src=\"static/wykresy_symetrie.png\" width=\"100%\"/>\n</div><p>Jakie jest równanie wykresu numer 3?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=-f(x)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=f(-x)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-f(-x)\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Poniższy rysunek przedstawia wykresy czterech funkcji ponumerowanych od 1 do 4\n</p><p>\n    Wykres numer 1 ma równanie \\(y=f(x)\\).\n</p><div>\n<img alt=\"wykresy-symetrie\" src=\"static/wykresy_symetrie.png\" width=\"100%\"/>\n</div><p>Jakie jest równanie wykresu numer 4?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=-f(x)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=f(-x)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-f(-x)\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "04ac399d5704f646ee1474ee28988c58513b74394022db82d7bf6642acbbcd6e"
+}

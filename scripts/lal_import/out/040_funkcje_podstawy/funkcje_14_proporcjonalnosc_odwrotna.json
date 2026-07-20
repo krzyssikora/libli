@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Wykres funkcji \\(y=\\frac{a}{x}\\) widoczny wyżej nazywamy \"\n        <strong>\n<span style=\"color: blue;\">\n                hiperbolą\n            </span>\n</strong>\n        \".\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zwróć uwagę, że taka hiperbola \"zbiega\" zarówno do osi \\(x\\) jak i do osi \\(y\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zbiega, czyli</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                kiedy \\(y\\) staje się bardzo duże (lub bardzo małe - ujemne o dużej wartości bezwzględnej), wówczas punkty wykresu są coraz bliżej i dowolnie blisko osi \\(y\\)\n            </li>\n<li>\n                kiedy \\(x\\) staje się bardzo duże (lub bardzo małe - ujemne o dużej wartości bezwzględnej), wówczas punkty wykresu są coraz bliżej i dowolnie blisko osi \\(x\\)\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Takie proste, wskazujące, dokąd wykres funkcji \"zbiega\", nazywamy\n        <strong>\n            asymptotami\n        </strong>\n        .\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wykres funkcji \\(y=\\frac{a}{x}\\) ma dwie asymptoty: oś \\(x\\) (czyli prostą \\(y=0\\)) oraz oś \\(y\\) (czyli prostą \\(x=0\\)).\n    </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b5ee8a4ab29f591452dd9cf71baa8ffae448935e932f27bc00aefe700fbafdb9"
+}

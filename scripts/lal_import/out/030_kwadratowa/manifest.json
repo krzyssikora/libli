@@ -1,0 +1,415 @@
+{
+  "part": {
+    "source_folder": "030_kwadratowa",
+    "order": 6,
+    "title": "kwadratowa"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "kwadratowa_010_parabola.json",
+          "source_html": "kwadratowa_010_parabola.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "kwadratowa 010 parabola"
+        },
+        {
+          "order": 1,
+          "unit_json": "kwadratowa_011.json",
+          "source_html": "kwadratowa_011.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Parabola - wykres funkcji kwadratowej"
+        },
+        {
+          "order": 2,
+          "unit_json": "kwadratowa_012.json",
+          "source_html": "kwadratowa_012.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "kwadratowa 012"
+        },
+        {
+          "order": 3,
+          "unit_json": "kwadratowa_019_quiz.json",
+          "source_html": "kwadratowa_019_quiz.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "quiz",
+          "title": "kwadratowa 019 quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "kwadratowa_020.json",
+          "source_html": "kwadratowa_020.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "kwadratowa 020"
+        },
+        {
+          "order": 1,
+          "unit_json": "kwadratowa_021.json",
+          "source_html": "kwadratowa_021.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Postać kanoniczna funkcji kwadratowej"
+        },
+        {
+          "order": 2,
+          "unit_json": "kwadratowa_022.json",
+          "source_html": "kwadratowa_022.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "kwadratowa 022"
+        },
+        {
+          "order": 3,
+          "unit_json": "kwadratowa_029_quiz.json",
+          "source_html": "kwadratowa_029_quiz.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "quiz",
+          "title": "kwadratowa 029 quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "kwadratowa_030.json",
+          "source_html": "kwadratowa_030.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Zamiana postaci ogólnej funkcji kwadratowej na postać kanoniczną."
+        },
+        {
+          "order": 1,
+          "unit_json": "kwadratowa_031.json",
+          "source_html": "kwadratowa_031.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "kwadratowa 031"
+        },
+        {
+          "order": 2,
+          "unit_json": "kwadratowa_032.json",
+          "source_html": "kwadratowa_032.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Wyliczanie miejsc zerowych funkcji kwadratowej z postaci kanonicznej"
+        },
+        {
+          "order": 3,
+          "unit_json": "kwadratowa_033.json",
+          "source_html": "kwadratowa_033.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "kwadratowa 033"
+        },
+        {
+          "order": 4,
+          "unit_json": "kwadratowa_034.json",
+          "source_html": "kwadratowa_034.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Szkic wykresu funkcji kwadratowej zapisanej w postaci kanonicznej"
+        },
+        {
+          "order": 5,
+          "unit_json": "kwadratowa_050_iloczynowa.json",
+          "source_html": "kwadratowa_050_iloczynowa.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Wprowadzenie"
+        },
+        {
+          "order": 6,
+          "unit_json": "kwadratowa_060_iloczynowa.json",
+          "source_html": "kwadratowa_060_iloczynowa.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Postać iloczynowa funkcji kwadratowej"
+        },
+        {
+          "order": 7,
+          "unit_json": "kwadratowa_070_iloczynowa.json",
+          "source_html": "kwadratowa_070_iloczynowa.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 8,
+          "unit_json": "kwadratowa_080_iloczynowa.json",
+          "source_html": "kwadratowa_080_iloczynowa.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Obliczanie miejsc zerowych"
+        },
+        {
+          "order": 9,
+          "unit_json": "kwadratowa_090_iloczynowa.json",
+          "source_html": "kwadratowa_090_iloczynowa.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Wzory poznane do tej pory"
+        },
+        {
+          "order": 10,
+          "unit_json": "kwadratowa_099_iloczynowa_quiz.json",
+          "source_html": "kwadratowa_099_iloczynowa_quiz.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "quiz",
+          "title": "kwadratowa 099 iloczynowa quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "kwadratowa_100_wykres.json",
+          "source_html": "kwadratowa_100_wykres.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Szkicowanie wykresu funkcji kwadratowej"
+        },
+        {
+          "order": 1,
+          "unit_json": "kwadratowa_110_wykres.json",
+          "source_html": "kwadratowa_110_wykres.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Odczytywanie własności funkcji kwadratowej z wykresu"
+        },
+        {
+          "order": 2,
+          "unit_json": "kwadratowa_119_wykres_quiz.json",
+          "source_html": "kwadratowa_119_wykres_quiz.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "quiz",
+          "title": "kwadratowa 119 wykres quiz"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "__PLACEHOLDER chapter 5__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "kwadratowa_120_wlasnosci.json",
+          "source_html": "kwadratowa_120_wlasnosci.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Równanie funkcji kwadratowej na podstawie własności"
+        },
+        {
+          "order": 1,
+          "unit_json": "kwadratowa_130_wlasnosci.json",
+          "source_html": "kwadratowa_130_wlasnosci.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Równanie funkcji kwadratowej na podstawie własności"
+        },
+        {
+          "order": 2,
+          "unit_json": "kwadratowa_140_wlasnosci.json",
+          "source_html": "kwadratowa_140_wlasnosci.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Zbiór wartości funkcji kwadratowej"
+        },
+        {
+          "order": 3,
+          "unit_json": "kwadratowa_150_wlasnosci.json",
+          "source_html": "kwadratowa_150_wlasnosci.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Zbiór wartości funkcji kwadratowej na przedziale domkniętym, ograniczonym"
+        },
+        {
+          "order": 4,
+          "unit_json": "kwadratowa_159_wlasnosci_quiz.json",
+          "source_html": "kwadratowa_159_wlasnosci_quiz.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "quiz",
+          "title": "kwadratowa 159 wlasnosci quiz"
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "title": "__PLACEHOLDER chapter 6__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "kwadratowa_160_zastosowania.json",
+          "source_html": "kwadratowa_160_zastosowania.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "kwadratowa 160 zastosowania"
+        },
+        {
+          "order": 1,
+          "unit_json": "kwadratowa_161_zastosowania.json",
+          "source_html": "kwadratowa_161_zastosowania.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "kwadratowa 161 zastosowania"
+        },
+        {
+          "order": 2,
+          "unit_json": "kwadratowa_162_zastosowania.json",
+          "source_html": "kwadratowa_162_zastosowania.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "kwadratowa 162 zastosowania"
+        },
+        {
+          "order": 3,
+          "unit_json": "kwadratowa_163_zastosowania.json",
+          "source_html": "kwadratowa_163_zastosowania.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "kwadratowa 163 zastosowania"
+        },
+        {
+          "order": 4,
+          "unit_json": "kwadratowa_164_zastosowania.json",
+          "source_html": "kwadratowa_164_zastosowania.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Optymalizacja"
+        },
+        {
+          "order": 5,
+          "unit_json": "kwadratowa_165_zastosowania.json",
+          "source_html": "kwadratowa_165_zastosowania.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Optymalizacja - zadania"
+        },
+        {
+          "order": 6,
+          "unit_json": "kwadratowa_168_quiz.json",
+          "source_html": "kwadratowa_168_quiz.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "quiz",
+          "title": "kwadratowa 168 quiz"
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "title": "__PLACEHOLDER chapter 7__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "kwadratowa_169_zastosowania_quiz.json",
+          "source_html": "kwadratowa_169_zastosowania_quiz.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "quiz",
+          "title": "kwadratowa 169 zastosowania quiz"
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "title": "__PLACEHOLDER chapter 8__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "kwadratowa_170_rownania.json",
+          "source_html": "kwadratowa_170_rownania.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Metody rozwiązywania równań kwadratowych"
+        },
+        {
+          "order": 1,
+          "unit_json": "kwadratowa_180_rownania.json",
+          "source_html": "kwadratowa_180_rownania.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 2,
+          "unit_json": "kwadratowa_190_rownania.json",
+          "source_html": "kwadratowa_190_rownania.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 3,
+          "unit_json": "kwadratowa_200_rownania.json",
+          "source_html": "kwadratowa_200_rownania.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Ukryte równania kwadratowe"
+        },
+        {
+          "order": 4,
+          "unit_json": "kwadratowa_210_rownania.json",
+          "source_html": "kwadratowa_210_rownania.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Nierówności kwadratowe"
+        },
+        {
+          "order": 5,
+          "unit_json": "kwadratowa_220_rownania.json",
+          "source_html": "kwadratowa_220_rownania.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Zastosowanie równań i nierówności kwadratowych"
+        },
+        {
+          "order": 6,
+          "unit_json": "kwadratowa_230_rownania.json",
+          "source_html": "kwadratowa_230_rownania.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Zastosowanie równań kwadratowych - zadania"
+        },
+        {
+          "order": 7,
+          "unit_json": "kwadratowa_239_rownania_quiz.json",
+          "source_html": "kwadratowa_239_rownania_quiz.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "quiz",
+          "title": "kwadratowa 239 rownania quiz"
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "title": "__PLACEHOLDER chapter 9__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "kwadratowa_400_podsumowanie.json",
+          "source_html": "kwadratowa_400_podsumowanie.html",
+          "source_dir": "030_kwadratowa",
+          "unit_type": "lesson",
+          "title": "Funkcja kwadratowa - podsumowanie"
+        }
+      ]
+    }
+  ]
+}

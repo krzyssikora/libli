@@ -1,0 +1,437 @@
+{
+  "part": {
+    "source_folder": "045_wielomiany",
+    "order": 8,
+    "title": "wielomiany"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "010_wielomiany.json",
+          "source_html": "010_wielomiany.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Wielomian"
+        },
+        {
+          "order": 1,
+          "unit_json": "020_stopien_wielomianu.json",
+          "source_html": "020_stopien_wielomianu.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Stopień wielomianu"
+        },
+        {
+          "order": 2,
+          "unit_json": "030_wielomiany_dzialania.json",
+          "source_html": "030_wielomiany_dzialania.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Dodawanie i odejmowanie wielomianów"
+        },
+        {
+          "order": 3,
+          "unit_json": "040_wielomiany_dzialania.json",
+          "source_html": "040_wielomiany_dzialania.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 4,
+          "unit_json": "050_wielomiany_dzialania.json",
+          "source_html": "050_wielomiany_dzialania.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Mnożenie wielomianów"
+        },
+        {
+          "order": 5,
+          "unit_json": "060_wielomiany_dzialania.json",
+          "source_html": "060_wielomiany_dzialania.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 6,
+          "unit_json": "070_wielomiany_dzialania.json",
+          "source_html": "070_wielomiany_dzialania.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Stopień wyniku działań na wielomianach"
+        },
+        {
+          "order": 7,
+          "unit_json": "080_wielomiany_dzialania.json",
+          "source_html": "080_wielomiany_dzialania.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Równość wielomianów"
+        },
+        {
+          "order": 8,
+          "unit_json": "090_wielomiany_dzialania_quiz.json",
+          "source_html": "090_wielomiany_dzialania_quiz.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "quiz",
+          "title": "wielomiany dzialania quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "100_wielomiany_dzielenie.json",
+          "source_html": "100_wielomiany_dzielenie.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Podzielność"
+        },
+        {
+          "order": 1,
+          "unit_json": "110_wielomiany_dzielenie.json",
+          "source_html": "110_wielomiany_dzielenie.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Dzielniki wielomianów"
+        },
+        {
+          "order": 2,
+          "unit_json": "120_wielomiany_dzielenie.json",
+          "source_html": "120_wielomiany_dzielenie.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Ważne pytania"
+        },
+        {
+          "order": 3,
+          "unit_json": "130_wielomiany_dzielenie.json",
+          "source_html": "130_wielomiany_dzielenie.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Przygotowanie do dzielenia wielomianów"
+        },
+        {
+          "order": 4,
+          "unit_json": "140_wielomiany_dzielenie.json",
+          "source_html": "140_wielomiany_dzielenie.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Dzielenie wielomianów 1"
+        },
+        {
+          "order": 5,
+          "unit_json": "150_wielomiany_dzielenie.json",
+          "source_html": "150_wielomiany_dzielenie.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Porównanie dzielenia liczb i wielomianów"
+        },
+        {
+          "order": 6,
+          "unit_json": "155_wielomiany_dzielenie.json",
+          "source_html": "155_wielomiany_dzielenie.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Porównanie dzielenia liczb i wielomianów"
+        },
+        {
+          "order": 7,
+          "unit_json": "160_wielomiany_dzielenie.json",
+          "source_html": "160_wielomiany_dzielenie.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 8,
+          "unit_json": "170_wielomiany_dzielenie.json",
+          "source_html": "170_wielomiany_dzielenie.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Dzielenie wielomianów 2"
+        },
+        {
+          "order": 9,
+          "unit_json": "180_wielomiany_dzielenie.json",
+          "source_html": "180_wielomiany_dzielenie.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 10,
+          "unit_json": "190_wielomiany_dzielenie.json",
+          "source_html": "190_wielomiany_dzielenie.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Dzielenie wielomianów 3"
+        },
+        {
+          "order": 11,
+          "unit_json": "200_wielomiany_dzielenie.json",
+          "source_html": "200_wielomiany_dzielenie.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 12,
+          "unit_json": "210_wielomiany_dzielenie_quiz.json",
+          "source_html": "210_wielomiany_dzielenie_quiz.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "quiz",
+          "title": "wielomiany dzielenie quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "220_wielomiany_rozklad.json",
+          "source_html": "220_wielomiany_rozklad.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Postać iloczynowa funkcji kwadratowej - powtórzenie"
+        },
+        {
+          "order": 1,
+          "unit_json": "230_wielomiany_rozklad.json",
+          "source_html": "230_wielomiany_rozklad.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Wprowadzenie do równań wielomianowych"
+        },
+        {
+          "order": 2,
+          "unit_json": "240_wielomiany_rozklad.json",
+          "source_html": "240_wielomiany_rozklad.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Twierdzenie Bézout"
+        },
+        {
+          "order": 3,
+          "unit_json": "250_wielomiany_rozklad.json",
+          "source_html": "250_wielomiany_rozklad.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Pierwiastki całkowite 1"
+        },
+        {
+          "order": 4,
+          "unit_json": "260_wielomiany_rozklad.json",
+          "source_html": "260_wielomiany_rozklad.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Pierwiastki całkowite 2"
+        },
+        {
+          "order": 5,
+          "unit_json": "265_wielomiany_rozklad.json",
+          "source_html": "265_wielomiany_rozklad.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Pierwiastki wielokrotne"
+        },
+        {
+          "order": 6,
+          "unit_json": "270_wielomiany_rozklad.json",
+          "source_html": "270_wielomiany_rozklad.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 7,
+          "unit_json": "280_wielomiany_rozklad.json",
+          "source_html": "280_wielomiany_rozklad.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Pierwiastki wymierne 1"
+        },
+        {
+          "order": 8,
+          "unit_json": "290_wielomiany_rozklad.json",
+          "source_html": "290_wielomiany_rozklad.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Pierwiastki wymierne 2"
+        },
+        {
+          "order": 9,
+          "unit_json": "300_wielomiany_rozklad.json",
+          "source_html": "300_wielomiany_rozklad.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 10,
+          "unit_json": "310_wielomiany_rozklad.json",
+          "source_html": "310_wielomiany_rozklad.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Ważne pytania"
+        },
+        {
+          "order": 11,
+          "unit_json": "315_wielomiany_rozklad.json",
+          "source_html": "315_wielomiany_rozklad.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Czego jeszcze nie wiemy?"
+        },
+        {
+          "order": 12,
+          "unit_json": "320_wielomiany_rozklad_quiz.json",
+          "source_html": "320_wielomiany_rozklad_quiz.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "quiz",
+          "title": "wielomiany rozklad quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "330_wielomiany_wzory.json",
+          "source_html": "330_wielomiany_wzory.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Wzory skróconego mnożenia stopnia drugiego"
+        },
+        {
+          "order": 1,
+          "unit_json": "340_wielomiany_wzory.json",
+          "source_html": "340_wielomiany_wzory.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Wzory skróconego mnożenia stopnia trzeciego"
+        },
+        {
+          "order": 2,
+          "unit_json": "350_wielomiany_wzory.json",
+          "source_html": "350_wielomiany_wzory.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Rozkład wielomianów z pomocą wzorów skróconego mnożenia"
+        },
+        {
+          "order": 3,
+          "unit_json": "360_wielomiany_wzory.json",
+          "source_html": "360_wielomiany_wzory.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Wzór skróconego mnożenia stopnia n"
+        },
+        {
+          "order": 4,
+          "unit_json": "380_wielomiany_wzory_quiz.json",
+          "source_html": "380_wielomiany_wzory_quiz.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "quiz",
+          "title": "wielomiany wzory quiz"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "__PLACEHOLDER chapter 5__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "400_wielomiany_rownania.json",
+          "source_html": "400_wielomiany_rownania.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Równania wielomianowe"
+        },
+        {
+          "order": 1,
+          "unit_json": "410_wielomiany_rownania.json",
+          "source_html": "410_wielomiany_rownania.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Wyłączanie czynnika"
+        },
+        {
+          "order": 2,
+          "unit_json": "420_wielomiany_rownania.json",
+          "source_html": "420_wielomiany_rownania.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 3,
+          "unit_json": "430_wielomiany_rownania.json",
+          "source_html": "430_wielomiany_rownania.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Rozwiązywanie równań wielomianowych - podsumowanie"
+        },
+        {
+          "order": 4,
+          "unit_json": "440_wielomiany_rownania.json",
+          "source_html": "440_wielomiany_rownania.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 5,
+          "unit_json": "450_wielomiany_rownania.json",
+          "source_html": "450_wielomiany_rownania.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Zadania prowadzące do równań wielomianowych"
+        },
+        {
+          "order": 6,
+          "unit_json": "460_wielomiany_rownania.json",
+          "source_html": "460_wielomiany_rownania.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 7,
+          "unit_json": "470_wielomiany_rownania_quiz.json",
+          "source_html": "470_wielomiany_rownania_quiz.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "quiz",
+          "title": "wielomiany rownania quiz"
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "title": "__PLACEHOLDER chapter 6__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "480_wielomiany_podsumowanie.json",
+          "source_html": "480_wielomiany_podsumowanie.html",
+          "source_dir": "045_wielomiany",
+          "unit_type": "lesson",
+          "title": "Podsumowanie"
+        }
+      ]
+    }
+  ]
+}

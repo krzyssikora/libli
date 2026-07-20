@@ -1,0 +1,273 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wykres funkcji to najczęściej więcej niż kilka punktów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Naszkicujemy wykres funkcji\n        </p>\n        \\[\n        f:\\langle 2, 6)\\longrightarrow \\mathbb{R}\n        \\]\n        <p>\n            zdefiniowanej\n        </p>\n        \\[\n        f(x)=\\frac{1}{2}x-2\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Dziedzina \\(\\langle 2, 6)\\) jest zbiorem o nieskończonej liczbie elementów. Nie policzymy wartości dla wszystkich, ale możemy policzyć dla kilku i zaobserwować, jak wykres powinien wyglądać.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Rozpatrzmy wartości \\(y\\) dla\n                <strong>\n                    całkowitych\n                </strong>\n                argumentów \\(x\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Dla \\(x=2\\), \\(f(2)=\\frac{1}{2}\\cdot 2-2=-1\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Dla \\(x=3\\), \\(f(3)=\\frac{1}{2}\\cdot 3-2=-\\frac{1}{2}\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Dla \\(x=4\\), \\(f(4)=\\frac{1}{2}\\cdot 4-2=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(-1\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(1\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(2\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Dla \\(x=5\\), \\(f(2)=\\frac{1}{2}\\cdot 5-2=\\frac{1}{2}\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Kolejna liczba całkowita, \\(x=6\\), już nie należy do dziedziny, jednak policzmy wartość tak, jakby dziedzina była o ten jeden punkt większa.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Dla \\(x=6\\), \\(f(6)=\\frac{1}{2}\\cdot 6-2=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(-1\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(1\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(2\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Otrzymaliśmy następujące wartości:\n            </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(y\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Przesuń niebieskie punkty, by miały współrzędne takie, jak w tabeli.\n            </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/u85yqun9/width/800/height/500/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Jak widać, wykres układa się wzdłuź</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    krzywej\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    prostej\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    łamanej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>Punkt \\((6, 1)\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    należy\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    nie należy\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>do wykresu.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n            Dlatego jest oznaczony kółkiem niezamalowanym.\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Przeczytaj rozwiązanie zadania:\n        </p>\n<p>\n            Naszkicujemy wykres funkcji\n        </p>\n        \\[\n        f:\\langle 0, +\\infty)\\longrightarrow \\mathbb{R}\n        \\]\n        <p>\n            zdefiniowanej\n        </p>\n        \\[\n        f(x)=\\sqrt{x}\n        \\]\n    "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n<p>\n            Tabela przykładowych wartości wygląda następująco. Zwróć uwagę, że argumenty zostały dobrane tak, by łatwo było obliczyć wartości.\n        </p>\n<div class=\"centered\" style=\"display: flex; justify-content: center;\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_xy\">\n<tr>\n<td>\n                            \\(x\\)\n                        </td>\n<td>\n                            \\(0\\)\n                        </td>\n<td>\n                            \\(1\\)\n                        </td>\n<td>\n                            \\(4\\)\n                        </td>\n<td>\n                            \\(9\\)\n                        </td>\n<td>\n                            \\(16\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(y\\)\n                        </td>\n<td>\n                            \\(0\\)\n                        </td>\n<td>\n                            \\(1\\)\n                        </td>\n<td>\n                            \\(2\\)\n                        </td>\n<td>\n                            \\(3\\)\n                        </td>\n<td>\n                            \\(4\\)\n                        </td>\n</tr>\n</table>\n</div>\n</div>\n<p>\n            Wykres to tym razem następująca krzywa.\n        </p>\n<div class=\"centered\">\n<img alt=\"wykres - pierwiastek\" src=\"static/funkcja_wykres_3.png\" width=\"800\"/>\n</div>\n</div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n        Możesz spróbować rozwiązać zadanie samodzielnie, a potem sprawdzić moje rozwiązanie.\n    "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+      "reason": "show_solution button without solution"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "440f8574a208b2d819d39ff9ae9137883523ad0caa492c7981cd75eca0106082"
+}

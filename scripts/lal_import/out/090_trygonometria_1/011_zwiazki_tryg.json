@@ -1,0 +1,24 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dany jest trójkąt, jak na rysunku poniżej.\n        </p>\n<img alt=\"trygonometria rozgrzewka 1\" src=\"static/tryg_rozgrzewka_1.png\" style=\"width: 500px;\" width=\"500\"/>\n<p>\n            Kolejne dwa trójkąty są podobne do danego - kąty zaznaczone tymi samymi kolorami są tej samej miary.\n        </p>\n<p>\n            Jakie są długości boków oznaczonych znakami zapytania? Oblicz i sprawdź swoje odpowiedzi.\n            <br/>\n            (Rysunki nie zachowują skali.)\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "",
+      "body": "\n                            \\(7,5\\)\n                        "
+    },
+    {
+      "type": "spoiler",
+      "label": "",
+      "body": "\n                            \\(32,5\\)\n                        "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "51cde68d93109f889eb54022b61e390f8175a63dd5745d069adf6744fcf97af4"
+}

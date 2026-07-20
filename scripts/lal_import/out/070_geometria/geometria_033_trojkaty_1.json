@@ -1,0 +1,66 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Nierówność trójkąta\n        </strong>\n        mówi, że w każdym trójkącie każdy jego bok jest krótszy od sumy dwóch pozostałych.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli boki trójkąta mają dlugości \\(a\\), \\(b\\) i \\(c\\), to\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                        \\begin{align*}\n                                                                                        a&\\lt b+c\\\\\n                                                                                        b&\\lt a+c\\\\\n                                                                                        c&\\lt a+b\n                                                                                        \\end{align*}\n                                                                                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Zauważ, że by przekonać się, czy trzy odcinki mogą stworzyć trójkąt, wystarczy sprawdzić, czy najdłuższy z nich jest krótszy od sumy pozostałych. Czy widzisz dlaczego?\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Wskaż, które liczby mogą być długościami boków trójkąta.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            14, 11, 13\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            15, 14, 2\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            23, 12, 9\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            23, 23, 45\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n        potwierdź\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawne odpowiedzi zaznaczone są na zielono.\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c5f73ff544268dac67794f41bb2e286feb4d3506fc48c42806a3a1cfab3079c9"
+}

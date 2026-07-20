@@ -1,0 +1,60 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Symetria osiowa w osi \\(OX\\) to przekształcenie płaszczyzny, \\(P\\), zdefiniowane wzorem\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        P(x,y) = (x, -y) \n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Symetria osiowa w osi \\(OY\\) to przekształcenie płaszczyzny, \\(P\\), zdefiniowane wzorem\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        P(x,y) = (-x, y) \n        \\]\n    "
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_definicja_symetrie_osiowe.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W aplecie poniżej możesz przesuwać punkt zaznaczony krzyżykiem (\\(\\color{blue}{\\times}\\)).\n        </p>\n<p>\n            Przesuwaj go i przyjrzyj się współrzędnym obrazów tego punktu w symetriach względem osi \\(OX\\) oraz \\(OY\\).\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"409px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/jwnanemm/width/760/height/409/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"punkt w symetrii w osiach układu współrzędnych\" width=\"760px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">ten email</a>.\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        W której osi symetryczne są następujące pary punktów?\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\((-4,-3)\\) i \\((-4,3)\\)\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OX\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OY\\)</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\((-5,7)\\) i \\((5,7)\\)\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OX\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OY\\)</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\((8,0)\\) i \\((-8,0)\\)\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OX\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OY\\)</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\((4,-6)\\) i \\((4,6)\\)\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OX\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OY\\)</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\((0,-3)\\) i \\((0,3)\\)\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OX\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OY\\)</div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "potwierdź "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi: \n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fcf1bced0215b2decbd4a231b1ae398a4e6bf7d22d19e1cde65c36c44a44289c"
+}

@@ -1,0 +1,78 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Dany jest zbiór \\(A=\\{3, 4, 7\\}\\). Wówczas prawdziwe są następujące stwierdzenia:\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(3\\in A\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(6\\in A\\)",
+          "is_correct": false,
+          "feedback": "czy 6 jest elementem zbioru \\(A\\)?"
+        },
+        {
+          "text": "\\(3\\subset A\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\{3, 7\\}\\subset A\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Zbiór \\(B\\) jest zbiorem pustym. Wówczas prawdziwe są następujące stwierdzenia:\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(3\\in B\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5\\not\\in B\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\{2\\}\\subset B\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(B\\subset \\{2\\}\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Dane są zbiory \\(A=\\{2, 5, 7, 9\\}\\) oraz \\(B=\\{1, 2, 3, 9, 11, 13\\}\\).\n</p><p>\n    Ile elementów ma zbiór \\(A\\cap B\\)?\n</p>",
+      "value": "2",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Dane są zbiory \\(A=\\{2, 5, 7, 9\\}\\) oraz \\(B=\\{1, 2, 3, 9, 11, 13\\}\\).\n</p><p>\n    Ile elementów ma zbiór \\(A\\cup B\\)?\n</p>",
+      "value": "8",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Dane są zbiory \\(A=\\{2, 5, 7, 9\\}\\) oraz \\(B=\\{1, 2, 3, 9, 11, 13\\}\\).\n</p><p>\n    Ile elementów ma zbiór \\(A\\setminus B\\)?\n</p>",
+      "value": "2",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2ec7302c23c2d090fecd6598d3df0dca97b27b98c30886654a7f3d5f6f786100"
+}

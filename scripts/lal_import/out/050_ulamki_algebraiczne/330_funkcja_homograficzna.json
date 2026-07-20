@@ -1,0 +1,85 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wykresem funkcji homograficznej jest hiperbola. To już wiemy. Ale jak, mając równanie funkcji w postaci\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\ny=\\frac{ax+b}{cx+d}\n\\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    możemy ją naszkicować?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poznamy dwa sposoby:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n        przez zamianę postaci równania na \\(y=\\frac{A}{x-p}+q\\)\n    </li>\n<li>\n        przez analizę współczynników równania\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W obu przypadkach użyjemy tej samej funkcji.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Zamiana postaci równania\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Funkcja \\(y=f(x)\\) jest dana równaniem\n        <div class=\"table_wrapper\">\\[\n        f(x)=\\frac{4x-2}{2x+3}\n        \\]</div>\n        Przedstaw równanie w postaci\n        <div class=\"table_wrapper\">\\[\n        f(x)=\\frac{A}{x-p}+q\n        \\]</div>\n        a następnie naszkicuj wykres funkcji.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        Postać równania zmienimy dzieląc \\(4x-3\\) przez \\(2x+3\\). Możemy to zrobić\n        <ol class=\"bold\" type=\"A\">\n<li>\n                dzieląc pisemnie albo\n            </li>\n<li>\n                dopasowując współczynniki.\n            </li>\n</ol>\n<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li><a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n<strong>A</strong>\n</a></li>\n<li><a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n<strong>B</strong>\n</a></li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-1-1\">\n<p>\n                    Jeśli chcesz przypomnieć sobie dzielenie pisemne, zajrzyj <a href=\"/jump_to_id/23e2ad54dcb2442d949b536ff4ade63b\">tutaj</a>.\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder table_centered\" data-cellwidth=\"40px\">\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(2\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\((4x\\)\n                            </td>\n<td>\n                                \\(-2)\\)\n                            </td>\n<td>\n                                \\(:(2x+3)\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(-(4x\\)\n                            </td>\n<td>\n                                \\(+6)\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(=\\)\n                            </td>\n<td>\n                                \\(-8\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n</table>\n</div>\n                Dzieląc \\(4x-2\\) przez \\(2x+3\\) otrzymaliśmy \\(2\\) oraz resztę \\(-8\\), więc:\n                <div class=\"table_wrapper\">\\[\n                \\frac{4x-2}{2x+3}=2-\\frac{8}{2x+3}\n                \\]</div>\n                Na końcu, aby współczynnik przy \\(x\\) w mianowniku był równy \\(1\\), podzielmy licznik i mianownik ułamka przez \\(2\\):\n                <div class=\"table_wrapper\">\\[\n                \\frac{4x-2}{2x+3}=2-\\frac{4}{x+1,5}\n                \\]</div>\n</div>\n<div id=\"tabcontent-1-2\">\n<p>\n                    Jeśli chcesz przypomnieć sobie dzielenie przez dopasowanie współczynników, zajrzyj <a href=\"/jump_to_id/1338ba773b124de5abe5b6289a868ee2\">tutaj</a>.\n                </p>\n                Dzielimy przez \\(2x+3\\), więc chcemy, by kolejne współczynniki były w stosunku \\(2:3\\). A skoro pierwszy z współczynnik dzielonego wyrażenia to \\(4\\), to drugim powinna być liczba \\(6\\) (bo \\(4:6=2:3\\)).\n                <div class=\"table_wrapper\">\\[\n                \\begin{align*}\n                \\frac{4x-2}{2x+3}&amp;=\\frac{4x+6-8}{2x+3}=&amp;\\text{odejmujemy \\(8\\), bo \\(-2=6-8\\)}\\\\\n                &amp;=\\frac{2(2x+3)-8}{2x+3}=&amp;\\text{wyłączamy \\(2\\) przed nawias}\\\\\n                &amp;=\\frac{2(2x+3)}{2x+3}-\\frac{8}{2x+3}=&amp;\\text{rozbijamy ułamek na dwa}\\\\\n                &amp;=\\frac{2\\require{cancel}\\cancel{(2x+3)}}{\\require{cancel}\\cancel{2x+3}}-\\frac{8}{2x+3}=&amp;\\text{skracamy}\\\\\n                &amp;=2-\\frac{2\\cdot 4}{2(x-1,5)}=&amp;\\text{skracamy przez 2}\\\\\n                &amp;=2-\\frac{4}{x-1,5}&amp;\n                \\end{align*}\n                \\]</div>\n                Ostatni krok, skracanie przez \\(2\\) jest po to, by współczynnik przy \\(x\\) w mianowniku był równy \\(1\\).\n            </div>\n</div>\n        Ostatecznie\n        <div class=\"table_wrapper\">\\[\n        y=\\frac{-4}{x+1,5}+2\n        \\]</div>\n        Wykres funkcji jest więc wykresem \\(y=-\\frac{4}{x}\\) przesuniętym o wektor \\(\\vec{[-1\\tfrac{1}{2}, 2]}\\). Zacznijmy więc od wykresu \\(y=-\\frac{4}{x}\\).\n        <div class=\"switch_steps\">\n            Przyjrzyj się poniższym wykresom\n            <div class=\"table_wrapper\">\n<table class=\"my_table_noborder vertical_table\">\n<tr>\n<th>1</th>\n<th>2</th>\n<th>3</th>\n<th>4</th>\n<th>5</th>\n<th>6</th>\n</tr>\n<tr>\n<td><img src=\"static/homograficzna_ksztalt_1.png\"/></td>\n<td><img src=\"static/homograficzna_ksztalt_2.png\"/></td>\n<td><img src=\"static/homograficzna_ksztalt_3.png\"/></td>\n<td><img src=\"static/homograficzna_ksztalt_4.png\"/></td>\n<td><img src=\"static/homograficzna_ksztalt_5.png\"/></td>\n<td><img src=\"static/homograficzna_ksztalt_6.png\"/></td>\n</tr>\n</table>\n</div>\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Funkcja \\(y=-\\frac{4}{x}\\) jest przedstawiona na wykresie numer\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(1\\)</div>\n<div class=\"switch_value\">\\(2\\)</div>\n<div class=\"switch_value\">\\(3\\)</div>\n<div class=\"switch_value\">\\(4\\)</div>\n<div class=\"switch_value\">\\(5\\)</div>\n<div class=\"switch_value\">\\(6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Na zakończenie wykres taki, jak wyżej (nr 6) musimy przesunąć o wektor \\(\\vec{[-1\\tfrac{1}{2}, 2]}\\).\n                <div class=\"switch_line\">\n                    Po taki przesunięciu punkt przecięcia asymptot to \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((1\\tfrac{1}{2}, 2)\\)</div>\n<div class=\"switch_value\">\\((-1\\tfrac{1}{2}, 2)\\)</div>\n<div class=\"switch_value\">\\((1\\tfrac{1}{2}, -2)\\)</div>\n<div class=\"switch_value\">\\((-1\\tfrac{1}{2}, -2)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Otrzymujemy wykres jak niżej:\n                <figure>\n<img src=\"static/homograficzna_zadanie_1.png\"/>\n</figure>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Gdy mówimy o funkcjach i ich wykresach, często potrzebujemy znać współrzędne punktów, w których wykres przecina osie układu współrzędnych. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Punkty te widzisz zaznaczone na pomarańczowo na wykresie wyżej, ale nie znamy ich dokładnych współrzędnych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zanim przejdziemy do drugiej metody szkicowania wykresu funkcji homograficznej, obliczmy współrzędne obu punktów przecięcia wykresu funkcji z osiami układu współrzędnych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź punkt przecięcia wykresu funkcji\n        <div class=\"table_wrapper\">\\[\n        y=\\frac{-4}{x+1,5}+2\n        \\]</div>\n        z osią OX.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Punkt przecięcia wykresu z osią OX to taki punkt wykresu, którego współrzędna \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x\\)-owa</div>\n<div class=\"switch_value\">\\(y\\)-owa</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>\n                     jest równa \\(0\\).\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Zgadza się, punkt na osi OX jest wsdkazany przez miejsce zerowe. Obliczmy więc\n                </p>\n<div class=\"table_wrapper\">\\[\n                y=0\\quad\\Rightarrow\\quad \\frac{-4}{x+1,5}+2=0\\quad\\Rightarrow\\quad 2=\\frac{4}{x+1,5}\n                \\]</div>\n<div class=\"switch_line\">\n                    Teraz pomnóżmy obie strony równania przez \\(x+1,5\\). Otrzymamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2x+1,5=4\\)</div>\n<div class=\"switch_value\">\\(2=4x+6\\)</div>\n<div class=\"switch_value\">\\(2x+3=4\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Rozwiązując to równanie dostajemy \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x=\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(x=\\tfrac{5}{2}\\)</div>\n<div class=\"switch_value\">\\(x=2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Punkt przecięcia wykresu funkcji z osią OX ma współrzędne \\(\\left(\\tfrac{1}{2},0\\right)\\).\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź punkt przecięcia wykresu funkcji\n        <div class=\"table_wrapper\">\\[\n        y=\\frac{-4}{x+1,5}+2\n        \\]</div>\n        z osią OY.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Punkt przecięcia wykresu z osią OY to taki punkt wykresu, którego współrzędna \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x\\)-owa</div>\n<div class=\"switch_value\">\\(y\\)-owa</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>\n                     jest równa \\(0\\).\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Zgadza się, podstawmy \\(x=0\\) do równania funkcji:\n                </p>\n<div class=\"table_wrapper\">\\[\n                y=\\frac{-4}{0+1,5}+2\n                \\]</div>\n<div class=\"switch_line\">\n                    Otrzymamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=-4\\)</div>\n<div class=\"switch_value\">\\(y=-\\tfrac{2}{3}\\)</div>\n<div class=\"switch_value\">\\(y=-2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Punkt przecięcia wykresu funkcji z osią OX ma współrzędne \\(\\left(0,-\\tfrac{2}{3}\\right)\\).\n            </div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "c516cab5de785427739d791adf0b92c4d47a0c1a59f27c94705fd696674ae1cb"
+}

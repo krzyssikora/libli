@@ -1,0 +1,86 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dane są zbiory:\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "A=\\{1, 2, 3, 4\\}"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            oraz\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "B=\\{3, 4, 5\\}"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zastanowimy się, jakie są wyniki następujących działań na zbiorach \\(A\\) i \\(B\\).\n        </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(\\cup\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "suma zbiorów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\cap\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "iloczyn (część wspólna) zbiorów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\setminus\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "różnica zbiorów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Klikaj pola zaznaczone na niebiesko, aż zobaczysz odpowiednie działanie na zbiorach, dające podany wynik. Gdy wybierzesz wszystkie działania, zatwierdź odpowiedź.\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cup\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cap\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\setminus\\)\n            </div>\n<div class=\"switch_around\">\n                \\(B=\\{1, 2\\}\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cup\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cap\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\setminus\\)\n            </div>\n<div class=\"switch_around\">\n                \\(B=\\{3, 4\\}\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cup\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cap\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\setminus\\)\n            </div>\n<div class=\"switch_around\">\n                \\(B=\\{1, 2, 3, 4, 5\\}\\)\n            </div>\n</div>\n<div class=\"switch_confirm ks_button\">\n            zatwierdź\n        </div>\n\n</div>",
+      "reason": "interactive_widget (Group B): switch_around,switch_confirm,switch_line,switch_options,switch_value"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "cbafda3be3a8a68105e5b1c66e508f481917ab7cadc48ea554c876f4ee31973b"
+}

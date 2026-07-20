@@ -1,0 +1,116 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Przypomnijmy sobie wszystkie wzory na pole trójkąta, \\(P\\), o jakich dotąd mówiliśmy:</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wzór",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "dane",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong>\n                        1.\n                    </strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(P=\\frac{1}{2}ah\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a\\) - podstawa, \\(h\\) - wysokość",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong>\n                        2.\n                    </strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(P=\\frac{1}{2}ab\\sin\\gamma\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a\\), \\(b\\) - boki, \\(\\gamma\\) - kąt między nimi",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<strong>\n                        3.\n                    </strong>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(P=\\frac{abc}{4R}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a\\), \\(b\\), \\(c\\) - boki, \\(R\\) - promień okręgu opisanego",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Gdy wprowadzaliśmy wzór\n    <strong>\n        2.\n    </strong>\n    wspomnieliśmy, że musi być sposób na obliczenie pola trójkąta przy danych dwóch bokach i kącie między nimi, bo wszystkie trójkąty mające dwa boki tej samej długości i kąt między nimi tej samej miary są przystające (zasada \"\n    <strong>\n        bok-kąt-bok\n    </strong>\n    \"). Są przystające, więc mają takie same pole.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A skoro tak, to pomyślmy o zasadzie przystawania \"\n    <strong>\n        bok-bok-bok\n    </strong>\n    \". Gdy znamy długości wszystkich trzech boków trójkąta, jego pole jest ustalone - więc chyba też powinniśmy móc je policzyć, bez znajomości promienia okręgu opisanego, jak we wzorze\n    <strong>\n        3.\n    </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czy istnieje wzór, pozwalający nam obliczyć pole trójkąta, gdy znamy tylko długości boków?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n        Istnieje\n    </strong>\n    ! Ten wzór nazywa się\n    <strong>\n        wzorem\n        <a href=\"https://pl.wikipedia.org/wiki/Heron_z_Aleksandrii\">\n            Herona\n        </a>\n</strong>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Dany jest trójkąt o bokach \\(a\\), \\(b\\), \\(c\\). Niech \\(p\\) oznacza połowę obwódu trójkąta, tzn.\n    \\[\n    p=\\frac{a+b+c}{2}\n    \\]\n    Wówczas pole trójkąta \\(P\\) dane jest wzorem\n    \\[\n    P=\\sqrt{p(p-a)(p-b)(p-c)}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    We wzorze wprowadziliśmy dodatkową zmienną, \\(p\\), ale robimy to tylko dlatego, że bez niej wzór wyglądałby naprawdę nieznośnie:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\nP=\\sqrt{\\left(\\frac{a+b+c}{2}\\right)\\left(\\frac{a+b+c}{2}-a\\right)\\left(\\frac{a+b+c}{2}-b\\right)\\left(\\frac{a+b+c}{2}-c\\right)}\n\\]\nnawet po uproszczeniu:\n\\[\nP=\\sqrt{\\left(\\frac{a+b+c}{2}\\right)\\left(\\frac{-a+b+c}{2}\\right)\\left(\\frac{a-b+c}{2}\\right)\\left(\\frac{a+b-c}{2}\\right)}\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f0aa62b88db84437719f62139e1dc2728924e8ec64349172bc8902a56e229f78"
+}

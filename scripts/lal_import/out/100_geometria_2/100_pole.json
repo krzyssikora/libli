@@ -1,0 +1,178 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n        Czym jest pole figury geometrycznej? Takiej dowolnej, na przykład takiej, jak ta?\n        <div class=\"centered\">\n<img alt=\"figura\" height=\"300\" src=\"static/pole_1.png\"/>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>Powyższy rysunek jest większy na większym ekranie, a mniejszy na mniejszym brakuje nam więc jednostki. Dorysujmy więc kwadraty o boku \\(1\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"figura\" height=\"300\" src=\"static/pole_grid.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            I skoro wiemy, że kwadrat o boku \\(1\\) (jednej dowolnej jednostki) ma pole równe \\(1\\) (jednostek kwadratowych), to możemy spróbować policzyć kwadraty. Na przykład te w całości w środku figury.\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"figura\" height=\"300\" src=\"static/pole_in_1.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wyszło \\(6\\) ale to wyraźnie mniej niż pole figury.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            A może zaznaczyć kwadraty pokrywające figurę i obliczyć ich pole?\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"figura\" height=\"300\" src=\"static/pole_out_1.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Tym razem wyszło \\(23\\). I to jest wyraźnie więcej niż pole figury.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Jeśli oznaczymy pole tej figury przez \\(P\\), to wiemy, że\n            \\[\n            6\\lt P\\lt 23\n            \\]\n            i to jest dobry początek, ale daleko mu do precyzji.\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>A może dorysować mniejsze kwadraty, na przykład o boku \\(\\frac{1}{2}\\)?</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"figura\" height=\"300\" src=\"static/pole_grid_2.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Takich mniejszych kwadratów mieści się</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n                cztery\n            </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>w kwadracie o polu \\(1\\), więc pole każdego z nich to \\(\\frac{1}{4}\\) (jednostki kwadratowej).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                (Albo inaczej: pole takiego kwadratu o boku \\(\\frac{1}{2}\\) to \\(\\left(\\tfrac{1}{2}\\right)^2=\\tfrac{1}{4}\\).)\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>To zacznijmy od kwadratów wypełniających figurę:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"figura\" height=\"300\" src=\"static/pole_in_2.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Widzisz, ile ich jest?</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Jest ich \\(37\\). Pole każdego to \\(\\frac{1}{4}\\), więc pole wszystkich to\n            \\[\n            37\\cdot \\tfrac{1}{4}=\\tfrac{37}{4}=9\\tfrac{1}{4}\n            \\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>To teraz popatrzmy na kwadraty pokrywające figurę:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"figura\" height=\"300\" src=\"static/pole_out_2.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Widzisz, ile ich jest?</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Oszczędzę Ci wysiłku. Jest ich \\(71\\), więc pole wszystkich to\n            \\[\n            71\\cdot \\tfrac{1}{4}=\\tfrac{71}{4}=17\\tfrac{3}{4}\n            \\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Wiemy więc teraz, że pole figury \\(P\\) spełnia zależność:\n            \\[\n            9,25\\lt P\\lt 17,75\n            \\]\n            To ciągle mało pracyzyjny wynik, ale jednak znacznie lepszy od poprzedniego:\n            \\[\n            6\\lt P\\lt 23\n            \\]\n            prawda?\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            To może powinniśmy dorysować jeszcze mniejsze kwadraty, na przykład takie o boku \\(\\frac{1}{4}\\)?\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Tak, powinniśmy, i mniej-więcej w ten sposób można definiować pole dowolnej figury. Dzieląc płaszczyznę na coraz mniejsze kwadraty możemy coraz lepiej oszacować pole figury. Różnica między polem kwadratów pokrywających figurę a polem kwadratów wypełniających figurę jest coraz mniejsza i wskazuje na dokładność oszacowania. Możemy, dzieląc na coraz mniejsze kwadraty, uzyskać dowolnie małą różnicę, a tym samym przybliżyć się do prawdziwego pola z dowolną dokładnością.\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n                W poniższym aplecie możesz zaonserwować przybliżenia obliczania pola dla prawie dowolnego pięciokąta. Możesz bowiem:\n                <ul>\n<li>\n                        przesuwać niebieski suwak, by widzieć albo kwadraty wypełniające, albo pokrywające figurę,\n                    </li>\n<li>\n                        przesuwać czarny suwak (opisany \"gęstość\"), by zmieniać zagęszczenie kwadratów, czyli długość ich boku: \\(1\\), \\(\\frac{1}{2}\\), \\(\\frac{1}{4}\\) lub \\(\\frac{1}{8}\\),\n                    </li>\n<li>\n                        dowolnie przesuwać wierzchołki czerwonego wielokąta,\n                    </li>\n<li>\n                        obserwować, jak zmieniają się pola:\n                        <ul>\n<li>\n                                wewnętrzne, czyli kwadratów wypełniających,\n                            </li>\n<li>\n                                prawdziwe, czyli czerwonego pięciokąta,\n                            </li>\n<li>\n                                zewnętrzne, czyli kwadratów pokrywających.\n                            </li>\n</ul>\n</li>\n</ul>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                                Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                            </small>\n<br/>\n<small>\n                                Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                            </small>\n</div>\n<iframe height=\"838px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/qc8p7z3m/width/716/height/838/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"pole figury\" width=\"716px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                                    aplet nie działa poprawnie?\n                                </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                                    Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                                    <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                        ten email\n                                    </a>\n                                    .\n                                </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "4dbb366a52f5f2ac1cc94fcaf7e98ae8463aa1a40f286822d42fdb1906fd2cd3"
+}

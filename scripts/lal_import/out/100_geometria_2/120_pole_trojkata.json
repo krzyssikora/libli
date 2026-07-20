@@ -1,0 +1,226 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n<img alt=\"pole trójkąta\" height=\"200\" src=\"static/trojkat_pole_12ah.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n    \\(P\\), pole trójkąta o podstawie \\(a\\) i prostopadłej do niej wysokości \\(h\\) dane jest wzorem\n    \\[\n    P=\\frac{1}{2}ah\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Przyjrzyj się poniższej animacji, która ilustruje dowód powyższego wzoru na pole trójkąta.\n        </p>\n<p>\n            Jeśli nie jesteś pewna / pewien, na czym polega dowód, przeczytaj komentarz do animacji\n        </p>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"600px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/zenr8xum/width/800/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"dowód wzoru na pole trójkąta\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<details>\n<summary>\n                komentarz do animacji\n            </summary>\n<p>\n                Animacja pokazuje, że dwa przystające trójkąty możemy przeciąć i z dwóch powstałych w ten sposób figur złożyć prostokąt o podstawie \\(a\\) i wysokości \\(h\\).\n            </p>\n            Pole takiego prostokąta to\n            \\[\n            a\\cdot h\n            \\]\n            więc pole trójkąta to połowa tej wielkości, czyli\n            \\[\n            P=\\frac{1}{2}ah\n            \\]\n        </details>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wpisz pola trójkątów o podanych podstawach i wysokościach.\n        <br/>\n<small>\n            Rysunki nie zachowują skali.\n        </small>\n"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "<img alt=\"pole trójkąta\" src=\"static/pole_trojkata_12ah_zad_1.png\" style=\"height: 150px; width: auto;\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "Pole =\n                    <input class=\"table_input\" placeholder=\"?\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<img alt=\"pole trójkąta\" src=\"static/pole_trojkata_12ah_zad_2.png\" style=\"height: 150px; width: auto;\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "Pole =\n                    <input class=\"table_input\" placeholder=\"?\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<img alt=\"pole trójkąta\" src=\"static/pole_trojkata_12ah_zad_3.png\" style=\"height: 150px; width: auto;\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "Pole =\n                    <input class=\"table_input\" placeholder=\"?\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<img alt=\"pole trójkąta\" src=\"static/pole_trojkata_12ah_zad_4.png\" style=\"height: 150px; width: auto;\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "Pole =\n                    <input class=\"table_input\" placeholder=\"?\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<img alt=\"pole trójkąta\" src=\"static/pole_trojkata_12ah_zad_5.png\" style=\"height: 150px; width: auto;\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "Pole =\n                    <input class=\"table_input\" placeholder=\"?\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<img alt=\"pole trójkąta\" src=\"static/pole_trojkata_12ah_zad_6.png\" style=\"height: 150px; width: auto;\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "Pole =\n                    <input class=\"table_input\" placeholder=\"?\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n    Świetnie!\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Uzupełnij brakującą długość - podstawę lub wysokość trójkąta.\n    "
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "pole trójkąta",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "podstawa",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wysokość",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"?\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"?\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(7,5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"?\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(24,5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(7\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"?\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n    Znakomicie!\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dany jest trójkąt o bokach długości \\(5\\), \\(12\\) i \\(13\\).\n        <br/>\n        Znajdź długość wysokości opadającej na najdłuższy bok.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                To zadanie można rozwiązać na kilka sposobów, np. używając\n                <ul class=\"nolist\">\n<li>\n                        twierdzenia Pitagorasa,\n                    </li>\n<li>\n                        albo podobieństwa trójkątów\n                    </li>\n<li>\n                        albo wzoru na pole trójkąta.\n                    </li>\n</ul>\n<div class=\"switch_line\">\n                    Jeśli chcemy je rozwiązać szybko i z użyciem tylko tego, czego już się uczyliśmy, warto zacząć od obserwacji, że trójkąt o bokach \\(5\\), \\(12\\) i \\(13\\) jest\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        ostrokątny\n                    </div>\n<div class=\"switch_value\">\n                        prostokątny\n                    </div>\n<div class=\"switch_value\">\n                        rozwartokątny\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Zgadza się. Ponieważ\n                \\[\n                \\begin{align*}\n                13^2&amp;=169\\\\\n                5^2+12^2&amp;=169\n                \\end{align*}\n                \\]\n                więc na mocy twierdzenia\n                <strong>\n                    odwrotnego do twierdzenia Pitagorasa\n                </strong>\n                trójkąt jest prostokątny.\n                <div class=\"switch_line\">\n                    A skoro jest prostokątny, to jego pole jest równe połowie iloczynu boków:\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(5\\cdot 12\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(5\\cdot 13\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(12\\cdot 13\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Pole trójkąta jest więc równe\n                \\[\n                P=\\frac{1}{2}\\cdot 5\\cdot 12=30\n                \\]\n                Szukamy wysokości opadającej na najdłuższy bok, czyli na bok o długości \\(13\\). Czyli\n                <ul class=\"nolist\">\n<li>\n                        podstawa to \\(13\\),\n                    </li>\n<li>\n                        wysokość to \\(h\\),\n                    </li>\n<li>\n                        czyli pole to \\(\\frac{1}{2}\\cdot 13\\cdot h\\).\n                    </li>\n</ul>\n                Porównując to wyrażenie z uzyskanym wcześniej wynikiem otrzymujemy równanie\n                \\[\n                \\frac{1}{2}\\cdot 13\\cdot h=30\n                \\]\n                <div class=\"switch_line\">\n                    z którego wyliczamy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(h=2\\tfrac{4}{13}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(h=4\\tfrac{8}{13}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(h=47\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<img alt=\"pole trójkąta prostokątnego\" height=\"200\" src=\"static/pole_trojkat_prostokatny_zad.png\"/>\n</div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "4316d14d8c021133da697a9a7d4c0f9a95361004744efcaa2e744df79af3dd88"
+}

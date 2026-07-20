@@ -1,0 +1,80 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Ciągi, podobnie jak funkcje w ogólności, mogą być <strong>monotoniczne</strong>. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Będziemy rozróżniać ciągi:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>rosnące,</li>\n<li>malejące,</li>\n<li>niemalejące,</li>\n<li>nierosnące,</li>\n<li>stałe,</li>\n<li>oraz nie spełniające żadnego z powyższych warunków.</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Przyjrzyj się uważnie wykresom sześciu ciągów pokazanym poniżej.\n        <div class=\"table_wrapper\">\n<table class=\"my_table_TL cells_centered\">\n<tr style=\"font-size: xx-large\">\n<th>1</th>\n<th>2</th>\n<th>3</th>\n<th>4</th>\n<th>5</th>\n<th>6</th>\n</tr>\n<tr>\n<td><img src=\"static/ciag_monotoniczny_1.png\" style=\"min-width: 200px; max-width: 400px!important;\"/></td>\n<td><img src=\"static/ciag_monotoniczny_2.png\" style=\"min-width: 200px; max-width: 400px!important;\"/></td>\n<td><img src=\"static/ciag_monotoniczny_3.png\" style=\"min-width: 200px; max-width: 400px!important;\"/></td>\n<td><img src=\"static/ciag_monotoniczny_4.png\" style=\"min-width: 200px; max-width: 400px!important;\"/></td>\n<td><img src=\"static/ciag_monotoniczny_5.png\" style=\"min-width: 200px; max-width: 400px!important;\"/></td>\n<td><img src=\"static/ciag_monotoniczny_6.png\" style=\"min-width: 200px; max-width: 400px!important;\"/></td>\n</tr>\n</table>\n</div>\n        Pomyśl chwilę lub zdaj się na intuicję i do każdej nazwy przypisz jeden z ciągów zilustrowanych powyżej. Zrób to w taki sposób, by każdy ciąg był użyty <strong>dokładnie raz</strong>, czyli żeby do każdej nazwy przypisać inny ciąg.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                    malejący\n                </div>\n<div class=\"one_choice ks_button\">\\(1\\)</div>\n<div class=\"one_choice ks_button\">\\(2\\)</div>\n<div class=\"one_choice ks_button\">\\(3\\)</div>\n<div class=\"one_choice ks_button\">\\(4\\)</div>\n<div class=\"one_choice ks_button\">\\(5\\)</div>\n<div class=\"one_choice ks_button\">\\(6\\)</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                    nierosnący\n                </div>\n<div class=\"one_choice ks_button\">\\(1\\)</div>\n<div class=\"one_choice ks_button\">\\(2\\)</div>\n<div class=\"one_choice ks_button\">\\(3\\)</div>\n<div class=\"one_choice ks_button\">\\(4\\)</div>\n<div class=\"one_choice ks_button\">\\(5\\)</div>\n<div class=\"one_choice ks_button\">\\(6\\)</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                    stały\n                </div>\n<div class=\"one_choice ks_button\">\\(1\\)</div>\n<div class=\"one_choice ks_button\">\\(2\\)</div>\n<div class=\"one_choice ks_button\">\\(3\\)</div>\n<div class=\"one_choice ks_button\">\\(4\\)</div>\n<div class=\"one_choice ks_button\">\\(5\\)</div>\n<div class=\"one_choice ks_button\">\\(6\\)</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                    niemalejący\n                </div>\n<div class=\"one_choice ks_button\">\\(1\\)</div>\n<div class=\"one_choice ks_button\">\\(2\\)</div>\n<div class=\"one_choice ks_button\">\\(3\\)</div>\n<div class=\"one_choice ks_button\">\\(4\\)</div>\n<div class=\"one_choice ks_button\">\\(5\\)</div>\n<div class=\"one_choice ks_button\">\\(6\\)</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                    rosnący\n                </div>\n<div class=\"one_choice ks_button\">\\(1\\)</div>\n<div class=\"one_choice ks_button\">\\(2\\)</div>\n<div class=\"one_choice ks_button\">\\(3\\)</div>\n<div class=\"one_choice ks_button\">\\(4\\)</div>\n<div class=\"one_choice ks_button\">\\(5\\)</div>\n<div class=\"one_choice ks_button\">\\(6\\)</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                    żaden z powyższych\n                </div>\n<div class=\"one_choice ks_button\">\\(1\\)</div>\n<div class=\"one_choice ks_button\">\\(2\\)</div>\n<div class=\"one_choice ks_button\">\\(3\\)</div>\n<div class=\"one_choice ks_button\">\\(4\\)</div>\n<div class=\"one_choice ks_button\">\\(5\\)</div>\n<div class=\"one_choice ks_button\">\\(6\\)</div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "potwierdź "
+    },
+    {
+      "type": "text",
+      "body": "\n            Brawo! Wszystkie odpowiedzi sa poprawne.\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Zastanów się jeszcze. Poprawnych odpowiedzi: \n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "jeśli nie masz pewności, zerknij tutaj",
+      "body": "\n\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"516px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/vmwr5rmj/width/431/height/516/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"ciąg monotoniczny\" width=\"431px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>rosnący</th>\n<td>każdy kolejny wyraz jest <strong>większy</strong> niż poprzedni</td>\n</tr>\n<tr>\n<th>malejący</th>\n<td>każdy kolejny wyraz jest <strong>mniejszy</strong> niż poprzedni</td>\n</tr>\n<tr>\n<th>niemalejący</th>\n<td>żaden kolejny wyraz <strong>nie jest mniejszy</strong> niż poprzedni</td>\n</tr>\n<tr>\n<th>nierosnący</th>\n<td>żaden kolejny wyraz <strong>nie jest większy</strong> niż poprzedni</td>\n</tr>\n<tr>\n<th>stały</th>\n<td>wszystkie wyrazy są <strong>równe</strong></td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się, jak formalnie określić, kiedy ciąg \\((a_n)\\) jest <strong>rosnący</strong>, <strong>malejący</strong>, <strong>niemalejący</strong>, <strong>rosnący</strong> i <strong>stały</strong>.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "body": "\n                        Ciąg \\((a_n)\\) jest rosnący, jeśli dla każdego \\(n\\in\\mathbb{N}^{+}\\)\n                        \\[\n                        a_{n+1}\\gt a_n\n                        \\]\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "body": "\n                        Ciąg \\((a_n)\\) jest malejący, jeśli dla każdego \\(n\\in\\mathbb{N}^{+}\\)\n                        \\[\n                        a_{n+1}\\lt a_n\n                        \\]\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "body": "\n                        Ciąg \\((a_n)\\) jest niemalejący, jeśli dla każdego \\(n\\in\\mathbb{N}^{+}\\)\n                        \\[\n                        a_{n+1}\\ge a_n\n                        \\]\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "body": "\n                        Ciąg \\((a_n)\\) jest nierosnący, jeśli dla każdego \\(n\\in\\mathbb{N}^{+}\\)\n                        \\[\n                        a_{n+1}\\le a_n\n                        \\]\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "body": "\n                        Ciąg \\((a_n)\\) jest stały, jeśli dla każdego \\(n\\in\\mathbb{N}^{+}\\)\n                        \\[\n                        a_{n+1}= a_n\n                        \\]\n                    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b1bb108a3778f7b9ab9f88d51d082910cf29d11f08fadd71cfe9dc18689290c3"
+}

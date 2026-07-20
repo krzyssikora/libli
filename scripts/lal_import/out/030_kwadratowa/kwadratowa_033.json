@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Czas wyliczyć miejsca zerowe funkcji kwadratowej. Obejrzyj nagranie lub przeczytaj rozwiązanie \"krok po kroku\".\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-2-3\" id=\"tab-2-3\">\n                nagranie\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-2-4\" id=\"tab-2-4\">\n                uzupełnij rozwiązanie\n            </a>\n</li>\n</ul>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_podstawy_04.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n                    Znajdź miejsca zerowe funkcji danej równaniem\n                </p>\n<p>\n                    \\(y=2x^2-10x+11\\).\n                </p>\n<p>\n                    Najpierw zamień to równanie w postać kanoniczną  (czyli \\(y=a(x-p)^2+q\\)) i przejdź dalej, by zobaczyć tę postać i kolejne kroki rozwiązania.\n                </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"fill_steps\">\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Równanie funkcji w postaci kanonicznej jest następujące:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(y=2\\left(x-\\frac{5}{2}\\right)^2-\\frac{3}{2}\\)\n                        </span>\n</p>\n<p>\n                        Szukamy miejsc zerowych, czyli takich\n                        <strong>\n                            argumentów\n                        </strong>\n                        (\\(x\\)-ów) dla których\n                        <strong>\n                            wartość\n                        </strong>\n                        (\\(y=0\\)).\n                    </p>\n<p>\n                        Powinniśmy więc rozwiązać następujące równanie:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(2\\left(x-\\frac{5}{2}\\right)^2-\\frac{3}{2}=0\\)\n                        </span>\n</p>\n<p>\n                        co możemy zmienić w:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(2\\left(x-\\frac{5}{2}\\right)^2=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"...\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Teraz podzielmy obie strony równania przez 2:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(\\left(x-\\frac{5}{2}\\right)^2=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"...\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Teraz wystarczy spierwiastkować obie strony równania. Pamiętajmy przy tym, że jeśli jakaś liczba podniesiona do kwadratu daje pewną wartość, to liczba do niej\n                        <strong>\n                            przeciwna\n                        </strong>\n                        też daje tę samą wartość. Dlatego otrzymujemy dwa, przeciwne, rozwiązania.\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(x-\\frac{5}{2}=-\\frac{\\sqrt{3}}{2}\\)\n                        </span>\n                        lub\n                        <span class=\"myequation\">\n                            \\(x-\\frac{5}{2}=\\frac{\\sqrt{3}}{2}\\)\n                        </span>\n</p>\n<p>\n                        Pozostaje przenieść \\(\\frac{5}{2}\\) na prawą stronę:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(x=\\frac{5}{2}-\\frac{\\sqrt{3}}{2}\\)\n                        </span>\n                        lub\n                        <span class=\"myequation\">\n                            \\(x=\\frac{5}{2}+\\frac{\\sqrt{3}}{2}\\)\n                        </span>\n</p>\n<p>\n                        albo inaczej:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(x=\\frac{5-\\sqrt{3}}{2}\\)\n                        </span>\n                        lub\n                        <span class=\"myequation\">\n                            \\(x=\\frac{5+\\sqrt{3}}{2}\\)\n                        </span>\n</p>\n<div class=\"success hidden\" id=\"success_question70\">\n<p>\n                            Miejsca zerowe funkcji \\(y=2x^2-10x+11\\) to\n                        </p>\n<p>\n                            \\(x=\\frac{5-\\sqrt{3}}{2}\\) lub \\(x=\\frac{5+\\sqrt{3}}{2}\\)\n                        </p>\n</div>\n</div>\n</p>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "1c04da0f4543f226b8cc3c14836fd2d32367b84310e60d7c9e364509f3d117d8"
+}

@@ -1,0 +1,20 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wskaż uproszczoną postać wyrazu.\n    "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\((-3ab)(-2a)\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(6b\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(6a^2b\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(-5a^2b\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(-6a^2b\\)\n        </div>\n</div>\n<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\((2ts)^2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(4t^2s^2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(4ts\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(4ts^2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(2ts^2\\)\n        </div>\n</div>\n<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\(4a^3d\\cdot 5a^2d^2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(9a^6d^2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(9a^5d^2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(20a^5d^2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(20a^5d^3\\)\n        </div>\n</div>\n<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\(2(bc)^3\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(2bc^3\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(8b^3c^3\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(2b^3c^3\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(6bc^3\\)\n        </div>\n</div>\n<div class=\"confirm_multiple ks_button\">\n        potwierdź\n    </div>",
+      "reason": "interactive_widget (Group B): confirm_multiple,multi_many_ans,multi_many_option"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "3ae391c6ccf829ea11387fd9170e71837aca55609c466ca96080672ededecc77"
+}

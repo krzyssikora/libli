@@ -1,0 +1,114 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Punkt \\((-3,18)\\) leży na paraboli o równaniu \\(y=ax^2\\) jeśli współczynnik \\(a\\) ma wartość:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(-2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{1}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-\\frac{1}{108}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Punkt \\((2,-8)\\) leży na paraboli o równaniu \\(y=ax^2\\) jeśli współczynnik \\(a\\) ma wartość:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(-2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{1}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{1}{32}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Punkt \\((-2,2)\\) leży na paraboli o równaniu \\(y=ax^2\\) jeśli współczynnik \\(a\\) ma wartość:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(-1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{1}{2}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-\\frac{1}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Punkt \\((-3,-6)\\) leży na paraboli o równaniu \\(y=ax^2\\) jeśli współczynnik \\(a\\) ma wartość:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(-\\frac{1}{12}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-\\frac{3}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{2}{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-\\frac{2}{3}\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7d2c4aaba3c8fd9bee32ef78a16ba4a95d18a09771b324fd8043c48f10815310"
+}

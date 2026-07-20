@@ -1,0 +1,61 @@
+{
+  "elements": [
+    {
+      "type": "image",
+      "media_src": "static/trojkat_ABC.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>W zadaniach w dalszej części, jeśli będzie mowa o trójkącie \\(ABC\\), przyjmiemy dla uproszczenia następujące oznaczenia:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(a\\) - długość boku na przeciwko wierzchołka \\(A\\), czyli \\(BC\\),\n        </li>\n<li>\n            \\(b\\) - długość boku na przeciwko wierzchołka \\(B\\), czyli \\(AC\\),\n        </li>\n<li>\n            \\(c\\) - długość boku na przeciwko wierzchołka \\(C\\), czyli \\(AB\\),\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>oraz</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(A\\) - kąt wewnętrzny o wierzchołku w punkcie \\(A\\),\n        </li>\n<li>\n            \\(B\\) - kąt wewnętrzny o wierzchołku w punkcie \\(B\\),\n        </li>\n<li>\n            \\(C\\) - kąt wewnętrzny o wierzchołku w punkcie \\(C\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zastanów się, jak można rozwiązać następujące zadanie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"trojkat ABC\" height=\"200\" src=\"static/tw_sinusow_zad_1.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n            W trójkącie \\(ABC\\) kąt \\(A\\) ma miarę \\(30^{\\circ}\\), a boki \\(a\\) i \\(b\\) są odpowiednio długości \\(3\\sqrt{2}\\) i \\(6\\).\n        </p>\n<p>\n            Znajdź miary pozostałych kątów wewnętrznych w trójkącie \\(ABC\\).\n        </p>\n<p>\n</p>\n<small style=\"position: absolute; right: 2px; bottom: 2px;\">\n<i>\n                (Rysunek nie zachowuje skali.)\n            </i>\n</small>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli masz pomysł, jak je rozwiązać, zapewne potrzebujesz do tego co najmniej dwóch kroków, dwóch oddzielnych obliczeń. Gdy zaczniesz rozwiązywać, zorientujesz się, że istnieją dwa możliwe przypadki, co istotnie wydłuży rozwiązanie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Aby móc takie zadanie rozwiązać naprawdę szybko, warto poznać tzw.\n    <strong>\n        twierdzenie sinusów\n    </strong>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        W poniższym aplecie możesz przesuwać wierzchołki trójkąta \\(ABC\\).\n        <div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"869px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/tucxbyx5/width/700/height/869/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"twierdzenie sinusów\" width=\"700px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n        Przesuwając je, obserwuj, jak zmieniają się długości boków i wartości sinusa kątów, a dokładniej - stosunek długości każdego boku do sinusa przeciwległego kąta.\n        <p>\n            Przyjrzyj się także, jak ten stosunek ma się do długości\n            <span style=\"color: red;\">\n                promienia okręgu opisanego\n            </span>\n            na tym trójkącie.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Twierdzenie sinusów",
+      "body": "\n\n<div class=\"important\">\n<p>\n<strong>\n                    Twierdzenie sinusów\n                </strong>\n</p>\n<p>\n                W każdym trójkącie stosunek długości dowolnego boku do sinusa kąta leżącego naprzeciwko jest stały, a dokładniej: równy dwukrotności promienia, czyli średnicy okręgu opisanego.\n            </p>\n            Zapisujemy to:\n            \\[\n            \\frac{a}{\\sin A}=\\frac{b}{\\sin B}=\\frac{c}{\\sin C}= 2R\n            \\]\n        </div>\n        Poźniej będziesz mieć możliwość zapoznania się z dowodem twierdzenia sinusów, ale zacznijmy od rozwiązania powyższego zadania.\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "5c22c93796a2b2160806a9344c06cfb06ba9db539c29ab77069135b3b9ca9719"
+}

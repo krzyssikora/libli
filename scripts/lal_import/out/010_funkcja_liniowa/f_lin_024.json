@@ -1,0 +1,134 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli chcemy znaleźć nachylenie / współczynnik kierunkowy prostej przechodzącej przez dwa punkty o danych współrzędnych, możemy użyć następującego wzoru.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Nachylenie prostej przechodzącej przez punkty\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        A=(x_A, y_A)\\quad\\text{oraz}\\quad B=(x_B, y_B)\n        \\]    \n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        dane jest wyrażeniem\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        \\left(\\frac{\\text{skok}}{\\text{krok}}\\right)\\quad =\\frac{y_B-y_A}{x_B-x_A}\n        \\]\n    "
+    },
+    {
+      "type": "image",
+      "media_src": "static/funkcja_liniowa_nachylenie_prostej_przez_2_punkty.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Nachylenie prostej przechodzącej przez punkty \\(A=(-2,1)\\) i \\(B=(6,5)\\) jest równe\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\n            \\begin{align}\n            \\frac{y_B-y_A}{x_B-x_A}&amp;=\\frac{5-1}{6-(-2)}=\\\\\n            &amp;=\\frac{4}{8}=\\frac{1}{2}\n            \\end{align}\n            \\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Podaj nachylenie prostej przechodzącej przez punkty \\(A\\) i \\(B\\).\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(A\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(B\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nachylenie",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((-5,-2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-1,6)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((6,1)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-2,7)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((-2,11)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((1,2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n    Świetnie! Przejdź dalej.\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "1b272f777162b3567b400b8f238db1fdabe275cac532a2dc65f38c80ed768578"
+}

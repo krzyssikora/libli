@@ -1,0 +1,38 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spójrz na nazwy zbiorów liczbowych poniżej. Pamiętasz, co oznaczają?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spróbuj zdefiniować każdy z nich, a następnie porównaj swoje odpowiedzi z moimi.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "liczby naturalne",
+      "body": "\n<p class=\"important\">\n                            symbol: \\(\\mathbb{N}\\)\n                        </p>\n<p>\n                            Liczby, których w naturalny sposób używamy do liczenia obiektów, które obserwujemy, np.\n                        </p>\n<ul>\n<li>\n                                \\(0\\) drzew\n                            </li>\n<li>\n                                \\(1\\) drzewo\n                            </li>\n<li>\n                                \\(2\\) drzewa\n                            </li>\n<li>\n                                \\(3\\) drzewa\n                            </li>\n<li>\n                                itd\n                            </li>\n</ul>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "liczby całkowite",
+      "body": "\n<p class=\"important\">\n                            symbol: \\(\\mathbb{Z}\\)\n                        </p>\n<p>\n                            Liczby naturalne i ich przeciwności, czyli także liczby ujemne:\n                        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td class=\"no_border_td\" rowspan=\"2\" style=\"vertical-align: middle;\">\n                                        \\(0\\)\n                                    </td>\n<td class=\"no_border_td\">\n                                        \\(1\\)\n                                    </td>\n<td class=\"no_border_td\">\n                                        \\(2\\)\n                                    </td>\n<td class=\"no_border_td\">\n                                        \\(3\\)\n                                    </td>\n<td class=\"no_border_td\">\n                                        ...\n                                    </td>\n</tr>\n<tr>\n<td class=\"no_border_td\">\n                                        \\(-1\\)\n                                    </td>\n<td class=\"no_border_td\">\n                                        \\(-2\\)\n                                    </td>\n<td class=\"no_border_td\">\n                                        \\(-3\\)\n                                    </td>\n<td class=\"no_border_td\">\n                                        ...\n                                    </td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "liczby wymierne",
+      "body": "\n<p class=\"important\">\n                            symbol: \\(\\mathbb{Q}\\)\n                        </p>\n<p>\n                            Liczby, które możemy przedstawić w postaci ułamka (nieskracalnego):\n                        </p>\n                        \\[\\frac{p}{q}\\]\n                        <p>\n                            gdzie zarówno licznik (\\(p\\)) jak i mianownik (\\(q\\)) to liczby całkowite.\n                        </p>\n<p>\n                            Przykładowe liczby wymierne to:\n                        </p>\n<div class=\"table_wrapper\">\n                            \\[\\frac{1}{2},\\quad\\quad-2\\frac{1}{3}=\\frac{-7}{3},\\quad\\quad 4,01=\\frac{401}{100},\\quad\\quad 4,(5)=4\\frac{5}{9}=\\frac{41}{9}\\]\n                        </div>\n<p>\n                            Liczbami wymiernymi nie są:\n                        </p>\n<div class=\"table_wrapper\">\n                            \\[\\sqrt{2},\\quad\\quad \\sqrt[3]{5},\\quad\\quad 3+\\sqrt{7},\\quad\\quad \\pi\\]\n                        </div>\n<p>\n                            i setki, tysiące innych.\n                        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "liczby rzeczywiste",
+      "body": "\n<p class=\"important\">\n                            symbol: \\(\\mathbb{R}\\)\n                        </p>\n<p>\n                            wszystkie liczby z osi liczbowej\n                        </p>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6bbb384c9a7db02c7b518c16a24ffcf0572af4b3bc39c90ce207f2c00e9f33c1"
+}

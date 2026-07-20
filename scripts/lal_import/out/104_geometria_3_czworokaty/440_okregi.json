@@ -1,0 +1,44 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Czworokąt nazywamy <strong>opisanym</strong> na kole, jeśli wszystkie boki czworokąta są <strong>styczne</strong> do okręgu ograniczającego koło.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W poniższym aplecie możesz przesuwać czerwone punkty, by zmienić kształt i położenie czworokąta opisanego na kole.\n        </p>\n<p>\n            Gdy zaznaczysz \"pokoloruj odcinki na bokach\", zobaczysz odcinki o tej samej długości zaznaczone identycznymi kolorami.\n        </p>\n<details>\n<summary>dlaczego pokolorowane odcinki są równej długości?</summary>\n<p>\n                Wynika to z następującego twierdzenia:\n            </p>\n<div class=\"important\" style=\"min-height: 250px;\">\n<img src=\"static/okrag_dwie_styczne_2.png\" style=\"float: right; height: 230px;\"/>\n<p>\n                    Odcinki między punktem przecięcia stycznych i punktami styczności są równej długości.\n                </p>\n</div>\n</details>\n<p>\n            🡆 Jakie warunki muszą spełniać długości boków czworokąta, by można było w niego wpisać okrąg?\n        </p>\n<p>\n            🡆 <small>(inaczej: by istniał okrąg, na którym czworokąt jest opisany)</small>\n</p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"617px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/taj28cjn/width/604/height/617/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"czworokąt opisany na kole\" width=\"604px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "wskazówka",
+      "body": "\n\n        Pomyśl o sumach długości <u>przeciwległych</u> boków.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n<div class=\"important\" style=\"min-height: 270px;\">\n<figure style=\"float:right\">\n<img src=\"static/czworokat_opisany_na_kole_boki.png\" style=\"float: right; height: 230px;\"/>\n<figcaption style=\"color: blue;\">\n                    \\(a+c=b+d\\)\n                </figcaption>\n</figure>\n<p>\n                W czworokąt można wpisać okrąg, gdy sumy przeciwległych boków czworokąta są sobie równe.\n            </p>\n<p>\n                Taki czworokąt nazywamy opisanym na kole.\n            </p>\n<hr/>\n<p>\n                Oznacza to też, że każda suma przeciwległych boków, \\(a+c\\) oraz \\(b+d\\), jest równa <strong>połowie obwodu</strong>.\n            </p>\n</div>\n<p>\n            Zwróć uwagę, że na każdej parze przeciwległych boków widzimy odcinki we wszystkich czterech kolorach. Na cały obwód składają się po dwa odcinki w każdym z czterech kolorów. \n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Kolejne boki czworokąta opisanego na kole mają długości \\(a\\), \\(b\\), \\(c\\) oraz \\(d\\). Uzupełnij brakujące długości.\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TC narrow_table\">\n<tr>\n<td>\\(a\\)</td>\n<td>\\(b\\)</td>\n<td>\\(c\\)</td>\n<td>\\(d\\)</td>\n</tr>\n<tr>\n<td>\\(3\\)</td>\n<td>\\(8\\)</td>\n<td>\\(9\\)</td>\n<td><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td>\n</tr>\n<tr>\n<td>\\(11\\)</td>\n<td><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td>\n<td>\\(12\\)</td>\n<td>\\(9\\)</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n    Świetnie!\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "0a393fba4a42ce43ab83f306451bcfb2807435ed4ff30a45e7a7315189f7874b"
+}

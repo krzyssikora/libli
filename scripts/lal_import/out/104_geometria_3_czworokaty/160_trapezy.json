@@ -1,0 +1,121 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Twierdzenie o linii środkowej trapezu</strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img src=\"static/trapez_linia_srodkowa_twierdzenie.png\" style=\"max-height: 150px;\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            Odcinek łączący środki ramion trapezu jest równoległy do obu podstaw.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli długości podstaw to \\(a\\) i \\(b\\), a długość odcinka łączącego środki ramion to \\(s\\), to\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            jego długość jest średnią długości podstaw, czyli \\(s=\\frac{a+b}{2}\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img src=\"static/trapez_linia_srodkowa_przyklad.gif\" style=\"max-height: 170px\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W trapezie podstawa dolna ma długość \\(15\\) cm, a podstawa górna ma długość \\(11\\) cm.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz długość odcinka łączącego środki ramion trapezu.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zgodnie z twierdzeniem o linii środkowej trapezu, długość tego odcinka jest średnią długości podstaw, jest więc równa\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        \\frac{15+11}{2}=\\frac{26}{2}=13\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Odcinek łączący środki ramion trapezu ma długość \\(13\\) cm.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>Uwaga</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>! Zauważ, że wysokość trapezu jest nieistotna - spójrz na animację powyżej.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Oblicz długość linii środkowej, \\(s\\), w trapezie o podstawach długości \\(a\\) i \\(b\\).\n        </p>\n<p>\n            Wpisz sam wynik.\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\\(a\\)</td>\n<td>\\(b\\)</td>\n<td>\\(s\\)</td>\n</tr>\n<tr>\n<td>\\(14\\)</td>\n<td>\\(8\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<td>\\(28\\)</td>\n<td>\\(32\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<td>\\(12\\)</td>\n<td>\\(15\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n    Świetnie!\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Górna podstawa trapezu ma długość \\(5\\), a odcinek łączący środki ramion ma długość \\(7\\).\n        </p>\n<p>\n            Oblicz długość dolnej podstawy trapezu.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<figure>\n<img src=\"static/geometria_3_zadanie_250.png\" style=\"max-width: 400px;\"/>\n</figure>\n<p>\n                    Oznaczmy długość dolnej podstawy przez \\(a\\).\n                </p>\n<div class=\"switch_line\">\n                    Wówczas\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a=\\frac{5+7}{2}\\)</div>\n<div class=\"switch_value\">\\(7=\\frac{a+5}{2}\\)</div>\n<div class=\"switch_value\">\\(5=\\frac{a+7}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Rozwiązując równanie \\(7=\\frac{a+5}{2}\\) otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a=9\\)</div>\n<div class=\"switch_value\">\\(a=4\\)</div>\n<div class=\"switch_value\">\\(a=2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dolna podstawa ma długość \\(9\\).\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W trapezie \\(ABCD\\), w którym \\(AB\\parallel CD\\) punkty \\(M\\) i \\(N\\) to środki ramion \\(AD\\) i \\(BC\\) odpowiednio.\n        </p>\n<p>\n            Ramię \\(AD\\) jest prostopadłe do podstaw.\n        </p>\n<p>\n            Wiedząc, że długości odcinków \\(AB\\), \\(AM\\) i \\(MN\\) to odpowiednio \\(11\\), \\(4\\) i \\(8\\), oblicz obwód trapezu \\(ABCD\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>Uwaga! Zanim przejdziesz do rozwiązania, wykonaj samodzielnie rysunek pomocniczy.</small>\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Przyjrzyj się poniższemu rysunkowi, przeczytaj ponownie treść zadania i sprawdź, czy wszystko się zgadza.\n                </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_260_1.png\" style=\"max-width: 400px;\"/>\n</figure>\n<p>\n                    Znamy długości zaznaczone na niebiesko, musimy poznać te zaznaczone na szaro.\n                </p>\n<div class=\"switch_line\">\n                    Zacznijmy od \\(DM\\). Ta jest najprostsza, bo\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">jest równa długości \\(AM\\)</div>\n<div class=\"switch_value\">jest dwukrotnie krótsza od  \\(AB\\)</div>\n<div class=\"switch_value\">jest równa długości \\(CD\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Czyli długość \\(DM\\) to \\(4\\).\n                </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_260_2.png\" style=\"max-width: 400px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Długość podstawy \\(CD\\) obliczymy z twierdzenia o linii środkowej, czyli z równania\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(CD=\\frac{8+11}{2}\\)</div>\n<div class=\"switch_value\">\\(8=\\frac{CD+11}{2}\\)</div>\n<div class=\"switch_value\">\\(11=\\frac{CD+8}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Skąd wyliczamy, że długość \\(CD\\) to \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(5\\)</div>\n<div class=\"switch_value\">\\(6\\)</div>\n<div class=\"switch_value\">\\(7\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_3_zadanie_260_3.png\" style=\"max-width: 400px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Pozostało nam ustalić długości odcinków \\(BN\\) i \\(CN\\), które są\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">długości \\(6\\)</div>\n<div class=\"switch_value\">równej długości</div>\n<div class=\"switch_value\">długości \\(MN\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Przyjrzyjmy się trójkątowi \\(PBN\\), gdzie \\(P\\) jest takim punktem na podstawie \\(AB\\), że \\(PN\\) i \\(PB\\) są prostopadłe. \n                </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_260_4.png\" style=\"max-width: 400px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Z długości \\(AB\\) i \\(MN\\) wnioskujemy, że długość \\(PB\\) to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3\\)</div>\n<div class=\"switch_value\">\\(4\\)</div>\n<div class=\"switch_value\">\\(5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_3_zadanie_260_5.png\" style=\"max-width: 400px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Długość \\(PN\\) to oczywiście\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3\\)</div>\n<div class=\"switch_value\">\\(4\\)</div>\n<div class=\"switch_value\">\\(5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_3_zadanie_260_6.png\" style=\"max-width: 400px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    I teraz możemy policzyć długość \\(BN\\) z twierdzenia Pitagorasa w trójkącie prostokątnym \\(PBN\\). \\(BN^2=3^2+4^2\\), więc \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(BN=3\\)</div>\n<div class=\"switch_value\">\\(BN=4\\)</div>\n<div class=\"switch_value\">\\(BN=5\\)</div>\n<div class=\"switch_value\">\\(BN=6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_3_zadanie_260_7.png\" style=\"max-width: 400px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Odcinek \\(CN\\) też jest długości\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(5\\)</div>\n<div class=\"switch_value\">\\(4\\)</div>\n<div class=\"switch_value\">\\(3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_3_zadanie_260_8.png\" style=\"max-width: 400px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Pozostaje tylko obliczyć obwód: \\(11+5+5+5+4+4=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(30\\)</div>\n<div class=\"switch_value\">\\(34\\)</div>\n<div class=\"switch_value\">\\(38\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                OBwód trapezu \\(ABCD\\) to \\(34\\).\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W trapezie \\(ABCD\\), w którym \\(AB\\parallel CD\\) punkty \\(M\\) i \\(P\\) leżą na ramieniu \\(AD\\), a punkty \\(N\\) i \\(S\\) leżą na ramieniu \\(BC\\) w taki sposób, że:\n        </p>\n<ul>\n<li>\n                \\(AP=PM=MD\\) oraz\n            </li>\n<li>\n                \\(BS=SN=NC\\).\n            </li>\n</ul>\n<p>\n            Wiedząc, że podstawa \\(AB\\) ma długość \\(12\\), a odcinek \\(MN\\) ma długość \\(8\\), znajdź długość podstawy \\(CD\\).\n        </p>\n<p>\n<small>W rozwiązaniu możesz przyjąć (zgodnie z prawdą), że odcinki \\(AB\\), \\(PS\\), \\(MN\\) i \\(CD\\) są równoległe.</small>\n</p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>Uwaga! Zanim przejdziesz do rozwiązania, wykonaj samodzielnie rysunek pomocniczy.</small>\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<figure>\n<img src=\"static/geometria_3_zadanie_270_1.png\" style=\"max-width: 450px;\"/>\n</figure>\n<p>\n                    Przyjrzyjmy się najpierw trapezowi \\(ABNM\\).\n                </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_270_2.png\" style=\"max-width: 450px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Z twierdzenia o linii środkowej\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(PS=\\frac{8+12}{2}\\)</div>\n<div class=\"switch_value\">\\(8=\\frac{PS+12}{2}\\)</div>\n<div class=\"switch_value\">\\(12=\\frac{PS+8}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Czyli \\(PS=10\\)\n                </p>\n<p>\n                    Teraz przyjrzyjmy się trapezowi \\(PSCD\\).\n                </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_270_3.png\" style=\"max-width: 450px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Z twierdzenia o linii środkowej\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(CD=\\frac{8+10}{2}\\)</div>\n<div class=\"switch_value\">\\(8=\\frac{CD+10}{2}\\)</div>\n<div class=\"switch_value\">\\(10=\\frac{CD+8}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Stąd wyliczamy, że \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(CD=4\\)</div>\n<div class=\"switch_value\">\\(CD=6\\)</div>\n<div class=\"switch_value\">\\(CD=8\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Tak więc podstawa \\(CD\\) ma długość \\(6\\).\n                </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_270_4.png\" style=\"max-width: 450px;\"/>\n</figure>\n</div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "0003f73932cbd0cfc781b42e80ac514965de6c606da5db1f09dc49bb0ec94063"
+}

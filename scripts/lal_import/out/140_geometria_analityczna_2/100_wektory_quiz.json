@@ -1,0 +1,121 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>Dane są punkty \\(A=(5,-2)\\) i \\(B=(-1,3)\\). Wówczas współrzędne wektora \\(\\vec{AB}=[x,y]\\) są równe:</p><p>\\(x\\):</p>",
+      "value": "-6",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(y\\):</p>",
+      "value": "5",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jeśli punkt \\(A=(3,-7)\\) a wektor \\(\\vec{AB}=[-5,3]\\), to współrzędne punktu \\(B=(x,y)\\) są równe:</p><p>\\(x\\):</p>",
+      "value": "-2",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(y\\):</p>",
+      "value": "-4",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż wszystkie wektory równoległe do wektora \\([3,-4]\\).</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\([-4,3]\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\([-9,12]\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\([6,8]\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\([12,-16]\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\([9,12]\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż wektor przeciwny do wektora \\([3,-4]\\).</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\([-4,3]\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\([3,4]\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\([-3,4]\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\([4,-3]\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\([-3,-4]\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Dany jest punkt \\(A=(-5,1)\\) oraz wektor \\(\\vec{AB}=[6,-3]\\).</p><p>Na odcinku \\(AB\\) znajduje się punkt \\(C\\) taki, że \\(|AC|:|CB|=1:2\\).</p><p>Współrzędne punktu \\(C\\) to:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\((-3,0)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\((2, -1)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((-1, -1)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\left(4, -3\\tfrac{1}{2}\\right)\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3b1d5ef053a519d724f4d91a294154705b6ce8dace744e94f92ac61964b03c78"
+}

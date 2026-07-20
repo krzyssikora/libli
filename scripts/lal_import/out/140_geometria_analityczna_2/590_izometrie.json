@@ -1,0 +1,107 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Udowodnij, że przekształcenie płaszczyzny \\(P\\), zdefiniowane wzorem \n        </p>\n        \\[\n        P(x,y)=(2-y,x+1)\n        \\]\n        <p>\n            jest izometrią.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "metoda",
+      "body": "\n\n<figure>\n<img src=\"static/izometria_schemat_dowodu.png\" style=\"max-height: 300px;\"/>\n</figure>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"steps\">\n<p>\n                Rozważmy punkty \\(A=(x_A, y_A)\\) oraz \\(B=(x_B,x_A)\\), między którymi odległość jest równa\n            </p>\n<div class=\"table_wrapper\">\n                \\[\n                |AB|=\\sqrt{(x_A-x_B)^2+(y_A-y_B)^2}\n                \\]\n            </div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Kolejny krok to znalezienie obrazów punktów \\(A\\) i \\(B\\):\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    P(A)&amp;=(2-y_A, x_A+1)\\\\\n                    P(B)&amp;=(2-y_B, x_B+1)\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    A teraz czas obliczyć odległość między \\(P(A)\\) i \\(P(B)\\):\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    |P(A)P(B)|&amp;=\\sqrt{((2-y_A)-(2-y_B))^2+((x_A+1)-(x_B+1))^2}=\\\\\n                    &amp;=\\sqrt{(2-y_A-2+y_B)^2+(x_A+1-x_B-1)^2}=\\\\\n                    &amp;=\\sqrt{(-y_A+y_B)^2+(x_A-x_B)^2}=\\\\\n                    &amp;=\\sqrt{(-1\\cdot(y_A-y_B))^2+(x_A-x_B)^2}=\\\\\n                    &amp;=\\sqrt{(-1)^2\\cdot(y_A-y_B)^2+(x_A-x_B)^2}=\\\\\n                    &amp;=\\sqrt{(y_A-y_B)^2+(x_A-x_B)^2}=\\\\\n                    &amp;=\\sqrt{(x_A-x_B)^2+(y_A-y_B)^2}=\\\\\n                    &amp;=|AB|\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Odległość między \\(P(A)\\) i \\(P(B)\\) jest równa odległości między \\(A\\) i \\(B\\), więc przekształcenie \\(P\\) jest izometrią.\n                </p>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Pokaż, że przekształcenie płaszczyzny \\(P\\), zdefiniowane wzorem \n        </p>\n        \\[\n        P(x,y)=(2y,x)\n        \\]\n        <p>\n<strong>nie</strong> jest izometrią.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "metoda",
+      "body": "\n\n<p>\n            Mamy pokazać, że stwierdzenie <strong>nie jest prawdziwe</strong>, więc wystarczy, że znajdziemy <strong>kontrprzykład</strong>.\n        </p>\n<p>\n            W tej sytuacji kontrprzykładem będą dwa punkty, \\(A\\) i \\(B\\) takie, że odległość między \\(A\\) i \\(B\\) jest inna niż między ich obrazami, \\(P(A)\\) i \\(P(B)\\).\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "przykładowe rozwiązanie",
+      "body": "\n\n<div class=\"steps\">\n<p>\n                Nie zawsze łatwo zgadnąć, jakie punkty należy wybrać, by stworzyć dobry kontrprzykład. Weźmiemy więc dwa punkty o różnych współrzędnych, na przykład:\n            </p>\n            \\[\n            A=(0,1), B=(2,3)\n            \\]\n            <p>\n                Dodatkowo chcemy, żeby współrzędna \\(y\\) była różna od \\(0\\), żeby mnożenie \"\\(2y\\)\" we wzorze przekształcenia zmieniało tę współrzędną.\n            </p>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Obliczmy odległość \\(|AB|\\):\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    |AB|&amp;=\\sqrt{(2-0)^2+(3-1)^2}=\\\\\n                    &amp;=\\sqrt{2^2+2^2}=\\\\\n                    &amp;=\\sqrt{4+4}=\\\\\n                    &amp;=\\sqrt{8}=\\\\\n                    &amp;=2\\sqrt{2}\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Teraz znajdźmy obrazy punktów \\(A\\) i \\(B\\):\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    P(A)&amp;=(2\\cdot 1, 0+1)=\\\\\n                    &amp;=(2, 1)\\\\\n                    P(B)&amp;=(2\\cdot 3, 2+1)=\\\\\n                    &amp;=(6, 3)\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Teraz obliczmy odległość między obrazami, \\(P(A)\\) i \\(P(B)\\):\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    |P(A)P(B)|&amp;=\\sqrt{(6-2)^2+(3-1)^2}=\\\\\n                    &amp;=\\sqrt{4^2+2^2}=\\\\\n                    &amp;=\\sqrt{16+4}=\\\\\n                    &amp;=\\sqrt{20}=\\\\\n                    &amp;=2\\sqrt{5}\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Przekształcenie \\(P\\) zmieniło odległości (\\(2\\sqrt{2}\\ne 2\\sqrt{5}\\)), więc nie jest izometrią.\n                </p>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Znajdź równanie obrazu okrągu o równaniu \\((x-5)^2+(y+1)^2=49\\) w przekształceniu \\(P\\) zdefiniowanym wzorem\n        </p>\n        \\[\n        P(x,y)=(x-7, y+3)\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Wzór przekształcenia \\(P\\) wskazuje, że \\(P\\) jest \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">obrotem</div>\n<div class=\"switch_value\">przesunięciem</div>\n<div class=\"switch_value\">symetrią</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Dokładniej: jest to przesunięcie o wektor\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\([-7,3]\\)</div>\n<div class=\"switch_value\">\\([7,-3]\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Obrazem okręgu w przesunięciu jest okrąg o \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">identycznym</div>\n<div class=\"switch_value\">większym</div>\n<div class=\"switch_value\">mniejszym</div>\n                    promieniu\n                    <div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Środkiem danego okręgu jest punkt\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((-5,1)\\)</div>\n<div class=\"switch_value\">\\((5,-1)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Po przesunięciu o wektor \\([-7,3]\\) środek będzie w punkcie\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((12, 4)\\)</div>\n<div class=\"switch_value\">\\((-2, 2)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Dlatego równanie przesuniętego okręgu to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((x-2)^2+(y+2)^2=49\\)</div>\n<div class=\"switch_value\">\\((x+2)^2+(y-2)^2=49\\)</div>\n<div class=\"switch_value\">\\((x-2)^2+(y-2)^2=49\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Obraz okrągu o równaniu \\((x-5)^2+(y+1)^2=49\\) w przekształceniu \\(P\\) to okrąg o równaniu \\((x+2)^2+(y-2)^2=49\\).\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1350.png\" style=\"max-height: 250px;\"/>\n</figure>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Znajdź równanie obrazu okrągu o równaniu \\((x+1)^2+(y+5)^2=10\\) w przekształceniu \\(P\\) zdefiniowanym wzorem\n        </p>\n        \\[\n        P(x,y)=(x, -y)\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Przekształcenie \\(P\\) to symetria\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">względem punktu \\((0,0)\\)</div>\n<div class=\"switch_value\">w osi \\(OX\\)</div>\n<div class=\"switch_value\">w osi \\(OY\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Środek danego okręgu to punkt\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((-1,-5)\\)</div>\n<div class=\"switch_value\">\\((1,5)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Środek okręgu po odbiciu symetrycznym w osi \\(OX\\) znajdzie się w punkcie\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((-1,5)\\)</div>\n<div class=\"switch_value\">\\((1,-5)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Dlatego równanie okręgu w tej symetrii to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((x+1)^2+(y-5)^2=10\\)</div>\n<div class=\"switch_value\">\\((x-1)^2+(y+5)^2=10\\)</div>\n<div class=\"switch_value\">\\((x-1)^2+(y-5)^2=10\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Obrazem okrągu o równaniu \\((x+1)^2+(y+5)^2=10\\) w przekształceniu \\(P\\), czyli symetrii w osi \\(OX\\) jest okrąg \\((x+1)^2+(y-5)^2=10\\).\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1360.png\" style=\"max-height: 250px;\"/>\n</figure>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Znajdź równanie obrazu prostej o równaniu \\(y=3x-2\\) w przekształceniu \\(P\\) zdefiniowanym wzorem\n        </p>\n        \\[\n        P(x,y)=(x-1, y+4)\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Przekształcenie \\(P\\) to przesunięcie o wektor\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\([1,-4]\\)</div>\n<div class=\"switch_value\">\\([-1,4]\\)</div>\n<div class=\"switch_value\">\\([-4,1]\\)</div>\n<div class=\"switch_value\">\\([4, -1]\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Równanie prostej \\(y=3x-2\\) po przesunięciu o wektor \\([-1,4]\\) ma postać\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=3(x-1)+4\\)</div>\n<div class=\"switch_value\">\\(y=3(x-1)-2+4\\)</div>\n<div class=\"switch_value\">\\(y=3(x+1)-2+4\\)</div>\n<div class=\"switch_value\">\\(y=3(x+1)-2-4\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Równanie \\(y=3(x+1)-2+4\\) po uproszczeniu przyjmuje postać\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=3x+5\\)</div>\n<div class=\"switch_value\">\\(y=3x+3\\)</div>\n<div class=\"switch_value\">\\(y=4x+2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Obrazem prostej \\(y=3x-2\\) w przekształceniu \\(P\\), czyli przesunięciu o wektor \\([-1, 4]\\), jest prosta \\(y=3x+5\\).\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1370.png\" style=\"max-height: 250px;\"/>\n</figure>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Znajdź równanie obrazu prostej o równaniu \\(y=-\\frac{1}{3}x+2\\) w przekształceniu \\(P\\) zdefiniowanym wzorem\n        </p>\n        \\[\n        P(x,y)=(x, -y)\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Przekształcenie \\(P\\) to symetria względem\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">osi \\(OX\\)</div>\n<div class=\"switch_value\">osi \\(OY\\)</div>\n<div class=\"switch_value\">punktu \\((0,0)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Równanie prostej \\(y=-\\frac{1}{3}x+2\\) odbitej w symetrii względem osi \\(OX\\) ma postać\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=\\frac{1}{3}x+2\\)</div>\n<div class=\"switch_value\">\\(y=\\frac{1}{3}x-2\\)</div>\n<div class=\"switch_value\">\\(y=-\\frac{1}{3}x-2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Wykres funkcji \\(y=f(x)\\) po odbiciu w osi \\(OX\\) przyjmuje równanie \\(y=-f(x)\\), więc prosta \\(y=-\\frac{1}{3}x+2\\) zmienia się w \\(y=-(-\\frac{1}{3}x+2)\\), czyli w \\(y=\\frac{1}{3}x-2\\).\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1380.png\" style=\"max-height: 250px;\"/>\n</figure>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Znajdź równanie obrazu prostej o równaniu \\(y=\\frac{2}{3}x+3\\) w przekształceniu \\(P\\) zdefiniowanym wzorem\n        </p>\n        \\[\n        P(x,y)=(-x, y)\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Przekształcenie \\(P\\) to symetria względem\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">osi \\(OX\\)</div>\n<div class=\"switch_value\">osi \\(OY\\)</div>\n<div class=\"switch_value\">punktu \\((0,0)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Równanie prostej \\(y=\\frac{2}{3}x+3\\) odbitej w symetrii względem osi \\(OY\\) ma postać\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=-\\frac{2}{3}x+3\\)</div>\n<div class=\"switch_value\">\\(y=-\\frac{2}{3}x-3\\)</div>\n<div class=\"switch_value\">\\(y=\\frac{2}{3}x-3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Wykres funkcji \\(y=f(x)\\) po odbiciu w osi \\(OY\\) przyjmuje równanie \\(y=f(-x)\\), więc prosta \\(y=\\frac{2}{3}x+3\\) zmienia się w \\(y=\\frac{2}{3}(-x)+3\\), czyli w \\(y=-\\frac{2}{3}x+3\\).\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1390.png\" style=\"max-height: 250px;\"/>\n</figure>\n</div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3bd84a9bd729df3f6ab7fc94fcdeb874be04d37d75b51fd56f20392bcc60a4f0"
+}

@@ -12,7 +12,9 @@ from bs4 import Comment
 from bs4 import NavigableString
 from bs4 import Tag
 
+from scripts.lal_import.answers import extract_int_map
 from scripts.lal_import.mathsafe import escape_math_delimited
+from scripts.lal_import.switch import switch_line_stem_cyclers
 
 # Tags whose inner HTML is valid TextElement body content (survive nh3). h2 is
 # included: the FIRST h2 is consumed as the unit title, later ones (and h1,
@@ -78,14 +80,8 @@ _BLOCK_CHILD_TAGS = {
 # placeholder (loaded with --allow-html) rather than fragmenting into dozens of
 # broken text blocks. Detection is by any marker in the node's subtree.
 _INTERACTIVE_MARKERS = {
-    # switch grid / switch show-next
-    "switch_options",
-    "switch_line",
-    "switch_value",
-    "switch_around",
-    "switch_confirm",
-    "switch_show_next",
-    "switch_step",
+    # NB: switch_* are NOT markers — switch_options -> SwitchGrid (Group B #3),
+    # switch_steps -> SwitchGate chain (Group B #2); both containers descend.
     # one-choice-in-a-line
     "one_choice",
     "confirm_choice",
@@ -265,7 +261,11 @@ def parse_lesson(html, source_html):
     root = soup.body or soup
     elements, flags = [], []
     consumed = set()  # ids of nodes already folded into a Spoiler (I2)
-    state = {"h2_skipped": False}  # shared across recursive _walk calls (I2)
+    state = {
+        "h2_skipped": False,  # shared across recursive _walk calls (I2)
+        # answer keys live in the RAW file's inline setItem scripts (pre-escape).
+        "switch_answers": extract_int_map(html, "switch_answers"),
+    }
     _walk(list(root.children), elements, flags, consumed, state)
     return elements, flags
 
@@ -317,6 +317,14 @@ def _walk(nodes, elements, flags, consumed, state):
             # Consumed by its gate above (skipped via `consumed`); an orphan one
             # with no preceding gate still descends its content in place.
             _walk(list(node.children), elements, flags, consumed, state)
+            continue
+        if "switch_steps" in classes_here:
+            # Group B #2: cycler-gated progressive reveal -> SwitchGate chain.
+            _emit_switch_gate_chain(node, elements, flags, consumed, state)
+            continue
+        if "switch_options" in classes_here:
+            # Group B #3: a confirmed switch grid -> SwitchGridElement.
+            _emit_switch_grid(node, elements, state)
             continue
 
         if _contains_marker(node) and not _is_structural_container(node):
@@ -458,6 +466,72 @@ def _walk(nodes, elements, flags, consumed, state):
             continue
 
         _unmapped(f"unmapped <{name}> in lesson body", node, elements, flags)
+
+
+def _enclosing_qid(node):
+    """The integer id of the nearest div[id^=question] ancestor (for answer-key
+    lookup), or None."""
+    anc = node.find_parent(id=lambda x: x and x.startswith("question"))
+    if anc is None:
+        return None
+    m = re.search(r"\d+", anc.get("id", ""))
+    return int(m.group()) if m else None
+
+
+def _is_switch_gate_line(node):
+    """A .switch_line that carries a switch_show_next confirm button — i.e. the
+    cycler that gates the reveal of the next step."""
+    return (
+        isinstance(node, Tag)
+        and "switch_line" in (node.get("class") or [])
+        and node.find(class_="switch_show_next") is not None
+    )
+
+
+def _emit_switch_gate_chain(container, elements, flags, consumed, state):
+    """Group B #2: a .switch_steps block -> [step0 content][SwitchGate][step1
+    content][SwitchGate]... Each .switch_step's trailing cycler line becomes a
+    SwitchGate whose correct choice reveals the following siblings (the next
+    step's content), mirroring the show_next RevealGate chain."""
+    answers = state.get("switch_answers", {}).get(_enclosing_qid(container), [])
+    gate_idx = 0
+    for step in container.find_all(class_="switch_step", recursive=False):
+        content = []
+        for child in step.children:
+            if _is_switch_gate_line(child):
+                _walk(content, elements, flags, consumed, state)
+                content = []
+                stem, cyclers = switch_line_stem_cyclers(child)
+                options = cyclers[0]["options"] if cyclers else []
+                answer = answers[gate_idx] if gate_idx < len(answers) else 0
+                elements.append(
+                    {
+                        "type": "switch_gate",
+                        "stem": stem,
+                        "options": options,
+                        "answer": answer,
+                    }
+                )
+                gate_idx += 1
+            else:
+                content.append(child)
+        _walk(content, elements, flags, consumed, state)
+
+
+def _emit_switch_grid(container, elements, state):
+    """Group B #3: a .switch_options block -> one SwitchGridElement. Each
+    .switch_line is one grid line with a single cycler; its correct index is
+    switch_answers[qid][line_index]. The confirm button + success chrome are
+    dropped (switch_line_stem_cyclers skips the button; the summary is chrome)."""
+    answers = state.get("switch_answers", {}).get(_enclosing_qid(container), [])
+    lines = []
+    for i, line in enumerate(container.find_all(class_="switch_line")):
+        stem, cyclers = switch_line_stem_cyclers(line)
+        ans = answers[i] if i < len(answers) else 0
+        for cyc in cyclers:
+            cyc["answer"] = ans  # one cycler per line
+        lines.append({"stem": stem, "cyclers": cyclers})
+    elements.append({"type": "switch_grid", "prompt": "", "lines": lines})
 
 
 def _next_show_step(nodes, start, consumed):

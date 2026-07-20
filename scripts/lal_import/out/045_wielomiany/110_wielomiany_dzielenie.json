@@ -1,0 +1,60 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jeszcze raz, dla przykładu, pomyślmy o dzielnikach liczb naturalnych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Ile dzielników ma liczba \\(30\\)?\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jakie są wszystkie dzielniki liczby \\(30\\)?\n    </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "body": "\n\n        Jeśli liczbę \\(30\\) rozłożymy na czynniki\n        <strong>\n            pierwsze\n        </strong>\n        , dostaniemy:\n        \\[\n        30=2\\cdot 3\\cdot 5\n        \\]\n        <div style=\"min-height: 3em;\">\n            Mamy więc trzy dzielniki pierwsze liczby \\(30\\).\n            <p style=\"float: right; width: 100px;\">\n                \\(\\rightarrow\\) \\(2\\), \\(3\\), \\(5\\)\n            </p>\n</div>\n<p>\n            Ale liczba \\(30\\) ma też inne dzielniki.\n        </p>\n<div style=\"min-height: 3em;\">\n            Przede wszystkim, jeste jeden dzielnik wspólny dla każdej liczby naturalnej.\n            <p style=\"float: right; width: 100px;\">\n                \\(\\rightarrow\\) \\(1\\)\n            </p>\n</div>\n<p>\n            Poza tym, możemy uzyskać dzielniki\n            <strong>\n                złożone\n            </strong>\n            , mnożąc przez siebie dzielniki pierwsze.\n        </p>\n<div style=\"min-height: 3em;\">\n<p style=\"float: right; width: 100px;\">\n                \\(\\rightarrow\\) \\(6\\)\n            </p>\n<p>\n                \\(30=\\color{red}{2\\cdot 3}\\cdot 5\\)\n            </p>\n</div>\n<div style=\"min-height: 3em;\">\n<p style=\"float: right; width: 100px;\">\n                \\(\\rightarrow\\) \\(15\\)\n            </p>\n<p>\n                \\(30=2\\cdot\\color{red}{3\\cdot 5}\\)\n            </p>\n</div>\n<div style=\"min-height: 3em;\">\n<p style=\"float: right; width: 100px;\">\n                \\(\\rightarrow\\) \\(10\\)\n            </p>\n<p>\n                \\(30=\\color{red}{2}\\cdot 3\\cdot \\color{red}{5}\\)\n            </p>\n</div>\n<p>\n            No i wreszcie:\n        </p>\n<div style=\"min-height: 3em;\">\n<p style=\"float: right; width: 100px;\">\n                \\(\\rightarrow\\) \\(30\\)\n            </p>\n<p>\n                \\(30=\\color{red}{2\\cdot 3\\cdot 5}\\)\n            </p>\n</div>\n<p>\n            Liczba \\(30\\) ma \\(8\\) dzielników:\n        </p>\n        \\[\n        1, 2, 3, 5, 6, 10, 15, 30\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Teraz wiedząc, że wielomian\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\nW(x)=3x^3-2x^2-19x-6\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    może być zapisany w postaci\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\nW(x)=(x+2)(x-3)(3x+1)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    w bardzo podobny sposób wyznaczymy wszystkie jego dzielniki.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wyznacz wszystkie dzielniki wielomianu\n        \\[\n        W(x)=3x^3-2x^2-19x-6\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"fill_steps\">\n<p>\n                Wielomian \\(W(x)\\) ma, jak każdy inny niezerowy wielomian, dwa trywialne dzielniki: \\(1\\) i \\(W(x)\\). Podobnie, jak każda liczba naturalna (różna od zera) dzieli się przez \\(1\\) i przez samą siebie.\n            </p>\n<div class=\"fill_show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"fill_step\">\n<p>\n                    \\(W(x)\\) ma też trzy dzielniki liniowe:\n                </p>\n                \\((x+2)\\), \\((x-3)\\) i\n                <span class=\"myequation\">\n                    \\((\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"\" type=\"text\"/>\n</span>\n                    \\(+1)\\)\n                </span>\n</div>\n<div class=\"fill_show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"fill_step\">\n<p>\n                    Ma także trzy dzielniki kwadratowe.\n                </p>\n<p>\n                    Otrzymamy je, mnożąc przez siebie dzielniki liniowe. Zacznijmy od dwóch pierwszych:\n                </p>\n                \\[\n                W(x)=\\color{red}{(x+2)(x-3)}(3x+1)\n                \\]\n                Pierwszy dzielnik kwadratowy to\n                <span class=\"myequation\">\n                    \\(x^2-x\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n</span>\n                .\n            </div>\n<div class=\"fill_show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"fill_step\">\n                \\[\n                W(x)=(x+2)\\color{red}{(x-3)(3x+1)}\n                \\]\n                Drugi dzielnik kwadratowy to\n                <span class=\"myequation\">\n                    \\(3x^2-8x\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n</span>\n                .\n            </div>\n<div class=\"fill_show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"fill_step\">\n                \\[\n                W(x)=\\color{red}{(x+2)}(x-3)\\color{red}{(3x+1)}\n                \\]\n                Trzeci dzielnik kwadratowy to\n                <span class=\"myequation\">\n                    \\(3x^2+7x+\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n</span>\n                .\n            </div>\n</div>\n<div class=\"success hidden\" id=\"success_question140\">\n            Czyli poza \"trywialnymi\" dzielnikami, wielomian \\(W(x)\\) ma:\n            <ul class=\"nolist\">\n<li>\n                    trzy dzielniki liniowe: \\(x+2\\), \\(x-3\\), \\(3x+1\\),\n                </li>\n<li>\n                    trzy dzielniki kwadratowe: \\(x^2-x-6\\), \\(3x^2-8x-3\\), \\(3x^2+7x+2\\).\n                </li>\n</ul>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "dbb8971d7318a90595696aa9a6ffd94216d1d27acfc87d6eefb3c6840bcd117f"
+}

@@ -1,0 +1,16 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Obejrzyj albo nagranie, w którym tłumaczę, jak wyliczamy największy wspólny dzielnik i najmniejszą wspólną wielokrotność, albo krótką animację.\n</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                nagranie\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                animacja\n            </a>\n</li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-1-1\">\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/nwd_nww.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-1-2\">\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/nwd_nww_animacja.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n</div>",
+      "reason": "interactive_widget (Group B): ks_tabs"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "254bf293eba720e7f4a2a1bc862cfe22cfbbce01c61ab43aedf5ae5097325b29"
+}

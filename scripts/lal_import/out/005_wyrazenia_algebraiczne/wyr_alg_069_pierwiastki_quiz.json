@@ -1,0 +1,58 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\\[\\sqrt{2\\tfrac{1}{4}}=\\]</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(2\\tfrac{1}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(1\\tfrac{1}{2}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\tfrac{1}{2}\\sqrt{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\[\\sqrt[5]{32}=\\]</p>",
+      "value": "2",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\[\\sqrt[3]{-27}=\\]</p>",
+      "value": "-3",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Jeśli\n</p><p>\\[3\\sqrt{5}=\\sqrt{a}\\]</p><p>\n    to jaka jest wartość \\(a\\)?\n</p>",
+      "value": "45",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Jeśli\n</p><p>\\[\\sqrt{18}=a\\sqrt{b}\\]</p><p>\n    gdzie zarówno \\(a\\) oraz \\(b\\) to liczby całkowite większe od \\(1\\).\n</p><p>\n    Wówczas \\(a=\\)\n</p>",
+      "value": "3",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    \\(b=\\)\n</p>",
+      "value": "2",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8c3bdb7750d29ed333d552938bc0e2e0cc730c2c5ec08cb2152cbae09f3cc4f3"
+}

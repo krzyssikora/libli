@@ -1,0 +1,45 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Na ile sposobów można ustawić litery słowa \"RYMOWANIE\" w rzędzie?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<p>\n            W słowie \"RYMOWANIE\" jest 9 różnych liter, więc można je ustawić na \\(9!=362\\,880\\) sposobów.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W grupie jest czworo chłopców i cztery dziewczęta. Na ile sposobów możemy ustawić całą ósemkę w rzędzie w trzech sytuacjach:\n        </p>\n<ol class=\"bold\" type=\"A\">\n<li>jeśli dziewczęta mają być razem,</li>\n<li>jeśli zarówno dziewczęta mają być razem, jak i chłopcy,</li>\n<li>jeśli każda z dziewcząt ma za sąsiadów wyłącznie chłopców, a każdy z chłopców - wyłącznie dziewcząta.</li>\n</ol>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<details>\n<summary>część <strong>A</strong></summary>\n<ol class=\"bold\">\n<li>\n                    \"sklejamy\" dziewczęta na \\(4!\\) sposobów\n                </li>\n<li>\n                    czterech chłopców + grupę dziewcząt ustawiamy na \\(5!\\) sposobów\n                </li>\n<li>\n                    wszystkich sposobów jest więc \\(4!\\cdot 5!=24\\cdot 120=2\\,880\\)\n                </li>\n</ol>\n</details>\n<details>\n<summary>część <strong>B</strong></summary>\n<ol class=\"bold\">\n<li>\n                    \"sklejamy\" dziewcząta na \\(4!\\) sposobów,\n                </li>\n<li>\n                    \"sklejamy\" chłopców na \\(4!\\) sposobów,\n                </li>\n<li>\n                    grupy chłopców i dziewcząt ustawiamy na \\(2\\) sposoby (<strong>CD</strong> lub <strong>DC</strong>),\n                </li>\n<li>\n                    wszystkich ustawień jest \\(4!\\cdot 4!\\cdot 2=1\\,152\\)\n                </li>\n</ol>\n</details>\n<details>\n<summary>część <strong>C</strong></summary>\n<ol class=\"bold\">\n<li>\n                    miejsca dla dziewcząt i chłopców możemy przydzielić na dwa sposoby: albo <strong>DCDCDCDC</strong> albo <strong>CDCDCDCD</strong>,\n                </li>\n<li>\n                    dziewczęta ustawiamy w ich czterech miejscach na \\(4!\\) sposobów,\n                </li>\n<li>\n                    chłopców ustawiamy w ich czterech miejscach na \\(4!\\) sposobów,\n                </li>\n<li>\n                    wszystkich sposobów jest \\(2\\cdot 4!\\cdot 4!=1\\,152\\).\n                </li>\n</ol>\n</details>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Na ile sposobów pięć osób można ustawić w rzędzie, jeśli\n        </p>\n<ol class=\"bold\" type=\"A\">\n<li>jeśli najwyższa i najniższa z nich mają stać obok siebie,</li>\n<li>jeśli najwyższa i najniższa z nich nie mogą stać obok siebie,</li>\n</ol>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<details>\n<summary>część <strong>A</strong></summary>\n<ol class=\"bold\">\n<li>\n                    \"Sklejamy\" najniższą i najwyższą osobę na \\(2\\) sposoby,\n                </li>\n<li>\n                    ustawiamy 4 osoby (a właściwie 3+1 \"sklejoną\") na \\(4!\\) sposobów,\n                </li>\n<li>\n                    czyli razem: \\(2\\cdot 4!=48\\) sposobów.\n                </li>\n</ol>\n</details>\n<details>\n<summary>część <strong>B</strong></summary>\n<ol class=\"bold\">\n<li>\n                    Osobę najniższą i nawyższą możemy usadzić na 6 sposobóe (jeśli miejsca ponumerujemy: 1, 2, 3 i 4, mogą siedzieć na miejscach [1-3], [1-4], [2-4] - czyli w trzech położeniach, które mnożymy przez 2, bo w każdym położeniu możemy te dwie osoby zamienić miejscami),\n                </li>\n<li>\n                    pozostałe osoby ustawiamy na \\(3!\\) sposobów,\n                </li>\n<li>\n                    razem jest więc \\(6\\cdot 3!=36\\) sposobów.\n                </li>\n</ol>\n</details>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "161541296a31397dcaaf5c637d10c68a93cf1686171960cbfdd882da17b9c646"
+}

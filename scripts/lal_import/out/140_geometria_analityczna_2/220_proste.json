@@ -1,0 +1,75 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Jak stworzyć równanie prostej prostopadłej do danej?",
+      "body": "\n\n<div class=\"important\">\n<p>\n            Aby stworzyć równanie prostej prostopadłej do prostej \\(Ax+By+C=0\\)\n        </p>\n<ol>\n<li>\n<hr/>\n<p style=\"margin-bottom: 2em;\">\n                    najpierw zamieniamy współrzędne \\(x\\)-a i \\(y\\)-a miejscami <span style=\"float: right\">\\(Bx+Ay+...=0\\)</span>\n</p>\n<hr/>\n</li>\n<li>\n<p style=\"margin-bottom: 2em;\">\n                    a potem zmieniamy jeden ze znaków: <span style=\"float: right\">\\(Bx\\color{red}{-}Ay+...=0\\)</span>\n</p>\n<p>\n                    albo: <span style=\"float: right\">\\(\\color{red}{-}Bx+Ay+...=0\\)</span>\n</p>\n<hr/>\n</li>\n</ol>\n<figure>\n<video autoplay=\"\" loop=\"\" muted=\"\" style=\"max-width: 600px;\" width=\"100%\">\n<source src=\"static/proste_prostopadle_rownanie_ogolne_animacja.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Jak sprawdzić, czy proste są prostopadłe?",
+      "body": "\n\n<div class=\"important\">\n<p>\n            Proste o równaniach ogólnych\n        </p>\n        \\[\n        A_1x+B_1y+C_1=0\n        \\]\n        <p>\n            i\n        </p>\n        \\[\n        A_2x+B_2y+C_2=0\n        \\]\n        <p>\n            są prostopadłe, wtedy i tylko wtedy, gdy\n        </p>\n        \\[\n        A_1A_2+B_1B_2=0\n        \\]\n        <p>\n            Czyli suma dwóch iloczynów: współczynników \\(x\\)-ów i współczynników \\(y\\)-ów.\n        </p>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Czy proste są prostopadłe?\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"table_wrapper\" style=\"white-space: nowrap;\">\n<li>\n<div class=\"statement\" data-width=\"350px\">\n<div class=\"table_wrapper\">\n<strong>1.</strong> \\(12x-16y+7=0\\) i \\(12x-9y-5=0\\)\n                </div>\n</div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"350px\">\n<div class=\"table_wrapper\">\n<strong>2.</strong> \\(3x-9y-4=0\\) i \\(12x+4y+7=0\\)\n                </div>\n</div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"350px\">\n<div class=\"table_wrapper\">\n<strong>3.</strong> \\(4x-3y+1=0\\) i \\(8x+6y-7=0\\)\n                </div>\n</div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "potwierdź "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi: \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "Jeśli nie wszystkie Twoje odpowiedzi są poprawne i nie wiesz dlaczego, zerknij tutaj.",
+      "body": "\n\n<ol class=\"bold\">\n<li>\n                \\(12\\cdot 12+(-16)(-9)=144+144\\ne 0\\), więc nie są prostopadłe.\n            </li>\n<li>\n                \\(3\\cdot 12+(-9)\\cdot 4=36-36=0\\), więc są prostopadłe.\n            </li>\n<li>\n                \\(4\\cdot 8+(-3)\\cdot 6=32-18\\ne 0\\), więc nie są prostopadłe.\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Znajdź równanie ogólne prostej prostopadłej do \\(3x-5y+12=0\\) i przechodzącej przez punkt \\(\\left(1, -1\\tfrac{1}{2}\\right)\\).\n        </p>\n<p>\n            Udziel takiej odpowiedzi, w której wszystkie współczynniki będą całkowite i nie będą miały wspólnego dzielnika większego niż \\(1\\).\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Szukamy równania ogólnego, czyli równania postaci\n                </p>\n                \\[\n                Ax+By+C=0\n                \\]\n                <p>\n                    Jak wiemy (spójrz na górę strony), kierunek prostej jest wyznaczony przez współczynniki \\(A\\) i \\(B\\). \n                </p>\n<ul class=\"nolist\">\n<li>\n                        Zaczynamy od współczynników \\(x\\)-a i \\(y\\)-a danej prostej, \n                    </li>\n<li>\n                        zamieniamy je miejscami i \n                    </li>\n<li>\n                        zmieniamy jeden ze znaków. \n                    </li>\n</ul>\n<div class=\"switch_line\">\n                    Otrzymujemy (na przykład) współczynniki\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(A=5\\) i \\(B=-3\\)</div>\n<div class=\"switch_value\">\\(A=5\\) i \\(B=3\\)</div>\n<div class=\"switch_value\">\\(A=3\\) i \\(B=5\\)</div>\n<div class=\"switch_value\">\\(A=-3\\) i \\(B=5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Szukana prosta ma więc równanie postaci\n                </p>\n                \\[\n                5x+3y+C=0\n                \\]\n                <div class=\"switch_line\">\n                    Aby znaleźć wartość współczynnika \\(C\\), musimy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">podstawić do tego równania współrzędne punktu \\(\\left(1, -1\\tfrac{1}{2}\\right)\\)</div>\n<div class=\"switch_value\">rozwiązać układ równań</div>\n<div class=\"switch_value\">przyjąć, że \\(C=-1\\tfrac{1}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Otrzymujemy równanie\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(5\\cdot 1+3\\cdot (-1\\tfrac{1}{2})+C=0\\)</div>\n<div class=\"switch_value\">\\(5\\cdot (-1\\tfrac{1}{2})+3\\cdot 1+C=0\\)</div>\n<div class=\"switch_value\">\\(5\\cdot 1-3\\cdot (-1\\tfrac{1}{2})+C=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Gdy rozwiążemy równanie, otrzymamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(C=\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(C=-\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(C=9\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(C=-9\\tfrac{1}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Otrzymaliśmy \\(C=-\\tfrac{1}{2}\\), czyli równanie\n                </p>\n                \\[\n                5x+3y-\\tfrac{1}{2}=0\n                \\]\n                <p>\n                    Jest to równanie w postaci ogólnej, ale nie wszystkie współczynniki są całkowite.\n                </p>\n<div class=\"switch_line\">\n                    Aby sprostać temu warunkowi musimy \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">pomnożyć obie strony równania przez \\(\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">pomnożyć obie strony równania przez \\(2\\)</div>\n<div class=\"switch_value\">dodać \\(\\tfrac{1}{2}\\) do obu stron równania</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Otrzymujemy szukane równanie\n                </p>\n                \\[\n                10x+6y-1=0\n                \\]\n                <figure>\n<img src=\"static/geometria_analityczna_2_zadanie_580.png\" style=\"max-height: 250px;\"/>\n</figure>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dane są dwie proste: \\(k\\) i \\(m\\).\n        </p>\n<p>\n            Prosta \\(k\\) ma równanie \\(6x+9y-2=0\\).\n        </p>\n<p>\n            Prosta \\(m\\) ma równanie \\(6x+By+C=0\\), jest prostopadła do \\(k\\) i przechodzi przez punkt \\(\\left(-1\\tfrac{1}{2}, -2\\right)\\).\n        </p>\n<p>\n            Znajdź wartości współczynników \\(B\\) i \\(C\\).\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Współczynniki \\(x\\)-ów i \\(y\\)-ów równania prostej prostopadłej otrzymujemy przez zamianę miejscami takich współczynników w danej prostej, i przez zmianę znaku jednego z nich na przeciwny.\n                </p>\n<p>\n                    Skoro dana prosta, \\(k\\), ma równanie\n                </p>\n                \\[\n                6x+9y-2=0\n                \\]\n                <div class=\"switch_line\">\n                    to równanie szukanej prostej prostopadłej, \\(m\\), zaczyna się od\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(6x-9y\\dots\\)</div>\n<div class=\"switch_value\">\\(9x-6y\\dots\\)</div>\n<div class=\"switch_value\">\\(9x+6y\\dots\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Równanie szukanej prostej ma mieć postać\n                </p>\n                \\[\n                6x+By+C=0\n                \\]\n                <p>\n                    a my zaczynamy od\n                </p>\n                \\[\n                9x-6y+...\n                \\]\n                <p>\n                    Nie przejmujmy się tym na razie. Przyjmijmy, że równanie ma postać\n                </p>\n                \\[\n                9x-6y+D=0\n                \\]\n                <p>\n                    znajdźmy wartość współczynnika \\(D\\), a na zakończenie doprowadzimy równanie do żądanej postaci.\n                </p>\n<div class=\"switch_line\">\n                    Aby znaleźć wartość współczynnika \\(D\\) musimy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">podstawić do równania współrzędne punktu \\(\\left(-1\\tfrac{1}{2}, -2\\right)\\)</div>\n<div class=\"switch_value\">rozwiązać układ równań dwóch prostych</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Otrzymujemy równanie:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(9\\cdot (-2)-6\\cdot\\left(-1\\tfrac{1}{2}\\right)+D=0\\)</div>\n<div class=\"switch_value\">\\(9\\cdot\\left(-1\\tfrac{1}{2}\\right)-6\\cdot (-2)+D=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Z tego równania wyliczamy, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(D=1\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(D=-1\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(D=25\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(D=-25\\tfrac{1}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Otrzymujemy równanie:\n                </p>\n                \\[\n                9x-6y+1\\tfrac{1}{2}=0\n                \\]\n                <div class=\"switch_line\">\n                    Chcemy, by współczynnik \\(x\\)-a był równy \\(6\\), więc musimy pomnożyć obie strony równania przez \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(6\\)</div>\n<div class=\"switch_value\">\\(\\frac{3}{2}\\)</div>\n<div class=\"switch_value\">\\(\\frac{2}{3}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    I stąd:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    9x-6y+1\\tfrac{1}{2}&amp;=0\\\\\n                    9x\\cdot\\tfrac{2}{3} -6y\\cdot\\tfrac{2}{3} +\\tfrac{3}{2}\\cdot\\tfrac{2}{3} &amp;=0\\\\\n                    6x-4y+1 &amp;=0\\\\\n                    \\end{align}\n                    \\]\n                </div>\n<p>\n                    Tym samym ustaliliśmy, że\n                </p>\n<div class=\"centered\">\n                    \\(B=-4\\quad\\) oraz \\(\\quad C=1\\)\n                </div>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_590.png\" style=\"max-height: 250px;\"/>\n</figure>\n</div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "40ee18086d499cdf6099dde32f22e06caabb87f2d712c733b4656304172c4fb8"
+}

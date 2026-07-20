@@ -1,0 +1,141 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Sprawdź w tablicach trygonometrycznych i wybierz z poniższych wartość \\(\\sin 50^{\\circ}\\).\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "0,6428",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "0,7660",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "0,8391",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "1,1918",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Sprawdź w tablicach trygonometrycznych i wybierz z poniższych wartość \\(\\cos 50^{\\circ}\\).\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "0,6428",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "0,7660",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "0,8391",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "1,1918",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Rysunek przedstawia szary, pionowy budynek.\n</p><div>\n<img alt=\"quiz - zastosowania trygonometrii 1\" src=\"static/tryg_quiz_4.png\" style=\"width: 300px;\" width=\"300\"/>\n</div><p>\n    Kąt wzniesienia budynku, mierzony z odległości 20 metrów ma miarę \\(70^{\\circ}\\).\n</p><p>\n    Jak obliczyć \\(h\\), wysokość budynku?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(h=20\\cdot \\sin 70^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(h=20\\cdot \\text{tg } 70^{\\circ}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(h=\\frac{20}{\\cos 70^{\\circ}}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(h=\\frac{20}{\\text{tg } 70^{\\circ}}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wybierz sposób obliczenia długości  zgodnie z rysunkiem.\n</p><div>\n<img alt=\"quiz - zastosowania trygonometrii 2\" src=\"static/tryg_quiz_5.png\" style=\"width: 300px;\" width=\"300\"/>\n</div>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(d=13\\cdot \\cos 22^{\\circ}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(d=13\\cdot \\sin 22^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(d=\\frac{13}{\\cos 22^{\\circ}}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(d=\\frac{13}{\\sin 22^{\\circ}}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wybierz sposób obliczenia długości  zgodnie z rysunkiem.\n</p><div>\n<img alt=\"quiz - zastosowania trygonometrii 3\" src=\"static/tryg_quiz_6.png\" style=\"width: 300px;\" width=\"300\"/>\n</div>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(d=8\\cdot \\cos \\alpha\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(d=8\\cdot \\sin \\alpha\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(d=\\frac{8}{\\cos \\alpha}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(d=\\frac{8}{\\sin \\alpha}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "70fbf665b5ce72261282815df2c6ee94c12a69b501975a1f4c56cadd1ea9bf4d"
+}

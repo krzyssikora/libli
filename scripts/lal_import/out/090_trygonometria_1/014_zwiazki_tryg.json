@@ -1,0 +1,66 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Funkcje trygonometryczne kąta ostrego\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"boki w trójkącie prostokątnym\" class=\"img_center\" src=\"static/boki_trojkat_prostokatny.png\" style=\"width: 400px;\" width=\"400\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dla kąta ostrego w trójkącie prostokątnym definiujemy tak zwane\n    <strong>\n        funkcje trygonometryczne\n    </strong>\n    tego kąta. Zdefiniujemy cztery takie funkcje.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Funkcja\n        <strong>\n            sinus\n        </strong>\n        (zapisywana jako \\(\\sin\\alpha, \\sin\\beta\\)) to stosunek dlugości\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                    \\frac{\\text{przyprostokątnej naprzeciwległej do kąta do}}{\\text{przeciwprostokątnej}}\n                                                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Funkcja\n        <strong>\n            cosinus\n        </strong>\n        (zapisywana jako \\(\\cos\\alpha, \\cos\\beta\\)) to stosunek dlugości\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                    \\frac{\\text{przyprostokątnej przyległej do kąta do}}{\\text{przeciwprostokątnej}}\n                                                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Funkcja\n        <strong>\n            tangens\n        </strong>\n        (zapisywana jako \\(\\text{tg}\\alpha, \\text{tg}\\beta\\) albo \\(\\tan\\alpha, \\tan\\beta\\)) to stosunek dlugości\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                    \\frac{\\text{przyprostokątnej naprzeciwległej do kąta do}}{\\text{przyprostokątnej przyległej do kąta}}\n                                                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Funkcja\n        <strong>\n            cotangens\n        </strong>\n        (zapisywana jako \\(\\text{ctg}\\alpha, \\text{ctg}\\beta\\) albo \\(\\cot\\alpha, \\cot\\beta\\)) to stosunek dlugości\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                    \\frac{\\text{przyprostokątnej przyległej do kąta do}}{\\text{przyprostokątnej naprzeciwległej do kąta}}\n                                                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zapiszmy to za pomocą zmiennych.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"definicje stosunków trygonometrycznych\" src=\"static/trojkaty_definicje.png\" width=\"600\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Dla kąta ostrego \\(\\alpha\\) w trójkątach prostokątnych z oznaczeniami jak na rysunkach powyżej definiujemy funkcje trygonometryczne kąta \\(\\alpha\\):\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(\\sin\\alpha= \\frac{y}{r}\\)\n        <span style=\"display: inline-block; width: 100px;\">\n</span>\n        \\(\\cos\\alpha= \\frac{x}{r}\\)\n        <span style=\"display: inline-block; width: 100px;\">\n</span>\n        \\(\\text{tg}\\alpha= \\frac{y}{x}\\)\n        <span style=\"display: inline-block; width: 100px;\">\n</span>\n        \\(\\text{ctg}\\alpha= \\frac{x}{y}\\)\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "14616ad845fe8ba41a6b2c7fdb53f4a47134d99cd6e7ad6476160baa92a8d31b"
+}

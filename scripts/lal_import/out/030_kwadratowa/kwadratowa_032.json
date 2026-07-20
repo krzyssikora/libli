@@ -1,0 +1,102 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Nie każda funkcja kwadratowa ma miejsca zerowe, bo nie każda parabola przecina oś \\(x\\) (lub przynajmniej ją dotyka).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Wskaż równania paraboli, które mają punkty wspólne z osią \\(x\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(y=\\frac{5}{2}(x+1)^2-2\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n                Ramiona tej paraboli są skierowane do góry, a wierzchołek...?\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(y=-3(x+2)^2-1\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n                Wierzchołek tej paraboli jest\n                <strong>\n                    pod\n                </strong>\n                osią \\(x\\).\n                <br/>\n                W którą stronę są skierowane ramiona?\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(y=2(x-3)^2+7\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n                Ramiona tej paraboli są skierowane do góry. A wierzchołek?\n                <br/>\n                Jest nad, czy pod osią \\(x\\)?\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(y=-\\frac{2}{3}(x-5)^2+3\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n                Wierzchołek tej paraboli jest nad osią \\(x\\), a ramiona skierowane...?\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n        potwierdź\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wybrałaś/-eś poprawnie.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Nie wybrałaś/-eś wszystkich odpowiedzi.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Funkcja kwadratowa ma miejsca zerowe jeśli spełniony jest jeden z dwóch warunków:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            jej ramiona są skierowane\n            <span style=\"color: blue;\">\n                ku górze\n            </span>\n            a wierzchołek leży\n            <span style=\"color: red;\">\n                poniżej\n            </span>\n            osi \\(x\\).\n        </li>\n<li>\n            jej ramiona są skierowane\n            <span style=\"color: blue;\">\n                do dołu\n            </span>\n            a wierzchołek leży\n            <span style=\"color: red;\">\n                powyżej\n            </span>\n            osi \\(x\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Dla funkcji kwadratowej zapisanej w postaci kanonicznej:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        y=a(x-p)^2+q\n                                                                                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        warunki te można przeformułować następująco:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<span style=\"color: blue;\">\n                \\(a\\gt 0\\)\n            </span>\n            i jednocześnie\n            <span style=\"color: red;\">\n                \\(q\\lt 0\\)\n            </span>\n</li>\n<li>\n<span style=\"color: blue;\">\n                \\(a\\lt 0\\)\n            </span>\n            i jednocześnie\n            <span style=\"color: red;\">\n                \\(q\\gt 0\\)\n            </span>\n</li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f0fa0e170c4be313490bbbd536bba779043975bbe2bb7122558ab0be93745c7d"
+}

@@ -1,0 +1,651 @@
+{
+  "part": {
+    "source_folder": "104_geometria_3_czworokaty",
+    "order": 15,
+    "title": "geometria 3 czworokaty"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "010_wstep.json",
+          "source_html": "010_wstep.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Suma kątów w czworokącie"
+        },
+        {
+          "order": 1,
+          "unit_json": "020_wstep.json",
+          "source_html": "020_wstep.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Rozgrzewka"
+        },
+        {
+          "order": 2,
+          "unit_json": "030_wstep.json",
+          "source_html": "030_wstep.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Klasyfikacja czworokątów"
+        },
+        {
+          "order": 3,
+          "unit_json": "040_wstep.json",
+          "source_html": "040_wstep.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Definicje czworokątów"
+        },
+        {
+          "order": 4,
+          "unit_json": "050_wstep.json",
+          "source_html": "050_wstep.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Deltoid"
+        },
+        {
+          "order": 5,
+          "unit_json": "060_wstep.json",
+          "source_html": "060_wstep.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Własności deltoidu"
+        },
+        {
+          "order": 6,
+          "unit_json": "070_wstep.json",
+          "source_html": "070_wstep.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Pole deltoidu 1"
+        },
+        {
+          "order": 7,
+          "unit_json": "080_wstep.json",
+          "source_html": "080_wstep.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Pole deltoidu 2"
+        },
+        {
+          "order": 8,
+          "unit_json": "090_wstep.json",
+          "source_html": "090_wstep.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 9,
+          "unit_json": "100_wstep.json",
+          "source_html": "100_wstep.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Klasyfikacja czworokątów - powtórzenie"
+        },
+        {
+          "order": 10,
+          "unit_json": "105_wstep.json",
+          "source_html": "105_wstep.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Deltoid - podsumowanie"
+        },
+        {
+          "order": 11,
+          "unit_json": "110_wstep_quiz.json",
+          "source_html": "110_wstep_quiz.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "quiz",
+          "title": "wstep quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "120_trapezy.json",
+          "source_html": "120_trapezy.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Definicja i własności"
+        },
+        {
+          "order": 1,
+          "unit_json": "130_trapezy.json",
+          "source_html": "130_trapezy.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Trapez równoramienny"
+        },
+        {
+          "order": 2,
+          "unit_json": "140_trapezy.json",
+          "source_html": "140_trapezy.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Twierdzenia o trapezach 1"
+        },
+        {
+          "order": 3,
+          "unit_json": "150_trapezy.json",
+          "source_html": "150_trapezy.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Twierdzenia o trapezach 2"
+        },
+        {
+          "order": 4,
+          "unit_json": "160_trapezy.json",
+          "source_html": "160_trapezy.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Twierdzenie o linii środkowej - zadania"
+        },
+        {
+          "order": 5,
+          "unit_json": "170_trapezy.json",
+          "source_html": "170_trapezy.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Twierdzenia o trapezach 3"
+        },
+        {
+          "order": 6,
+          "unit_json": "180_trapezy.json",
+          "source_html": "180_trapezy.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Twierdzenia o trapezie równoramiennym - zadania"
+        },
+        {
+          "order": 7,
+          "unit_json": "190_trapezy.json",
+          "source_html": "190_trapezy.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Pole trapezu"
+        },
+        {
+          "order": 8,
+          "unit_json": "195_trapezy.json",
+          "source_html": "195_trapezy.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 9,
+          "unit_json": "200_trapezy.json",
+          "source_html": "200_trapezy.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 10,
+          "unit_json": "205_trapezy.json",
+          "source_html": "205_trapezy.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Trapez - podsumowanie"
+        },
+        {
+          "order": 11,
+          "unit_json": "210_trapezy_quiz.json",
+          "source_html": "210_trapezy_quiz.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "quiz",
+          "title": "trapezy quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "220_rownolegloboki.json",
+          "source_html": "220_rownolegloboki.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Definicja i własności"
+        },
+        {
+          "order": 1,
+          "unit_json": "230_rownolegloboki.json",
+          "source_html": "230_rownolegloboki.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Definicje równoważne"
+        },
+        {
+          "order": 2,
+          "unit_json": "240_rownolegloboki.json",
+          "source_html": "240_rownolegloboki.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Pole równoległoboku"
+        },
+        {
+          "order": 3,
+          "unit_json": "250_rownolegloboki.json",
+          "source_html": "250_rownolegloboki.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 4,
+          "unit_json": "260_romby.json",
+          "source_html": "260_romby.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Romby"
+        },
+        {
+          "order": 5,
+          "unit_json": "270_romby.json",
+          "source_html": "270_romby.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Własności rombów"
+        },
+        {
+          "order": 6,
+          "unit_json": "280_romby.json",
+          "source_html": "280_romby.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Jeszcze o rombach"
+        },
+        {
+          "order": 7,
+          "unit_json": "290_romby.json",
+          "source_html": "290_romby.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 8,
+          "unit_json": "300_romby.json",
+          "source_html": "300_romby.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Pole rombu"
+        },
+        {
+          "order": 9,
+          "unit_json": "310_romby.json",
+          "source_html": "310_romby.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 10,
+          "unit_json": "320_romby.json",
+          "source_html": "320_romby.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 11,
+          "unit_json": "330_rownolegloboki.json",
+          "source_html": "330_rownolegloboki.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Prostokąty"
+        },
+        {
+          "order": 12,
+          "unit_json": "340_rownolegloboki.json",
+          "source_html": "340_rownolegloboki.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Kwadraty"
+        },
+        {
+          "order": 13,
+          "unit_json": "350_rownolegloboki.json",
+          "source_html": "350_rownolegloboki.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Pole prostokąta i kwadratu"
+        },
+        {
+          "order": 14,
+          "unit_json": "360_rownolegloboki.json",
+          "source_html": "360_rownolegloboki.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Prostokąty i kwadraty - zadania"
+        },
+        {
+          "order": 15,
+          "unit_json": "370_rownolegloboki.json",
+          "source_html": "370_rownolegloboki.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 16,
+          "unit_json": "380_rownolegloboki.json",
+          "source_html": "380_rownolegloboki.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Równoległoboki - zadania"
+        },
+        {
+          "order": 17,
+          "unit_json": "385_rownolegloboki.json",
+          "source_html": "385_rownolegloboki.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Równoległobok - podsumowanie"
+        },
+        {
+          "order": 18,
+          "unit_json": "390_rownolegloboki_quiz.json",
+          "source_html": "390_rownolegloboki_quiz.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "quiz",
+          "title": "rownolegloboki quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "400_rownolegloboki_quiz.json",
+          "source_html": "400_rownolegloboki_quiz.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "quiz",
+          "title": "rownolegloboki quiz"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "__PLACEHOLDER chapter 5__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "410_okregi.json",
+          "source_html": "410_okregi.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Styczne - powtórzenie"
+        },
+        {
+          "order": 1,
+          "unit_json": "420_okregi.json",
+          "source_html": "420_okregi.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Kąty w kole - powtórzenie"
+        },
+        {
+          "order": 2,
+          "unit_json": "430_okregi.json",
+          "source_html": "430_okregi.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Okręgi a czworokąty"
+        },
+        {
+          "order": 3,
+          "unit_json": "440_okregi.json",
+          "source_html": "440_okregi.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Czworokąt opisany na kole"
+        },
+        {
+          "order": 4,
+          "unit_json": "450_okregi.json",
+          "source_html": "450_okregi.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 5,
+          "unit_json": "460_okregi.json",
+          "source_html": "460_okregi.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 6,
+          "unit_json": "470_okregi.json",
+          "source_html": "470_okregi.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Czworokąt wpisany w koło"
+        },
+        {
+          "order": 7,
+          "unit_json": "480_okregi.json",
+          "source_html": "480_okregi.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 8,
+          "unit_json": "490_okregi.json",
+          "source_html": "490_okregi.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 9,
+          "unit_json": "495_okregi.json",
+          "source_html": "495_okregi.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Czworokąty wpisane w koło i opisane na kole - podsumowanie"
+        },
+        {
+          "order": 10,
+          "unit_json": "500_okregi_quiz.json",
+          "source_html": "500_okregi_quiz.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "quiz",
+          "title": "okregi quiz"
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "title": "__PLACEHOLDER chapter 6__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "510_podobne.json",
+          "source_html": "510_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Przykłady figur podobnych"
+        },
+        {
+          "order": 1,
+          "unit_json": "520_podobne.json",
+          "source_html": "520_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Czym jest podobieństwo?"
+        },
+        {
+          "order": 2,
+          "unit_json": "530_podobne.json",
+          "source_html": "530_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Podobieństwo czworokątów"
+        },
+        {
+          "order": 3,
+          "unit_json": "540_podobne.json",
+          "source_html": "540_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Własności podobieństwa 1"
+        },
+        {
+          "order": 4,
+          "unit_json": "550_podobne.json",
+          "source_html": "550_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Własności podobieństwa 2"
+        },
+        {
+          "order": 5,
+          "unit_json": "560_podobne.json",
+          "source_html": "560_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Własności podobieństwa 3"
+        },
+        {
+          "order": 6,
+          "unit_json": "570_podobne.json",
+          "source_html": "570_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Podobieństwo równoległoboków"
+        },
+        {
+          "order": 7,
+          "unit_json": "580_podobne.json",
+          "source_html": "580_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 8,
+          "unit_json": "590_podobne.json",
+          "source_html": "590_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 9,
+          "unit_json": "600_podobne.json",
+          "source_html": "600_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Pola czworokątów podobnych - wprowadzenie"
+        },
+        {
+          "order": 10,
+          "unit_json": "610_podobne.json",
+          "source_html": "610_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Pola czworokątów podobnych"
+        },
+        {
+          "order": 11,
+          "unit_json": "620_podobne.json",
+          "source_html": "620_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Zadania"
+        },
+        {
+          "order": 12,
+          "unit_json": "630_podobne.json",
+          "source_html": "630_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 13,
+          "unit_json": "640_podobne.json",
+          "source_html": "640_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Jednostki długości, jednostki pola"
+        },
+        {
+          "order": 14,
+          "unit_json": "650_podobne.json",
+          "source_html": "650_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Jednostki pola, czyli kwadratowe"
+        },
+        {
+          "order": 15,
+          "unit_json": "660_podobne.json",
+          "source_html": "660_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Skala mapy"
+        },
+        {
+          "order": 16,
+          "unit_json": "670_podobne.json",
+          "source_html": "670_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 17,
+          "unit_json": "675_podobne.json",
+          "source_html": "675_podobne.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Podobieństwo czworokątów - podsumowanie"
+        },
+        {
+          "order": 18,
+          "unit_json": "680_podobne_quiz.json",
+          "source_html": "680_podobne_quiz.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "quiz",
+          "title": "podobne quiz"
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "title": "__PLACEHOLDER chapter 7__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "690_podsumowanie.json",
+          "source_html": "690_podsumowanie.html",
+          "source_dir": "104_geometria_3_czworokaty",
+          "unit_type": "lesson",
+          "title": "Podsumowanie"
+        }
+      ]
+    }
+  ]
+}

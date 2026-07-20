@@ -1,0 +1,367 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Podstawowe tożsamości trygonometryczne\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Tożsamość\n        </strong>\n        to równość, która jest zawsze prawdziwa. Zawsze, lub przy pewnych założeniach.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            Bardzo prostym przykładem tożsamości jest równość:\n                                                                                                \\[\n                                                                                                x-x=0\n                                                                                                \\]\n                                                                                                która jest prawdziwa dla każdej liczby \\(x\\in\\mathbb{R}\\).\n        </li>\n<li>\n            Innym przykładem jest równość:\n                                                                                                \\[\n                                                                                                \\frac{x}{x}=1\n                                                                                                \\]\n                                                                                                która jest prawdziwa dla każdej liczby \\(x\\in\\mathbb{R}\\) ale przy założeniu, że \\(x\\ne 0\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Tożsamości trygonometryczne, jakie musimy znać na tym etapie to:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li style=\"margin-bottom: 20px;\">\n            \\(\\sin^2\\alpha+\\cos^2\\alpha=1\\) (tzw.\n            <strong>\n                jedynka trygonometryczna\n            </strong>\n            )\n        </li>\n<li style=\"margin-bottom: 20px;\">\n            \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\) oraz \\(\\text{ctg }\\alpha = \\frac{\\cos\\alpha}{\\sin\\alpha}\\)\n        </li>\n<li>\n            \\(\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wszystkie powyższe tożsamości są prawdziwe dla</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n        każdego kąta ostrego\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n"
+    },
+    {
+      "type": "text",
+      "body": "\n    Obejrzyj lub przeczytaj uzasadnienia tych tożsamości.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n<p class=\"centered\">\n<span class=\"myequation\">\n                \\(\\sin^2\\alpha+\\cos^2\\alpha=1\\)\n            </span>\n</p>\n<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                        nagranie\n                    </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                        krok po kroku\n                    </a>\n</li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-1-1\">\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/tryg_jedynka.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-1-2\">\n<div class=\"fill_steps\">\n<div style=\"display: inline-block; vertical-align: middle;\">\n<img alt=\"trójkąt prostokątny z kątem ostrym alfa\" height=\"243\" src=\"static/trojkat_prost_alfa.png\" style=\"width: 400px; height: 243px;\" width=\"400\"/>\n</div>\n<div class=\"important\" style=\"display: inline-block; margin-left: 20px;\">\n                        \\(\n                        \\begin{align*}\n                        \\sin\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{red}{c}}\\\\[10pt]\n                        \\cos\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{red}{c}}\\\\[10pt]\n                        \\text{tg }\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{yellow}{b}}\\\\[10pt]\n                        \\text{ctg }\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{blue}{a}}\\\\\n                        \\end{align*}\n                        \\)\n                    </div>\n<p>\n                        Jak w każdym trójkącie prostokątnym, tak i w powyższym, możemy zastosować twierdzenie Pitagorasa:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(a^2+b^2=c^2\\)\n                        </span>\n</p>\n<div class=\"fill_show_next\">\n                        pokaż dalej\n                    </div>\n<div class=\"fill_step\">\n<p>\n                            Podzielmy obie strony równania przez \\(c^2\\):\n                        </p>\n<p>\n</p>\n<span class=\"myequation\">\n                            \\(\\frac{a^2}{c^2}+\\frac{b^2}{c^2}=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</div>\n<div class=\"fill_show_next\">\n                        pokaż dalej\n                    </div>\n<div class=\"fill_step\">\n<p>\n                            Możemy lekko przekształcić ułamki po lewej stronie równania:\n                        </p>\n<p>\n<span class=\"myequation\">\n                                \\(\\left(\\frac{a}{c}\\right)^2 + \\left(\\frac{b}{c}\\right)^2 = 1\\)\n                            </span>\n</p>\n<p>\n                            dzięki czemu dostrzegamy wewnętrz nawiasów funkcje trygonometryczne kąta \\(\\alpha\\):\n                        </p>\n<span class=\"myequation\">\n                            \\(\\left(\\sin\\alpha\\right)^2 + \\left(\\right.\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n                            \\(\\left.\\alpha\\right)^2=1\\)\n                        </span>\n</div>\n</div>\n<div class=\"success hidden\" id=\"success_question10\">\n<p>\n                        I stąd otrzymujemy równość zwaną \"\n                        <strong>\n                            jedynką trygonometryczną\n                        </strong>\n                        \".\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(\\sin^2\\alpha+\\cos^2\\alpha = 1\\)\n                        </span>\n</p>\n</div>\n</div>\n</div>\n</div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(\\sin^2\\alpha+\\cos^2\\alpha=1\\) (jedynka trygonometryczna)\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+      "reason": "show_solution button without solution"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n<p class=\"centered\">\n<span class=\"myequation\">\n                \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\)\n            </span>\n            oraz\n            <span class=\"myequation\">\n                \\(\\text{ctg }\\alpha = \\frac{\\cos\\alpha}{\\sin\\alpha}\\)\n            </span>\n</p>\n<div class=\"ks_tabs\" id=\"tabs-2\">\n<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-2-1\" id=\"tab-2-1\">\n                        nagranie\n                    </a>\n</li>\n<li>\n<a href=\"#tabcontent-2-2\" id=\"tab-2-2\">\n                        krok po kroku\n                    </a>\n</li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-2-1\">\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/sin_przez_cos.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-2-2\">\n<div class=\"fill_steps\">\n<div style=\"display: inline-block; vertical-align: middle;\">\n<img alt=\"trójkąt prostokątny z kątem ostrym alfa\" height=\"243\" src=\"static/trojkat_prost_alfa.png\" style=\"width: 400px; height: 243px;\" width=\"400\"/>\n</div>\n<div class=\"important\" style=\"display: inline-block; margin-left: 20px;\">\n                        \\(\n                        \\begin{align*}\n                        \\sin\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{red}{c}}\\\\[10pt]\n                        \\cos\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{red}{c}}\\\\[10pt]\n                        \\text{tg }\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{yellow}{b}}\\\\[10pt]\n                        \\text{ctg }\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{blue}{a}}\\\\\n                        \\end{align*}\n                        \\)\n                    </div>\n<p>\n                        Pokażemy tu tylko tożsamość \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\). Druga, z cotangensem, jest bardzo podobna.\n                    </p>\n<div class=\"fill_show_next\">\n                        pokaż dalej\n                    </div>\n<div class=\"fill_step\">\n<p>\n                            Rozpatrzmy ułamek \\(\\frac{\\sin\\alpha}{\\cos\\alpha}\\):\n                        </p>\n<p>\n</p>\n<span class=\"myequation\">\n                            \\(\\frac{\\sin\\alpha}{\\cos\\alpha}=\\left(\\frac{a}{c}\\right):\\left(\\frac{b}{c}\\right)=\\frac{a}{c}\\cdot\\frac{c}{b}=\\frac{a}{b}=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n                            \\(\\alpha\\)\n                        </span>\n</div>\n</div>\n<div class=\"success hidden\" id=\"success_question30\">\n<p>\n                        I stąd otrzymujemy równość:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\)\n                        </span>\n</p>\n</div>\n</div>\n</div>\n</div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\) oraz \\(\\text{ctg }\\alpha = \\frac{\\cos\\alpha}{\\sin\\alpha}\\)\n    "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+      "reason": "show_solution button without solution"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n<p class=\"centered\">\n<span class=\"myequation\">\n                \\(\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\)\n            </span>\n</p>\n<div class=\"ks_tabs\" id=\"tabs-3\">\n<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-3-1\" id=\"tab-3-1\">\n                        nagranie\n                    </a>\n</li>\n<li>\n<a href=\"#tabcontent-3-2\" id=\"tab-3-2\">\n                        krok po kroku\n                    </a>\n</li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-3-1\">\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/tg_ctg.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-3-2\">\n<div class=\"fill_steps\">\n<div style=\"display: inline-block; vertical-align: middle;\">\n<img alt=\"trójkąt prostokątny z kątem ostrym alfa\" height=\"243\" src=\"static/trojkat_prost_alfa.png\" style=\"width: 400px; height: 243px;\" width=\"400\"/>\n</div>\n<div class=\"important\" style=\"display: inline-block; margin-left: 20px;\">\n                        \\(\n                        \\begin{align*}\n                        \\sin\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{red}{c}}\\\\[10pt]\n                        \\cos\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{red}{c}}\\\\[10pt]\n                        \\text{tg }\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{yellow}{b}}\\\\[10pt]\n                        \\text{ctg }\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{blue}{a}}\\\\\n                        \\end{align*}\n                        \\)\n                    </div>\n                    Rozpatrzmy iloczyn \\(\\text{tg }\\alpha\\cdot \\text{tg }\\alpha\\)\n                </div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Rozpatrzmy ułamek \\(\\frac{\\sin\\alpha}{\\cos\\alpha}\\):\n                    </p>\n<p>\n</p>\n<span class=\"myequation\">\n                        \\(\\text{tg }\\alpha\\cdot \\text{tg }\\alpha=\\frac{a}{b}\\cdot\\frac{b}{a}=\\)\n                        <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</div>\n<div class=\"success hidden\" id=\"success_question30\">\n<p>\n                        I stąd otrzymujemy równość:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(\\text{tg }\\alpha\\cdot \\text{ctg }\\alpha = 1\\)\n                        </span>\n</p>\n</div>\n</div>\n</div>\n</div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\)\n    "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+      "reason": "show_solution button without solution"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wiedząc, że \\(\\sin\\alpha=\\frac{4}{5}\\) dla pewnego kąta ostrego \\(\\alpha\\), znajdź wartości pozostałych funkcji trygonometrycznych tego kąta.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-4-1\" id=\"tab-4-1\">\n                    nagranie\n                </a>\n</li>\n<li>\n<a href=\"#tabcontent-4-2\" id=\"tab-4-2\">\n                    krok po kroku\n                </a>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Rozwiązanie z użyciem tożsamości trygonometrycznych.\n            </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/tryg_tozsamosci_1.mp4"
+    },
+    {
+      "type": "spoiler",
+      "label": "ważna uwaga na temat jednego z obliczeń w powyższym nagraniu (kliknij)",
+      "body": "\n\n<div style=\"border: 1px solid gray; border-radius: 5px; padding: 5px;\">\n<p>\n                        Z równania \\(\\cos^2\\alpha=\\frac{9}{25}\\) wywnioskowałem, że \\(\\cos\\alpha=\\frac{3}{5}\\).\n                    </p>\n<p>\n                        Należy jednak pamiętać, że np.\n                    </p>\n<ul class=\"nolist\">\n<li>\n                            jeśli \\(x^2=4\\) to \\(x=2\\) albo \\(x=-2\\)\n                        </li>\n<li>\n                            jeśli \\(x^2=9\\) to \\(x=3\\) albo \\(x=-3\\)\n                        </li>\n<li>\n                            jeśli \\(x^2=25\\) to \\(x=5\\) albo \\(x=-5\\)\n                        </li>\n</ul>\n<p>\n                        Tu podobnie:\n                    </p>\n<p>\n                        Jeśli \\(\\cos^2\\alpha=\\frac{9}{25}\\) to \\(\\cos\\alpha=\\frac{3}{5}\\) albo \\(\\cos\\alpha=-\\frac{3}{5}\\).\n                    </p>\n<p>\n                        Jednak na razie ujemna wartość cosinusa nas nie interesuje. Cosinus kąta ostrego to stosunek dwóch długości, a tym samym musi być dodatni.\n                    </p>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Rozwiązanie z użyciem rysunku.\n            </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/tryg_tozsamosci_2.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                        Uwaga!\n                    </strong>\n                    Na nagraniach, zarówno w tym zadaniu jak i w kolejnym, opisane są dwie metody: z użyciem tożsamości trygonometrycznych oraz z użyciem rysunku trójkąta prostokątnego. W opisie tego zadania użyjemy wyłącznie metody z rysunkiem, natomiast w zadaniu kolejnym - wyłącznie metody z tożsamościami trygonometrycznymi.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Rysunek poniżej przedstawia trójkąt prostokątny z kątem ostrym \\(\\alpha\\), którego sinus ma wartość \\(\\frac{4}{5}\\).\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"tożsamości trygonometryczne, zadanie, 1\" height=\"409\" src=\"static/tryg_tozsamosci_zad1.png\" style=\"width: 350px; height: 409px;\" width=\"350\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Sinus to stosunek\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                            przyprostokątnej naprzeciwległej do kąta \\(\\alpha\\) (więc ta ma długość 4) do\n                        </li>\n<li>\n                            przeciwprostokątnej (więc ta ma długość 5).\n                        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Z twierdzenia Pitagorasa wyliczamy, że długość przyprostokątnej przyległej do kąta \\(\\alpha\\) to\n                        <span class=\"myequation\">\n<span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        pokaż dalej\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"tożsamości trygonometryczne, zadanie, 2\" height=\"455\" src=\"static/tryg_tozsamosci_zad2.png\" style=\"width: 350px; height: 455px;\" width=\"350\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                            Znając wszystkie boki w trójkącie prostokątnym i pamiętając, jak zdefiniowane są funkcje trygonometryczne kąta \\(\\alpha\\), możemy zapisać wartości brakujących funkcji\n                        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"trójkąt prostokątny z kątem ostrym alfa\" height=\"243\" src=\"static/trojkat_prost_alfa.png\" style=\"width: 400px; height: 243px;\" width=\"400\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(\n                                                                                                                \\begin{align*}\n                                                                                                                \\sin\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{red}{c}}\\\\[10pt]\n                                                                                                                \\cos\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{red}{c}}\\\\[10pt]\n                                                                                                                \\text{tg }\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{yellow}{b}}\\\\[10pt]\n                                                                                                                \\text{ctg }\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{blue}{a}}\\\\\n                                                                                                                \\end{align*}\n                                                                                                                \\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span class=\"myequation\">\n                            \\(\\cos\\alpha=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n</span>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        pokaż dalej\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n<span class=\"myequation\">\n                            \\(\\text{tg }\\alpha=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n</span>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n                        pokaż dalej\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n<span class=\"myequation\">\n                            \\(\\text{ctg }\\alpha=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n</span>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Czyli ostatecznie\n                    <span class=\"myequation\">\n                        \\(\\sin\\alpha = \\frac{4}{5}, \\cos\\alpha=\\frac{3}{5}, \\text{tg }\\alpha = \\frac{4}{3}, \\text{ctg }\\alpha = \\frac{3}{4}\\)\n                    </span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Wiedząc, że \\(\\text{tg }\\alpha=2\\) dla pewnego kąta ostrego \\(\\alpha\\), znajdź wartości poostałych funkcji trygonometrycznych tego kąta.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-5-1\" id=\"tab-5-1\">\n                    nagranie\n                </a>\n</li>\n<li>\n<a href=\"#tabcontent-5-2\" id=\"tab-5-2\">\n                    krok po kroku\n                </a>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Rozwiązanie z użyciem tożsamości trygonometrycznych.\n            </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/tryg_tozsamosci_3.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Rozwiązanie z użyciem rysunku.\n            </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/tryg_tozsamosci_4.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                        Uwaga!\n                    </strong>\n                    Na nagraniach, zarówno w poprzednim zadaniu jak i w tym, opisane są dwie metody: z użyciem tożsamości trygonometrycznych oraz z użyciem rysunku trójkąta prostokątnego. W opisie poprzedniego zadania użyliśmy wyłącznie metody z rysunkiem, natomiast w tym zadaniu użyjemy wyłącznie metody z tożsamościami trygonometrycznymi.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Na początku przypomnijmy sobie tożsamości, które dopiero co poznaliśmy:\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\\sin^2\\alpha+\\cos^2\\alpha=1"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                            (\n                            <strong>\n                                jedynka trygonometryczna\n                            </strong>\n                            )\n                        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\[\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\]\n                        \\[\\text{ctg }\\alpha = \\frac{\\cos\\alpha}{\\sin\\alpha}\\]\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\[\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\]\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Z drugiej tożsamości wiemy, że\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span class=\"myequation\">\n                            \\(\\frac{\\sin\\alpha}{\\cos\\alpha}=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Przyjmijmy dla ułatwienia, że \\(s=\\sin\\alpha\\) oraz \\(c=\\cos\\alpha\\). Wówczas pierwsze dwie tożsamości tworzą następujący układ równań:\n                    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\\begin{cases}\n                                                                                                        s^2+c^2&=1\\\\\n                                                                                                        \\frac{s}{c}&=2\n                                                                                                        \\end{cases}"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Z drugiego równania możemy wyliczyć \\(s\\):\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span class=\"myequation\">\n                        \\(s=\\)\n                        <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Teraz podstawimy \\(s=2c\\) do pierwszego równania:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span class=\"myequation\">\n                            \\((2c)^2+c^2=1\\)\n                        </span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span class=\"myequation\">\n                            \\(4c^2+c^2=1\\)\n                        </span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span class=\"myequation\">\n                            \\(5c^2=1\\)\n                        </span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Czyli\n                        <span class=\"myequation\">\n                            \\(c^2=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        A skoro \\(c^2=\\frac{1}{5}\\) i \\(s^2+c^2=1\\) to\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span class=\"myequation\">\n                            \\(s^2=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Mamy więc \\(c^2=\\frac{1}{5}\\), czyli \\(c=\\frac{1}{\\sqrt{5}}=\\frac{\\sqrt{5}}{5}\\)\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        oraz \\(s^2=\\frac{4}{5}\\), czyli \\(s=\\frac{2}{\\sqrt{5}}=\\frac{2\\sqrt{5}}{5}\\)\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Pozostało nam znaleźć wartość \\(\\text{ctg }\\alpha\\), do czego możemy użyć trzeciej tożsamości: \\(\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\).\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Wiedząc, że \\(\\text{tg }\\alpha = 2\\)\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Otrzymujemy\n                        <span class=\"myequation\">\n                            \\(\\text{ctg }\\alpha = \\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Czyli ostatecznie\n                    <span class=\"myequation\">\n                        \\(\\sin\\alpha = \\frac{2\\sqrt{5}}{5}, \\cos\\alpha=\\frac{\\sqrt{5}}{5}, \\text{tg }\\alpha = 2, \\text{ctg }\\alpha = \\frac{1}{2}\\)\n                    </span>\n</p>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "1af828c1d41f262ebd812379482cf95654afebcc4ae7e263d4f79a9ad79a9c6b"
+}

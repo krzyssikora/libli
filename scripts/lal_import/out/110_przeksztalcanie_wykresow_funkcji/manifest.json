@@ -1,0 +1,163 @@
+{
+  "part": {
+    "source_folder": "110_przeksztalcanie_wykresow_funkcji",
+    "order": 16,
+    "title": "przeksztalcanie wykresow funkcji"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "wykresy_10.json",
+          "source_html": "wykresy_10.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "lesson",
+          "title": "Wektory"
+        },
+        {
+          "order": 1,
+          "unit_json": "wykresy_15.json",
+          "source_html": "wykresy_15.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "lesson",
+          "title": "Współrzędne wektora"
+        },
+        {
+          "order": 2,
+          "unit_json": "wykresy_20.json",
+          "source_html": "wykresy_20.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "lesson",
+          "title": "Współrzędne wektora - ćwiczenie"
+        },
+        {
+          "order": 3,
+          "unit_json": "wykresy_22.json",
+          "source_html": "wykresy_22.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "lesson",
+          "title": "Wektory w układzie współrzędnych"
+        },
+        {
+          "order": 4,
+          "unit_json": "wykresy_23.json",
+          "source_html": "wykresy_23.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "lesson",
+          "title": "Przesuwanie o wektor w układzie współrzędnych"
+        },
+        {
+          "order": 5,
+          "unit_json": "wykresy_25.json",
+          "source_html": "wykresy_25.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "lesson",
+          "title": "Wektory w układzie współrzędnych - ćwiczenie"
+        },
+        {
+          "order": 6,
+          "unit_json": "wykresy_27.json",
+          "source_html": "wykresy_27.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "lesson",
+          "title": "Operacje na wektorach"
+        },
+        {
+          "order": 7,
+          "unit_json": "wykresy_28.json",
+          "source_html": "wykresy_28.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "lesson",
+          "title": "Operacje na wektorach - ćwiczenie"
+        },
+        {
+          "order": 8,
+          "unit_json": "wykresy_29_quiz.json",
+          "source_html": "wykresy_29_quiz.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "quiz",
+          "title": "wykresy 29 quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "wykresy_30.json",
+          "source_html": "wykresy_30.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "lesson",
+          "title": "Przesuwanie wykresu wzdłuż osi \\(ox\\)"
+        },
+        {
+          "order": 1,
+          "unit_json": "wykresy_40.json",
+          "source_html": "wykresy_40.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "lesson",
+          "title": "Przesuwanie wykresu wzdłuż osi \\(oy\\)"
+        },
+        {
+          "order": 2,
+          "unit_json": "wykresy_45_quiz.json",
+          "source_html": "wykresy_45_quiz.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "quiz",
+          "title": "wykresy 45 quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "wykresy_50.json",
+          "source_html": "wykresy_50.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "lesson",
+          "title": "Symetria osiowa"
+        },
+        {
+          "order": 1,
+          "unit_json": "wykresy_60.json",
+          "source_html": "wykresy_60.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "lesson",
+          "title": "Współrzędne punktów w symetrii względem osi układu współrzędnych"
+        },
+        {
+          "order": 2,
+          "unit_json": "wykresy_70.json",
+          "source_html": "wykresy_70.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "lesson",
+          "title": "Symetrie wykresów względem osi układu współrzędnych"
+        },
+        {
+          "order": 3,
+          "unit_json": "wykresy_80.json",
+          "source_html": "wykresy_80.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "lesson",
+          "title": "Symetria środkowa"
+        },
+        {
+          "order": 4,
+          "unit_json": "wykresy_85_quiz.json",
+          "source_html": "wykresy_85_quiz.html",
+          "source_dir": "110_przeksztalcanie_wykresow_funkcji",
+          "unit_type": "quiz",
+          "title": "wykresy 85 quiz"
+        }
+      ]
+    }
+  ]
+}

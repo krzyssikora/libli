@@ -1,0 +1,54 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Niech zdanie \\(p\\) oznacza \"\n            <em>\n                Coś płonie\n            </em>\n            \".\n        </p>\n<p>\n            Niech zdanie \\(q\\) oznacza \"\n            <em>\n                Widać dym\n            </em>\n            \".\n        </p>\n<p>\n            Wskaż prawidłowy zapis symboliczny następujących zdań:\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Jeśli coś płonie to widać dym.\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p\\vee q\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p \\wedge q\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p\\Rightarrow q\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p\\Leftrightarrow q\\)\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Coś płonie i widać dym.\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p\\vee q\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p \\wedge q\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p\\Rightarrow q\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p\\Leftrightarrow q\\)\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Coś płonie lub widać dym.\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p\\vee q\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p \\wedge q\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p\\Rightarrow q\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p\\Leftrightarrow q\\)\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Coś płonie wtedy i tylko wtedy, gdy widać dym.\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p\\vee q\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p \\wedge q\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p\\Rightarrow q\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(p\\Leftrightarrow q\\)\n            </div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n        potwierdź\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi:\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Wskaż prawidłowy zapis symboliczny następujących zdań:\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Istnieje liczba całkowita mniejsza od \\(-200\\).\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\land_{x\\in\\mathbb{Z}}\\quad x\\lt -200\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\lor_{x\\in\\mathbb{Z}}\\quad x\\lt -200\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\( z\\lt -200\\)\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Każda liczba całkowita jest mniejsza od \\(-200\\).\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\land_{x\\in\\mathbb{Z}}\\quad x\\lt -200\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\lor_{x\\in\\mathbb{Z}}\\quad x\\lt -200\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\( z\\lt -200\\)\n            </div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n        potwierdź\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi:\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f59a094a07dfbabc923ade43754dd73d37b6447778c04451d8f940027dcc9325"
+}

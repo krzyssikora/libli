@@ -1,0 +1,84 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Pierwszy wyraz ciągu arytmetycznego jest równy \\(14\\), a różnica tego ciągu to \\(2,5\\).</p><p>Dwudziesty siódmy wyraz tego ciągu to:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(81,5\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(79\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(65\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(67,5\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Szesnasty wyraz ciągu arytmetycznego ma wartość \\(3\\), a różnica tego ciągu jest równa \\(-\\frac{2}{3}\\).</p><p>Pierwszy wyraz tego ciągu to:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(13\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-7\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(13\\tfrac{2}{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-7\\tfrac{2}{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jedenasty wyraz ciągu arytmetycznego ma wartość \\(4\\), a trzydziesty czwarty wyraz to \\(73\\).</p><p>Podaj różnicę tego ciągu.</p>",
+      "value": "3",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jedenasty wyraz ciągu arytmetycznego jest równy \\(24,5\\), a trzynasty wyraz to \\(39,5\\).</p><p>Podaj wartość dwunastego wyrazu.</p>",
+      "value": "32",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Pierwszy i osiemnasty wyraz ciągu arytmetycznego to odpowiednio \\(-5\\) i \\(11\\).</p><p>Podaj sumę pierwszych osiemnastu wyrazów tego ciągu.</p>",
+      "value": "108",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Pierwszy wyraz ciągu arytmetycznego jest równy \\(4,5\\), a różnica tego ciągu ma wartość \\(2,5\\).</p><p>Suma piętnastu pierwszych wyrazów tego ciągu to</p>",
+      "value": "330",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "373c621f55e517ec7dd8a6ae65cd106dfb17852d9c4df17f5ffee4a6fcf391eb"
+}

@@ -1,0 +1,99 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W pudełku jest 10 kulek z liczbami od \\(1\\) do \\(10\\).\n        </p>\n<figure>\n<img src=\"static/10_kulek.png\"/>\n</figure>\n<p>\n            Czterokrotnie losujemy z pudełka kulkę, zapisujemy jej liczbę i zwracamy ją do pudełka. \n        </p>\n<p>\n            Ile jest możliwych losowań kulek, takich, by\n        </p>\n<ol class=\"bold\" type=\"A\">\n<li>wszystkie wylosowane liczby były parzyste,</li>\n<li>wszystkie wylosowane liczby były podzielne przez \\(3\\)</li>\n</ol>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Część <strong>A</strong>.\n                </p>\n<div class=\"switch_line\">\n                    Wśród liczby na kulkach jest`\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">10 liczb parzystych</div>\n<div class=\"switch_value\">8 liczb parzystych</div>\n<div class=\"switch_value\">5 liczb parzystych</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Interesuje nas sytuacja, w której wybieramy jedną z pięciu kulek z liczbami: \\(2\\), \\(4\\), \\(6\\), \\(8\\) lub \\(10\\). Po takim wyborze kulkę zwracamy do pudełka i wybieramy ponownie.\n                <div class=\"switch_line\">\n                    Tym razem kulek z liczbami parzystymi jest\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">o jedną mniej</div>\n<div class=\"switch_value\">tyle samo</div>\n<div class=\"switch_value\">dwie</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Za trzecim razem też będziemy mieli 5 kulek z liczbami parzystymi, identycznie za czwartym razem.\n                <div class=\"switch_line\">\n                    A to oznacza, że liczba takich losowań, by wszystkie cztery liczby były parzyste jest równa\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(5\\cdot 4=20\\)</div>\n<div class=\"switch_value\">\\(5^4=625\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Część <strong>B</strong>.\n                </p>\n<div class=\"switch_line\">\n                    Spośród liczb na kulkach podzielne przez \\(3\\) są\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3\\), \\(6\\) i \\(9\\)</div>\n<div class=\"switch_value\">\\(0\\), \\(3\\), \\(6\\) i \\(9\\)</div>\n<div class=\"switch_value\">\\(0\\), \\(3\\) i \\(6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Interesuje nas sytuacja, w której wybieramy jedną z trzech kulek. Po takim wyborze kulkę zwracamy do pudełka i wybieramy ponownie. I znów interesuje nas wybór jednej z tych trzech kulek. Za trzecim i czwartym razem - tak samo. \n                <div class=\"switch_line\">\n                    To oznacza, że liczba takich losowań, by wszystkie cztery liczby były podzielne przez \\(3\\) jest równa\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3^4=81\\)</div>\n<div class=\"switch_value\">\\(4^3=64\\)</div>\n<div class=\"switch_value\">\\(3\\cdot 4=12\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<ul>\n<li>\n                        W obu częściach za każdym razem mieliśmy tyle samo interesujących nas wyborów - \\(5\\) liczb parzystych lub \\(3\\) liczby podzielne przez \\(3\\). Oznaczmy tę liczbę wyborów przez \\(n\\).\n                    </li>\n<li>\n                        W obu częściach identyczne losowanie przeprowadzaliśmy cztery razy - oznaczmy tę liczbę przez \\(k\\).\n                    </li>\n<li>\n                        W obu częściach liczba możliwych wyborów kulek jest równa\n                        \\[\n                        n^k\n                        \\]\n                    </li>\n</ul>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Wariacja z powtórzeniami</strong> to dowolny skończony ciąg elementów pewnego skończonego zbioru. Elementy tego zbioru mogą się w ciągu powtarzać - występować więcej niż raz.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli ciąg jest długości \\(k\\) a zbiór ma \\(n\\) elementów, mówimy o <strong>\\(k\\)-wyrazowej wariacji zbioru \\(n\\)-elementowego</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeśli czterokrotnie wybieramy liczby parzyste ze zbioru \\(\\{2, 4, 6, 8, 10\\}\\), tworzymy <strong>\\(4\\)-wyrazowe wariacje zbioru 5-elementowego</strong>.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Każdy wynik takiego losowania, czyli cztery liczby parzyste, są taką wariacją, np.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\\((2, 2, 8, 4)\\)</li>\n<li>\\((8, 2, 10, 6)\\)</li>\n<li>\\((10, 6, 6, 2)\\)</li>\n<li>\\((4, 8, 4, 2)\\)</li>\n<li>\\((2, 10, 10, 8)\\)</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wariacja jest <strong>z powtórzeniami</strong>, bo liczby mogą pojawiać się w ciągu więcej niż raz.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Jeśli ze zbioru \\(n\\)-elementowego wybieramy ciągi długości \\(k\\), dopuszczając powtórzenia elementów, to liczba takich ciągów jest równa\n    \\[\n    n^k\n    \\]\n    <hr/>\n    Liczba \\(k\\)-wyrazowych wariacji z powtórzeniami zbioru \\(n\\)-elementowego jest oznaczana symbolem \\(W_n^k\\) i jest równa:\n    \\[\n    W_n^k=n^k\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W pudełku jest 10 kulek z liczbami od \\(1\\) do \\(10\\).\n            Czterokrotnie losujemy z pudełka kulkę, zapisujemy jej liczbę i zwracamy ją do pudełka. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile jest możliwych losowań kulek, takich, by wszystkie wylosowane liczby były parzyste?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Losujemy ze zbioru \\(\\{2, 4, 6, 8, 10\\}\\), czyli 5-elementowego (\\(n=5\\)).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Losujemy czterokrotnie (\\(k=4\\)), czyli tworzymy wariacje 4-elementowe ze zbioru 5-elementowego. A takich jest\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        W_5^4=5^4=625\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W pudełku jest 10 kulek z liczbami od \\(1\\) do \\(10\\).\n            Czterokrotnie losujemy z pudełka kulkę, zapisujemy jej liczbę i zwracamy ją do pudełka. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile jest możliwych losowań kulek, takich, by wszystkie wylosowane liczby były podzielne przez \\(3\\)?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Losujemy ze zbioru \\(\\{3, 6, 9\\}\\), czyli 3-elementowego (\\(n=3\\)).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Losujemy czterokrotnie (\\(k=4\\)), czyli tworzymy wariacje 4-elementowe ze zbioru 3-elementowego. A takich jest\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        W_3^4=3^4=81\n        "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d85b696071f08c408887b74c295630466908494947017e12dd3aed28c7ce8a06"
+}

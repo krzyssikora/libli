@@ -1,0 +1,138 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    W trójkącie dane są długości wszystkich boków: \\(a\\), \\(b\\) i \\(c\\).\n</p><p>\n    Aby obliczyć miarę kąta \\(B\\), przeciwległego do boku \\(B\\), możemy użyć równania:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(b^2=a^2+c^2-2ac\\cos B\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(a^2=b^2+c^2-2bc\\cos B\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(c^2=a^2+b^2-2ab\\cos B\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    W trójkącie dane są długości boków \\(b\\) i \\(c\\) oraz miara kąta \\(A\\) między tymi bokami.\n</p><p>\n    Aby obliczyć długość boku \\(a\\), możemy użyć równania:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(b^2=a^2+c^2-2ac\\cos B\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(a^2=b^2+c^2-2bc\\cos A\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(c^2=a^2+b^2-2ab\\cos C\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    W trójkącie dane są długości boków \\(b\\) i \\(c\\) oraz miara kąta \\(C\\) przeciwległego do boku \\(c\\).\n</p><p>\n    Aby obliczyć długość boku \\(a\\), możemy użyć równania:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(b^2=a^2+c^2-2ac\\cos B\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(a^2=b^2+c^2-2bc\\cos A\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(c^2=a^2+b^2-2ab\\cos C\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Jeśli dane są długości wszystkich boków trójkąta, ale nie znamy żadnego kąta, aby obliczyć miarę kąta możemy użyć\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tylko twierdzenia sinusów",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "tylko twierdzenia cosinusów",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "zarówno twierdzenia sinusów jak i twierdzenia cosinusów",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    W trójkącie \\(ABC\\) boki przeciwległe do kątów \\(A\\), \\(B\\) i \\(C\\) nazwano odpowiednio \\(a\\), \\(b\\) i \\(c\\).\n</p><p>\n    Jeśli dane są długości boków \\(a\\) i \\(b\\) oraz miara kąta \\(A\\), aby znaleźć miarę kąta \\(B\\) możemy użyć\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tylko twierdzenia sinusów",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "tylko twierdzenia cosinusów",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "zarówno twierdzenia sinusów jak i twierdzenia cosinusów",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    W trójkącie \\(ABC\\) boki przeciwległe do kątów \\(A\\), \\(B\\) i \\(C\\) nazwano odpowiednio \\(a\\), \\(b\\) i \\(c\\).\n</p><p>\n    Jeśli dane są długości boków \\(a\\) i \\(b\\) oraz miara kąta \\(A\\), aby znaleźć długość boku \\(c\\) możemy użyć\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tylko twierdzenia sinusów",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "tylko twierdzenia cosinusów",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "zarówno twierdzenia sinusów jak i twierdzenia cosinusów",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "466295bf07981fc6fca415487406d8bcde2fd2fb62552fc3647988178b6ae78d"
+}

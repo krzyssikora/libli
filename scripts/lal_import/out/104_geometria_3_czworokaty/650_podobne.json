@@ -1,0 +1,113 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wyboraź sobie, że ten kwadrat to <strong>metr kwadratowy</strong>.<br/>\n<small>(Nie przejmuj się, że wskazująca na niego postać jest zbyt mała. Skup się na kwadracie.)</small>\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/jednostki_1m2_1x1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Metr kwadratowy, czyli kwadrat o boku jednego metra. Każdy bok ma długość \\(1\\) metra, czyli każdy bok możemy podzielić na \\(100\\) centymetrów.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/jednostki_1m2_100x100.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Każdy mały kwadracik o boku \\(1\\) centymetra to <strong>centymetr kwadratowy</strong>.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile jest tu małych kwadracików? Ile centymetrów kwadratowych mieści się w metrze kwadratowym?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Ile?",
+      "body": "\n\n<p>\n            Jest ich \\(10\\,000\\). Dlaczego? Oczywiście liczenie ich po kolei nie ma najmniejszego sensu. Jeśli nie jesteś pewny/-a, dlaczego jest ich \\(10\\,000\\), przyjrzyj się prostszemu przykładowi.  \n        </p>\n<p>\n            Jeśli podzielimy \\(1\\) metr na \\(10\\) decymetrów, to kwadrat podzielimy na \\(10^2=100\\) mnniejszych kwadratów. \n        </p>\n<figure>\n<img src=\"static/jednostki_1m2_10x10.png\" style=\"max-height: 350px;\"/>\n</figure>\n        I dlatego:\n        <div class=\"table_wrapper\">\n            \\[\n            \\begin{align*}\n            1\\,\\text{m}^2&amp;=10^2\\,\\text{dm}^2&amp;=100\\,\\text{dm}^2\\\\\n            1\\,\\text{m}^2&amp;=100^2\\,\\text{cm}^2&amp;=10\\,000\\,\\text{cm}^2\n            \\end{align*}\n            \\]\n        </div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zamieniając jednostki kwadratowe mnożymy przez kwadraty czynników odpowiednich dla zamiany jednostek odległości.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/jednostki_pola.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Możesz też najpierw przeliczyć jednostki odległości, a potem podwoić liczbę zer / miejsc po przecinku, jak w poniższych przykładach.\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/jednostki_dlugosci.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przedstawmy \\(20\\,\\text{m}^2\\) w \\(\\text{mm}^2\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz, jak",
+      "body": "\n\n<ol class=\"bold\">\n<li>\n                Najpierw zauważmy, że \n                \\[\n                1\\,\\text{m}=1\\,000\\,\\text{mm}\n                \\]\n                albo\n                \\[\n                1\\,\\text{m}=10^3\\,\\text{m}^2\n                \\]\n            </li>\n<li>\n                Stąd wnioskujemy, że\n                \\[\n                1\\,\\text{m}^{\\color{purple}{2}}=1\\,000\\,\\color{purple}{000}\\,\\text{mm}^{\\color{purple}{2}}\n                \\]\n                albo\n                \\[\n                1\\,\\text{m}^{\\color{purple}{2}}=\\left(10^3\\right)^{\\color{purple}{2}}\\,\\text{mm}^{\\color{purple}{2}}\n                \\]\n            </li>\n<li>\n                I ostatecznie\n                \\[\n                \\color{red}{20}\\,\\text{m}^{\\color{purple}{2}}=\\color{red}{20}\\,000\\,\\color{purple}{000}\\,\\text{mm}^{\\color{purple}{2}}\n                \\]\n                albo\n                \\[\n                \\begin{align}\n                \\color{red}{20}\\,\\text{m}^{\\color{purple}{2}}&amp;=\\color{red}{20}\\cdot \\left(10^3\\right)^{\\color{purple}{2}}\\,\\text{mm}^{\\color{purple}{2}}=\\\\\n                &amp;=\\color{red}{20}\\cdot 10^6\\,\\text{mm}^{\\color{purple}{2}}=\\\\\n                &amp;=2\\cdot 10^7\\,\\text{mm}^{\\color{purple}{2}}\n                \\end{align}\n                \\]\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przedstawmy \\(40\\,\\text{mm}^2\\) w \\(\\text{m}^2\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz, jak",
+      "body": "\n\n<ol class=\"bold\">\n<li>\n                Najpierw zauważmy, że \n                \\[\n                1\\,\\text{mm}=0,001\\,\\text{m}\n                \\]\n                albo\n                \\[\n                1\\,\\text{mm}=10^{-3}\\,\\text{m}\n                \\]\n            </li>\n<li>\n                Stąd wnioskujemy, że\n                \\[\n                1\\,\\text{mm}^{\\color{purple}{2}}=0,\\color{purple}{000}\\,001\\,\\text{m}^{\\color{purple}{2}}\n                \\]\n                albo\n                \\[\n                1\\,\\text{mm}^{\\color{purple}{2}}=\\left(10^{-3}\\right)^{\\color{purple}{2}}\\,\\text{m}^{\\color{purple}{2}}\n                \\]\n            </li>\n<li>\n                I ostatecznie\n                \\[\n                \\color{red}{20}\\,\\text{mm}^{\\color{purple}{2}}=0,\\color{purple}{000}\\,0\\color{red}{20}\\,\\text{m}^{\\color{purple}{2}}\n                \\]\n                czyli\n                \\[\n                20\\,\\text{mm}^2=0,00\\,002\\,\\text{m}^2\n                \\]\n                albo\n                \\[\n                \\begin{align}\n                \\color{red}{20}\\,\\text{mm}^{\\color{purple}{2}}&amp;=\\color{red}{20}\\cdot \\left(10^{-3}\\right)^{\\color{purple}{2}}\\,\\text{m}^{\\color{purple}{2}}=\\\\\n                &amp;=\\color{red}{20}\\cdot 10^{-6}\\,\\text{m}^{\\color{purple}{2}}=\\\\\n                &amp;=2\\cdot 10^{-5}\\,\\text{m}^{\\color{purple}{2}}\n                \\end{align}\n                \\]\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n                    Uzupełnij.\n                </p>\n<ol class=\"bold\">\n<li>\n                        \\(2\\,\\text{m}^2=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{dm}^2\\)\n                    </li>\n<li>\n                        \\(1\\,\\text{m}^2=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{mm}^2\\)\n                    </li>\n<li>\n                        \\(3\\,\\text{dm}^2=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{mm}^2\\)\n                    </li>\n<li>\n                        \\(15\\,\\text{m}^2=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{mm}^2\\)\n                    </li>\n<li>\n                        \\(0,3\\,\\text{km}^2=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{m}^2\\)\n                    </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            Świetnie!\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n                    Uzupełnij.\n                </p>\n<ol class=\"bold\">\n<li>\n                        \\(1\\,\\text{cm}^2=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{m}^2\\)\n                    </li>\n<li>\n                        \\(5\\,\\text{dm}^2=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{m}^2\\)\n                    </li>\n<li>\n                        \\(13\\,\\text{m}^2=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{km}^2\\)\n                    </li>\n<li>\n                        \\(25\\,\\text{mm}^2=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{dm}^2\\)\n                    </li>\n<li>\n                        \\(350\\,\\text{mm}^2=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{m}^2\\)\n                    </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            Brawo!\n        "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ba042386d7f238b966dbe4ba0103a5a93d8cbb6f53261a5e2872b68597d9ffbb"
+}

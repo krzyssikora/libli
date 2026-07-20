@@ -1,0 +1,60 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Trójkąty \\(T_1\\) i \\(T_2\\) są podobne. Najdłuższe boki w tych trójkątach to odpowiednio \\(4\\) cm i \\(12\\) cm.\n</p><p>Wówczas:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "Pole trójkąta \\(T_2\\) jest \\(9\\) razy większe od pola trójkąta \\(T_1\\).",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Pole trójkąta \\(T_2\\) jest \\(9\\) razy mniejsze od pola trójkąta \\(T_1\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Pole trójkąta \\(T_2\\) jest \\(3\\) razy większe od pola trójkąta \\(T_1\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Pole trójkąta \\(T_2\\) jest \\(3\\) razy mniejsze od pola trójkąta \\(T_1\\).",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Pola trójkątów podobnych \\(T_1\\) i \\(T_2\\) to odpowiednio \\(12\\) cm\\(^2\\) i \\(30\\) cm\\(^2\\)\n</p><p>\n    Jaka jest skala podobieństwa trójkąta \\(T_2\\) do trójkąta \\(T_1\\)?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(2\\tfrac{1}{4}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(1\\tfrac{1}{2}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(1\\tfrac{1}{8}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\tfrac{4}{9}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f73facda86a8476ea7d70f0af522a9691c2dc4a2d809a4dc4362253f63a23548"
+}

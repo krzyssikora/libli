@@ -1,0 +1,85 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Wśród poniższych liczb wskaż wszystkie</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(9\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(11\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(27\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(29\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(45\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(57\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ],
+      "points": "2"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>W poniższej liczbie zasłonięto jedną cyfrę:</p><p>\\[534\\square 2\\]</p><p>Jaka jest najmniejsza możliwa wartość zasłoniętej cyfry, jeśli liczba jest podzielna przez \\(3\\)?</p>",
+      "value": "1",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>W poniższej liczbie zasłonięto jedną cyfrę:</p><p>\\[534\\square 2\\]</p><p>Jaka jest najmniejsza możliwa wartość zasłoniętej cyfry, jeśli liczba jest podzielna przez \\(9\\)?</p>",
+      "value": "4",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>W poniższej liczbie zasłonięto jedną cyfrę:</p><p>\\[534\\square 2\\]</p><p>Jaka jest najmniejsza możliwa wartość zasłoniętej cyfry, jeśli liczba jest podzielna przez \\(4\\)?</p>",
+      "value": "1",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Oblicz i wpisz niżej największy wspólny dzielnik i najmniejszą wspólną wielokrotność liczb 126 i 168.</p><p>NWD(126, 168)=</p>",
+      "value": "42",
+      "tolerance": "0",
+      "points": "2"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>NWW(126, 168)=</p>",
+      "value": "504",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "4f501c66768c4eb80b3ecc946a4dcf3847dd9792a57b1cf60f9d18823ce53764"
+}

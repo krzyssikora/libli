@@ -1,0 +1,97 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż zdania prawdziwe.</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(|-5|=5\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(|-5|=-5\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(|5|=-5\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(|\\sqrt{5}-1|=\\sqrt{5}-1\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(|\\sqrt{5}-1|=\\sqrt{5}+1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(|\\sqrt{5}-1|=1-\\sqrt{5}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż wartość \\(|\\sqrt{7}+\\sqrt{6}|\\).</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\sqrt{7}-\\sqrt{6}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sqrt{7}+\\sqrt{6}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-\\sqrt{7}-\\sqrt{6}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-\\sqrt{7}+\\sqrt{6}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż wartość \\(|\\sqrt{6}-2\\sqrt{2}|\\).</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\sqrt{6}-2\\sqrt{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2\\sqrt{2}-\\sqrt{6}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sqrt{6}+2\\sqrt{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "żadna z powyższych odpowiedzi nie jest poprawna",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "cc9287cfcd2e937339a837fbf0b54665047d72c7471e88f7353e2adb614a9c9b"
+}

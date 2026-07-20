@@ -1,0 +1,170 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"zadanie 2\" height=\"400\" src=\"static/trzy_okregi_1.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n            Rysunek przedstawia styczne zewnętrznie okręgi o środkach \\(S_2\\) i \\(S_3\\). Oba są też styczne wewnętrznie do większego okręgu o środku \\(S_1\\).\n        </p>\n<p>\n            Obwód trójkąta \\(S_1S_2S_3\\) jest równy \\(20\\).\n        </p>\n<p>\n            Znajdź długość promienia największego okręgu.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            zacznij rozwiązanie\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Z wniosku do twierdzenia \"o promieniu i stycznej\":\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n                        Jeśli dwa okręgi są styczne, to ich środki oraz punkt styczności leżą na jednej prostej.\n                    </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"promień i styczna\" src=\"static/tw_promien_styczna_2.png\" width=\"320\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Dorysujmy więc promienie łączące środki okręgów z punktami styczności:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"zadanie 2\" src=\"static/trzy_okregi_2.png\" width=\"500\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Oznaczmy promienie:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                            \\(r_1\\) - promień\n                            <span style=\"color: blue;\">\n                                niebieskiego\n                            </span>\n                            okręgu o środku w punkcie \\(S_1\\),\n                        </li>\n<li>\n                            \\(r_2\\) - promień\n                            <span style=\"color: red;\">\n                                czerwonego\n                            </span>\n                            okręgu o środku w punkcie \\(S_2\\),\n                        </li>\n<li>\n                            \\(r_3\\) - promień\n                            <span style=\"color: green;\">\n                                zielonego\n                            </span>\n                            okręgu o środku w punkcie \\(S_3\\).\n                        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Teraz możemy wyrazić długości odcinków \\(S_1S_2\\), \\(S_2S_3\\) i \\(S_3S_1) za pomocą \\(r_1\\), \\(r_2\\) i \\(r_3\\).\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(S_1S_2=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_1-r_2\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_1-r_3\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_2-r_3\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_2+r_3\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(S_1S_3=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_1-r_2\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_1-r_3\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_2-r_3\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_2+r_3\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(S_2S_3=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_1-r_2\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_1-r_3\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_2-r_3\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_2+r_3\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Obwód trójkąta \\(S_1S_2S_3\\) (równy \\(20\\)) jest sumą tych trzech odcinków:\n                    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                        \\begin{align*}\n                                                                                                        S_1S_2+S_1S_3+S_2S_3&=20\\\\\n                                                                                                        (r_1-r_2)+(r_1-r_3)+(r_2+r_3)&=20\n                                                                                                        \\end{align*}\n                                                                                                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>Upraszczając wyrażenie po lewej stronie równania, a następnie dzieląc jego obie strony przez \\(2\\) otrzymujemy</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_1+r_2+r_3=10\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_1=10\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r_1=20\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                    Promie największego okręgu ma długość \\(10\\). Zauważmy, że dwa mniejsze okręgi mogą mieć różne promienie, ale promień największego okręgu będzie zawsze połową obwodu trójkąta o wierzchołkach w środkach okręgów.\n                "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f8a18c825c6dab818eecbe7d74926165b1f358a4fd0373b4ed527cf9701a4906"
+}

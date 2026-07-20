@@ -1,0 +1,80 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Pole trójkąta \\(ABC\\) można obliczyć jako</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "iloczyn długości boku \\(AB\\) i odległości punktu \\(C\\) od prostej przechodzącej przez punkty \\(A\\) i \\(B\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "połowę iloczynu długości boku \\(AB\\) i odległości punktu \\(C\\) od prostej przechodzącej przez punkty \\(A\\) i \\(B\\).",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "iloczyn długości boków \\(AB\\) i \\(BC\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "połowę iloczynu długości boków.",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    W równoległoboku \\(ABCD\\) dane są:\n</p><p>Wskaż wszystkie wyrażenia opisujące pole tego równoległoboku.</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(ad\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(ae\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(bd\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(be\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{1}{2}ad\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{1}{2}ae\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{1}{2}bd\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{1}{2}be\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2fb4201a2c5221e429dbbc2bd0b60e3e3d92dce585884b0aa2f4eec69df692aa"
+}

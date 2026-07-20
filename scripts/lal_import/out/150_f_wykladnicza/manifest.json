@@ -1,0 +1,23 @@
+{
+  "part": {
+    "source_folder": "150_f_wykladnicza",
+    "order": 20,
+    "title": "f wykladnicza"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "010_test.json",
+          "source_html": "010_test.html",
+          "source_dir": "150_f_wykladnicza",
+          "unit_type": "lesson",
+          "title": "just show next"
+        }
+      ]
+    }
+  ]
+}

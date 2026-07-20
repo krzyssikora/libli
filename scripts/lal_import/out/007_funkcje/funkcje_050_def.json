@@ -1,0 +1,48 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Rysunek poniżej przedstawia wykres funkcji \\(f:\\mathbb{R}\\longrightarrow\\mathbb{R}\\).\n        </p>\n<div class=\"centered\">\n<img alt=\"wykres funkcji\" src=\"static/wykres_wlasnosci.png\" width=\"800\"/>\n</div>\n<p>\n            Odpowiedz na pytania, po czym sprawdź swoje odpowiedzi.\n        </p>\n"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n<div class=\"centered\">\n<img alt=\"wykres z odpowiedzią\" src=\"static/wykres_wlasnosci_1.png\" width=\"600\"/>\n</div>\n<p>\n<strong>\n                1.\n            </strong>\n            Dla argumentu \\(x=8\\) funkcja \\(f\\) przyjmuje wartość \\(-5\\).\n        </p>\n</div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                1.\n            </strong>\n            Jaką wartość przyjmuje funkcja \\(f\\) dla argumentu \\(x=8\\)?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "body": "\n<div class=\"centered\">\n<img alt=\"wykres z odpowiedzią\" src=\"static/wykres_wlasnosci_2.png\" width=\"600\"/>\n</div>\n<p>\n<strong>\n                2.\n            </strong>\n            Funkcja \\(f\\) przyjmuje wartość \\(y=3\\) dla argumentów \\(x=0\\) i \\(x=4\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                2.\n            </strong>\n            Dla jakich argumentów funkcja \\(f\\) przyjmuje wartość \\(y=3\\)?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "body": "\n<div class=\"centered\">\n<img alt=\"wykres z odpowiedzią\" src=\"static/wykres_wlasnosci_3.png\" width=\"600\"/>\n</div>\n<p>\n<strong>\n                3.\n            </strong>\n            Funkcja \\(f\\) przyjmuje wartości większe od \\(3\\) dla argumentów \\(x\\in (0,4)\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                3.\n            </strong>\n            Dla jakich argumentów funkcja \\(f\\) przyjmuje wartości większe od \\(3\\)?\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+      "reason": "show_solution button without solution"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "93283fceb0a16d3209bc74b4f5b42b080ca1a188d4915c96065d7bd414c61920"
+}

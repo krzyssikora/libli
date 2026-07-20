@@ -1,0 +1,182 @@
+[
+  {
+    "kind": "duplicate_ordering_token",
+    "reason": "2 files share ordering token 10",
+    "names": [
+      "uk_rown_10_metoda_podstawienia.html",
+      "uk_rown_ex_10.html"
+    ]
+  },
+  {
+    "kind": "duplicate_ordering_token",
+    "reason": "2 files share ordering token 11",
+    "names": [
+      "uk_rown_11.html",
+      "uk_rown_ex_11.html"
+    ]
+  },
+  {
+    "kind": "duplicate_ordering_token",
+    "reason": "2 files share ordering token 12",
+    "names": [
+      "uk_rown_12.html",
+      "uk_rown_ex_12.html"
+    ]
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_1.html",
+    "raw_excerpt": "<a href=\"uk_rown_1.html\">\n                        układ równań\n                    </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_1.html#podstawienie",
+    "raw_excerpt": "<a href=\"uk_rown_1.html#podstawienie\">\n                            rozwiązywanie układu równań metodą podstawienia\n                        </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_1.html#prosta_przez_2pkt",
+    "raw_excerpt": "<a href=\"uk_rown_1.html#prosta_przez_2pkt\">\n                            równanie prostej przechodzącej przez dwa punkty\n                        </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_2.html",
+    "raw_excerpt": "<a href=\"uk_rown_2.html\">\n                        jak rozwiązujemy układy równań?\n                    </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_2.html#przeciwne",
+    "raw_excerpt": "<a href=\"uk_rown_2.html#przeciwne\">\n                            rozwiązywanie układów równań metodą przeciwnych współczynników\n                        </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_3.html",
+    "raw_excerpt": "<a href=\"uk_rown_3.html\">\n                rozwiązywanie układów równań metodą graficzną\n            </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_4.html",
+    "raw_excerpt": "<a href=\"uk_rown_4.html\">\n                jak rozwiązywać zadania \"z treścią\"?\n            </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_ex_1.html",
+    "raw_excerpt": "<a href=\"uk_rown_ex_1.html\">\n                        warto wiedzieć\n                    </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_ex_1.html#nwd_nww",
+    "raw_excerpt": "<a href=\"uk_rown_ex_1.html#nwd_nww\">\n                            największy wspólny dzielnik i najmniejsza wspólna wielokrotność\n                        </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_ex_1.html#nwd_nww_combined",
+    "raw_excerpt": "<a href=\"uk_rown_ex_1.html#nwd_nww_combined\">\n                            związek między największym wspólnym dzielnikiem a najmniejszą wspólną wielokrotnością\n                        </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_ex_1.html#euklides",
+    "raw_excerpt": "<a href=\"uk_rown_ex_1.html#euklides\">\n                            wyliczanie największego wspólnego dzielnika za pomocą algorytmu Euklidesa\n                        </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: uk_rown_ex_1.html#gauss",
+    "raw_excerpt": "<a href=\"uk_rown_ex_1.html#gauss\">\n                            rozwiązywanie układów równań metodą eliminacji Gaussa\n                        </a>",
+    "unit_json": "uk_rown_00.json"
+  },
+  {
+    "kind": "stem_without_answer",
+    "reason": "stem had no answer DSL",
+    "raw_excerpt": "<p>Rozpatrzmy układ równań</p><p>\\[</p><p>\\begin{cases}</p><p>2x+3y=1\\\\</p><p>3x+4y=2</p><p>\\end{cases}</p><p>\\]</p>",
+    "unit_json": "uk_rown_19_quiz.json"
+  },
+  {
+    "kind": "stem_without_answer",
+    "reason": "stem had no answer DSL",
+    "raw_excerpt": "<p>Rozpatrzmy układ równań</p><p>\\[</p><p>\\begin{cases}</p><p>4x+3y-26=0\\\\</p><p>2x-3y+5=0</p><p>\\end{cases}</p><p>\\]</p>",
+    "unit_json": "uk_rown_19_quiz.json"
+  },
+  {
+    "kind": "stem_without_answer",
+    "reason": "stem had no answer DSL",
+    "raw_excerpt": "<p>Rozpatrzmy następujący układ równań</p><p>\\[</p><p>\\begin{cases}</p><p>4x-3y=-17\\\\</p><p>6x+5y=3</p><p>\\end{cases}</p><p>\\]</p><p>Rozwiążemy ten układ metodą przeciwnych współczynników, eliminując zmienną \\(x\\).</p>",
+    "unit_json": "uk_rown_29_quiz.json"
+  },
+  {
+    "kind": "stem_without_answer",
+    "reason": "stem had no answer DSL",
+    "raw_excerpt": "<p>Rozpatrzmy następujący układ równań</p><p>\\[</p><p>\\begin{cases}</p><p>3x+8y=50\\\\</p><p>-7x+6y=19</p><p>\\end{cases}</p><p>\\]</p><p>Rozwiążemy ten układ metodą przeciwnych współczynników, eliminując zmienną \\(y\\).</p>",
+    "unit_json": "uk_rown_29_quiz.json"
+  },
+  {
+    "kind": "stem_without_answer",
+    "reason": "stem had no answer DSL",
+    "raw_excerpt": "<p>Przyjrzyj się poniższym wykresom i na ich podstawie połącz układy równań z ich rozwiązaniami.</p>",
+    "unit_json": "uk_rown_39_quiz.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    nagranie\n                </a>",
+    "unit_json": "uk_rown_41.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
+    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    opis rozwiązania\n                </a>",
+    "unit_json": "uk_rown_41.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n<p>\n                    Z pierwszego równania wyznaczmy \\(c\\):\n                </p>\n                \\[c=68-4a\\]\n                <p>\n                    I podstawmy do drugiego równania:\n                </p>\n                \\[7a+3(68-4a)=144\\]\n                <p",
+    "unit_json": "uk_rown_41.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n                Rozwiązanie układu równań - zobacz\n            </div>",
+    "unit_json": "uk_rown_41.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n<p>\n                    Z pierwszego równania wyliczamy \\(b\\):\n                </p>\n                \\[\n                b=12000-a\n                \\]\n                <p>\n                    i podstawiamy do drugiego równania:\n                </p>\n                ",
+    "unit_json": "uk_rown_42.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n                Pełne rozwiązanie - zobacz\n            </div>",
+    "unit_json": "uk_rown_42.json"
+  },
+  {
+    "kind": "stem_without_answer",
+    "reason": "stem had no answer DSL",
+    "raw_excerpt": "<p>\n    Pytania 1 i 2 odnoszą się do następującego zadania:\n</p><p>\n    Dziecko uzbierało 52 monety – dwuzłotówki i pięciozłotówki.\n</p><p>\n    Ich łączna wartość to 173 złote.\n</p><p>\n    Ile dwuzłotówek i ile pięciozłotówek uzbierało dziecko?\n</p>",
+    "unit_json": "uk_rown_49_quiz.json"
+  },
+  {
+    "kind": "stem_without_answer",
+    "reason": "stem had no answer DSL",
+    "raw_excerpt": "<p>\n    Pytania 3 i 4 odnoszą się do następującego zadania:\n</p><p>\n    Suma czterokrotności większej liczby całkowitej i pięciokrotności mniejszej liczby całkowitej jest równa 1.\n</p><p>\n    Kiedy trzykrotność mniejszej liczby odejmiemy od pięciokrotności większej, otrzymamy 29.\n</p><p>\n    Znajdź ",
+    "unit_json": "uk_rown_49_quiz.json"
+  },
+  {
+    "kind": "stem_without_answer",
+    "reason": "stem had no answer DSL",
+    "raw_excerpt": "<p>\n    Pytania 5 i 6 odnoszą się do następującego zadania:\n</p><p>\n    Podróżny przejechał 250 kilometrów w łącznym czasie 3 i pół godziny.\n</p><p>\n    Cześć trasy pokonał samochodem, a część pociągiem.\n</p><p>\n    Samochodem jechał ze średnią prędkością 40 kilometrów na godzinę, a pociągiem – 80 k",
+    "unit_json": "uk_rown_49_quiz.json"
+  }
+]

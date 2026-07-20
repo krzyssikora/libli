@@ -1,0 +1,104 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Dla koła o promieniu \\(r\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n</li>\n<li>\n            obwód = \\(2\\pi r\\)\n        </li>\n<li>\n</li>\n<li>\n            pole = \\(\\pi r^2\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Uzupełnij tabelę, by w każdym wierszu były wpisane promień, pole i obwód tego samego koła.\n    "
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "promień",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "pole",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "obwód",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(16\\pi\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(16\\pi\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n    Doskonale!\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6d270dfe29b7c54915e680843391e64d2b77c8eb538a50bb6492c46d96851d3e"
+}

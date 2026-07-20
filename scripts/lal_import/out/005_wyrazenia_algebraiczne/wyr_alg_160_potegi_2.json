@@ -1,0 +1,24 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n    \\[\n                                                                                        \\begin{align*}\n                                                                                        a^{-n}&amp;=\\left(\\frac{1}{a}\\right)^n\\\\[20pt]\n                                                                                        4^{-2}&amp;=\\left(\\frac{1}{4}\\right)^2\\\\\n                                                                                        \\left(\\frac{3}{7}\\right)^{-3}&amp;=\\left(\\frac{7}{3}\\right)^3\n                                                                                        \\end{align*}\n                                                                                        \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uzupełnij obliczenia:\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<ul>\n<li>\n                \\(0,5^{-1}=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n                \\(\\left(\\frac{2}{5}\\right)^{-2}=(\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                \\()^2=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n                \\(3^{-3}=(\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                \\()^3=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n</ul>",
+      "reason": "interactive_widget (Group B): table_input"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "3acfbb33985eb1299995130fc366a6c7e311ed0a0ba66ef27848b5c66f36974a"
+}

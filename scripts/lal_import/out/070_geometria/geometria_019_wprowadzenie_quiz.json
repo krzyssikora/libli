@@ -1,0 +1,135 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Kąty odpowiadające są\n    <strong>\n        zawsze\n    </strong>\n    tej samej miary.\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Kąty odpowiadające sumują się do 180 stopni.\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Kąty przylegle są\n    <strong>\n        zawsze\n    </strong>\n    tej samej miary.\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Kąty przyległe sumują się do 180 stopni.\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Kąty naprzemianległe są tej samej miary tylko, gdy dwie proste przecinające trzecią są równoległe.\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Kąt przyległy do kąta o mierze 80 stopni ma miarę\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "80 stopni",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "100 stopni",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "10 stopni",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Kąt wierzchołkowy do kąta o mierze 75 stopni ma miarę\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "75 stopni",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "105 stopni",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "15 stopni",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "cb29be8f7525b084412688d19a081f416cdceacd9f10303a6e8161a910ce99ed"
+}

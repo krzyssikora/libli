@@ -1,0 +1,650 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<pre><small>  </small></pre>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n            Metoda\n        </h3>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(7\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(:\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(x^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-3x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((2x^3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-9x^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+13x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+1)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(:\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((2x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-3)\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(2x^3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-3x^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(=\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-6x^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+13x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-6x^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+9x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(7\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<pre><small>  </small></pre>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n            Wynik z resztą\n        </h3>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(745:6=124\\) reszty \\(1\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\((2x^3-9x^2+13x+1):(2x-3)=\\)\n                    <br/>\n                    \\(=x^2-3x+2\\) reszty \\(7\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<pre><small>  </small></pre>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n            Wynik z ułamkiem\n        </h3>"
+    },
+    {
+      "type": "text",
+      "body": "\n                \\[\n                745:6=124\\tfrac{1}{6}\n                \\]\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\[\n                (2x^3-9x^2+13x+1):(2x-3)=\\\\\n                =x^2-3x+2+\\frac{7}{2x-3}\n                \\]\n            "
+    },
+    {
+      "type": "text",
+      "body": "<pre><small>  </small></pre>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n            Część podzielna + reszta\n        </h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    \\(745=\\underbrace{6\\cdot 124}_{\\text{część podzielna}} + \\underbrace{1}_{\\text{reszta}}\\)\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    \\(2x^3-9x^2+13x+1=\\)\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    \\(=\\underbrace{(2x-3)\\cdot(x^2-3x+2)}_{\\text{część podzielna}} + \\underbrace{7}_{\\text{reszta}}\\)\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<pre><small>  </small></pre>"
+    },
+    {
+      "type": "text",
+      "body": "<h5>\n            W ogólności\n        </h5>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    \\(n:d=k\\) reszty \\(r\\)\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    \\(n:d=k+\\frac{r}{d}\\)\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    \\(W(x):D(x)=P(x)\\) reszty \\(R(x)\\)\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    \\(W(x):D(x)=P(x)+\\frac{R(x)}{D(x)}\\)\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        \\(n=\\underbrace{d\\cdot k}_{\\text{część podzielna}} + \\underbrace{r}_{\\text{reszta}}\\)\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        gdzie \\(\\quad r\\lt d\\)\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        \\(W(x)=\\underbrace{D(x)\\cdot P(x)}_{\\text{część podzielna}} + \\underbrace{R(x)}_{\\text{reszta}}\\)\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        gdzie \\(\\quad \\deg R(x) \\lt \\deg D(x)\\)\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "df31be72d686151789eafde996b8c8d1745a530a6148756cc36be09fd17034f9"
+}

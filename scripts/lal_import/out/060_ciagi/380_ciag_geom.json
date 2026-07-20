@@ -1,0 +1,55 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": ""
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Jaś pojechał z tatą na trzy tygodnie wakacji. Trzy tygodnie, czyli równe 21 dni.\n        </p>\n<p>\n            Tata zapowiedział Jasiowi, że będzie mu codziennie dawał 10 złotych kieszonkowego.\n        </p>\n<p>\n            Jaś na to powiedział tacie:\n        </p>\n<ul style=\"list-style-type: '- ';\">\n<li>\n                Tata, a może zróbmy tak, że pierwszego dnia dasz mi tylko 1 grosz, drugiego 2 grosze, trzeciego 4 grosze i tak dalej?\n            </li>\n<li>\n                Skoro tak wolisz... - odpowiedział tata i przystał na propozycję Jasia.\n            </li>\n</ul>\n<p>\n            Ile tata powinien dać Jasiowi przez trzy tygodnie?\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": ""
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Karol zaplanował, że będzie wykonywał pracę w następujący sposób:\n        <ul class=\"nolist\">\n<li>pierwszego dnia \\(\\frac{1}{2}\\) całej pracy,</li>\n<li>drugiego dnia \\(\\frac{1}{4}\\) całej pracy,</li>\n<li>trzeciego dnia \\(\\frac{1}{8}\\) całej pracy,</li>\n<li>i tak dalej, przez 21 dni. Chyba, że wcześniej Karol skończy całą pracę.</li>\n</ul>\n        Czy Karol skończy pracę przed upływem 21 dni?\n        <ul class=\"nolist\">\n<li>jeśli <strong>tak</strong>, którego dnia?</li>\n<li>jeśli <strong>nie</strong>, ile zostanie mu do skończenia po 21 dniach?</li>\n</ul>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zastanów się, jak należy rozwiązać powyższe zadania. Co trzeba policzyć? Co warto byłoby wiedzieć?\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "analiza zadań",
+      "body": "\n\n<p>\n        Zauważ, że w obu zadaniach kluczową sprawą jest obliczenie \\(S_{21}\\) - sumy pierwszych dwudziestu jeden wyrazów pewnego ciągu <strong>geometrycznego</strong>.\n    </p>\n<p>\n        W <span class=\"question_like\">zadaniu 1</span> chodzi o ciąg codziennego kieszonkowego. \n    </p>\n<ul class=\"nolist\">\n<li>\n            Pierwszego dnia było równe 1 grosz, więc \\(a_1=1\\). \n        </li>\n<li>\n            Każdego kolejnego dnia było dwukrotnie większe, więc \\(q=2\\).\n        </li>\n</ul>\n<p>\n        W <span class=\"question_like\">zadaniu 2</span> chodzi o ciąg codziennej części wykonanej pracy. \n    </p>\n<ul class=\"nolist\">\n<li>\n            Pierwszego dnia była to połowa pracy, więc \\(a_1=\\frac{1}{2}\\).\n        </li>\n<li>\n            Każdego kolejnego dnia Karol wykonał dwukrotnie mniej pracy, więc \\(q=\\frac{1}{2}\\).\n        </li>\n</ul>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli \\((a_n)\\) jest ciągiem geometrycznym o pierwszym wyrazie \\(a_1\\) i ilorazie \\(q\\), to suma \\(n\\) pierwszych wyrazów ciągu jest dana wzorem:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    S_n = a_1\\cdot\\frac{1-q^n}{1-q},\\quad\\quad q\\ne 1\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli \\(q=1\\), suma \\(n\\) pierwszych wyrazów ciągu jest dana wzorem:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    S_n=n\\cdot a_1\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e691265cf658568332f7c1786a2990e064a0e3cdc3ac8baa98e264f00345f729"
+}

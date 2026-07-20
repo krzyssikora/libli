@@ -1,0 +1,74 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Rozwiązywanie układów równań metodą graficzną\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiąż metodą graficzną układ równań:\n                                \\[\n                                \\begin{cases}\n                                \\color{blue}{x+2y=8}\\\\\n                                \\color{red}{2x-3y=9}\n                                \\end{cases}\n                                \\]\n                                czyli:\n        <ol>\n<li>\n                zapisz oba równania w postaci kierunkowej (tj. \\(y=ax+b\\)),\n            </li>\n<li>\n                narysuj precyzyjnie obie proste w jednym układzie współrzędnych, zaczynając od punktu na osi \\(y\\), a potem dodając kolejne punkty z użyciem współczynnika kierunkowego (i metody \\(\\frac{\\text{skok}}{\\text{krok}}\\)),\n            </li>\n<li>\n                odczytaj z wykresu współrzędne punktu przecięcia obu prostych.\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n        pokaż rozwiązanie\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n<img class=\"arrow_left\" src=\"static/left_arrow.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n                    Zacznijmy od równania \\(\\color{blue}{x+2y=8}\\),\n                    <br/>\n                    Po zamianie na postać kierunkową równanie to wygląda następująco \\(\\color{blue}{y=-\\frac{1}{2}x+4}\\).\n                    <br/>\n                    Narysujmy tę prostą.\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    Zaczniemy od punktu na osi \\(y\\). Współczynnik \\(b\\) prostej ma wartość \\(4\\), więc punkt ten to \\(\\color{blue}{(0,4)}\\).\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    Współczynnik kierunkowy prostej to \\(\\color{blue}{-\\frac{1}{2}}\\), więc prosta idzie\n                    <strong>\n                        do dołu\n                    </strong>\n                    o \\(1\\) (skok) i w prawo o \\(2\\) (krok).\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    W taki sam sposób (1 w dół i 2 w prawo, lub odwrotnie: 1 w górę i 2 w lewo) możemy zaznaczyć kolejne punkty na prostej.\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    Łącząc punkty otrzymujemy prostą o równaniu \\(\\color{blue}{y=-\\frac{1}{2}x+4}\\) lub inaczej \\(\\color{blue}{x+2y=8}\\).\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    Teraz narysujemy prostą o równaniu \\(\\color{red}{2x-3y=9}\\). Jej kierunkowa postać to \\(\\color{red}{y=\\frac{2}{3}x-3}\\), więc punkt na osi \\(y\\) to \\(\\color{red}{(0,-3)}\\).\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    Współczynnik kierunkowy prostej to \\(\\color{red}{\\frac{2}{3}}\\), więc prosta idzie\n                    <strong>\n                        do góry\n                    </strong>\n                    o \\(2\\) (skok) i w prawo o \\(3\\) (krok).\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    W taki sam sposób (2 w górę i 3 w prawo, lub odwrotnie: 2 w dół i 3 w lewo) możemy zaznaczyć kolejne punkty na prostej.\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    Łącząc punkty otrzymujemy prostą o równaniu \\(\\color{red}{y=\\frac{2}{3}x-3}\\) lub inaczej \\(\\color{red}{2x-3y=9}\\).\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    Wśród zaznaczonych punktów widzimy punkt wspólny obu prostych. Jest to punkt o współrzędnych \\(\\color{purple}{x=6}\\) i \\(\\color{purple}{y=1}\\). Te liczby są rozwiązaniem układu równań.\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n<img class=\"arrow_right\" src=\"static/right_arrow.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n<img class=\"slide_image\" src=\"static/uklad_graficznie_1.png\"/>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8ab3bf839d037b0c8aab0c70466670c8ff8a290e2c83558e96090718ec9c81f7"
+}

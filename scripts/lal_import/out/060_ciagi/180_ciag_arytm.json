@@ -1,0 +1,73 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<strong>Ciąg arytmetyczny</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to taki ciąg \\((a_n)\\), w którym:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            każdy kolejny wyraz jest otrzymany z poprzedniego przez dodanie pewnej stałej liczby:\n            \\[\n            a_n = a_{n-1} + r\n            \\]\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<i>lub równoważnie</i>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<u>różnica</u> między dwoma kolejnymi wyrazami jest stała:\n            \\[\n            a_n-a_{n-1}=r\n            \\]\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Taka stała liczba \\(r\\) nazywana jest</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>różnicą ciągu arytmetycznego</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small><strong>Uwaga</strong>! Obie powyższe równości obowiązują dla \\(n=2, 3, 4, \\dots\\)</small>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Ciąg \\((a_n)\\) o wyrazach:\n        \\[\n        3,\\, 7,\\, 11,\\, 15,\\, 19\n        \\]\n        jest arytmetyczny.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "dlaczego?",
+      "body": "\n\n            Sprawdźmy, jaka jest różnica między kolejnymi wyrazami.\n            <div class=\"table_wrapper\">\n<table class=\"my_table_CL\">\n<tr>\n<td>\\(a_2-a_1=\\)</td>\n<td>\\(=7-3=\\)</td>\n<td>\\(=4\\)</td>\n</tr>\n<tr>\n<td>\\(a_3-a_2=\\)</td>\n<td>\\(=11-7=\\)</td>\n<td>\\(=4\\)</td>\n</tr>\n<tr>\n<td>\\(a_4-a_3=\\)</td>\n<td>\\(=15-11=\\)</td>\n<td>\\(=4\\)</td>\n</tr>\n<tr>\n<td>\\(a_5-a_4=\\)</td>\n<td>\\(=19-15=\\)</td>\n<td>\\(=4\\)</td>\n</tr>\n</table>\n</div>\n            Różnica między wszystkimi parami kolejnych wyrazów jest stała, więc ciąg \\((a_n)\\) jest arytmetyczny o różnicy \\(r=4\\).\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wskaż różnicę każdego z ciągów arytmetycznych o podanych niżej wyrazach.\n    "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<table class=\"my_table_CL\">\n<tr>\n<th>(1)</th>\n<td>\\(1,\\,3,\\,5,\\,7,\\,9,\\,11,\\,13,\\dots\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<td colspan=\"3\">\n<details>\n<summary><small>wskazówka</small></summary>\n                        Weź dowolny wyraz, poza pierwszym, i odejmij poprzedni:\n                        <div>\n                            \\(3-1\\) albo \\(5-3\\) albo \\(7-5\\) albo \\(9-7\\) albo \\(11-9\\) albo \\(13-11\\)\n                        </div>\n</details>\n</td>\n</tr>\n<tr>\n<th>(2)</th>\n<td>\\(2,\\,7,\\,12,\\,17,\\,22,\\,27,\\dots\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<th>(3)</th>\n<td>\\(22,\\,19,\\,16,\\,13,\\,10,\\dots\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<th>(4)</th>\n<td>\\(7;\\,5,5;\\,4;\\,2,5;\\,1,\\dots\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<th>(5)</th>\n<td>\\(\\tfrac{1}{2},\\,\\tfrac{5}{6},\\,\\tfrac{7}{6},\\,\\tfrac{3}{2},\\,\\tfrac{11}{6} ,\\dots\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n</table>",
+      "reason": "table uses rowspan/colspan"
+    },
+    {
+      "type": "text",
+      "body": "\n    Znakomicie!\n"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "1eaa1735fabdd10512c188e6bf9187b01d0073650b63ea48b7e9b134a509a7c8"
+}

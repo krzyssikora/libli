@@ -1,0 +1,103 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>przesunięcie</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli wykres funkcji \\(y=f(x)\\) przesuniemy o wektor \\([p,q]\\), równanie otrzymanego wykresu ma postać\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "y=f(x-p)+q"
+    },
+    {
+      "type": "text",
+      "body": "<p>więc</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        jeśli prostą o równaniu \\(y=ax+b\\) przesuniemy o wektor \\([p,q]\\), równanie otrzymanej prostej ma postać\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    y=a(x-p)+q\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>czyli</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    y=ax-ap+q\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jakie jest równanie obrazu prostej \\(y=\\frac{1}{2}x+3\\) w izometrii \\(P\\) zdefiniowanej wzorem\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        P(x,y)=(x+3, y-1)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<p>\n                Izometria \\(P\\) to przesunięcie o wektor \\(\\color{red}{[3, -1]}\\).\n            </p>\n<p>\n                Równanie prostej zmieni się w \n            </p>\n<div class=\"table_wrapper\">\n                \\[\n                \\begin{align}\n                y&amp;=\\frac{1}{2}x+3\\\\\n                &amp;\\Downarrow\\\\\n                y&amp;=\\frac{1}{2}(x-\\color{red}{3})+3+\\color{red}{(-1)}\\\\\n                y&amp;=\\frac{1}{2}x-\\frac{3}{2}+3-1\\\\\n                y&amp;=\\frac{1}{2}x+\\frac{1}{2}\n                \\end{align}\n                \\]\n            </div>\n<figure>\n<img src=\"static/izometria_przesuniecie_prostej_przyklad.png\" style=\"max-height: 250px;\"/>\n</figure>\n"
+    },
+    {
+      "type": "text",
+      "body": "<h3>symetrie</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W poniższym aplecie możesz przesuwać i zmieniać kierunek niebieskiej prostej z użyciem żółtego i czerwonego punktu.\n        </p>\n<p>\n            Gdy klikniesz przycisk \"OX\" lub \"OY\", zobaczysz prostą odbitą w symetrii w osi \\(OX\\) lub \\(OY\\) odpowiednio, i jej równanie.\n        </p>\n<ul>\n<li>\n                Jak wygląda równanie obrazu prostej w symetrii w osi \\(OX\\)?\n            </li>\n<li>\n                Jak wygląda równanie obrazu prostej w symetrii w osi \\(OY\\)?\n            </li>\n<li>\n                Jak wygląda równanie obrazu prostej w symetrii względem początku układu współrzędnych \\((0,0)\\)?\n            </li>\n</ul>\n<p>\n</p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"511px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/twvcgpvj/width/762/height/511/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"symetrie prostych\" width=\"762px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">ten email</a>.\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli wykres funkcji \\(y=f(x)\\) odbijemy symetrycznie w osi \\(OX\\), równanie otrzymanego wyjresu to \\(y=-f(x)\\). I dlatego:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Obraz prostej \\(y=ax+b\\) w symetrii względem osi \\(OX\\) ma równanie\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    y=-ax-b\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli wykres funkcji \\(y=f(x)\\) odbijemy symetrycznie w osi \\(OY\\), równanie otrzymanego wyjresu to \\(y=f(-x)\\). I dlatego:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Obraz prostej \\(y=ax+b\\) w symetrii względem osi \\(OY\\) ma równanie\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    y=-ax+b\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Symetrię w początku układu współrzędnych można uzyskać stosując kolejno symetrię w obu osiach układu współrzędnych, w dowolnej kolejności. I dlatego: \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Obraz prostej \\(y=ax+b\\) w symetrii względem początku układu współrzędnych ma równanie\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    y=ax-b\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b26d201885657898582123177e3a48a1a60db71253bc0688f274681d9a212353"
+}

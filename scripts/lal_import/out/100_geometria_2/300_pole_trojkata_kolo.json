@@ -1,0 +1,120 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Twierdzenie sinusów\n</h3>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trojkat_ABC.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        W każdym trójkącie stosunek długości dowolnego boku do sinusa kąta leżącego naprzeciwko jest stały, a dokładniej: równy dwukrotności promienia, czyli średnicy okręgu opisanego.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zapisujemy to:\n    \\[\n    \\frac{a}{\\sin A}=\\frac{b}{\\sin B}=\\frac{c}{\\sin C}= 2R\n    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Uwaga!\n        </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            Twierdzenia sinusów możemy użyć, gdy spośród\n            <u>\n                czterech\n            </u>\n            wielkości: dwóch boków i dwóch kątów przeciwległych tym bokom znamy trzy, a szukamy czwartej.\n        </li>\n<li>\n            Jeśli z twierdzenia sinusów wyliczamy kąt, pamiętajmy, że \\(\\sin(180^{\\circ}-\\alpha) = \\sin\\alpha\\), więc jeśli wyliczymy kąt ostry \\(\\alpha\\), powinniśmy też sprawdzić, czy kąt rozwarty \\(180^{\\circ}-\\alpha\\) też spełnia warunki zadania.\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Twierdzenie cosinusów\n</h3>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trojkat_ABC.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli \\(a\\), \\(b\\), \\(c\\) to długości boków trójkąta, a \\(A\\), \\(B\\) i \\(C\\) to miary kątów przeciwległych do tych boków, to prawdziwe są następujące równania:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(a^2=b^2+c^2-2bc\\cos A\\)\n        </li>\n<li>\n            \\(b^2=a^2+c^2-2ac\\cos B\\)\n        </li>\n<li>\n            \\(c^2=a^2+b^2-2ab\\cos C\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Uwaga!\n        </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            Twierdzenia cosinusów możemy użyć, gdy:\n            <ul>\n<li>\n                    mamy dane wszystkie boki trójkąta i chcemy znaleźć kąt,\n                </li>\n<li>\n                    mamy dany kąt i dwa boki, a szukamy trzeciego boku.\n                    <br/>\n                    Jeśli dany kąt:\n                    <ul>\n<li>\n                            jest między danymi bokami, otrzymamy jedno rozwiązanie,\n                        </li>\n<li>\n                            nie jest między danymi bokami, otrzymamy równanie kwadratowe, więc możemy dostać dwa rozwiązania.\n                        </li>\n</ul>\n</li>\n</ul>\n</li>\n<li>\n            Jeśli z twierdzenia sinusów wyliczamy kąt, pamiętajmy, że \\(\\sin(180^{\\circ}-\\alpha) = \\sin\\alpha\\), więc jeśli wyliczymy kąt ostry \\(\\alpha\\), powinniśmy też sprawdzić, czy kąt rozwarty \\(180^{\\circ}-\\alpha\\) też spełnia warunki zadania.\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Wzory na pole trójkąta\n</h3>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<table class=\"my_table_TL\">\n<tr>\n<th>\n</th>\n<th>\n                    wzory\n                </th>\n<th>\n                    dane\n                </th>\n<th>\n                    rysunek\n                </th>\n</tr>\n<tr>\n<td>\n<strong>\n                        1.\n                    </strong>\n</td>\n<td>\n                    \\[\n                    \\begin{align*}\n                    P&amp;=\\frac{1}{2}ah_a\\\\\n                    &amp;=\\frac{1}{2}bh_b\\\\\n                    &amp;=\\frac{1}{2}ch_c\n                    \\end{align*}\n                    \\]\n                </td>\n<td>\n<br/>\n                    \\(a\\), \\(b\\), \\(c\\) - boki,\n                    <br/>\n                    \\(h_a\\), \\(h_b\\), \\(h_c\\) - odpowiadające im wysokości\n                </td>\n<td>\n<img alt=\"pole trójkąta 1\" src=\"static/pole_trojkata_wzor_1.png\" width=\"300px\"/>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                        2.\n                    </strong>\n</td>\n<td>\n                    \\[\n                    \\begin{align*}\n                    P&amp;=\\frac{1}{2}ab\\sin\\gamma\\\\\n                    &amp;=\\frac{1}{2}bc\\sin\\alpha\\\\\n                    &amp;=\\frac{1}{2}ac\\sin\\beta\n                    \\end{align*}\n                    \\]\n                    <td>\n<br/>\n                        \\(a\\), \\(b\\), \\(c\\) - boki,\n                        <br/>\n                        \\(\\alpha\\), \\(\\beta\\), \\(\\gamma\\) - przeciwległe kąty\n                    </td>\n<td>\n<img alt=\"pole trójkąta 2\" src=\"static/pole_trojkata_wzor_2.png\" width=\"300px\"/>\n</td>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                        3.\n                    </strong>\n</td>\n<td>\n                    \\[\n                    P=\\frac{abc}{4R}\n                    \\]\n                </td>\n<td>\n<br/>\n                    \\(a\\), \\(b\\), \\(c\\) - boki,\n                    <br/>\n                    \\(R\\) - promień okręgu opisanego\n                </td>\n<td>\n<img alt=\"pole trójkąta 3\" src=\"static/pole_trojkata_wzor_3.png\" width=\"300px\"/>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                        4.\n                    </strong>\n</td>\n<td>\n                    \\[\n                    P=\\sqrt{p(p-a)(p-b)(p-c)}\n                    \\]\n                </td>\n<td>\n<br/>\n                    \\(a\\), \\(b\\), \\(c\\) - boki,\n                    <br/>\n                    \\(p\\) - połowa obwodu trójkąta\n                </td>\n<td>\n<img alt=\"pole trójkąta 4\" src=\"static/pole_trojkata_wzor_4.png\" width=\"300px\"/>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                        5.\n                    </strong>\n</td>\n<td>\n                    \\[\n                    \\begin{align*}\n                    P&amp;=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\\\\\n                    &amp;=\\frac{1}{2}b^2\\cdot\\frac{\\sin\\alpha\\cdot\\sin\\gamma}{\\sin\\beta}\\\\\n                    &amp;=\\frac{1}{2}c^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\alpha}{\\sin\\gamma}\n                    \\end{align*}\n                    \\]\n                </td>\n<td>\n<br/>\n                    \\(a\\), \\(b\\), \\(c\\) - boki,\n                    <br/>\n                    \\(\\alpha\\), \\(\\beta\\), \\(\\gamma\\) - przeciwległe kąty\n                </td>\n<td>\n<img alt=\"pole trójkąta 5\" src=\"static/pole_trojkata_wzor_2.png\" width=\"300px\"/>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                        6.\n                    </strong>\n</td>\n<td>\n                    \\[\n                    P=pr\n                    \\]\n                </td>\n<td>\n<br/>\n                    \\(p\\) - połowa obwodu trójkąta,\n                    <br/>\n                    \\(r\\) - promień okręgu wpisanego\n                </td>\n<td>\n<img alt=\"pole trójkąta 6\" src=\"static/pole_trojkata_wzor_6.png\" width=\"300px\"/>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                        7.\n                    </strong>\n</td>\n<td>\n                    \\[\n                    P=2R^2\\cdot\\sin\\alpha\\cdot\\sin\\beta\\cdot\\sin\\gamma\n                    \\]\n                </td>\n<td>\n<br/>\n                    \\(\\alpha\\), \\(\\beta\\), \\(\\gamma\\) - kąty,\n                    <br/>\n                    \\(R\\) - promień okręgu opisanego\n                </td>\n<td>\n<img alt=\"pole trójkąta 7\" src=\"static/pole_trojkata_wzor_7.png\" width=\"300px\"/>\n</td>\n</tr>\n</table>",
+      "reason": "rows have differing cell counts"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Pole trójkątów podobnych\n</h3>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_podobnych_rys.png",
+      "alt": "pole trójkątów podobnych",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            trójkąt \\(T_2\\) jest podobny do trójkąta \\(T_1\\) w skali \\(k\\),\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            stosunek pól trójkąta \\(T_2\\) do \\(T_1\\) jest równy \\(k^2\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Koło, okrąg, wycinek koła\n</h3>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/wycinek_kola_pole_dlugosc_luku.png",
+      "alt": "koło wipsane w wycinek koła",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Dla koła o promieniu \\(r\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n</li>\n<li>\n            obwód = \\(2\\pi r\\)\n        </li>\n<li>\n</li>\n<li>\n            pole = \\(\\pi r^2\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Dla wycinka tego koła o kącie środkowym \\(\\alpha\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n</li>\n<li>\n            długość łuku = \\(d=\\frac{\\alpha}{180^{\\circ}}\\cdot\\pi r\\)\n        </li>\n<li>\n</li>\n<li>\n            pole wycinka = \\(\\frac{\\alpha}{360^{\\circ}}\\cdot \\pi r^2\\quad = \\frac{d}{2}\\cdot r\\)\n        </li>\n</ul>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "b9353a095c1f5e6e9856b77c8916b67c6393c1ac9f24eb60fd3e6ef7b20f484c"
+}

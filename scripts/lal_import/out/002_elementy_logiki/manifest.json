@@ -1,0 +1,117 @@
+{
+  "part": {
+    "source_folder": "002_elementy_logiki",
+    "order": 1,
+    "title": "elementy logiki"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "010_logika.json",
+          "source_html": "010_logika.html",
+          "source_dir": "002_elementy_logiki",
+          "unit_type": "lesson",
+          "title": "Zdania logiczne"
+        },
+        {
+          "order": 1,
+          "unit_json": "015_logika.json",
+          "source_html": "015_logika.html",
+          "source_dir": "002_elementy_logiki",
+          "unit_type": "lesson",
+          "title": "Kwantyfikatory"
+        },
+        {
+          "order": 2,
+          "unit_json": "020_logika.json",
+          "source_html": "020_logika.html",
+          "source_dir": "002_elementy_logiki",
+          "unit_type": "lesson",
+          "title": "Zdania złożone"
+        },
+        {
+          "order": 3,
+          "unit_json": "030_logika.json",
+          "source_html": "030_logika.html",
+          "source_dir": "002_elementy_logiki",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 4,
+          "unit_json": "040_logika.json",
+          "source_html": "040_logika.html",
+          "source_dir": "002_elementy_logiki",
+          "unit_type": "lesson",
+          "title": "Zaprzeczenie zdania"
+        },
+        {
+          "order": 5,
+          "unit_json": "050_logika.json",
+          "source_html": "050_logika.html",
+          "source_dir": "002_elementy_logiki",
+          "unit_type": "lesson",
+          "title": "Zaprzeczenie implikacji"
+        },
+        {
+          "order": 6,
+          "unit_json": "060_logika.json",
+          "source_html": "060_logika.html",
+          "source_dir": "002_elementy_logiki",
+          "unit_type": "lesson",
+          "title": "Jeszcze o implikacjach"
+        },
+        {
+          "order": 7,
+          "unit_json": "070_logika_def_tw.json",
+          "source_html": "070_logika_def_tw.html",
+          "source_dir": "002_elementy_logiki",
+          "unit_type": "lesson",
+          "title": "Definicja i twierdzenie"
+        },
+        {
+          "order": 8,
+          "unit_json": "080_logika_def_tw.json",
+          "source_html": "080_logika_def_tw.html",
+          "source_dir": "002_elementy_logiki",
+          "unit_type": "lesson",
+          "title": "Twierdzenie odwrotne"
+        },
+        {
+          "order": 9,
+          "unit_json": "090_logika_def_tw.json",
+          "source_html": "090_logika_def_tw.html",
+          "source_dir": "002_elementy_logiki",
+          "unit_type": "lesson",
+          "title": "Dowód twierdzenia"
+        },
+        {
+          "order": 10,
+          "unit_json": "100_logika_quiz.json",
+          "source_html": "100_logika_quiz.html",
+          "source_dir": "002_elementy_logiki",
+          "unit_type": "quiz",
+          "title": "logika quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "110_logika_podsumowanie.json",
+          "source_html": "110_logika_podsumowanie.html",
+          "source_dir": "002_elementy_logiki",
+          "unit_type": "lesson",
+          "title": "Logika"
+        }
+      ]
+    }
+  ]
+}

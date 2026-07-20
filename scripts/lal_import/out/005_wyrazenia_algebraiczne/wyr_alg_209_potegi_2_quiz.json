@@ -1,0 +1,45 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>Jeśli \\(\\left(a^{7\\sqrt{3}}\\right)^{\\sqrt{3}}=a^n\\) to jaka jest wartość \\(n\\)?</p>",
+      "value": "21",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jaka jest wartość wyrażenia \\((\\sqrt{3})^{3-\\sqrt{3}}\\cdot (\\sqrt{3})^{\\sqrt{3}-1}\\)?</p>",
+      "value": "3",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż wynik \\((\\sqrt{3}-1)^{\\sqrt{2}}\\cdot (\\sqrt{3}-1)^{\\sqrt{2}}\\):</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\sqrt{3}-1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4-2\\sqrt{3}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2-\\sqrt{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ca156c005fe5a02d6da7084265f23892eed5476f0017fa5ae1df9b68f31f8100"
+}

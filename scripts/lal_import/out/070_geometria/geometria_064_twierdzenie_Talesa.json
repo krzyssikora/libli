@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Na poniższym rysunku odcinki \\(M_1A\\) oraz \\(BC\\) są równoległe.\n        </p>\n<p>\n<img alt=\"twierdzenie Talesa, zadanie\" height=\"493\" src=\"static/twierdzenie_Talesa_zadanie_1.png\" style=\"width: 600px; height: 493px;\" width=\"600\"/>\n</p>\n<p>\n            Znając długości odcinków: \\(AM_2=32\\), \\(AC=12\\) i \\(M_1B=15\\), oblicz odległość między punktami \\(M_1\\) i \\(M_2\\).\n        </p>\n"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n<p>\n            Z twierdzenia Talesa wynika, że odcinki na prostej zaznaczonej na żółto są proporcjonalne do odpowiadających im odcinkom na prostej zaznaczonej na niebiesko.\n        </p>\n<p>\n<img alt=\"twierdzenie Talesa, zadanie\" height=\"493\" src=\"static/twierdzenie_Talesa_zadanie_2.png\" style=\"width: 600px; height: 493px;\" width=\"600\"/>\n</p>\n<p>\n            czyli:\n        </p>\n        \\[\n        \\frac{M_1M_2}{AM_2}=\\frac{M_1B}{AC}\n        \\]\n        <p>\n            Podstawmy znane wartości:\n        </p>\n        \\[\n        \\frac{M_1M_2}{32}=\\frac{15}{12}\n        \\]\n        <p>\n            Uprośćmy ułamek po prawej stronie równania:\n        </p>\n        \\[\n        \\frac{M_1M_2}{32}=\\frac{5}{4}\n        \\]\n        <p>\n            I pomnóżmy na krzyż:\n        </p>\n        \\[\n        4\\cdot M_1M_2=5\\cdot 32\n        \\]\n        <p>\n            Dzielimy przez 4:\n        </p>\n        \\[\n        M_1M_2=5\\cdot 8=40\n        \\]\n    </div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spróbuj rozwiązać zadanie samodzielnie, a następnie obejrzyj moje rozwiązanie.\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">\n        Rozwiązanie zadania - zobacz\n    </div>",
+      "reason": "show_solution button without solution"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "1bc79b2b18b0ee3253c0dfc8f9c0cab47d0ac7d9bb0acc03f81ca20d8c152eec"
+}

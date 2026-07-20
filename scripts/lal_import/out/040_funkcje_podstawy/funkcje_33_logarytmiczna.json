@@ -1,0 +1,50 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/logarytmiczna_porownywanie.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Podsumowując, jeśli \\(x_1\\lt x_2\\) to\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            dla \\(0\\lt a\\lt 1\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(\\log_{a} x_1\\gt \\log_{a} x_2 \\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"funkcja logarytmiczna malejąca\" src=\"static/logarytmiczna_malejaca.png\" style=\"width: 800px;\" width=\"800\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            (następuje\n            <span style=\"color: red\">\n                zmiana\n            </span>\n            znaku nierówności)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            dla \\(a\\gt 1\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(log_{a} x_1\\lt \\log_{a} x_2\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"funkcja logarytmiczna rosnąca\" src=\"static/logarytmiczna_rosnaca.png\" style=\"width: 800px;\" width=\"800\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            (znak nierówności pozostaje\n            <span style=\"color: red\">\n                ten sam\n            </span>\n            )\n        </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "87d6e76c34d39f902e06056b088f4d39676a934b15dff9da1b4cedb7b2a81741"
+}

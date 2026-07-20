@@ -1,0 +1,78 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Zaznacz wszystkie zdania prawdziwe.\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "Punkt \\((3,2)\\) leży na prostej o równaniu \\(y=-2x+7\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Punkt \\((-2,1)\\) leży na prostej o równaniu \\(y=-\\frac{3}{2}x-2\\).",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Na prostej o równaniu \\(y=\\frac{2}{3}x-5\\) leży punkt o współrzędnej \\(x=-6\\). Współrzędna \\(y\\) tego punktu jest równa:\n</p>",
+      "value": "-9",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Na prostej o równaniu \\(y=\\frac{3}{2}x-1\\) leży punkt o współrzędnej \\(y=5\\). Współrzędna \\(x\\) tego punktu jest równa:\n</p>",
+      "value": "4",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Na prostej o równaniu \\(y=-\\frac{4}{3}x+1\\) leży punkt o współrzędnej \\(y=-11\\). Współrzędna \\(x\\) tego punktu jest równa:\n</p>",
+      "value": "9",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wskaż prawdziwe zdania na temat prostej o równaniu \\(y=\\frac{2}{3}x-4\\)\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "Prosta przecina oś \\(OY\\) w punkcie o współrzędnej \\(y=-4\\).",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przecina oś \\(OX\\) w punkcie o współrzędnej \\(x=-4\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przecina oś \\(OY\\) w punkcie o współrzędnej \\(y=4\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta jest rosnąca.",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta jest malejąca.",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Prosta przecina oś \\(OX\\) w punkcie o dodatniej współrzędnej \\(x\\).",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6c863d4eb72a30aada4391abd519a59df19c86d45552ef633a23c1da3f3ae96b"
+}

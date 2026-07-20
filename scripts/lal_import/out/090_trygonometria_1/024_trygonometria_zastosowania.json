@@ -1,0 +1,36 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3 id=\"wzor_na_pole_trojkata\">\n    Wzór na pole trójkąta\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Przyjmijmy oznaczenia jak na rysunku poniżej.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"trygonometria - pole trójkąta 5\" height=\"401\" src=\"static/tryg_pole_trojkata_5.png\" style=\"width: 600px; height: 401px;\" width=\"600\"/>\n<p>\n            Dodatkowo, przyjmijmy, że\n        </p>\n<ul style=\"list-style: none\">\n<li>\n                kąt wewnętrzny trójkąta o wierzchołku w punkcie \\(A\\) oznaczymy po prostu jako \\(A\\),\n            </li>\n<li>\n                kąt wewnętrzny trójkąta o wierzchołku w punkcie \\(B\\) oznaczymy po prostu jako \\(B\\),\n            </li>\n<li>\n                kąt wewnętrzny trójkąta o wierzchołku w punkcie \\(C\\) oznaczymy po prostu jako \\(C\\).\n            </li>\n</ul>\n<p>\n            Wówczas pole trójkąta może być obliczone według następującego wzoru:\n        </p>\n<p>\n            \\(P=\\frac{1}{2}ab\\sin C=\\frac{1}{2}ac\\sin B=\\frac{1}{2}bc \\sin A\\)\n        </p>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Oblicz pole trójkąta o bokach długości \\(a\\) i \\(b\\) oraz kącie między tymi bokami o mierze \\(\\alpha\\), a następnie sprawdź swoją odpowiedź.\n        </p>\n<p>\n            Użyj kalkulatora do obliczeń, a wynik podaj w przybliżeniu do 0,01.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(a=3,\\quad b=5,\\quad \\alpha=32^{\\circ}\\)",
+      "body": "\n                            3,97\n                        "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(a=6,5,\\quad b=2,3,\\quad \\alpha=69^{\\circ}\\)",
+      "body": "\n                            6.98\n                        "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "9dad83b8730e001bd8c9a630227920414172d237d9efd0e8c691158df0a370ce"
+}

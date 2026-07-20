@@ -1,0 +1,314 @@
+[
+  {
+    "kind": "skipped_unnumbered_file",
+    "reason": "neolms.html has no ordering token; not a numbered lesson — skipped",
+    "unit_json": null,
+    "raw_excerpt": "neolms.html"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_1.html",
+    "raw_excerpt": "<a href=\"f_lin_1.html\">\n                            proporcjonalność prosta\n                        </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_1.html#definicja",
+    "raw_excerpt": "<a href=\"f_lin_1.html#definicja\">\n                                definicja\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_1.html#przyklady",
+    "raw_excerpt": "<a href=\"f_lin_1.html#przyklady\">\n                                przykłady\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_2.html",
+    "raw_excerpt": "<a href=\"f_lin_2.html\">\n                    współczynnik kierunkowy linii prostej\n                </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_3.html",
+    "raw_excerpt": "<a href=\"f_lin_3.html\">\n                    równanie kierunkowe linii prostej\n                </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_4.html",
+    "raw_excerpt": "<a href=\"f_lin_4.html\">\n                    współrzędne punktów na prostej\n                </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_5.html",
+    "raw_excerpt": "<a href=\"f_lin_5.html\">\n                    równanie prostej przechodzącej przez dwa punkty\n                </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_6.html",
+    "raw_excerpt": "<a href=\"f_lin_6.html\">\n                            punkty na osiach układu współrzędnych\n                        </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_6.html#y_intercept",
+    "raw_excerpt": "<a href=\"f_lin_6.html#y_intercept\">\n                                punkt przecięcia prostej z osią \\(y\\)\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_6.html#x_intercept",
+    "raw_excerpt": "<a href=\"f_lin_6.html#x_intercept\">\n                                punkt przecięcia prostej z osią \\(x\\)\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_6.html#zeroes",
+    "raw_excerpt": "<a href=\"f_lin_6.html#zeroes\">\n                                miesjca zerowe\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_7.html",
+    "raw_excerpt": "<a href=\"f_lin_7.html\">\n                            proste równoległe i proste prostopadłe\n                        </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_7.html#nachylenie_rownoleglej",
+    "raw_excerpt": "<a href=\"f_lin_7.html#nachylenie_rownoleglej\">\n                                współczynnik kierunkowy prostej równoległej\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_7.html#nachylenie_prostopadlej",
+    "raw_excerpt": "<a href=\"f_lin_7.html#nachylenie_prostopadlej\">\n                                współczynnik kierunkowy prostej prostopadłej\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_7.html#rownolegla",
+    "raw_excerpt": "<a href=\"f_lin_7.html#rownolegla\">\n                                równanie prostej równoległej\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_7.html#prostopadla",
+    "raw_excerpt": "<a href=\"f_lin_7.html#prostopadla\">\n                                równanie prostej prostopadłej\n                            </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_8.html",
+    "raw_excerpt": "<a href=\"f_lin_8.html\">\n                    podsumowanie\n                </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_9.html",
+    "raw_excerpt": "<a href=\"f_lin_9.html\">\n                    zastosowania\n                </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_10.html",
+    "raw_excerpt": "<a href=\"f_lin_10.html\">\n                    warto wiedzieć\n                </a>",
+    "unit_json": "f_lin_000.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: f_lin_0.html",
+    "raw_excerpt": "<a href=\"f_lin_0.html\">\n        wróć do spisu zagadnień\n    </a>",
+    "unit_json": "f_lin_013.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input type=\"checkbox\"/>",
+    "unit_json": "f_lin_023.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input type=\"checkbox\"/>",
+    "unit_json": "f_lin_023.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input type=\"checkbox\"/>",
+    "unit_json": "f_lin_023.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input type=\"checkbox\"/>",
+    "unit_json": "f_lin_023.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input type=\"checkbox\"/>",
+    "unit_json": "f_lin_023.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input type=\"checkbox\"/>",
+    "unit_json": "f_lin_023.json"
+  },
+  {
+    "kind": "stem_without_answer",
+    "reason": "stem had no answer DSL",
+    "raw_excerpt": "<p>f_lin_29_quiz_pyt5.png</p>",
+    "unit_json": "f_lin_029_quiz.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input type=\"checkbox\"/>",
+    "unit_json": "f_lin_033.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input type=\"checkbox\"/>",
+    "unit_json": "f_lin_033.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input type=\"checkbox\"/>",
+    "unit_json": "f_lin_033.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input type=\"checkbox\"/>",
+    "unit_json": "f_lin_033.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input type=\"checkbox\"/>",
+    "unit_json": "f_lin_033.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n<p>\n            Punkt \\(B\\) ma dwie współrzędne:\n        </p>\n<p>\n            \\(x=7\\) oraz \\(y=-2\\).\n        </p>\n<p>\n            Podstawmy \\(x=7\\) do równania prostej:\n        </p>\n<p>\n            \\(y=-\\frac{3}{7}\\cdot 7+1\\)\n        </p>\n<p>\n            i wyli",
+    "unit_json": "f_lin_042.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n        Rozwiązanie zadania - zobacz\n    </div>",
+    "unit_json": "f_lin_042.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                1. nachylenie\n            </a>",
+    "unit_json": "f_lin_050_rownanie_prostej_przechodzacej_przez_dwa_punkty.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
+    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                2. wzór\n            </a>",
+    "unit_json": "f_lin_050_rownanie_prostej_przechodzacej_przez_dwa_punkty.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-3",
+    "raw_excerpt": "<a href=\"#tabcontent-1-3\" id=\"tab-1-3\">\n                3. układ równań\n            </a>",
+    "unit_json": "f_lin_050_rownanie_prostej_przechodzacej_przez_dwa_punkty.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n<p>\n            Tę zależność można zapisać na dwa równoważne sposoby:\n        </p>\n<ol>\n<li>\n                Iloczyn obu współczynników kierunkowych jest równy \\(-1\\):\n                \\[a_1a_2=-1\\]\n            </li>\n<li>\n                Współczynnik \\(a_2\\) jes",
+    "unit_json": "f_lin_071.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+    "unit_json": "f_lin_071.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    nagranie\n                </a>",
+    "unit_json": "f_lin_091.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
+    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    krok po kroku\n                </a>",
+    "unit_json": "f_lin_091.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-2-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-2-1\" id=\"tab-2-1\">\n                    nagranie\n                </a>",
+    "unit_json": "f_lin_092.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-2-2",
+    "raw_excerpt": "<a href=\"#tabcontent-2-2\" id=\"tab-2-2\">\n                    krok po kroku\n                </a>",
+    "unit_json": "f_lin_092.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n        95 litrów\n    </div>",
+    "unit_json": "f_lin_093.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+    "unit_json": "f_lin_093.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n<ol>\n<li>\n                18 kilometrów na godzinę\n            </li>\n<li>\n                \\(y=18x+12\\)\n            </li>\n<li>\n                O 11:20.\n            </li>\n</ol>\n</div>",
+    "unit_json": "f_lin_093.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+    "unit_json": "f_lin_093.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n<ol>\n<li>\n                \\(y=0,25x+3,5\\)\n            </li>\n<li>\n                4,25 mln zł\n            </li>\n<li>\n                360 tysięcy mieszkańców\n            </li>\n</ol>\n</div>",
+    "unit_json": "f_lin_094.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+    "unit_json": "f_lin_094.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n<ol>\n<li>\n                \\(y=-5/3x+50\\)\n            </li>\n<li>\n                \\(50\\mu\\text{g/m}^3\\)\n            </li>\n<li>\n                18 kilometrów\n            </li>\n</ol>\n</div>",
+    "unit_json": "f_lin_094.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+    "unit_json": "f_lin_094.json"
+  }
+]

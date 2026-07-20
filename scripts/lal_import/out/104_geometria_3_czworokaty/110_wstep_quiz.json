@@ -1,0 +1,175 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>W czworokącie \\(ABCD\\) bok \\(AB\\) jest równoległy do boku \\(CD\\), a bok \\(BC\\) do boku \\(AD\\).</p><p>Z powyższego wynika, że czworokąt \\(ABCD\\) jest (zaznacz wszystkie możliwości):</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "kwadratem",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "prostokątem",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "rombem",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "równoległobokiem",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "deltoidem",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "trapezem",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "trapezoidem",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>W czworokącie \\(ABCD\\) dane są długości boków \\(AB=BC=7\\) oraz \\(CD=AD=9\\).</p><p>Z powyższego wynika, że czworokąt \\(ABCD\\) jest (zaznacz wszystkie możliwości):</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "kwadratem",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "prostokątem",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "rombem",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "równoległobokiem",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "deltoidem",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "trapezem",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "trapezoidem",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>W czworokącie \\(ABCD\\) wszystkie boki są równej długości, a wszystkie kąty wewnętrzne mają równą miarę.</p><p>Z powyższego wynika, że czworokąt \\(ABCD\\) jest (zaznacz wszystkie możliwości):</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "kwadratem",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "prostokątem",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "rombem",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "równoległobokiem",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "deltoidem",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "trapezem",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "trapezoidem",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>W deltoidzie \\(ABCD\\) przekątna \\(AC\\) o długości \\(12\\) dzieli przekątną \\(BD\\) o długości \\(15\\) w stosunku \\(3:5\\).</p><p>Pole deltoidu jest równe</p>",
+      "value": "90",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Kolejne boki czworokąta są długości \\(6\\), \\(6\\), \\(7\\) i \\(7\\). Kąt między bokami różnej długości ma miarę \\(60^{\\circ}\\). Pole czworokąta jest równe:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(21\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(21\\sqrt{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(21\\sqrt{3}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(42\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(42\\sqrt{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(42\\sqrt{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8864677b255a3c927de15c6bf7f9efbd02aa8926c3dd20de85aab717907ed9a1"
+}

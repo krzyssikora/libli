@@ -1,0 +1,91 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Na wycieczkę pojechało 20 uczniów klasy pierwszej i 18 klasy drugiej.\n        </p>\n<p>\n            Na kolację punktualnie pojawiło się 19 uczniów.\n        </p>\n<ol class=\"bold\" type=\"A\">\n<li>\n                Na ile sposobów w tej grupie mogli być tylko uczniowie pierwszej klasy?\n            </li>\n<li>\n                Na ile sposobów w tej grupie mogli być wszyscy uczniowie drugiej klasy?\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie częściA",
+      "body": "\n\n        W grupie 19 osób muszą być tylko uczniowie pierwszej klasy, czyli \\(\\binom{20}{19}=20\\)\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie częściB",
+      "body": "\n\n        W grupie 19 osób musiało być 18 z drugiej klasy i 1 z pierwszej, czyli \\(\\binom{18}{18}\\cdot\\binom{20}{1}=1\\cdot 20=20\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Z liczb naturalnych od \\(12\\) do \\(34\\) (włącznie) wybieramy losowo trzy liczby.\n        </p>\n<ol class=\"bold\" type=\"A\">\n<li>\n                W ilu takich wyborach wszystkie liczby będą parzyste?\n            </li>\n<li>\n                W ilu takich wyborach wszystkie liczby będą nieparzyste?\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie częściA",
+      "body": "\n\n<p>\n            Najmniejsza losowa liczba w tym zakresie to \\(12=2\\cdot 6\\).\n        </p>\n<p>\n            Największa losowa liczba w tym zakresie to \\(34=2\\cdot 17\\).\n        </p>\n<p>\n            Stąd parzystych liczb jest \\(17-5=12\\).\n        </p>\n<p>\n            Możliwych sposobów wybrania trzech tak, by wszystkie były parzyste jest\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            binom{12}{3}=\\frac{12!}{3!\\cdot 9!}=\\frac{10\\cdot 11\\cdot 12}{1\\cdot 2\\cdot 3}=220\n            \\]\n        </div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie częściB",
+      "body": "\n\n<p>\n            Wszystkich liczb jest \\(34-11=23\\), a skoro parzystych jest \\(12\\), to nieparzystych \\(11\\).\n        </p>\n<p>\n            Możliwych sposobów wybrania trzech tak, by wszystkie były nieparzyste jest\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            binom{11}{3}=\\frac{11!}{3!\\cdot 8!}=\\frac{9\\cdot 10\\cdot 11}{1\\cdot 2\\cdot 3}=165\n            \\]\n        </div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Spośród liter \n        </p>\n<div class=\"table_wrapper\">\n<strong>A</strong>, <strong>B</strong>, <strong>C</strong>, <strong>D</strong>, <strong>E</strong>, <strong>F</strong>, <strong>G</strong>, <strong>H</strong>, <strong>I</strong>, <strong>J</strong>, <strong>K</strong>, <strong>L</strong>, <strong>M</strong>, <strong>N</strong>, <strong>O</strong>, \n        </div>\n<p>\n            wybieramy trzy losowe litery.\n        </p>\n<ol class=\"bold\" type=\"A\">\n<li>\n                Ile jest możliwych wyborów, w któych wszystkie trzy będą samogłoskami?\n            </li>\n<li>\n                Ile jest możliwych wyborów, w których wszystkie trzy będą spółgłoskami?\n            </li>\n<li>\n                Ile jest możliwych wyborów, w których będzie jedna samogłoska i dwie spółgłoski?\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie częściA",
+      "body": "\n\n<p>\n            Wśród liter są 4 samogłoski (A, E, I, O), więc\n        </p>\n        \\[\n        \\binom{4}{3}=4\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie częściB",
+      "body": "\n\n<p>\n            Spółgłosek jest 11, więc\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            \\binom{11}{3}=\\frac{11!}{3!\\cdot 8!}=\\frac{9\\cdot 10\\cdot 11}{1\\cdot 2\\cdot 3}=165\n            \\]\n        </div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie częściC",
+      "body": "\n\n        \\(\\binom{4}{1}\\cdot\\binom{11}{2}=4\\cdot \\frac{11\\cdot 10}{2}=220\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Warsztaty z robotyki rozpisane są na pięć spotkań w przeciągu dwóch tygodni: trzykrotnie w pierwszym tygodniu i dwukrotnie w drugim, od poniedziałku do piątku.\n        </p>\n<p>\n            Na ile sposobów można wybrać dni, w jakie będą odbywały się zajęcia, jeśli mają się nie odbywać w czwartki?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n                        w pierwszym tygodniu:\n                    </td>\n<td>\n                        \\(\\binom{4}{3}=4\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        w drugim tygodniu:\n                    </td>\n<td>\n                        \\(\\binom{4}{2}=\\frac{4\\cdot 3}{2}=6\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        razem:\n                    </td>\n<td>\n                        \\(4\\cdot 6=24\\)\n                    </td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Janek dostał psa i przez najbliższe cztery tygodnie będzie musiał go wyprowadzać na poranne spacery dwa razy w tygodniu. Janek może wybrać, w które dni chce wyprowadzać rano psa. Mogą one być inne w każdym tygodniu.\n        </p>\n<p>\n            Na ile sposobów Janek może wybrać dni spacerów, aby nie były to weekendy? (Czyli ani soboty, ani niedziele.)\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n                        w pojedynczym tygodniu:\n                    </td>\n<td>\n                        \\(\\binom{5}{2}=\\frac{5\\cdot 4}{2}=10\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        przez cztery tygodnie:\n                    </td>\n<td>\n                        \\(10^4=10\\, 000\\)\n                    </td>\n</tr>\n</table>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "0606a0a93dcec9cf492f7b8d933b429c152b22de7cf5121d1a0c06eccc8abeb0"
+}

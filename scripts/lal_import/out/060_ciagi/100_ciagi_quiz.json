@@ -1,0 +1,116 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>Ciąg \\((a_n)\\) jest zdefiniowany wzorem ogólnym</p><p>\\(a_n=\\frac{n^2+1}{n+3}\\quad\\text{dla }n=1, 2, 3, \\dots\\)</p><p>Znajdź wartość \\(a_7\\)</p>",
+      "value": "5",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Ciąg \\((b_n)\\) jest zdefiniowany wzorem ogólnym</p><p>\\(b_n=(n-1)^3\\quad\\text{dla }n=1, 2, 3, \\dots\\)</p><p>Znajdź wartość \\(b_{11}\\)</p>",
+      "value": "1000",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Ciąg \\((c_n)\\) jest zdefiniowany wzorem rekurencyjnym</p><p>\\(\\begin{cases}</p><p>\\begin{align}</p><p>c_1&=2&&\\\\</p><p>c_n&=2c_{n-1}-1\\quad&\\text{dla }n=2, 3, 4, \\dots</p><p>\\end{align}</p><p>\\end{cases}\\)</p><p>Znajdź wartość \\(c_5\\)</p>",
+      "value": "17",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Ciąg \\((b_n)\\) jest zdefiniowany wzorem ogólnym</p><p>\\[</p><p>d_n=n^2-7n+10\\quad\\text{dla }n=1, 2, 3, \\dots</p><p>\\]</p><p>Ujemne wyrazy tego ciągu to</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(2\\), \\(3\\), \\(4\\) i \\(5\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3\\) i \\(4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(a_3=-2\\) i \\(a_4=-2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(a_3=-2\\) i \\(a_4=-4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "3",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Ciąg \\((e_n)\\) jest zdefiniowany wzorem rekurencyjnym</p><p>\\(\\begin{cases}</p><p>\\begin{align}</p><p>e_1&=10&&\\\\</p><p>e_n&=e_{n-1}-2\\quad&\\text{dla }n=2, 3, 4, \\dots</p><p>\\end{align}</p><p>\\end{cases}\\)</p><p>Wartość największego ujemnego wyrazu tego ciągu to</p>",
+      "value": "-2",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Ciąg \\((f_n)\\) jest zdefiniowany wzorem rekurencyjnym</p><p>\\(\\begin{cases}</p><p>\\begin{align}</p><p>f_1&=1&&\\\\</p><p>f_{n+1}&=4f_n\\quad&\\text{dla }n=1, 2, 3, \\dots</p><p>\\end{align}</p><p>\\end{cases}\\)</p><p>Wzór ogólny tego ciągu to</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(f_n=4^n\\) dla \\(n=1, 2, 3,\\dots\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(f_n=4^{n+1}\\) dla \\(n=1, 2, 3,\\dots\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(f_n=4^{n-1}\\) dla \\(n=1, 2, 3,\\dots\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(f_n=4\\cdot 1^n\\) dla \\(n=1, 2, 3,\\dots\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Ciąg \\((g_n)\\) jest zdefiniowany wzorem ogólnym</p><p>\\[</p><p>g_n=2n-n^2\\quad\\text{dla }n=1, 2, 3, \\dots</p><p>\\]</p><p>Wówczas</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(g_{n+1}=-n^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(g_{n+1}=1-n^2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(g_{n+1}=4n+3-n^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(g_{n+1}=4n+2-n^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a76d6fbaa4b3f5888c403fecd95ae7c796dd6293f603716be4aa0157b17f08e3"
+}

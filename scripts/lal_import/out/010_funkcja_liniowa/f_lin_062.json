@@ -1,0 +1,63 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wiemy już, że prosta o równaniu\n    \\[\n    y=ax+b\n    \\]\n    przecina oś \\(y\\) w punkcie o współrzędnych \\((0, b)\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Możemy do tego dojść także korzystając z powyższej cechy punktów na osi \\(y\\):\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "wszystkie punkty na osi \\(y\\) mają współrzędną \\(x=0\\).",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Znajdź współrzędne punktu przecięcia prostej\n            \\[y=-\\frac{3}{2}x+\\frac{5}{2}\\]\n            z osią \\(y\\).\n        </p>\n<p>\n            Spróbuj rozwiązać to zadanie samodzielnie, używając w razie potrzeby poniższych wskazówek.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"show_step\">\n            Skoro wszystkie punkty na osi \\(y\\) mają współrzędną \\(x=0\\), podstawmy \\(x=0\\) do równania prostej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"show_step\">\n            \\[y=-\\frac{3}{2}\\cdot 0+\\frac{5}{2}\\]\n            i obliczmy wartość \\(y\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"show_step\">\n            \\[y=0+\\frac{5}{2}=\\frac{5}{2}\\]\n            co oznacza, że punkt przecięcia prostej z osią \\(y\\) ma współrzędne \\(\\color{red}{(0, \\frac{5}{2})}\\).\n        </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e4a651de127b6d965c8d5c89ebd45fe3d4bf0cbf937239ba1a8ed9029347de9b"
+}

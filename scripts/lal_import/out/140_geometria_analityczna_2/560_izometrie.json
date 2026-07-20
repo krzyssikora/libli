@@ -1,0 +1,60 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Symetria względem punktu \\((0,0)\\), czyli początku układu współrzędnych, to przekształcenie płaszczyzny, \\(P\\), zdefiniowane wzorem\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        P(x,y) = (-x, -y) \n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Symetria osiowa w osi \\(OY\\) to przekształcenie płaszczyzny, \\(P\\), zdefiniowane wzorem\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        P(x,y) = (-x, y) \n        \\]\n    "
+    },
+    {
+      "type": "image",
+      "media_src": "static/izometria_definicja_symetria_srodkowa.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W aplecie poniżej możesz przesuwać wierzchołki czerwonego trójkąta.\n        </p>\n<p>\n            Zwróć uwagę, że niezależnie od położenia wierzchołków czerwonego trójkąta, jego obraz w symetrii w początku układu współrzędnych (pomarańczowy trójkąt) możemy otrzymać stosując kolejno symetrie w dwóch osiach układu współrzędnych - i to w dowolnej kolejności.\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"455px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/tfbpwayq/width/660/height/455/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"symetria środkowa jako złożenie symetrii osiowych\" width=\"660px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">ten email</a>.\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Czy podane punkty są symetryczne względem osi \\(OX\\), względem osi \\(OY\\), czy względem początku układu współrzędnych, \\((0,0)\\)?\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\((-4,-3)\\) i \\((4,3)\\)\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OX\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OY\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\((0,0)\\)</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\((5,7)\\) i \\((5,-7)\\)\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OX\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OY\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\((0,0)\\)</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\((0,-8)\\) i \\((0,8)\\)\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OX\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OY\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\((0,0)\\)</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\((4,-6)\\) i \\((-4,6)\\)\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OX\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OY\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\((0,0)\\)</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\((3,-3)\\) i \\((-3,-3)\\)\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OX\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\(OY\\)</div>\n<div class=\"one_choice one_choice_50 ks_button\">\\((0,0)\\)</div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "potwierdź "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi: \n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "4c97b615d63d46e03addb3766f507d92afbf05b88ca5773b1154e6cb78d38c14"
+}

@@ -1,0 +1,114 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Wielomian stopnia \\(5\\) podzielono na wielomian stopnia \\(2\\).</p><p>\n    Wskaż\n    <strong>\n        wszystkie\n    </strong>\n    możliwe stopnie\n    <strong>\n        reszty\n    </strong>\n    z tego dzielenia.\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "nieokreślony",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(0\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(1\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wielomian stopnia \\(5\\) podzielono na wielomian stopnia \\(2\\).</p><p>\n    Wskaż\n    <strong>\n        wszystkie\n    </strong>\n    możliwe stopnie\n    <strong>\n        wyniku\n    </strong>\n    tego dzielenia.\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "nieokreślony",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Wynikiem dzielenia</p><p>\\((2x^{4}-7x^{3}+3x^{2}+3x-5):(x-3)\\)</p><p>jest wielomian</p><p>\\(2x^3+Ax^2+Bx+C\\), a reszta z tego dzielenia to \\(R\\).</p><p>Wykonaj dzielenie i wpisz wartości.</p><p>\\(A=\\)</p>",
+      "value": "-1",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(B=\\)</p>",
+      "value": "0",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(C=\\)</p>",
+      "value": "3",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(R=\\)</p>",
+      "value": "4",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c0dc3de0d958e26e70dba9136ad6c3bfc9b3a0993a2c5265f3ff293df0b17e6b"
+}

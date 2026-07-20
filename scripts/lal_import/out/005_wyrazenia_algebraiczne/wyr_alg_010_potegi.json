@@ -1,0 +1,114 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Czym jest potęga?\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/potega_naturalna.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Potęgowanie ułamków\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pokaż, że\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        \\left(1\\tfrac{1}{2}\\right)^3=3\\tfrac{3}{8}\n        "
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Podniesienie ułamka \\(1\\tfrac{1}{2}\\) do potęgi to mnożenie tego ułamka przez siebie. Mnożenie ułamków wymaga zamiany na\n                <strong>\n                    ułamek niewłaściwy\n                </strong>\n                .\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                1\\tfrac{1}{2}=\\tfrac{3}{2}\n                                                                                                "
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Stąd:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                \\left(1\\tfrac{1}{2}\\right)^3=\\left(\\tfrac{3}{2}\\right)^3=\n                                                                                                "
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                A teraz podnosimy do potęgi, czyli mnożymy przez siebie:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                =\\left(\\tfrac{3}{2}\\right)\\cdot\\left(\\tfrac{3}{2}\\right)\\cdot \\left(\\tfrac{3}{2}\\right)=\n                                                                                                "
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zauważ, że ponieważ mnożymy liczniki przez liczniki, a mianowniki przez mianowniki, możemy to mnożenie zapisać w ten sposób:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                =\\frac{3\\cdot 3\\cdot 3}{2\\cdot 2\\cdot 2}=\n                                                                                                "
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Albo jako potęgi zarówno w liczniku jak i w mianowniku:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                =\\frac{3^3}{2^3}=\\frac{27}{8}=\n                                                                                                "
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Pozostaje wyłączyć całości z ułamka niewłaściwego:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                =3\\tfrac{3}{8}\n                                                                                                "
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Na koniec podsumujmy:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                \\left(1\\tfrac{1}{2}\\right)^3=\\left(\\tfrac{3}{2}\\right)^3=\\tfrac{3^3}{2^3}=\\tfrac{27}{8}=3\\tfrac{3}{8}\n                                                                                                "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "24a0f20451cf379b2a19a64e963e408b35283153d581d23c4a84555ad0864a37"
+}

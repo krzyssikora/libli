@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Związki trygonometryczne w trójkącie prostokątnym\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "\n        w tej lekcji\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n<a href=\"#rozgrzewka\">\n                Rozgrzewka\n            </a>\n</li>\n<li>\n<a href=\"#funkcje_trygonometryczne\">\n                Funkcje trygonometryczne: sinus, cosinus, tangens i cotangens\n            </a>\n<ul>\n<li>\n<a href=\"#boki_w_trojkacie_prostokatnym\">\n                        Boki w trójkącie prostokątnym\n                    </a>\n</li>\n<li>\n<a href=\"funkcje_trygonometryczne_kata_ostrego\">\n                        Funkcje trygonometryczne kąta ostrego\n                    </a>\n</li>\n</ul>\n</li>\n</ol>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "cc9b2635f7e0231cd23a6821c6a19436c879a093e318f63dfa3eb4a9284998e7"
+}

@@ -1,0 +1,20 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz i uzupełnij wartości największego wspólnego dzielnika i najmniejszej wspólnej wielokrotności.\n    "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                    \\(NWD(15, 16)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                    \\(NWW(15, 16)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                    \\(NWD(35, 14)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                    \\(NWW(25, 14)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                    \\(NWD(132, 198)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                    \\(NWW(132, 198)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                    \\(NWD(72, 108)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                    \\(NWW(72, 108)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>",
+      "reason": "interactive_widget (Group B): table_input"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "a7130bd3c5799be975941112461085c250508001de35a294e762a9d31f3a4aef"
+}

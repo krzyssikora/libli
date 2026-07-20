@@ -1,0 +1,44 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Przesuń powoli pomarańczowy suwak w poniższym aplecie. Zobaczysz drugi, przystający trapez w innym położeniu.\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"433px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/y4fkdntp/width/656/height/433/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"kąty przy ramieniu trapezu\" width=\"656px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n<p>\n            Jaką własność kątów przy tym samym ramieniu trapezu pokazuje animacja?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "twierdzenie o kątach przy ramieniu trapezu",
+      "body": "\n\n<div class=\"important\">\n            Suma kątów wewnętrznych przy jednym ramieniu trapezu jest równa \\(180^{\\circ}\\).\n        </div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W trapezie równoramiennym \\(ABCD\\), w którym \\(AB\\parallel CD\\), kąt wewnętrzny przy wierzchołku \\(C\\) ma miarę \\(134^{\\circ}\\).\n        </p>\n<p>\n            Znajdź miary pozostałych kątów wewnętrznych trapezu.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Zacznijmy od rysunku pomocniczego. Rysunek jest odręczny, więc, oczywiście, nie zachowuje skali.\n                </p>\n<figure>\n<img src=\"static/trapez_katy_przy_ramieniu_1_1.png\" style=\"max-width: 400px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Zacznijmy od kąta w wierzchołku \\(B\\). Z twierdzenia o kątach przy ramieniu trapezu kąt \\(B\\) jest równy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(134^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(134^{\\circ}-90^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(180^{\\circ}-134^{\\circ}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Czyli kąt w wirzchołku \\(B\\) ma miarę \\(180^{\\circ}-134^{\\circ}=46^{\\circ}\\)\n                </p>\n<figure>\n<img src=\"static/trapez_katy_przy_ramieniu_1_2.png\" style=\"max-width: 400px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Trapez jest równoramienny, więc kąt w wierzchołku \\(A\\) ma miarę \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(90^{\\circ}-46^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(46^{\\circ}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/trapez_katy_przy_ramieniu_1_3.png\" style=\"max-width: 400px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Z identycznego powodu kąt w wierzchołku \\(D\\) ma miarę\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(46^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(134^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(46^{\\circ}+90^{\\circ}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/trapez_katy_przy_ramieniu_1_4.png\" style=\"max-width: 400px;\"/>\n</figure>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div style=\"float: right; max-height: 130px;\">\n<img src=\"static/trapez.png\" style=\"max-height: 120px;\"/>\n</div>\n<p>\n            W trapezie \\(ABCD\\) boki \\(AB\\) i \\(CD\\) są równoległe, jak na rysunku pomocniczym.\n        </p>\n<p>\n            Wpisz miary brakujących kątów.\n        </p>\n<p>\n            Nie wpisuj znaku stopnia.\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td style=\"white-space: nowrap;\">\\(A\\)</td>\n<td style=\"white-space: nowrap;\">\\(B\\)</td>\n<td style=\"white-space: nowrap;\">\\(C\\)</td>\n<td style=\"white-space: nowrap;\">\\(D\\)</td>\n</tr>\n<tr>\n<td style=\"white-space: nowrap;\">\\(30^{\\circ}\\)</td>\n<td style=\"white-space: nowrap;\"><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(^{\\circ}\\)</td>\n<td style=\"white-space: nowrap;\">\\(108^{\\circ}\\)</td>\n<td style=\"white-space: nowrap;\"><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(^{\\circ}\\)</td>\n</tr>\n<tr>\n<td style=\"white-space: nowrap;\">\\(63^{\\circ}\\)</td>\n<td style=\"white-space: nowrap;\">\\(63^{\\circ}\\)</td>\n<td style=\"white-space: nowrap;\"><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(^{\\circ}\\)</td>\n<td style=\"white-space: nowrap;\"><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(^{\\circ}\\)</td>\n</tr>\n<tr>\n<td style=\"white-space: nowrap;\"><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(^{\\circ}\\)</td>\n<td style=\"white-space: nowrap;\">\\(40^{\\circ}\\)</td>\n<td style=\"white-space: nowrap;\"><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(^{\\circ}\\)</td>\n<td style=\"white-space: nowrap;\">\\(90^{\\circ}\\)</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n    Świetnie!\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "28aaed4cb7be22cb99a3c51d866567dfde58ea76b2f334d0983b0b308b784c69"
+}

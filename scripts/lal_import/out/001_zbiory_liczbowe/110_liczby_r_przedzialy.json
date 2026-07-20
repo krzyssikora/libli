@@ -1,0 +1,20 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wskaż poprawne wyniki działań na przedziałach.\n    "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\((-5,2)\\cup \\langle-1,5\\rangle\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,5)\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,5\\rangle\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\langle-1,2)\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-1,2\\rangle\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,-1\\rangle\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,-1)\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\langle2,5\\rangle\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\((-5,2)\\cap \\langle-1,5\\rangle\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,5)\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,5\\rangle\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\langle-1,2)\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-1,2\\rangle\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,-1\\rangle\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,-1)\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\langle2,5\\rangle\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\((-5,2)\\setminus \\langle-1,5\\rangle\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,5)\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,5\\rangle\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\langle-1,2)\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-1,2\\rangle\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,-1\\rangle\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,-1)\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\langle2,5\\rangle\\)\n            </div>\n</div>\n<div class=\"switch_confirm ks_button\">\n            zatwierdź\n        </div>\n\n</div>",
+      "reason": "interactive_widget (Group B): switch_around,switch_confirm,switch_line,switch_options,switch_value"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "140a6b95f96c6e823bbafbf68a366ec18debeedb04aa34a194c53add5a47c7ec"
+}

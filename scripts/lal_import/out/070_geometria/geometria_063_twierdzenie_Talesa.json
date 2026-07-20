@@ -1,0 +1,10 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/twierdzenie_Talesa_zastosowanie.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c45a95916a6626977eea2be93a0656bdd43e8c7293ec9c68d55844ac88c784dc"
+}

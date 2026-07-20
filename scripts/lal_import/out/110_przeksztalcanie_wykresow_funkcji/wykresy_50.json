@@ -1,0 +1,23 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Obejrzyj nagranie, a następnie \"pobaw\" się apletem umieszczonym pod nagraniem.\n    "
+    },
+    {
+      "type": "video",
+      "media_src": "static/symetria_osiowa.mp4"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/ayuwzadj/width/750/height/770/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c11331975ed2503ec2eb83644cddb1cbea935da686c78ecc5c2e683bd00ef9a7"
+}

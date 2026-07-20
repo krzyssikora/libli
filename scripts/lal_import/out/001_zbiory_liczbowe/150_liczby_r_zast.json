@@ -1,0 +1,137 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Blat biurka ma wymiary \\(50,5\\) cm na \\(90,5\\) cm.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Dwaj bracia, Artur i Bartek, zmierzyli wymiary blatu:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            Artur zmierzył krótszy bok i wyszło mu \\(51\\) cm.\n        </li>\n<li>\n            Bartek zmierzył dłuższy bok i wyszło mu \\(88,8\\) cm.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Policzmy, o ile pomylili się bracia.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uwaga, w obliczeniach użyjemy wartości bezwzględnej.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Kliknij, jeśli nie wiesz, czym jest wartość bezwzględna.",
+      "body": "\n\n<div class=\"important\">\n<p>\n                    O wartości bezwzględnej możesz dowiedzieć się więcej z działu \"wartość bezwzględna\".\n                </p>\n<p>\n                    W tej chwili wystarczy, że przyjmiesz, że:\n                </p>\n<ul>\n<li>\n                        wartość bezwzlędna z liczby \\(a\\) jest zapisywana jako \\(|a|\\)\n                    </li>\n<li>\n                        wartość bezwzlędna z liczby\n                        <strong>\n                            dodatniej\n                        </strong>\n                        to po prostu ta liczba:\n                        \\[|5|=5, \\quad\\quad\\quad |8,5|=8,5\\]\n                    </li>\n<li>\n                        wartość bezwzlędna z liczby\n                        <strong>\n                            ujemnej\n                        </strong>\n                        to przeciwna do niej liczba dodatnia:\n                        \\[|-7|=7, \\quad\\quad\\quad |-11,2|=11,2\\]\n                    </li>\n</ul>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Obliczenia zostały już częściowo wykonane. Przed Tobą ostatni krok. Wpisz sam wynik liczbowy, bez jednostki (cm).\n    </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                        prawdziwy wymiar\n                    </td>\n<td>\n                        zmierzona długość\n                    </td>\n<td>\n                        obliczenie błędu\n                    </td>\n<td>\n                        błąd\n                    </td>\n</tr>\n<tr>\n<td>\n                        \\(50,5\\) cm\n                    </td>\n<td>\n                        \\(51\\) cm\n                    </td>\n<td>\n                        \\(|50,5-51|=|-0,5|\\)\n                    </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                        \\(90,5\\) cm\n                    </td>\n<td>\n                        \\(88,8\\) cm\n                    </td>\n<td>\n                        \\(|90,5-88,8|=|0,7|\\)\n                    </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>",
+      "reason": "interactive_widget (Group B): table_input"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Błędem bezwzględnym\n        </strong>\n        nazywamy wartość bezwzględną różnicy między wartością prawdziwą a przybliżoną.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli przyjmiemy, że:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(x\\) to wartość prawdziwa\n        </li>\n<li>\n            \\(x'\\) to wartość przybliżona (np. pomiar)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to wówczas\n        <strong>\n            błąd bezwzględny\n        </strong>\n        ma wartość\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "|x-x'|"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Czy Bartek, mierząc dłuższy bok, pomylił się bardziej niż Artur?\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Pozory mylą.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Do odpowiedzi na to pytanie warto poznać pojęcie błędu względnego.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli przyjmiemy, że:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(x\\) to wartość prawdziwa\n        </li>\n<li>\n            \\(x'\\) to wartość przybliżona (np. pomiar)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to\n        <strong>\n            błędem względnym\n        </strong>\n        nazywamy liczbę\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(\\left|\\frac{x-x'}{x}\\right|\\) albo inaczej \\(\\frac{|x-x'|}{|x|}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        jest to więc błąd względny w odniesieniu do prawdziwej wartości.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Obliczmy błąd względny pomiaru obu braci.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Obliczenia dla Artura są wykonane w pełni.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Dokończ obliczenia dla Bartka. Użyj kalkulatora i zapisz wynik obcinając go po 4 cyfrach po przecinku.\n    </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                        błąd względny Artura\n                    </td>\n<td>\n                        \\(\\frac{|50,5-51|}{|50,5|}=\\frac{0,5}{50,5}\\approx 0,0099\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        błąd względny Bartka\n                    </td>\n<td>\n                        \\(\\frac{|90,5-88,8|}{|90,5|}=\\frac{0,7}{90,5}\\approx\\)\n                        <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>",
+      "reason": "interactive_widget (Group B): table_input"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Czy biorąc pod uwagę te obliczenia, Bartek pomylił się bardziej niż Artur?\n    </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<p>\n<input class=\"table_input\" placeholder=\"tak/nie\" type=\"text\"/>\n</p>",
+      "reason": "interactive_widget (Group B): table_input"
+    },
+    {
+      "type": "text",
+      "body": "\n    Czasami błąd względny podaje się w procentach:\n                \\[\\frac{|50,5-51|}{|50,5|}=\\frac{0,5}{50,5}\\approx 0,0099=0,0099\\cdot 100\\%=0,99\\%\\]\n"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "5c21c104c16c9c998304ea92d525231cf1322d9a04a9a12132e4c96b48663abc"
+}

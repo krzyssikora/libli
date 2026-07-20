@@ -1,0 +1,410 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n        Optymalizacja\n    </strong>\n    to poszukiwanie najlepszego, ze względu na wybrane kryterium, rozwiązania danego zagadnienia. W przypadku zastosowania matematyki, zwykle chodzi o znalezienie najmniejszej lub największej wartości jakiejś wielkości. No a gdy mowa o funkcji kwadratowej, taka najmniejsza lub największa wartość jest wskazana przez wierzchołek.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zwróć uwagę, że poprzednie zadanie było właśnie zadaniem optymalizacyjnym. Szukaliśmy bowiem warunków, w jakich pole prostokąta jest\n    <strong>\n        największe\n    </strong>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poniżej rozwiążemy jeszcze jedno przykładowe zadanie optymalizacyjne.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Kierownik sklepu postanowił wyprzedać tablety zalegające w magazynie. Podstawowa cena jednego tabletu to 1000 złotych.\n        </p>\n<p>\n            Kierownik wymyślił następującą promocję:\n        </p>\n<blockquote>\n            Jeśli klient kupi\n            <strong>\n                ponad\n            </strong>\n            10 tabletów, to za każdy tablet powyżej dziesiątego zapłaci mniej o 50 zł pomnożone przez\n            <u>\n                liczbę kupionych tabletów powyżej 10\n            </u>\n            .\n        </blockquote>\n<p>\n            Kierownik chciał ogłosić promocję, gdy nagle sprzedawca zwrócił mu uwagę, że przy takiej promocji nie dość, że żaden klient nie zapłaci za więcej niż za 15 tabletów, niezależnie ile ich kupi, to dodatkowo, jeśli kupi ich odpowiednio dużo, nie zapłaci nic.\n        </p>\n<p>\n</p>\n<p>\n            Czy sprzedawca miał rację? Opiszmy jego spostrzeżenia w postaci pytań:\n        </p>\n<ol>\n<li>\n                Jaka jest maksymalna cena całkowita, jaką klient może zapłacić za pewną liczbę tabletów - i za ile tabletów zapłaci tę cenę?\n            </li>\n<li>\n                Przy zakupie jakiej liczby tabletów klient nie musiałby płacić nic?\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zacznijmy od wprowadzenia zmiennej. Niech \\(x\\) oznacza liczbę kupionych tabletów.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Rozważamy sytuacje, gdy klient korzysta z promocji, czyli kupuje ponad 10 tabletów, skąd:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            x\\gt 10\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                a ponieważ liczba tabletów musi być całkowita, możemy zapisać to jako:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x\\ge 9\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x\\ge 10\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x\\ge 11\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>,</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>co zawęża dziedzinę funkcji, jaką zaraz zdefiniujemy.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zdefiniujmy funkcję \\(f(x)\\), której wartością będzie całkowita cena zakupu \\(x\\) tabletów.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Cena tabletu jest inna dla pierwszych dziesięciu, oraz inna (niższa) dla pozostałych.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Każdy z pierwszych dziesięciu kosztuje \\(1000\\) złotych.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Każdy kolejny kosztuje \\(\\color{blue}{1000-50\\cdot(\\text{liczba kupionych tabletów powyżej 10})}\\) złotych.\n            </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "liczba\n                            <br/>\n                            tabletów",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "cena jednego\n                            <br/>\n                            tabletu",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "cena wszystkich\n                            <br/>\n                            tabletów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "pierwsze dziesięć tabletów",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\,000\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10\\cdot 1\\,000\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "kolejne tablety",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x-10\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<div class=\"switch_line\">\n<div class=\"switch_value\">\n                                    &gt;&gt; wybierz &gt;&gt;\n                                </div>\n<div class=\"switch_value\">\n                                    \\(1\\,000-50x\\)\n                                </div>\n<div class=\"switch_value\">\n                                    \\(1\\,000-50(x-10)\\)\n                                </div>\n<div class=\"switch_show_next ks_button\">\n                                    zatwierdź\n                                </div>\n</div>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((x-10)\\cdot 1\\,000 (1\\,000-50(x-10))\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Całkowita cena tabletów to suma ceny pierwszych dziesięciu oraz kolejnych, czyli:\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                f(x)=10\\cdot 1\\,000+(x-10)\\cdot (1\\,000-50(x-10))\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Uprośćmy to wyrażenie:\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                \\begin{align*}\n                f(x)&=10\\cdot 1\\,000+(x-10)\\cdot (1\\,000-50(x-10))=\\\\\n                &=10\\,000+(x-10)\\cdot(1\\,000-50x+500)=\\\\\n                &=10\\,000+(x-10)\\cdot(1\\;500-50x)=\\\\\n                &=10\\,000+1500x-50x^2-15\\,000+5\\,00x=\\dots\\\\\n                \\end{align*}\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Uproszczona funkcja ma postać:\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(f(x)=50x^2+2\\,000x-5\\,000\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(f(x)=-50x^2+2\\,000x-5\\,000\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(f(x)=-50x^2+2\\,000x+5\\,000\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(f(x)=-50x^2+1\\,000x-5\\,000\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Jest to funkcja kwadratowa. Żeby odpowiedzieć na pierwsze pytanie:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n                \"Jaka jest maksymalna cena całkowita, jaką klient może zapłacić za pewną liczbę tabletów - i za ile tabletów zapłaci tę cenę?\"\n            </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                musimy znaleźć wierzchołek paraboli. Zacznijmy od współrzędnej \\(x\\)-owej.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(x=-\\frac{b}{2a}=-\\frac{2\\,000}{2\\cdot(-50)}=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(20\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(-20\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(50\\,000\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(40\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Wynika z tego, że cena całkowita osiąga wartość maksymalną, gdy \\(x=20\\). To może trochę dziwić. Czy to znaczy, że jeśli klient kupi 21 tabletów, zapłaci mniej? Możemy to sprawdzić, licząc najpierw tę maksymalną cenę.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Możemy ją policzyć albo ze wzoru na współrzędną \\(y\\)-ową wierzchołka, albo po prostu obliczając wartość funkcji \\(f\\) dla \\(x=20\\). I tak zrobimy tym razem.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(f(20)=-50\\cdot 20^2+2\\,000\\cdot 20-5\\,000=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(15\\,000\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(20\\,000\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(10\\,000\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(10\\,500\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Promocyjna cena za 20 tabletów to \\(15\\,000\\) złotych, czyli jest równa podstawowej cenie 15 tabletów. Pewnie to miał na myśli sprzedawca mówiąc, że \"\n                <em>\n                    żaden klient nie zapłaci za więcej niż za 15 tabletów\n                </em>\n                \".\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Jeśli dziwi Cię, że cena za 21 tabletów byłaby niższa, niż za 20, możesz (po pierwsze) policzyć, że \\(f(21)=14\\,950\\lt 15\\,000\\) oraz (po drugie) zauważyć, że w przypadku kupna 21 tabletów, wszystkie 11 (poza pierwszymi 10) będą tańsze, każdy o 50 złotych - i dlatego całkowita cena spadnie.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Czas na drugie pytanie:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n                \"Przy zakupie jakiej liczby tabletów klient nie musiałby płacić nic?\"\n            </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Poszukajmy, dla jakiej liczby tabletów \\(x\\) ich cena jest równa 0:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            \\begin{align*}\n            f(x)&=0\\\\\n            -50x^2+2\\,000x-5\\,000&=0\n            \\end{align*}\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Podzielmy obie strony równania przez \\(-50\\):\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            x^2-40x+100=0\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>I teraz obliczmy deltę: \\(\\Delta=b^2-4ac=(-40)^2-4\\cdot 1\\cdot 100=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(0\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(1\\,200\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(400\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(4\\,000\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Miejsca zerowe liczymy według wzoru \\(x=\\frac{-b\\pm\\sqrt{\\Delta}}{2a}\\):\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(x=\\frac{40-\\sqrt{1200}}{2}\\), \\(\\quad\\quad x=\\frac{40+\\sqrt{1200}}{2}\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Otrzymujemy \\(x\\approx 2,68\\) lub \\(x\\approx 37,32\\). To pierwsze rozwiązanie odrzucamy (pamiętasz? dzidzina to \\(x\\ge 11\\)). Pozostaje \\(x\\approx 37,32\\). Co to oznacza, skoro \\(x\\) ma być całkowitą liczbą tabletów?\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zauważ, że funkcja \\(f\\) osiąga wartość maksymalną dla \\(x=20\\), a potem maleje. Oznacza to, że najmniejsza</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n                    całkowita dodatnia\n                </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>wartość \\(x\\) dla której wartość funkcji jest mniejsza lub równa 0 (co oznacza, że klient nie płaci) to</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x=37\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(x=38\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Poniższy wykres pokazuje, jak wyląda funkcja \\(f\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                    Szara, przerywana krzywa to cała parabola.\n                </li>\n<li>\n                    Niebieska krzywa to parabola dla \\(x\\ge 11\\).\n                </li>\n<li>\n                    Czerwone punkty to punkty o współrzędnych całkowitych (i nadal \\(x\\ge 11\\)). To są prawdziwe liczby kupionych tabletów i odpowiadające im całkowite ceny.\n                </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"promocyjna cena tabletów\" height=\"250\" src=\"static/tablety.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Jak widzisz, dla \\(x=37\\) punkt jest jeszcze ponad osią OX, ale dla \\(x=38\\) już pod.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Pewnie to miał na myśli sprzedawca mówiąc, że \"\n                <em>\n                    jeśli (klient) kupi ich (tabletów) odpowiednio dużo (czyli minimum 38), nie zapłaci nic\n                </em>\n                \".\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Na zakończenie dodajmy, że odpowiedź na drugie pytanie przyjmuje założenie, że obniżana promocyjna cena tabletów dla odpowiedniej wartości \\(x\\) spadnie poniżej 0 - i w takiej sytuacji, przy ujemnej cenie, sklep musiałby dopłacać. Nie jest to realistyczne założenie, ale też promocja była bardzo źle pomyślana.\n            </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "64cc8a96f1743b40ca766f791cfdd8ab04a7fb3cff5807757f008072c9b8312a"
+}

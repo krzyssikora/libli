@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Jeśli\n</p><p>\\[7^5\\cdot 7^6=7^n\\]</p><p>\n    to jaka jest wartość \\(n\\)?\n</p>",
+      "value": "11",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Jeśli\n</p><p>\\[4^{33}: 4^{11}=4^n\\]</p><p>\n    to jaka jest wartość \\(n\\)?\n</p>",
+      "value": "22",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Jeśli\n</p><p>\\[\\left(3^7\\right)^4=3^n\\]</p><p>\n    to jaka jest wartość \\(n\\)?\n</p>",
+      "value": "28",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Jeśli\n</p><p>\\[2^{12}=4^n\\]</p><p>\n    to jaka jest wartość \\(n\\)?\n</p>",
+      "value": "6",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8c19467828c955f97f27dfa1eef7ce14b8fdc91472c1b40972c7b1fa8b8f083b"
+}

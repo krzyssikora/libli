@@ -1,0 +1,177 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Ponieważ wyrazy podobne muszą mieć\n    <u>\n        dokładnie takie same zmienne\n    </u>\n    oraz\n    <u>\n        w dokładnie takich samych potęgach\n    </u>\n    , mogą różnić się tylko liczbą.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Taka liczba nazywa się\n    <strong>\n        współczynnikiem\n    </strong>\n    .\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wpisz współczyniki wskazanych wyrazów według wzoru.\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"table_wrapper\">\n<table class=\"my_table_border\" style=\"background-color: white;\">\n<tr>\n<th>\n                        wyraz\n                    </th>\n<td>\n                        \\(5ab^3\\)\n                    </td>\n<td>\n                        \\(-2xy\\)\n                    </td>\n<td>\n                        \\(-4t^6s\\)\n                    </td>\n<td>\n                        \\(7u^7w^6\\)\n                    </td>\n</tr>\n<tr>\n<th>\n                        współczynik\n                    </th>\n<td>\n                        \\(5\\)\n                    </td>\n<td>\n                        \\(-2\\)\n                    </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>",
+      "reason": "interactive_widget (Group B): table_input"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyjmy się sumie algebraicznej, w której wyrazy są już uproszczone:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n4xy-5x^2y+3x^2y-2xy+3xy\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Ta suma składa się z pięciu wyrazów:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(4xy\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-5x^2y\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+3x^2y\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-2xy\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+3xy\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważmy, że mamy w niej wyrazy tylko dwóch rodzajów:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(\\color{red}{4xy}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{-5x^2y}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{+3x^2y}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{-2xy}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{+3xy}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zwróć uwagę na ich współczyniki:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(\\color{red}{4}\\color{lightgray}{xy}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{-5}\\color{lightgray}{x^2y}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{+3}\\color{lightgray}{x^2y}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{-2}\\color{lightgray}{xy}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{+3}\\color{lightgray}{xy}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Uproszczenie sumy algebraicznej polega na\n    <strong>\n        redukcji wyrazów podobnych\n    </strong>\n    . Robimy to sumując ich współczynniki:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uzupełnij.\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                        wyraz\n                    </td>\n<td>\n                        współczyniki\n                    </td>\n<td>\n                        suma współczyników\n                    </td>\n<td>\n                        zredukowane wyrazy\n                    </td>\n</tr>\n<tr>\n<td>\n                        \\(\\color{blue}{x^2y}\\)\n                    </td>\n<td>\n                        \\(\\color{blue}{-5}\\), \\(\\color{blue}{+3}\\)\n                    </td>\n<td>\n                        \\(-5+3=-2\\)\n                    </td>\n<td>\n                        \\(-2x^2y\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        \\(\\color{red}{xy}\\)\n                    </td>\n<td>\n                        \\(\\color{red}{4}\\), \\(\\color{red}{-2}\\), \\(\\color{red}{+3}\\)\n                    </td>\n<td>\n                        \\(4-2+3=5\\)\n                    </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>",
+      "reason": "interactive_widget (Group B): table_input"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "5d7ea49559ad2ec88018499c483a39650a3561bac92d6f7592140c3aff404f99"
+}

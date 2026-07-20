@@ -1,0 +1,92 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Liczba pierwsza\n        </strong>\n        to taka liczba naturalna dodatnia, która ma\n        <u>\n            dokładnie dwa\n        </u>\n        dzielniki: \\(1\\) i samą siebie.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Przykłady liczb pierwszych:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "2, 3, 5, 7, 11, 13, ..."
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Liczba złożona\n        </strong>\n        to taka liczba naturalna, która ma\n        <strong>\n            więcej niż dwa\n        </strong>\n        dzielniki.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Przykłady liczb złożonych:\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "liczba",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "dzielniki",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1, 2, 3\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(8\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1, 2, 4, 8\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(9\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1, 3, 9\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Obejrzyj nagranie o liczbach pierwszych.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/pierwsze.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "db6d28dde5491d7137f02dd0f5ea15ab27b526ad62d41290e124aee06593a934"
+}

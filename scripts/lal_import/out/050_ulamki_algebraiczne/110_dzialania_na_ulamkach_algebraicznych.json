@@ -1,0 +1,198 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Mnożąc</strong> ułamki algebraiczne:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n        najpierw rokładamy liczniki i mianowniki na czynniki\n    </li>\n<li>\n        potem skracamy ułamki\n    </li>\n<li>\n        a na końcu mnożymy: licznik przez licznik i mianownik przez mianownik.\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Dzieląc</strong> ułamki algebraiczne musimy zrobić jeszcze jeden krok, <strong><u>przed</u></strong> wszystkimi powyższymi:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol start=\"0\">\n<li>\n        zamieniamy dzielenie na <u>mnożenie przez odwrotoność drugiego ułamka</u>.\n        <div class=\"table_wrapper\">\\[\n        \\text{(wyrażenie)}\\color{red}{:\\frac{a}{b}}=\\text{(wyrażenie)}\\color{red}{\\cdot\\frac{b}{a}}\n        \\]</div>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz\n        <div class=\"table_wrapper\">\\[\n        \\frac{2x^2-7x+3}{x^2-9}:\\frac{2x^2+3x-2}{2x+6}\n        \\]</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                W pierwszym kroku zamieniamy dzielenie przez ułamek na mnożenie przez jego odwrotoność.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Otrzymujemy</p>"
+    },
+    {
+      "type": "text",
+      "body": "&gt;&gt; wybierz &gt;&gt;"
+    },
+    {
+      "type": "text",
+      "body": "\\(\\frac{2x^2+3x-2}{2x+6}\\cdot\\frac{2x^2-7x+3}{x^2-9}\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\(\\frac{x^2-9}{2x^2-7x+3}\\cdot\\frac{2x^2+3x-2}{2x+6}\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\(\\frac{2x^2-7x+3}{x^2-9}\\cdot\\frac{2x+6}{2x^2+3x-2}\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\(\\frac{2x^2-7x+3}{x^2-9}:\\frac{2x+6}{2x^2+3x-2}\\)"
+    },
+    {
+      "type": "text",
+      "body": "zatwierdź"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Teraz rozłożymy wszystkie cztery wyrażeni (dwa liczniki i dwa mianowniki) na czynniki.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Najprostsze jest: \\(2x+6 = 2(x+3)\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Ale teraz musimy rozłożyć na czynniki trzy wyrażenia kwadratowe.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Jeśli potrzebujesz, oblicz deltę i miejsca zerowe, a potem wybierz odpowiednią odpowiedź.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(2x^2-7x+3=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "&gt;&gt; wybierz &gt;&gt;"
+    },
+    {
+      "type": "text",
+      "body": "\\((2x-1)(x-3)\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\((2x+1)(x+3)\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\((2x-3)(x-1)\\)"
+    },
+    {
+      "type": "text",
+      "body": "zatwierdź"
+    },
+    {
+      "type": "text",
+      "body": "<p>Teraz \\(2x^2+3x-2=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "&gt;&gt; wybierz &gt;&gt;"
+    },
+    {
+      "type": "text",
+      "body": "\\((2x+1)(x-2)\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\((2x-1)(x+2)\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\((2x-2)(x+1)\\)"
+    },
+    {
+      "type": "text",
+      "body": "zatwierdź"
+    },
+    {
+      "type": "text",
+      "body": "<p>I wreszcie \\(x^2-9=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "&gt;&gt; wybierz &gt;&gt;"
+    },
+    {
+      "type": "text",
+      "body": "\\((x-3)(x-3)\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\((x-3)(x+3)\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\((x+3)(x+3)\\)"
+    },
+    {
+      "type": "text",
+      "body": "zatwierdź"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Tak więc:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            \\begin{align*}\n            \\frac{2x^2-7x+3}{x^2-9}:\\frac{2x^2+3x-2}{2x+6}&amp;=\\frac{2x^2-7x+3}{x^2-9}\\cdot\\frac{2x+6}{2x^2+3x-2}=\\\\\n            &amp;=\\frac{(2x-1)(x-3)}{(x-3)(x+3)}\\cdot\\frac{2(x+3)}{(2x-1)(x+2)}=\n            \\end{align*}\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zauważmy, że w licznikach i w mianownikach powtarzają się identyczne czynniki:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            =\\frac{\\color{red}{(2x-1)}\\color{blue}{(x-3)}}{\\color{blue}{(x-3)}\\color{green}{(x+3)}}\\cdot\\frac{2\\color{green}{(x+3)}}{\\color{red}{(2x-1)}(x+2)}\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>Skracając je uzyskujemy:</p>"
+    },
+    {
+      "type": "text",
+      "body": "&gt;&gt; wybierz &gt;&gt;"
+    },
+    {
+      "type": "text",
+      "body": "\\(x+2\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\(\\frac{x+2}{2}\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\(\\frac{2}{x+2}\\)"
+    },
+    {
+      "type": "text",
+      "body": "zatwierdź"
+    },
+    {
+      "type": "text",
+      "body": "<p>Ostatecznie</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            \\frac{2x^2-7x+3}{x^2-9}:\\frac{2x^2+3x-2}{2x+6}=\\frac{2}{x+2}\n            \\]"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "4ecbc7dbc5ffb025510a4180859d1d6fcf2175ecc8a67bd32bfb11f1b5351b13"
+}

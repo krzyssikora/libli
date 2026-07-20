@@ -1,0 +1,162 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Można zastanawiać się, dlaczego na zakończenie twierdzeń o kątach w kole pojawia się pojęcie potęgi punktu względem okręgu, w którym nie ma mowy o kątach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Kąty pojawiają się w dowodach twierdzeń. Przyjrzyjmy się teraz tym dowodom.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dla okręgu \\(o\\) i punktu \\(P\\) na zewnątrz okręgu udowodnimy, że jeśli sieczna okręgu \\(o\\) z punktu \\(P\\) przecina okrąg w punktach \\(A\\) i \\(B\\), to iloczyn\n        </p>\n        \\[\n        PA\\cdot PB\n        \\]\n        <p>\n            jest stały, tj. nie zależy od wyboru siecznej.\n        </p>\n<div class=\"centered\">\n<img alt=\"Potęga punktu względem okręgu\" src=\"static/potega_pkt_okrag_dowod_1.png\" width=\"500\"/>\n</div>\n<p>\n<u>\n                równoważnie\n            </u>\n            :\n        </p>\n<p>\n            Dla okręgu \\(o\\) i punktu \\(P\\) na zewnątrz okręgu udowodnimy, że jeśli sieczna okręgu \\(o\\) z punktu \\(P\\) przecina okrąg w punktach \\(A\\) i \\(B\\), a styczna do okręgu z punktu \\(P\\) ma punkt styczności \\(C\\), to\n        </p>\n        \\[\n        PA\\cdot PB = PC^2\n        \\]\n        <p>\n</p>\n<p>\n            Widzisz, dlaczego te sformułowania są równoważne? Dla okręgu \\(o\\) i punktu \\(P\\) punkt styczności \\(C\\) jest ustalony, więc odległość \\(PC\\) jest stała. Dowodząc drugiego równania, wykażemy więc, że iloczyn \\(PA\\cdot PB\\) jest stały.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            Zacznij rozwiązanie\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zwrócmy uwagę na dwa trójkąty: \\(PCA\\) i \\(PBC\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"Potęga punktu względem okręgu\" src=\"static/potega_pkt_okrag_dowod_1_1.png\" width=\"500\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Kąt \\(\\angle \\color{red}{PCA}\\) w pierwszym trójkącie jest równy kątowi \\(\\angle \\color{blue}{PBC}\\) w drugim trójkącie na mocy twierdzenia o kącie między styczną a cięciwą.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Kąt \\(\\angle \\color{red}{APC}\\) w pierwszym trójkącie i kąt \\(\\angle \\color{blue}{CPB}\\) w drugim trójkącie to ten sam kąt.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Przyjrzyjmy się tym trójkątom narysowanym oddzielnie.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"Potęga punktu względem okręgu\" src=\"static/potega_pkt_okrag_dowod_1_2.png\" width=\"100%\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"Potęga punktu względem okręgu\" src=\"static/potega_pkt_okrag_dowod_1_3.png\" width=\"100%\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Oba trójkąty mają po dwa kąty o tej samej mierze, więc (z sumy kątów w trójkącie) także trzeci kąt ma tę samą miarę. Z tego wynika, że trójkąty \\(PCA\\) i \\(PBC\\) są podobne:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                    bok \\(\\color{red}{PA}\\) odpowiada bokowi \\(\\color{blue}{PC}\\)\n                </li>\n<li>\n                    bok \\(\\color{red}{PC}\\) odpowiada bokowi \\(\\color{blue}{PB}\\)\n                </li>\n<li>\n                    bok \\(\\color{red}{AC}\\) odpowiada bokowi \\(\\color{blue}{BC}\\)\n                </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Używając pierwszych dwóch obserwacji możemy ułożyć proporcję:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                \\frac{\\color{red}{PA}}{\\color{red}{PC}}=\\frac{\\color{blue}{PC}}{\\color{blue}{PB}}\n                                                                                                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Wymnażając proporcję na krzyż otrzymujemy:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                PA\\cdot PB = PC^2\n                                                                                                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                co kończy dowód.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dla okręgu \\(o\\) i punktu \\(P\\) wewnątrz okręgu udowodnimy, że jeśli sieczna okręgu \\(o\\) przechodząca przez punkt \\(P\\) przecina okrąg w punktach \\(A\\) i \\(B\\), to iloczyn\n        </p>\n        \\[\n        PA\\cdot PB\n        \\]\n        <p>\n            jest stały, tj. nie zależy od wyboru siecznej.\n        </p>\n<div class=\"centered\">\n<img alt=\"Potęga punktu względem okręgu\" src=\"static/potega_pkt_okrag_dowod_2.png\" width=\"500\"/>\n</div>\n<p>\n<u>\n                równoważnie\n            </u>\n            :\n        </p>\n<div>\n            Dla okręgu \\(o\\) i punktu \\(P\\) wewnątrz okręgu udowodnimy, że jeśli\n            <ul class=\"nolist\">\n<li>\n                    jedna sieczna okręgu \\(o\\) z punktu \\(P\\) przecina okrąg w punktach \\(A_1\\) i \\(B_1\\),\n                </li>\n<li>\n                    druga sieczna okręgu \\(o\\) z punktu \\(P\\) przecina okrąg w punktach \\(A_2\\) i \\(B_2\\)\n                </li>\n</ul>\n            to\n                                                                                                \\[\n                                                                                                PA_1\\cdot PB_1 = PA_2\\cdot PB_2\n                                                                                                \\]\n        </div>\n<div class=\"centered\">\n<img alt=\"Potęga punktu względem okręgu\" src=\"static/potega_pkt_okrag_dowod_2_1.png\" width=\"500\"/>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            Zacznij rozwiązanie\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Kąty  \\(\\angle A_2A_1B_1\\) i \\(\\angle A_2B_2B_1\\) mają równą miarę, bo są wpisane w koło i oparte na zaznaczonym na pomarańczowo łuku \\(B_1A_2\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"Potęga punktu względem okręgu\" src=\"static/potega_pkt_okrag_dowod_2_2.png\" width=\"500\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Analogicznie, kąty  \\(\\angle A_1A_2B_2\\) i \\(\\angle A_1B_1B_2\\) mają równą miarę, bo są wpisane w koło i oparte na zaznaczonym na zielono łuku \\(B_1A_2\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"Potęga punktu względem okręgu\" src=\"static/potega_pkt_okrag_dowod_2_3.png\" width=\"500\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"Potęga punktu względem okręgu\" src=\"static/potega_pkt_okrag_dowod_2_4.png\" width=\"500\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Trójkąty \\(A_1A_2P\\) i \\(B_1B_2P\\) mają po dwa kąty o tej samej mierze, więc (z sumy kątów w trójkącie) także trzeci kąt ma tę samą miarę. Z tego wynika, że trójkąty są podobne:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                    bok \\(A_1A_2\\) odpowiada bokowi \\(B_1B_2\\)\n                </li>\n<li>\n                    bok \\(PA_1\\) odpowiada bokowi \\(PB_2\\)\n                </li>\n<li>\n                    bok \\(PA_2\\) odpowiada bokowi \\(PB_1\\)\n                </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Używając ostatnich dwóch obserwacji możemy ułożyć proporcję:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                \\frac{PA_1}{PA_2}=\\frac{PB_2}{PB_1}\n                                                                                                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Wymnażając proporcję na krzyż otrzymujemy:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                PA_1\\cdot PB_1 = PA_2\\cdot PB_2\n                                                                                                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                co kończy dowód.\n            </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2ea53d8bad4127c7d58c373ce802ede6d5eca430d8f672f42118dd3a72125f45"
+}

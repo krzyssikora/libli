@@ -1,0 +1,110 @@
+[
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n<div class=\"important\">\n            Mówimy, że\n            <blockquote>\n<u>\n                    liczba naturalna\n                </u>\n                \\(n\\) jest podzielna przez\n                <u>\n                    liczbę naturalną\n                </u>\n      ",
+    "unit_json": "100_wielomiany_dzielenie.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n        Podzielność liczb naturalnych - zobacz\n    </div>",
+    "unit_json": "100_wielomiany_dzielenie.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #dzielenie_pisemne_liczb",
+    "raw_excerpt": "<a href=\"#dzielenie_pisemne_liczb\">\n            dzielenie pisemne liczb\n        </a>",
+    "unit_json": "130_wielomiany_dzielenie.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #dzielenie_mnozenie_poteg",
+    "raw_excerpt": "<a href=\"#dzielenie_mnozenie_poteg\">\n            dzielenie i mnożenie potęg\n        </a>",
+    "unit_json": "130_wielomiany_dzielenie.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    krok po kroku\n                </a>",
+    "unit_json": "170_wielomiany_dzielenie.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
+    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    nagranie\n                </a>",
+    "unit_json": "170_wielomiany_dzielenie.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
+    "raw_excerpt": "<a href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                                \"pod kreską\"\n                            </a>",
+    "unit_json": "280_wielomiany_rozklad.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
+    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                                schemat Hornera\n                            </a>",
+    "unit_json": "280_wielomiany_rozklad.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
+    "raw_excerpt": "<a href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                                \"pod kreską\"\n                            </a>",
+    "unit_json": "290_wielomiany_rozklad.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
+    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                                schemat Hornera\n                            </a>",
+    "unit_json": "290_wielomiany_rozklad.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-2-1",
+    "raw_excerpt": "<a href=\"#tabcontent-2-1\" id=\"tab-2-1\">\n                                \"pod kreską\"\n                            </a>",
+    "unit_json": "290_wielomiany_rozklad.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-2-2",
+    "raw_excerpt": "<a href=\"#tabcontent-2-2\" id=\"tab-2-2\">\n                                schemat Hornera\n                            </a>",
+    "unit_json": "290_wielomiany_rozklad.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-3-1",
+    "raw_excerpt": "<a href=\"#tabcontent-3-1\" id=\"tab-3-1\">\n                                \"pod kreską\"\n                            </a>",
+    "unit_json": "290_wielomiany_rozklad.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-3-2",
+    "raw_excerpt": "<a href=\"#tabcontent-3-2\" id=\"tab-3-2\">\n                                schemat Hornera\n                            </a>",
+    "unit_json": "290_wielomiany_rozklad.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                        nagranie\n                    </a>",
+    "unit_json": "450_wielomiany_rownania.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
+    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                        krok po kroku\n                    </a>",
+    "unit_json": "450_wielomiany_rownania.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-2-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-2-1\" id=\"tab-2-1\">\n                        nagranie\n                    </a>",
+    "unit_json": "450_wielomiany_rownania.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-2-2",
+    "raw_excerpt": "<a href=\"#tabcontent-2-2\" id=\"tab-2-2\">\n                        krok po kroku\n                    </a>",
+    "unit_json": "450_wielomiany_rownania.json"
+  }
+]

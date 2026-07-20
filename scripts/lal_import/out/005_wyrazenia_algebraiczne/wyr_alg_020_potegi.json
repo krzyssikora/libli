@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/potegi_dzialania.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zapamiętaj wzory na działania na potęgach:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                        \\begin{align*}\n                                                                                        a^n\\cdot a^k&=a^{n+k}\\\\\n                                                                                        a^n: a^k&=a^{n-k}\\\\\n                                                                                        \\left(a^n\\right)^k&=a^{nk}\n                                                                                        \\end{align*}\n                                                                                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Pamiętaj także, że:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                        \\begin{align*}\n                                                                                        (ab)^n&=a^n\\cdot b^n\\\\\n                                                                                        \\left(\\frac{a}{b}\\right)^n&=\\frac{a^n}{b^n}\n                                                                                        \\end{align*}\n                                                                                        "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c61d0be1bfb96c7f1a41963e54450f810a5a2cf3af91c12c2a6e45ba24a828ba"
+}

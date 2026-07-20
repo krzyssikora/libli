@@ -1,0 +1,752 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Chcemy obliczyć sumę 31 wyrazów ciągu arytmetycznego, w któym \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Sumę pierwszych \\(n\\) wyrazów ciągu \\((a_n)\\) będziemy oznaczać \\(S_n\\). Oznacza to, że:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\\(S_1=a_1\\)</li>\n<li>\\(S_2=a_1+a_2\\)</li>\n<li>\\(S_3=a_1+a_2+a_3\\)</li>\n<li>\\(S_4=a_1+a_2+a_3+a_4\\)</li>\n<li>\\(S_5=a_1+a_2+a_3+a_4+a_5\\)</li>\n<li>itd.</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Znajdziemy \\(S_{31}\\), sumę 31 pierwszych wyrazów ciągu \\((a_n)\\) takiego, że:\n        \\[\n        \\begin{cases}\n        a_1=60\\\\\n        r=2\n        \\end{cases}\n        \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Zanim poznamy wzór, użyjemy metody, którą, jak głosi przytaczana w wielu źródłach anegdota, wymyślił w wieku ledwie kilku lat jeden z największych matematyków w historii, <a href=\"https://pl.wikipedia.org/wiki/Carl_Friedrich_Gauss\">Carl Friedrich Gauss</a>.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Najpierw wypiszmy liczby, które mamy zsumować. No, może nie wszystkie, bo jest ich aż 31, ale kilka pierwszych i kilka ostatnich.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "pokaż dalej"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(60\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(64\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\dots\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(116\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(118\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(120\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    A teraz dopiszmy je pod spodem w odwrotną stronę - od największej do najmniejszej:\n                </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(60\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(64\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\dots\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(116\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(118\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(120\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(120\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(118\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(116\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\dots\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(64\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(60\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Teraz dodajmy do siebie liczby pod sobą.\n                </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(60\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(64\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\dots\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(116\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(118\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(120\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(120\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(118\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(116\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\dots\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(64\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(60\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(180\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(180\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(180\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\dots\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(180\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(180\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(180\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Wyszło nam coś bardzo ciekawego!\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n<strong>Po pierwsze</strong>. \n                        Wszystkie sumy są identyczne - równe \\(180\\). Zastanów się: to wynika z tego, że w pierwszym rzędzie każda kolejna liczba jest większa o \\(r\\), a w drugim każda kolejna liczba jes mniejsza o \\(r\\). Tak jest skonstruowany ciąg arytmetyczny.\n                        <figure>\n<video autoplay=\"\" loop=\"\" muted=\"\" width=\"100%\">\n<source src=\"static/arytmetyczny_2.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</li>\n<li>\n<strong>Po drugie</strong>. \n                        Tych <u>sto-osiemdziesiątek</u> jest 31. Tyle jest wyrazów w jednym rzędzie, tyle też jest sumowanych par.\n                    </li>\n<li>\n<strong>Po trzecie</strong>. \n                        Te 31 sto-osiemdziesiątek to dwie szukane sumy \\(S_{31}\\):\n                    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "pokaż dalej"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(S_{31}=\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(60\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(64\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\dots\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(116\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(118\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(120\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(S_{31}=\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(120\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(118\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(116\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\dots\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(64\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(62\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(60\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(2S_{31}=\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(180\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(180\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(180\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\dots\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(180\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(180\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(+\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(180\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Z powyższego wnioskujemy, że\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                2S_{31}=180\\cdot 31\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    czyli\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                S_{31}=\\frac{180\\cdot 31}{2}=2\\,790\n                "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "54e8ab001bc17cc4e3492e4cf0dad9718fc5160c93332adb4603ac7a07f25889"
+}

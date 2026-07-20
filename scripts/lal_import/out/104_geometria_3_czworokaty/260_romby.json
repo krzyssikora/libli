@@ -1,0 +1,114 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>Romb</strong> to czworokąt, w którym wszystkie boki są równej długości.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Przyjrzyj się ilustracji klasyfikacji czworokątów, którą wcześniej wprowadziliśmy.\n        </p>\n<figure>\n<img src=\"static/klasyfikacja_czworokatow.png\" style=\"max-width: 100%;\"/>\n</figure>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wskaż wszystkie poprawne odpowiedzi.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Każdy romb jest też:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                trapezoidem\n            "
+    },
+    {
+      "type": "text",
+      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
+    },
+    {
+      "type": "text",
+      "body": "\n                W trapezoidzie żadne boki nie są równoległe. A w rombie?\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                deltoidem\n            "
+    },
+    {
+      "type": "text",
+      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
+    },
+    {
+      "type": "text",
+      "body": "\n                W deltoidzie mamy dwie pary sąsiednich boków równej długości. A co jeśli boki z obu par są równej długości?\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                trapezem\n            "
+    },
+    {
+      "type": "text",
+      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
+    },
+    {
+      "type": "text",
+      "body": "\n                W trapezie mamy <u>przynajmniej</u> jedną parę boków równoległych. A w rombie?\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                równoległobokiem\n            "
+    },
+    {
+      "type": "text",
+      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
+    },
+    {
+      "type": "text",
+      "body": "\n                W równoległoboku mamy dwie pary boków równoległych. A w rombie?\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                prostokątem\n            "
+    },
+    {
+      "type": "text",
+      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
+    },
+    {
+      "type": "text",
+      "body": "\n                Zastanów się jeszcze...\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                kwadratem\n            "
+    },
+    {
+      "type": "text",
+      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
+    },
+    {
+      "type": "text",
+      "body": "\n                Przemyśl to jeszcze raz...\n            "
+    },
+    {
+      "type": "text",
+      "body": "potwierdź "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wybrałaś/-eś poprawnie.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Nie wybrałaś/-eś wszystkich odpowiedzi.\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e16a6f0804f61bb56a95156af486cfe1f8d07957d5e99e91afc03422c48be363"
+}

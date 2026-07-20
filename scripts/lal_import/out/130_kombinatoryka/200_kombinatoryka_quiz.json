@@ -1,0 +1,151 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Ile różnych liczb czterocyfrowych można stworzyć z cyfr \\(1, 2, 3, 4, 5, 6\\) i \\(7\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(7^4\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4^7\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(7\\cdot 6\\cdot 5\\cdot 4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(7!\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4!\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Ile różnych liczb czterocyfrowych o różnych cyfrach można stworzyć z cyfr \\(1, 2, 3, 4, 5, 6\\) i \\(7\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(7^4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4^7\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(7\\cdot 6\\cdot 5\\cdot 4\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(7!\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4!\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Aniela pojechała na wakacje do babci. Babcia codziennie robiła Anieli budyń. Aniela mogła wybrać smak spośród waniliowego, śmietankowego, czekoladowego, truskawkowego, wiśniowego i malinowego.</p><p>Jeśli Aniela chciała przez cztery dni spróbować różnych smaków, ile ma możliwości?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(6^4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(6\\cdot 5\\cdot 4\\cdot 3\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4^6\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4!\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Spośród dwudziestu uczniów klasy codziennie przez trzy dni jest losowana jedna osoba, która będzie moderować klasowe dyskusje. Ile jest możliwych wyników takich losowań?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\frac{20!}{3!}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3^20\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(20^3\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(20\\cdot 19\\cdot 18\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Spośród dwudziestu uczniów klasy trzeba wybrać przewodniczącego, zastępcę przewodniczącego i skarbnika. Funkcji nie można łączyć. Na ile sposobów można to zrobić?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\frac{20!}{3!}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3^20\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(20^3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(20\\cdot 19\\cdot 18\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e5129fea04fdf0b014fb4f52c171a2a2d9132fec76040059a069e024b51c3e25"
+}

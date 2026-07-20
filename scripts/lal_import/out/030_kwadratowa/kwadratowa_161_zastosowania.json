@@ -1,0 +1,158 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Chłopiec stojący na dachu budynku rzucił piłkę do góry. Wysokość, na której znajduje się piłka, \\(h\\) mierzona od poziomu ziemi w metrach, jest dana równaniem:\n        </p>\n        \\[\n        h = 12 + 8t - 4,9t^2,\n        \\]\n        <p>\n            gdzie \\(t\\ge 0\\) to czas w sekundach mierzony od momentu rzutu.\n        </p>\n<ol type=\"i\">\n<li>\n                Jaka była początkowa wysokość piłki?\n            </li>\n<li>\n                Po jakim czasie piłka uderzyła w ziemię?\n            </li>\n<li>\n                Po jakim czasie piłka osiągnęła największą wysokość?\n            </li>\n<li>\n                Jaka była największa wysokość piłki?\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Możesz obejrzeć nagranie rozwiązania lub je przeczytać.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-2-3\" id=\"tab-2-1\">\n                nagranie\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-2-4\" id=\"tab-2-2\">\n                opis\n            </a>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaka była początkowa wysokość piłki?\n        </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/pilka_1.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Po jakim czasie piłka uderzyła w ziemię?\n        </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/pilka_2.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Po jakim czasie piłka osiągnęła największą wysokość?\n        </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/pilka_3.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaka była największa wysokość piłki?\n        </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/pilka_4.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przepiszmy równanie:\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        h = - 4,9t^2 + 8t + 12\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            i teraz przyjęło postać ogólną (taką, jak \\(y=-4,9x^2+8x+12\\)).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n            \"Jaka była początkowa wysokość piłki?\"\n        </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Początkowa, czyli w czasie \\(t=0\\):\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        h = - 4,9\\cdot 0^2 + 8\\cdot 0 + 12=12\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Początkowa wysokość to 12 metrów.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n            \"Po jakim czasie piłka uderzyła w ziemię?\"\n        </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wysokość jest mierzona od ziemi, więc piłka uderza w ziemię, gdy wysokość \\(h=0\\).\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        \\begin{align*}\n        h &= 0\\\\\n        - 4,9t^2 + 8t + 12&=0\\\\\n        \\Delta &=8^2-4\\cdot(-4,9)\\cdot 12= 299,2\n        \\end{align*}\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zadanie mówi o sytuacji rzeczywistej, więc udzielanie odpowiedzi zawierającej \\(\\sqrt{299,2}\\) nie ma sensu. Do dalszego rozwiązania użyjemy kalkulatora.\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        \\sqrt{\\Delta} = \\sqrt{299,2}\\approx 17,297\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(t_1=\\frac{-8-17,297}{2\\cdot(-4,9)}\\), \\(\\quad\\quad t_2=\\frac{-8+17,297}{2\\cdot(-4,9)}\\)\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(t_1\\approx 2.58 \\), \\(\\quad\\quad t_2\\approx -0.95\\)\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ponieważ \\(t\\ge 0\\), piłka uderzyła w ziemię po ok. \\(2,58\\) sekundy od rzutu.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n            \"Po jakim czasie piłka osiągnęła największą wysokość?\"\n        </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wysokość \\(h\\) jest\n            <strong>\n                funkcją kwadratową\n            </strong>\n            czasu \\(t\\). Jej wykres to parabola skierowana ramionami do dołu (bo \\(a=-4,9 \\lt 0\\)). Tak więc największa wysokość i czas, w jakim piłka ją osiągnęła, są wskazane przez wierzchołek paraboli.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czas, czyli \\(t\\), jest argumentwm funkcji, więc jest wskazany przez współrzędną, którą zwykle nazywamy \\(x\\)-ową.\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        t=-\\frac{b}{2a}=-\\frac{8}{2\\cdot(-4,9)}\\approx 0,82\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Piłka osiągnęła największą wysokość po czasie ok. \\(0,82\\) sekundy.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n            \"Jaka była największa wysokość piłki?\"\n        </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Tym razem policzymy współrzędną zwykle nazywaną \\(y\\)-ową.\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        h=-\\frac{\\Delta}{4a}=-\\frac{299,2}{4\\cdot(-4,9)}\\approx 15,27\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Największa wysokość piłki to około \\(15,27\\) metra.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wykres poniżej przedstawia wyliczone przez nas liczby.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"wysokość piłki w czasie\" height=\"500\" src=\"static/pilka.png\"/>\n"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "91da64d72966710ee76f4d3884cbcfd2e4c9ce6f8368a38f0834f697b401ae98"
+}

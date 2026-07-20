@@ -1,0 +1,40 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Zanim przejdziemy do <strong>ułamków algebraicznych</strong>, przypomnijmy sobie podstawowe operacje i działania na ułamkach zwykłych. Rozumiejąc je w pełni, łatwiej zacząć naukę analogicznych operacji na ułamkach algebraicznych.\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "skracanie ułamków",
+      "body": "\n\n<p>\n        Skracając ułamek dzielimy licznik (\\(\\uparrow\\)) i mianownik (\\(\\downarrow\\)) przez tę samą liczbę całkowitą. Taka liczba jest wspólnym dzielnikiem licznika i mianownika. \n    </p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/cancel_fractions.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozszerzanie ułamków",
+      "body": "\n\n<p>\n        Rozszerzając ułamek mnożymy jego licznik (\\(\\uparrow\\)) i mianownik (\\(\\downarrow\\)) przez tę samą liczbę. Najczęściej robimy to, by zmienić mianownik.\n    </p>\n<p>\n        Na przykład, jeśli chcemy przedstawić ułamek\n    </p>\n<div class=\"table_wrapper\">\n        \\[\n        \\frac{5}{8}\n        \\]\n    </div>\n<p>\n        jako ułamek o mianowniku \\(24\\), musimy go rozszerzyć liczbą \\(3\\) (bo \\(8\\cdot 3=24\\), albo \\(24:8=3\\)):\n    </p>\n<div class=\"table_wrapper\">\n        \\[\n        \\frac{5}{8}\\cdot\\frac{3}{3}=\\frac{5\\cdot 3}{8\\cdot 3}=\\frac{15}{24}\n        \\]\n    </div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "mnożenie ułamków",
+      "body": "\n\n<p>\n        Mnożąc ułamki warto je najpierw skrócić. A potem mnożymy licznik przez licznik, i mianownik przez mianownik.\n    </p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/multiply_fractions.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "dzielenie ułamków",
+      "body": "\n\n<p>\n        Pamiętaj, że\n    </p>\n<p class=\"centered\">\n        dzielenie <strong>przez ułamek</strong> to mnożenie przez <strong>jego odwrotność</strong>.\n    </p>\n<p>\n        czyli\n    </p>\n<div class=\"table_wrapper\">\n        \\[\n        \\text{(liczba)}\\color{red}{:\\frac{a}{b}}=\\text{(liczba)}\\color{red}{\\cdot\\frac{b}{a}}\n        \\]\n    </div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "dodawanie ułamków",
+      "body": "\n\n    Aby dodać ułamki, musimy najpier sprawdzić je do wspólnego mianownika.\n    <figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/add_fractions.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odejmowanie ułamków",
+      "body": "\n\n    Aby odjąć ułamki postępujemy identycznie, jak przy dodawaniu, tylko w ostatnim kroku odejmujmy liczniki.\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a1e1d3451ad0a3df7a8045e8b6e41959d8f724c5ad736a0a984f90e0d9e131d4"
+}

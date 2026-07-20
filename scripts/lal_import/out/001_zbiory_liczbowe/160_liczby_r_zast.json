@@ -1,0 +1,48 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    W zadaniu dotyczącym błędu względnego użyłem sformułowania\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \"\n    <em>\n        zapisz wynik obcinając go po 4 cyfrach po przecinku\n    </em>\n    \".\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    \"Obcięcie\" wyniku to inaczej zaokrąglenie\n    <strong>\n        w dół\n    </strong>\n    lub przybliżenie\n    <strong>\n        z niedomiarem\n    </strong>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Mozna też zaokrąglić\n    <strong>\n        w górę\n    </strong>\n    czyli przybliżyć\n    <strong>\n        z nadmiarem\n    </strong>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Sprawdźmy, które przybliżenie jest obarczone mniejszym błędem.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wartość prawdziwa to \\(0,00735\\).\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td style=\"border: none\">\n</td>\n<td>\n                            wartość przybliżona\n                        </td>\n<td>\n                            wyliczenie błędu bezwzględnego\n                        </td>\n<td>\n                            wartość błędu\n                        </td>\n</tr>\n<tr>\n<td>\n                            przybliżenie z niedomiarem\n                        </td>\n<td>\n                            \\(0,0077\\)\n                        </td>\n<td>\n                            \\(|0,007735-0,0077|\\)\n                        </td>\n<td>\n                            \\(0,000035\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            przybliżenie z nadmiarem\n                        </td>\n<td>\n                            \\(0,0078\\)\n                        </td>\n<td>\n                            \\(|0,007735-0,0078|\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>",
+      "reason": "interactive_widget (Group B): table_input"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wartości błędu bezwzględnego, czyli wyliczone wyżej różnice możemy obejrzeć na poniższym diagramie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"przybliżanie\" src=\"static/przyblizanie.png\"/>\n"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "78fd62416de09dfe915fda09653bc126a7f6369db019f761fe08808b79220876"
+}

@@ -1,0 +1,86 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Kwadrat jest\n    <strong>\n        zawsze\n    </strong>\n    wielokątem wypukłym.\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Równoległobok jest zawsze wielokątem wypukłym.\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Czworokąt jest zawsze wielokątem wypukłym.\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wszystkie wielokąty foremne są wypukłe.\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Jaka jest suma kątów w dziewięciokącie?\n</p><p>\n    Podaj wynik w stopniach, ale wpisz samą liczbę, bez wyrazu / znaku stopnia.\n</p>",
+      "value": "1260",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Ile przekątnych ma dziewięciokąt wypukły?\n</p>",
+      "value": "27",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "cbf84609bf0f4c4d47021da3cdbc1a4aadbeae3c4ec3e86f43a5200a290378a7"
+}

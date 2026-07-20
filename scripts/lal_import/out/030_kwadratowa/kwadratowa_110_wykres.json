@@ -1,0 +1,200 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli umiesz naszkicować parabolę znając jej równanie, warto zastanowić się nad problemem odwrotnym:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n    jakie własności funkcji kwadratowej możemy odczytać z wykresu.\n</blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przed Tobą przykład do przeanalizowania.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Na podstawie wykresu funkcji o równaniu\n        \\[\n        y=ax^2+bx+c\n        \\]\n        wybierz odpowiednie wartości i zatwierdź, gdy skończysz.\n    "
+    },
+    {
+      "type": "image",
+      "media_src": "static/przykladowa_parabola_1.png",
+      "alt": "przykładowa parabola",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Współczynnik \\(a\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(a\\gt 0\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(a\\lt 0\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>Współczynnik \\(c\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(c=-3\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(c=5\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(c=3\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>Funkcja jest rosnąca dla</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(x\\in\\langle -1, +\\infty)\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(x\\in(-\\infty, -1\\rangle\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(x\\in\\mathbb{R}\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>Funkcja jest malejąca dla</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(x\\in\\langle -1, +\\infty)\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(x\\in(-\\infty, -1\\rangle\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(x\\in\\mathbb{R}\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>Funkcja ma 2 miejsca zerowe, więc:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(\\Delta\\gt 0\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(\\Delta= 0\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(\\Delta\\lt 0\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n            zatwierdź\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Świetnie!\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Nie możemy bezpośrednio ustalić, czy współczynnik \\(b\\gt 0\\) czy \\(b\\lt 0\\).\n        </p>\n<p>\n            Znamy jednak wzór na współrzędną \\(x\\)-ową wierzchołka \\(x_W=-\\frac{b}{2a}\\). Znając znak (\"+\" lub \"-\") tej współrzędnej oraz współczynnika \\(a\\), możemy ustalić znak współczynnika \\(b\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeszcze raz \\(a\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(a\\gt 0\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(a\\lt 0\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>Współrzędna \\(x\\)-owa wierzchołka:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(x_W\\gt 0\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(x_W\\lt 0\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>I dlatego współczynnik \\(b\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(b\\gt 0\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(b\\lt 0\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n            zatwierdź\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Świetnie!\n        "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "268420935528c61241bd4d8eb2ed50ad3bf03079acc2893647b25e6fb79173ab"
+}

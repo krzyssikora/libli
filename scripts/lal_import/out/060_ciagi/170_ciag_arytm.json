@@ -1,0 +1,251 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Pomyśl i wpisz dwa kolejne wyrazy każdego z podanych ciągów.\n    "
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(1,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(7,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(9,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<div class=\"success hidden\" id=\"success_question20\">Świetnie!</div>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(2,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(7,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(12,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(17,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(22,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<div class=\"success hidden\" id=\"success_question25\">Świetnie!</div>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(22,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(19,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(16,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(13,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<div class=\"success hidden\" id=\"success_question30\">Świetnie!</div>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(7;\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5,5;\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4;\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2,5;\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1;\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<div class=\"success hidden\" id=\"success_question35\">Świetnie!</div>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\tfrac{1}{2},\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\tfrac{5}{6},\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\tfrac{7}{6},\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\tfrac{3}{2},\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\tfrac{11}{6},\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<div class=\"success hidden\" id=\"success_question40\">Świetnie!</div>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Opisz w najprostszy możliwy sposób regułę, zgodnie z którą powstają kolejne wyrazy każdego z powyższych ciągów. Porównaj swoją odpowiedź z moją.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "sprawdź",
+      "body": "\n\n        W każdym z powyższych ciągów każdy wyraz (poza pierwszym) powstaje przez dodanie do poprzedniego wyrazu pewnej stałej liczby.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"important\">\n    Ciągi takie, jak powyższe, nazywamy <strong>arytmetycznymi</strong>.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "865ecc8ebdf41347561812ec7cd0442f1c802f3f5aef63531645839514adada4"
+}

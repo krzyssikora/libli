@@ -1,0 +1,116 @@
+[
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/fbc819931db64e0e90d3ba05d25782d2",
+    "raw_excerpt": "<a href=\"/jump_to_id/fbc819931db64e0e90d3ba05d25782d2\">\n<strong>\n            Funkcja liniowa\n        </strong>\n</a>",
+    "unit_json": "110_geo_an.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/4bf9e10fdd7444c1a5c84d17512f1955",
+    "raw_excerpt": "<a href=\"/jump_to_id/4bf9e10fdd7444c1a5c84d17512f1955\">\n<strong>\n            Podsumowanie\n        </strong>\n</a>",
+    "unit_json": "110_geo_an.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    nagranie\n                </a>",
+    "unit_json": "150_geo_an.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
+    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    krok po kroku\n                </a>",
+    "unit_json": "150_geo_an.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    nagranie\n                </a>",
+    "unit_json": "170_geo_an.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
+    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    krok po kroku\n                </a>",
+    "unit_json": "170_geo_an.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/6e7e46b8f0be4ac885af94cfb366287e",
+    "raw_excerpt": "<a href=\"/jump_to_id/6e7e46b8f0be4ac885af94cfb366287e\">\n        Zamiana postaci ogólnej funkcji kwadratowej na postać kanoniczną\n    </a>",
+    "unit_json": "210_geo_an.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n        \\((x+3)^2+\\left(y-\\tfrac{1}{2}\\right)^2=\\tfrac{65}{4}\\)\n    </div>",
+    "unit_json": "230_geo_an.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+    "unit_json": "230_geo_an.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n        \\( (x + 4)^2 + (y - 3)^2 = 34\\)\n    </div>",
+    "unit_json": "240_geo_an.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+    "unit_json": "240_geo_an.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n        \\((x + 4)^2 + (y - 3)^2=65\\)\n    </div>",
+    "unit_json": "240_geo_an.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+    "unit_json": "240_geo_an.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n        \\(y=-2x-2\\)\n    </div>",
+    "unit_json": "250_geo_an.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+    "unit_json": "250_geo_an.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n        \\(y=\\frac{1}{2}x-6\\)\n    </div>",
+    "unit_json": "250_geo_an.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+    "unit_json": "250_geo_an.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    nagranie\n                </a>",
+    "unit_json": "270_geo_an.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
+    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    krok po kroku\n                </a>",
+    "unit_json": "270_geo_an.json"
+  }
+]

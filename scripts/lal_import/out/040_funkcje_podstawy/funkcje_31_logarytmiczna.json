@@ -1,0 +1,178 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dla każdej liczby \\(x\\) w tabeli oblicz i wpisz wartość \\(y=\\log_{2}x\\)\n    "
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{4}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(y\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n    Świetnie!\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dla każdej liczby \\(x\\) w tabeli oblicz i wpisz wartość \\(y=\\log_{\\frac{1}{2}}x\\)\n    "
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{4}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(y\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n    Znakomicie!\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d25f2339a25c1bf1b19ff67c0693fd70b02694c96e44743710110a419ac7e9b9"
+}

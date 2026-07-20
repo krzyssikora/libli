@@ -23,6 +23,8 @@ from courses.models import MediaAsset
 from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
+from courses.models import SwitchGateElement
+from courses.models import SwitchGridElement
 from courses.models import TextElement
 from courses.validators import validate_embed_url
 from tests.factories import ContentNodeFactory
@@ -122,6 +124,64 @@ def test_build_reveal_gate(tmp_path):
     )
     assert isinstance(obj, RevealGateElement)
     assert obj.label == "pokaż dalej"
+    assert Element.objects.filter(unit=unit).count() == 1
+
+
+def test_build_switch_gate(tmp_path):
+    from courses.fillblank import SENTINEL
+
+    course = CourseFactory()
+    unit = _unit(course)
+    stem = "Dla x=4: " + SENTINEL + "0" + SENTINEL
+    obj = build_element(
+        course,
+        unit,
+        {
+            "type": "switch_gate",
+            "stem": stem,
+            # parser emits options already escaped (decode_contents); the model's
+            # sanitize_cell is idempotent on the &gt; entity.
+            "options": ["&gt;&gt; wybierz &gt;&gt;", r"\(-1\)", r"\(0\)"],
+            "answer": 2,
+        },
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert isinstance(obj, SwitchGateElement)
+    assert obj.answer == 2
+    assert obj.options == ["&gt;&gt; wybierz &gt;&gt;", r"\(-1\)", r"\(0\)"]
+    assert SENTINEL + "0" + SENTINEL in obj.stem
+    assert Element.objects.filter(unit=unit).count() == 1
+
+
+def test_build_switch_grid(tmp_path):
+    from courses.fillblank import SENTINEL
+
+    course = CourseFactory()
+    unit = _unit(course)
+    token = SENTINEL + "0" + SENTINEL
+    obj = build_element(
+        course,
+        unit,
+        {
+            "type": "switch_grid",
+            "prompt": "",
+            "lines": [
+                {
+                    "stem": r"\(A\) " + token + r" \(B\)",
+                    "cyclers": [{"options": [r"\(\cup\)", r"\(\cap\)"], "answer": 1}],
+                }
+            ],
+        },
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert isinstance(obj, SwitchGridElement)
+    assert len(obj.lines) == 1
+    assert obj.lines[0]["cyclers"][0]["answer"] == 1
+    assert token in obj.lines[0]["stem"]
     assert Element.objects.filter(unit=unit).count() == 1
 
 

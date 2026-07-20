@@ -1,0 +1,64 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Rozwiąż zadania. Sprawdź swoje wyniki.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(1)",
+      "body": "\n                        \\(S_{28}=518\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(2)",
+      "body": "\n                        \\(S_{64}=1712\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(3)",
+      "body": "\n                        \\(S_{40}=1260\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(4)",
+      "body": "\n                        \\(S_{100}=4125\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(5)",
+      "body": "\n                        \\(S_{60}=2480\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(6)",
+      "body": "\n                        \\(S_{105}=-1470\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(7)",
+      "body": "\n                        \\(S_{28}=-84\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(8)",
+      "body": "\n                        \\(S_{51}=0\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(9)",
+      "body": "\n                        \\(S_{28}=3327,5\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "(10)",
+      "body": "\n                        \\(S_{48}=540\\)\n                    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2f339a283c94397953457b5c72c063dff0b145d0ccd857263a1a8cfe7fe1fe36"
+}

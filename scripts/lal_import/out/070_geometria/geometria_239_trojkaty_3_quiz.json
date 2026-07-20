@@ -1,0 +1,114 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Trójkąt ABC podzielono środkową CD na dwa trójkąty.\n</p><p>\n    Pole trójkąta ADC jest równe 12.\n</p><p>\n    Wówczas pole trójkąta ABC jest\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "równe 6",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "równe 12",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "równe 24",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "nie do ustalenia na podstawie tych danych",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Trójkąt ABC podzielono dwusieczną CD na dwa trójkąty.\n</p><p>\n    Pole trójkąta ADC jest równe 12.\n</p><p>\n    Wówczas pole trójkąta ABC jest\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "równe 6",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "równe 12",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "równe 24",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "nie do ustalenia na podstawie tych danych",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Środek okręgu opisanego na trójkącie to punkt przecięcia</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "dwusiecznych kątów",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "symetralnych boków",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "środkowych",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "wysokości",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Środek okręgu wpisanego w trójkąt to punkt przecięcia</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "dwusiecznych kątów",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "symetralnych boków",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "środkowych",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "wysokości",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "9702743225c2b629f31d7c942e3b7f79c11b9c03ca4ab2a4f23371b66c41c800"
+}

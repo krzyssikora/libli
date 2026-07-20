@@ -1,0 +1,230 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li style=\"margin-bottom: 20px;\">\n            \\(\\sin^2\\alpha+\\cos^2\\alpha=1\\) (tzw.\n            <strong>\n                jedynka trygonometryczna\n            </strong>\n            )\n        </li>\n<li style=\"margin-bottom: 20px;\">\n            \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\) oraz \\(\\text{ctg }\\alpha = \\frac{\\cos\\alpha}{\\sin\\alpha}\\)\n        </li>\n<li>\n            \\(\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dany jest kąt \\(\\alpha\\), gdzie \\(180^{\\circ}\\lt\\alpha\\lt 270^{\\circ}\\) oraz\n        </p>\n        \\[\n        \\frac{6\\sin\\alpha-\\cos\\alpha}{2\\cos\\alpha-\\sin\\alpha}=2\n        \\]\n        <ol class=\"bold\">\n<li>\n                Znajdź dokładną wartość \\(\\text{tg }\\alpha\\).\n            </li>\n<li>\n                Użyj tablic trygonometrycznych, aby oszacować wartość kąta \\(alpha\\) z dokładnością do \\(1^{\\circ}\\).\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Mamy znaleźć \\(\\text{tg }\\alpha\\), którego nie ma w danym równaniu. Najlepiej będzie zacząć od uproszczenia równania.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Przemnóżmy obie strony równania przez mianownik z lewej strony. Otrzymamy:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(6\\sin\\alpha-\\cos\\alpha=2\\cos\\alpha-\\sin\\alpha\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(6\\sin\\alpha-\\cos\\alpha=4\\cos\\alpha-\\sin\\alpha\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(6\\sin\\alpha-\\cos\\alpha=4\\cos\\alpha-2\\sin\\alpha\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(12\\sin\\alpha-2\\cos\\alpha=2\\cos\\alpha-\\sin\\alpha\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>Przenieśmy \\(\\sin\\alpha\\) na lewo, a \\(\\cos\\alpha\\) na prawo, by otrzymać</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(8\\sin\\alpha=5\\cos\\alpha\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(2\\sin\\alpha=-\\cos\\alpha\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(2\\cos\\alpha=-\\sin\\alpha\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(4\\sin\\alpha=5\\cos\\alpha\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Pamiętamy, że\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                \\text{tg }\\alpha =\\frac{\\sin\\alpha}{\\cos\\alpha}\n                                                                                                "
+    },
+    {
+      "type": "text",
+      "body": "<p>Podzielmy więc obie strony równania przez \\(\\cos\\alpha\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(8\\text{tg }\\alpha=5\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(5\\text{tg }\\alpha=8\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>I dlatego \\(\\text{tg }\\alpha=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\tfrac{8}{5}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(0,625\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(-3\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Odpowiedzieliśmy na pytanie pierwsze. Wartość \\(\\text{tg }\\alpha\\) to \\(0,625\\) (albo \\(\\frac{5}{8}\\)).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Teraz mamy użyć tablic trygonometrycznych, aby oszacować wartość kąta \\(\\alpha\\) z dokładnością do \\(1^{\\circ}\\). Poszukajmy w tablicach wartości tangensa bliskiej \\(0,625\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"tablice, tangens\" src=\"static/tablice_tg.png\" width=\"400\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>W tablicach nie znajdziemy wartości tangensa równej dokładnie \\(0625\\), ale znajdziemy wartość bardzo bliską, więc dlatego</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\alpha=0,6249\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\alpha=30^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\alpha=32^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zaraz, zaraz, to nie koniec! W zadaniu było powiedziane, że \\(180^{\\circ}\\lt\\alpha\\lt 270^{\\circ}\\). Kąt \\(32^{\\circ}\\) nie spełnia tego warunku!\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Poszukujemy więc kąta w trzeciej ćwiartce, który jest wyznaczony przez punkt o współrzędnych przeciwnych do punktu wyznaczającego kąt \\(32^{\\circ}\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"tangens 32\" src=\"static/tg32.png\" width=\"400\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>I dlatego wartość kąta \\(\\alpha\\) to</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\alpha=238^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\alpha=212^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\alpha=232^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                    \\(\\text{tg }\\alpha=\\frac{5}{8}=0,625\\)\n                </li>\n<li>\n                    \\(\\quad\\alpha\\approx 212^{\\circ}\\)\n                </li>\n</ol>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "babe44a52e2239919a1ce417cc89698a74408d20c2931d0ec2924538b826ff7f"
+}

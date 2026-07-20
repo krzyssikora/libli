@@ -1,0 +1,66 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Spójrz na trzy wykresy funkcji poniżej.\n        </p>\n<div class=\"centered\">\n<img alt=\"funkcja monotoniczna\" src=\"static/monotonicznosc_0.png\" width=\"250\"/>\n<img alt=\"funkcja monotoniczna\" src=\"static/monotonicznosc_1.png\" width=\"250\"/>\n<img alt=\"funkcja monotoniczna\" src=\"static/monotonicznosc_2.png\" width=\"250\"/>\n</div>\n<p>\n            Którą z tych funkcji nazwał(a)byś\n            <strong>\n                rosnącą\n            </strong>\n            , którą\n            <strong>\n                malejącą\n            </strong>\n            , a którą\n            <strong>\n                stałą\n            </strong>\n            ?\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"300px\">\n                Funkcja z wykresem\n                <span style=\"color: green;\">\n                    zielonym\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                rosnąca\n            </div>\n<div class=\"one_choice ks_button\">\n                malejąca\n            </div>\n<div class=\"one_choice ks_button\">\n                stała\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"300px\">\n                Funkcja z wykresem\n                <span style=\"color: red;\">\n                    czerwonym\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                rosnąca\n            </div>\n<div class=\"one_choice ks_button\">\n                malejąca\n            </div>\n<div class=\"one_choice ks_button\">\n                stała\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"300px\">\n                Funkcja z wykresem\n                <span style=\"color: blue;\">\n                    niebieskim\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                rosnąca\n            </div>\n<div class=\"one_choice ks_button\">\n                malejąca\n            </div>\n<div class=\"one_choice ks_button\">\n                stała\n            </div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n        potwierdź\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne. Twoja intuicja jest prawidłowa.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi:\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Funkcja nazywana jest</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n        monotoniczną\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>, gdy posiada jedną z poniższych cech:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            jest\n            <strong>\n                rosnąca\n            </strong>\n</li>\n<li>\n            jest\n            <strong>\n                malejąca\n            </strong>\n</li>\n<li>\n            jest\n            <strong>\n                niemalejąca\n            </strong>\n</li>\n<li>\n            jest\n            <strong>\n                nierosnąca\n            </strong>\n</li>\n<li>\n            jest\n            <strong>\n                stała\n            </strong>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Skoro masz pomysł, co oznaczają \"\n        <em>\n            funkcja rosnąca\n        </em>\n        \" i \"\n        <em>\n            funkcja malejąca\n        </em>\n        \", zastanów się, co mogą oznaczać pozostałe 3 terminy. Jak wygląda wykres takiej funkcji? Jak taką funkcję formalnie zdefiniować?\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zanim odpowiemy na powyższe pytania, przyjrzyjmy się poniższemu przykładowi, ilustrującemu sensowność sprawdzania, kiedy funkcja jest rosnąca, a kiedy malejąca.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Funkcja, której wykres widzimy poniżej, opisuje zużycie energii elektrycznej w pewnym domu na przestrzeni roku.\n        </p>\n<div class=\"centered\">\n<img alt=\"funkcja fragmentami monotoniczna\" src=\"static/monotonicznosc_elektrycznosc.png\" width=\"600\"/>\n</div>\n<p>\n            Czy widzisz, w których miesiącach zużycie energii\n            <strong>\n                rosło\n            </strong>\n            , w których\n            <strong>\n                malało\n            </strong>\n            , a w których było\n            <strong>\n                stałe\n            </strong>\n            ?\n        </p>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a8f4919101bf3c169c8371c3bec5767f9845c7975d08b51a052b31eefde0eb0c"
+}

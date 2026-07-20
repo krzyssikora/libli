@@ -1,0 +1,407 @@
+{
+  "part": {
+    "source_folder": "005_wyrazenia_algebraiczne",
+    "order": 2,
+    "title": "wyrazenia algebraiczne"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "wyr_alg_010_potegi.json",
+          "source_html": "wyr_alg_010_potegi.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Potęga o wykładniku naturalnym"
+        },
+        {
+          "order": 1,
+          "unit_json": "wyr_alg_020_potegi.json",
+          "source_html": "wyr_alg_020_potegi.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Działania na potęgach"
+        },
+        {
+          "order": 2,
+          "unit_json": "wyr_alg_030_potegi.json",
+          "source_html": "wyr_alg_030_potegi.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Działania na potęgach"
+        },
+        {
+          "order": 3,
+          "unit_json": "wyr_alg_039_potegi_quiz.json",
+          "source_html": "wyr_alg_039_potegi_quiz.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "quiz",
+          "title": "wyr alg 039 potegi quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "wyr_alg_040_pierwiastki.json",
+          "source_html": "wyr_alg_040_pierwiastki.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Pierwiastek"
+        },
+        {
+          "order": 1,
+          "unit_json": "wyr_alg_050_pierwiastki.json",
+          "source_html": "wyr_alg_050_pierwiastki.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Pierwiastek stopnia n"
+        },
+        {
+          "order": 2,
+          "unit_json": "wyr_alg_060_pierwiastki.json",
+          "source_html": "wyr_alg_060_pierwiastki.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Pierwiastek z liczby ujemnej"
+        },
+        {
+          "order": 3,
+          "unit_json": "wyr_alg_069_pierwiastki_quiz.json",
+          "source_html": "wyr_alg_069_pierwiastki_quiz.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "quiz",
+          "title": "wyr alg 069 pierwiastki quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "wyr_alg_070_wyrazenia_wstep.json",
+          "source_html": "wyr_alg_070_wyrazenia_wstep.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Wyraz algebraiczny"
+        },
+        {
+          "order": 1,
+          "unit_json": "wyr_alg_080_wyrazenia_wstep.json",
+          "source_html": "wyr_alg_080_wyrazenia_wstep.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Upraszczanie wyrazów"
+        },
+        {
+          "order": 2,
+          "unit_json": "wyr_alg_090_wyrazenia_wstep.json",
+          "source_html": "wyr_alg_090_wyrazenia_wstep.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Upraszczanie wyrazów"
+        },
+        {
+          "order": 3,
+          "unit_json": "wyr_alg_100_wyrazenia_wstep.json",
+          "source_html": "wyr_alg_100_wyrazenia_wstep.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Wyrazy podobne"
+        },
+        {
+          "order": 4,
+          "unit_json": "wyr_alg_109_wyrazenia_wstep_quiz.json",
+          "source_html": "wyr_alg_109_wyrazenia_wstep_quiz.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "quiz",
+          "title": "wyr alg 109 wyrazenia wstep quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "wyr_alg_110_wyrazenia.json",
+          "source_html": "wyr_alg_110_wyrazenia.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Sumy algebraiczne"
+        },
+        {
+          "order": 1,
+          "unit_json": "wyr_alg_120_wyrazenia.json",
+          "source_html": "wyr_alg_120_wyrazenia.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Redukcja wyrazów podobnych"
+        },
+        {
+          "order": 2,
+          "unit_json": "wyr_alg_130_wyrazenia.json",
+          "source_html": "wyr_alg_130_wyrazenia.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Mnożenie sum algebraicznych"
+        },
+        {
+          "order": 3,
+          "unit_json": "wyr_alg_135_wyrazenia.json",
+          "source_html": "wyr_alg_135_wyrazenia.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Mnożenie sum algebraicznych - przykłady"
+        },
+        {
+          "order": 4,
+          "unit_json": "wyr_alg_139_wyrazenia_quiz.json",
+          "source_html": "wyr_alg_139_wyrazenia_quiz.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "quiz",
+          "title": "wyr alg 139 wyrazenia quiz"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "__PLACEHOLDER chapter 5__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "wyr_alg_140_wsm.json",
+          "source_html": "wyr_alg_140_wsm.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "wyr alg 140 wsm"
+        },
+        {
+          "order": 1,
+          "unit_json": "wyr_alg_141_wsm.json",
+          "source_html": "wyr_alg_141_wsm.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Wyprowadzenie wzorów i przykłady"
+        },
+        {
+          "order": 2,
+          "unit_json": "wyr_alg_145_wsm.json",
+          "source_html": "wyr_alg_145_wsm.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Przykłady"
+        },
+        {
+          "order": 3,
+          "unit_json": "wyr_alg_149_wsm_quiz.json",
+          "source_html": "wyr_alg_149_wsm_quiz.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "quiz",
+          "title": "wyr alg 149 wsm quiz"
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "title": "__PLACEHOLDER chapter 6__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "wyr_alg_150_potegi_2.json",
+          "source_html": "wyr_alg_150_potegi_2.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Potęga o wykładniku całkowitym"
+        },
+        {
+          "order": 1,
+          "unit_json": "wyr_alg_160_potegi_2.json",
+          "source_html": "wyr_alg_160_potegi_2.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 2,
+          "unit_json": "wyr_alg_170_potegi_2.json",
+          "source_html": "wyr_alg_170_potegi_2.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Potęga o wykładniku wymiernym"
+        },
+        {
+          "order": 3,
+          "unit_json": "wyr_alg_180_potegi_2.json",
+          "source_html": "wyr_alg_180_potegi_2.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia 1"
+        },
+        {
+          "order": 4,
+          "unit_json": "wyr_alg_185_potegi_2.json",
+          "source_html": "wyr_alg_185_potegi_2.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia 2"
+        },
+        {
+          "order": 5,
+          "unit_json": "wyr_alg_190_potegi_2.json",
+          "source_html": "wyr_alg_190_potegi_2.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Potęga o wykładniku rzeczywistym"
+        },
+        {
+          "order": 6,
+          "unit_json": "wyr_alg_200_potegi_2.json",
+          "source_html": "wyr_alg_200_potegi_2.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Wzory i ćwiczenia"
+        },
+        {
+          "order": 7,
+          "unit_json": "wyr_alg_209_potegi_2_quiz.json",
+          "source_html": "wyr_alg_209_potegi_2_quiz.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "quiz",
+          "title": "wyr alg 209 potegi 2 quiz"
+        }
+      ]
+    },
+    {
+      "order": 6,
+      "title": "__PLACEHOLDER chapter 7__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "wyr_alg_210_logarytmy.json",
+          "source_html": "wyr_alg_210_logarytmy.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Logarytm"
+        },
+        {
+          "order": 1,
+          "unit_json": "wyr_alg_220_logarytmy.json",
+          "source_html": "wyr_alg_220_logarytmy.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Obliczanie logarytmu"
+        },
+        {
+          "order": 2,
+          "unit_json": "wyr_alg_230_logarytmy.json",
+          "source_html": "wyr_alg_230_logarytmy.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Działania na logarytmach"
+        },
+        {
+          "order": 3,
+          "unit_json": "wyr_alg_235_logarytmy_warto.json",
+          "source_html": "wyr_alg_235_logarytmy_warto.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Warto wiedzieć: działania na logarytmach - dowody wzorów"
+        },
+        {
+          "order": 4,
+          "unit_json": "wyr_alg_239_logarytmy_quiz.json",
+          "source_html": "wyr_alg_239_logarytmy_quiz.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "quiz",
+          "title": "wyr alg 239 logarytmy quiz"
+        }
+      ]
+    },
+    {
+      "order": 7,
+      "title": "__PLACEHOLDER chapter 8__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "wyr_alg_240_wzory.json",
+          "source_html": "wyr_alg_240_wzory.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Wzory"
+        },
+        {
+          "order": 1,
+          "unit_json": "wyr_alg_250_srednie.json",
+          "source_html": "wyr_alg_250_srednie.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Średnie"
+        },
+        {
+          "order": 2,
+          "unit_json": "wyr_alg_260_srednie.json",
+          "source_html": "wyr_alg_260_srednie.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Średnia arytmetyczna"
+        },
+        {
+          "order": 3,
+          "unit_json": "wyr_alg_270_srednie.json",
+          "source_html": "wyr_alg_270_srednie.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Średnia ważona"
+        },
+        {
+          "order": 4,
+          "unit_json": "wyr_alg_280_srednie.json",
+          "source_html": "wyr_alg_280_srednie.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Średnia geometryczna"
+        },
+        {
+          "order": 5,
+          "unit_json": "wyr_alg_290_srednie_warto.json",
+          "source_html": "wyr_alg_290_srednie_warto.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Kontekst geometryczny"
+        },
+        {
+          "order": 6,
+          "unit_json": "wyr_alg_299_wzory_srednie_quiz.json",
+          "source_html": "wyr_alg_299_wzory_srednie_quiz.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "quiz",
+          "title": "wyr alg 299 wzory srednie quiz"
+        }
+      ]
+    },
+    {
+      "order": 8,
+      "title": "__PLACEHOLDER chapter 9__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "wyr_alg_300_podsumowanie.json",
+          "source_html": "wyr_alg_300_podsumowanie.html",
+          "source_dir": "005_wyrazenia_algebraiczne",
+          "unit_type": "lesson",
+          "title": "Potęgi"
+        }
+      ]
+    }
+  ]
+}

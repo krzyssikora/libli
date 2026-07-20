@@ -1,0 +1,88 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W pudełku jest 10 kulek z liczbami od \\(1\\) do \\(10\\).\n        </p>\n<figure>\n<img src=\"static/10_kulek.png\"/>\n</figure>\n<p>\n            Trzykrotnie losujemy z pudełka kulkę i odkładamy ją na bok. \n        </p>\n<p>\n            Ile jest możliwych losowań kulek, takich, by wszystkie wylosowane liczby były parzyste?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Wśród liczby na kulkach jest`\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">10 liczb parzystych</div>\n<div class=\"switch_value\">8 liczb parzystych</div>\n<div class=\"switch_value\">5 liczb parzystych</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Interesuje nas sytuacja, w której wybieramy jedną z pięciu kulek z liczbami: \\(2\\), \\(4\\), \\(6\\), \\(8\\) lub \\(10\\). Po takim wyborze odkładamy kulkę na bok i wybieramy ponownie.\n                <div class=\"switch_line\">\n                    Tym razem kulek z liczbami parzystymi jest\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">tyle samo</div>\n<div class=\"switch_value\">o jedną mniej</div>\n<div class=\"switch_value\">dwie</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Czyli za drugim razem mamy 4 możliwości. Wybraną kulkę znów odkładamy z boku.\n                <div class=\"switch_line\">\n                    Za trzecim razem będziemy mieli do wyboru\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">5 liczb parzystych</div>\n<div class=\"switch_value\">4 liczby parzyste</div>\n<div class=\"switch_value\">3 liczby parzyste</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    A to oznacza, że liczba takich losowań, by wszystkie trzy liczby były parzyste jest równa\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(5\\cdot 4\\cdot 3=60\\)</div>\n<div class=\"switch_value\">\\(5+4+3=12\\)</div>\n<div class=\"switch_value\">\\(5^3=125\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<ul>\n<li>\n                        Niech \\(n\\) oznacza liczbę pasujących nam wyborów: \\(n=5\\).\n                    </li>\n<li>\n                        Niech \\(k\\) oznacza liczbę przeprowadzanych losowań: \\(k=3\\).\n                    </li>\n<li>\n                        Aby uzyskać poszukiwany wynik mnożmy przez siebie \\(k\\) liczb, z których pierwsza to \\(n\\), a każda kolejna jest o \\(1\\) mniejsza od poprzedniej.                    \n                    </li>\n</ul>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Wariacja bez powtórzeń</strong> to skończony ciąg elementów pewnego skończonego zbioru, w którym żaden element się nie powtarza - nie pojawia się więcej niż raz.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli ciąg jest długości \\(k\\) a zbiór ma \\(n\\) elementów, mówimy o <strong>\\(k\\)-wyrazowej wariacji zbioru \\(n\\)-elementowego</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeśli trzykrotnie wybieramy liczby parzyste ze zbioru \\(\\{2, 4, 6, 8, 10\\}\\), za każdym razem usuwając wybraną liczbę ze zbioru, tworzymy <strong>\\(3\\)-wyrazowe wariacje zbioru 5-elementowego</strong>.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Każdy wynik takiego losowania, czyli trzy liczby parzyste, są taką wariacją, np.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\\((2, 8, 4)\\)</li>\n<li>\\((8, 10, 6)\\)</li>\n<li>\\((10, 6, 2)\\)</li>\n<li>\\((4, 8, 2)\\)</li>\n<li>\\((2, 10, 8)\\)</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wariacja jest <strong>bez powtórzeń</strong>, bo każda liczba może pojawić się w ciągu co najwyżej raz.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Jeśli ze zbioru \\(n\\)-elementowego wybieramy ciągi długości \\(k\\), nie dopuszczając powtarzania elementów, to liczba takich ciągów jest równa\n    \\[\n    n\\cdot (n-1)\\cdot (n-2)\\cdot\\,\\dots\\,\\cdot (n-k+1)\n    \\]\n    <hr/>\n    Liczba \\(k\\)-wyrazowych wariacji z powtórzeniami zbioru \\(n\\)-elementowego jest oznaczana symbolem \\(W_n^k\\) i jest równa:\n    \\[\n    V_n^k=n\\cdot (n-1)\\cdot (n-2)\\cdot\\,\\dots\\,\\cdot (n-k+1)\n    \\]\n    Możemy to zapisać także w postaci:\n    \\[\n    V_n^k=\\frac{n!}{(n-k)!}\n    \\]\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "wyjaśnienie wzoru",
+      "body": "\n\n<p>\n        Chcemy pomnożyć \\(k\\) liczb, z których pierwsza to \\(n\\), kolejna to \\(n-1\\), potem \\(n-2\\) i tak dalej.\n    </p>\n<p>\n        Tak naprawdę mnożmy fragment \\(n!\\), bo \\(n!\\) to iloczyn wszystkich liczb od \\(n\\) do \\(1\\), a tu kończymy mnożenie trochę wcześniej. Musimy więc usunąć z \\(n!\\) część liczb:\n    </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder narrow_table\">\n<tr>\n<td>pierwsza</td>\n<td>druga</td>\n<td>\\(\\quad\\quad\\dots\\quad\\quad\\)</td>\n<td>ostatnia</td>\n<td>pierwsza usunięta</td>\n<td>\\(\\quad\\quad\\dots\\quad\\quad\\)</td>\n<td>ostatnia usunięta</td>\n</tr>\n<tr>\n<td>\\(n\\)</td>\n<td>\\((n-1)\\)</td>\n<td>\\(\\quad\\quad\\dots\\quad\\quad\\)</td>\n<td>\\((?)\\)</td>\n<td>\\((?)\\)</td>\n<td>\\(\\quad\\quad\\dots\\quad\\quad\\)</td>\n<td>\\(1\\)</td>\n</tr>\n<tr>\n<td colspan=\"4\">\n<img src=\"static/bottom_brace.png\" style=\"width: 100%; height: 10px;\"/>\n</td>\n<td colspan=\"3\">\n<img src=\"static/bottom_brace.png\" style=\"width: 100%; height: 10px;\"/>\n</td>\n</tr>\n<tr>\n<td colspan=\"4\">\n                    \\(k\\) liczb do pomnożenia\n                </td>\n<td colspan=\"3\">\n                    \\(n-k\\) liczb do usunięcia\n                </td>\n</tr>\n<tr>\n<td colspan=\"7\">\n<img src=\"static/bottom_brace.png\" style=\"width: 100%; height: 10px;\"/>\n</td>\n</tr>\n<tr>\n<td colspan=\"7\">\n                    \\(n\\) liczb mnożonych w \\(n!\\)\n                </td>\n</tr>\n</table>\n</div>\n<p>\n        Mamy usunąć \\(n-k\\) liczb, czyli \\((n-k)!\\). Największa z nich (pierwsza do usunięcia) to \\(n-k\\).\n    </p>\n<p>\n        Ostatnia do pomnożenia jest o \\(1\\) większa, czyli jest to \\(n-k+1\\): \n    </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder narrow_table\">\n<tr>\n<td>pierwsza</td>\n<td>druga</td>\n<td>\\(\\quad\\quad\\dots\\quad\\quad\\)</td>\n<td>ostatnia</td>\n<td>pierwsza usunięta</td>\n<td>\\(\\quad\\quad\\dots\\quad\\quad\\)</td>\n<td>ostatnia usunięta</td>\n</tr>\n<tr>\n<td>\\(n\\)</td>\n<td>\\((n-1)\\)</td>\n<td>\\(\\quad\\quad\\dots\\quad\\quad\\)</td>\n<td>\\((n-k+1)\\)</td>\n<td>\\((n-k)\\)</td>\n<td>\\(\\quad\\quad\\dots\\quad\\quad\\)</td>\n<td>\\(1\\)</td>\n</tr>\n<tr>\n<td colspan=\"4\">\n<img src=\"static/bottom_brace.png\" style=\"width: 100%; height: 10px;\"/>\n</td>\n<td colspan=\"3\">\n<img src=\"static/bottom_brace.png\" style=\"width: 100%; height: 10px;\"/>\n</td>\n</tr>\n<tr>\n<td colspan=\"4\">\n                    \\(k\\) liczb do pomnożenia\n                </td>\n<td colspan=\"3\">\n                    \\(n-k\\) liczb do usunięcia\n                </td>\n</tr>\n<tr>\n<td colspan=\"7\">\n<img src=\"static/bottom_brace.png\" style=\"width: 100%; height: 10px;\"/>\n</td>\n</tr>\n<tr>\n<td colspan=\"7\">\n                    \\(n\\) liczb mnożonych w \\(n!\\)\n                </td>\n</tr>\n</table>\n</div>\n<p>\n        Tak więc mnożymy:\n    </p>\n    \\[\n    n\\cdot (n-1)\\cdot (n-2)\\cdot\\,\\dots\\,\\cdot (n-k+1)\n    \\]\n    <p>\n        albo z iloczynu \\(n!\\) skracamy iloczyn \\((n-k)!\\):\n    </p>\n    \\[\n    \\frac{n!}{(n-k)!}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W pudełku jest 10 kulek z liczbami od \\(1\\) do \\(10\\).\n            Trzykrotnie losujemy z pudełka kulkę i odkładamy ją na bok. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile jest możliwych losowań kulek, takich, by wszystkie wylosowane liczby były parzyste?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Losujemy ze zbioru \\(\\{2, 4, 6, 8, 10\\}\\), czyli 5-elementowego (\\(n=5\\)).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Losujemy trzykrotnie (\\(k=3\\)), czyli tworzymy 3-elementowe wariacje <u>bez powtórzeń</u> ze zbioru 5-elementowego. Aby znaleźć ich liczbę mnożymy liczby, z których pierwsza to \\(n=5\\), każda kolejna jest o \\(1\\) mniejsza, a ostatnia to \\(n-k+1=5-3+1=3\\):\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        V_5^4=5\\cdot 4\\cdot 3=60\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Możemy też użyć wzoru z silniami:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\n            V_5^4=\\frac{5!}{(5-3)!}=\\frac{5!}{2!}=\\frac{2!\\cdot 3\\cdot 4\\cdot 5}{2!}=\\frac{\\require{cancel}\\cancel{2!}\\cdot 3\\cdot 4\\cdot 5}{\\require{cancel}\\cancel{2!}}=3\\cdot 4\\cdot 5=60\n            \\]\n        "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "91102a419d86b0a54bcc7e1022991fa471690873dba4cf4e3d371cf3bc27b767"
+}

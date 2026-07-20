@@ -1,0 +1,75 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dany jest okrąg o równaniu\n                                    \\[\n                                    (x + 4)^2 + (y - 1)^2 = 20\n                                    \\]\n                                    oraz punkt \\(A=(-2, -3)\\) leżący na okręgu.\n        <p>\n            Znajdź równanie prostej stycznej do okręgu w punkcie \\(A\\).\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Zacznijmy od prostej obeserwacji.\n                <div class=\"switch_line\">\n                    Środek okręgu to punkt\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(S=(-4,1)\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(S=(4,-1)\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Teraz pomyślmy chwilę o szukanej stycznej.\n                <p>\n                    Wiemy, że przechodzi przez punkt \\(A=(-2,-3)\\).\n                </p>\n<p>\n                    Nie wiemy jeszcze, jakie jest jej nachylenie (współczynnik kierunkowy).\n                </p>\n<p>\n                    Możemy za to ustalić nachylenie odcinka łączącego środek okręgu \\(S\\) z punktem \\(A\\).\n                </p>\n<details>\n<summary>\n                        nachylenie odcinka - przypomnienie\n                    </summary>\n<div class=\"important\">\n                        Nachylenie odcinka / prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(S=(x_S, y_S)\\) to liczba\n                                        \\[\n                                        \\frac{\\text{SKOK}}{\\text{KROK}}=\\frac{y_S-y_A}{x_S-x_A}\n                                        \\]\n                    </div>\n</details>\n<div class=\"switch_line\">\n                    Nachylenie odcinka \\(AS\\) jest równe\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(-\\tfrac{1}{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{1}{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(2\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Żeby teraz znaleźć nachylenie stycznej, musimy pamiętać:\n                <ul>\n<li>\n                        jak ma się styczna do promienia łączącego środek okręgu z punktem styczności oraz\n                    </li>\n<li>\n                        jaka jest relacja między nachyleniami odcinków prostopadłych.\n                    </li>\n</ul>\n<details>\n<summary>\n                        nie pamiętasz? - przypomnienie\n                    </summary>\n<div class=\"important\" style=\"min-height: 210;\">\n<img alt=\"Promień i styczna\" height=\"200\" src=\"static/tw_promien_styczna.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n<u>\n                                Promień i styczna\n                            </u>\n</p>\n<p>\n                            Prosta jest styczna do okręgu\n                            <u>\n                                wtedy i tylko wtedy\n                            </u>\n                            , gdy promień łączący środek okręgu z punktem wspólnym prostej i okręgu jest prostopadły do prostej.\n                        </p>\n</div>\n<p>\n</p>\n<div class=\"important\">\n                        Liczby \\(a_1\\) i \\(a_2\\) są nachyleniami odcinków (współczynnikami kierunkowymi prostych) prostopadłych, jeśli\n                        <ul class=\"nolist\">\n<li>\n                                \\(a_1\\cdot a_2=-1\\)\n                            </li>\n<li>\n                                lub równoważnie \\(a_2=-\\frac{1}{a_1}\\).\n                            </li>\n</ul>\n</div>\n</details>\n<div class=\"switch_line\">\n                    Nachylenie (współczynnik kierunkowy) stycznej do okręgu w punkcie \\(A\\) jest równe\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(-\\tfrac{1}{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{1}{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(2\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Styczna jest więc prostą o nachyleniu \\(\\frac{1}{2}\\), czyli o równaniu\n    \\[\n    y=\\frac{1}{2}x+b\n    \\]\n    i przechodzącą przez punkt \\(A=(-2,-3)\\).\n                <p>\n                    Współczynnik \\(b\\) uzyskamy podstawiając do równania prostej współrzędne punktu \\(A\\).\n                </p>\n                \\[\n    -3=\\frac{1}{2}\\cdot(-2)+b\n    \\]\n                <div class=\"switch_line\">\n                    I dlatego\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(b=-2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(b=2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(b=-1\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Równanie stycznej to \\(y=\\frac{1}{2}x-2\\), a okrąg i trójkąt wyglądają tak:\n                <div class=\"centered\">\n<img alt=\"styczna do okręgu\" height=\"400\" src=\"static/geom_analit_styczna_do_okregu.png\"/>\n</div>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poniżej dwa podobne zadania - ale już bez rozwiązań. Możesz je rozwiązać samodzielnie i sprawdzić odpowiedzi.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dany jest okrąg o równaniu\n                                    \\[\n                                    (x - 2)^2 + (y - 4)^2 = 20\n                                    \\]\n                                    oraz punkt \\(A=(-2, 2)\\) leżący na okręgu.\n        <p>\n            Znajdź równanie prostej stycznej do okręgu w punkcie \\(A\\).\n        </p>\n"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n        \\(y=-2x-2\\)\n    </div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+      "reason": "show_solution button without solution"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Dany jest okrąg o równaniu\n                                    \\[\n                                    x^2 + (y - 4)^2 = 90\n                                    \\]\n                                    oraz punkt \\(A=(3, -5)\\) leżący na okręgu.\n        <p>\n            Znajdź równanie prostej stycznej do okręgu w punkcie \\(A\\).\n        </p>\n"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n        \\(y=\\frac{1}{2}x-6\\)\n    </div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+      "reason": "show_solution button without solution"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "e25b1e022c699e1c265512f1dabf2e554837a5380fa6bf3348ba1faf4a8a1837"
+}

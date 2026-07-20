@@ -1,0 +1,95 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jak pamiętasz, przekątne deltoidu przecinają się pod kątem prostym. I dlatego:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli przekątne deltoidu mają długości \\(d_1\\) i \\(d_2\\), to jego pole, \\(P\\), dane jest wzorem\n    \\[\n    P=\\frac{d_1\\cdot d_2}{2}\n    \\]</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/deltoid_pole_d1_d2_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "uzasadnienie",
+      "body": "\n\n<p>\n        Wzór uzasadnimy oddzielnie w dwóch przypadkach.\n    </p>\n<p>\n<strong>Deltoid wypukły</strong>\n</p>\n<figure>\n<img src=\"static/deltoid_pole_d1_d2_2.png\" style=\"max-width: 500px;\"/>\n</figure>\n<p>\n        W tej sytuacji pole deltoidu jest <strong>sumą</strong> pól dwóch trójkątów: \n    </p>\n<ul>\n<li>\n            pierwszego - o podstawie \\(d_2\\) i wysokości \\(h\\)\n        </li>\n<li>\n            drugiego - o podstawie \\(d_2\\) i wysokości \\(d_1-h\\)\n        </li>\n</ul>\n<p>\n        Pole deltoidu jest równe\n    </p>\n<div class=\"table_wrapper\">\n        \\[\n        \\begin{align}\n        P&amp;=\\frac{1}{2}\\cdot d_2\\cdot h+\\frac{1}{2}\\cdot d_2\\cdot (d_1-h)=\\\\\n        &amp;=\\frac{1}{2}\\cdot d_2\\cdot h+\\frac{1}{2}\\cdot d_2\\cdot d_1-\\frac{1}{2}\\cdot d_2\\cdot h=\\\\\n        &amp;=\\frac{1}{2}\\cdot d_2\\cdot d_1=\\\\\n        &amp;=\\frac{d_1\\cdot d_2}{2}\n        \\end{align}\n        \\]\n    </div>\n<p>\n<strong>Deltoid wklęsły</strong>\n</p>\n<figure>\n<img src=\"static/deltoid_pole_d1_d2_3.png\" style=\"max-width: 500px;\"/>\n</figure>\n<p>\n        W tej sytuacji pole deltoidu jest <strong>różnicą</strong> pól dwóch trójkątów: \n    </p>\n<ul>\n<li>\n            pierwszego - o podstawie \\(d_2\\) i wysokości \\(d_1+h\\)\n        </li>\n<li>\n            drugiego - o podstawie \\(d_2\\) i wysokości \\(h\\)\n        </li>\n</ul>\n<p>\n        Pole deltoidu jest równe\n    </p>\n<div class=\"table_wrapper\">\n        \\[\n        \\begin{align}\n        P&amp;=\\frac{1}{2}\\cdot d_2\\cdot (d_1+h)-\\frac{1}{2}\\cdot d_2\\cdot h=\\\\\n        &amp;=\\frac{1}{2}\\cdot d_2\\cdot d_1+\\frac{1}{2}\\cdot d_2\\cdot h-\\frac{1}{2}\\cdot d_2\\cdot h=\\\\\n        &amp;=\\frac{1}{2}\\cdot d_2\\cdot d_1=\\\\\n        &amp;=\\frac{d_1\\cdot d_2}{2}\n        \\end{align}\n        \\]\n    </div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Oblicz pola narysowanych deltoidów i wpisz wyniki.\n        </p>\n<p>\n            Rysunki nie zachowują skali.\n        </p>\n"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "<img src=\"static/deltoid_pole_d1_d2_z1.png\" style=\"max-height: 250px;\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<img src=\"static/deltoid_pole_d1_d2_z2.png\" style=\"max-height: 250px;\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<img src=\"static/deltoid_pole_d1_d2_z3.png\" style=\"max-height: 250px;\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<img src=\"static/deltoid_pole_d1_d2_z4.png\" style=\"max-height: 250px;\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n    Świetnie!\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c0b90e0172993cd9063a9a32e34c78524af63db660283b04d49bc0cf448a030b"
+}

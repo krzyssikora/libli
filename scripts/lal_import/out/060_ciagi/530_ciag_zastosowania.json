@@ -1,0 +1,70 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przeczytaj informacje o dwóch lokatach bankowych poniżej. Lokaty są bardzo podobne, a jedyne różnice zaznaczono <strong style=\"color: blue;\">na niebiesko</strong>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pan Michał założył lokatę na 12 miesięcy i wpłacił na nią \\(10\\,000\\) zł. Oprocentowanie lokaty to \\(6\\%\\), a kapitalizacja odsetek jest roczna. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Lokata jest odnawialna, a odsetki są każdorazowo <strong style=\"color: blue;\">przelewane na konto pana Michała</strong>.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pan Michał zamknął lokatę po pięciu latach. Jaki jest całkowity zysk pana Michała z tej lokaty?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pan Michał założył lokatę na 12 miesięcy i wpłacił na nią \\(10\\,000\\) zł. Oprocentowanie lokaty to \\(6\\%\\), a kapitalizacja odsetek jest roczna. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Lokata jest odnawialna, a odsetki są każdorazowo <strong style=\"color: blue;\">dołączane do kapitału lokaty</strong>.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pan Michał zamknął lokatę po pięciu latach. Jaki jest całkowity zysk pana Michała z tej lokaty?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Czy rozumiesz wszystkie pojęcia użyte w opisie obu lokat?\n        </p>\n<p>\n            Zastanów się, co znaczą i sprawdź swoje odpowiedzi.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "lokata",
+      "body": "\n                        Sposób oszczędzania, w którym z góry ustalony jest okres trwania. Dopiero po tym okresie doliczone są odsetki. Jeśli klient banku wypłaci pieniądze wcześniej, nie dostaje odsetek. W takiej sytuacji móimy o zerwaniu lokaty.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "kapitał",
+      "body": "\n                        Zgromadzone pieniądze - w obu powyższych przykładach początkowy kapitał to \\(10\\,000\\) złotych.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "kapitalizacja",
+      "body": "\n                        Obliczenie odsetek i przekazanie ich do dyspozycji klienta.\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "lokata odnawialna",
+      "body": "\n                        Lokata, która po zakończeniu okresu trwania zaczyna się od nowa, na takich samych warunkach. Doliczone pod koniec okresu trwania odsetki mogą być przelane na konto klienta banku lub przez niego wypłacone (<span class=\"question_like\">Przykład 1</span>) lub doliczone do kapitału lokaty (<span class=\"question_like\">Przykład 2</span>).\n                    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b7cb515b00fe3876b92fe4719b68b1c0b66b9ae24403c994a42e6f4bf04e8ea9"
+}

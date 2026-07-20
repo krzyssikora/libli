@@ -1,0 +1,134 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n<strong>\n        Miejsce zerowe\n    </strong>\n    funkcji to taki argument, dla którego wartość jest równa \\(0\\).\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Bardziej formalnie:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"miejsce zerowe na grafie\" src=\"static/miejsce_zerowe_0.png\" width=\"600\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Dla funkcji\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n                                                                                        f:A\\longrightarrow B\n                                                                                        \\]\n                                                                                        argument \\(x_0\\in A\\) nazywamy</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n        miejscem zerowym\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>, gdy\n                                                                                        \\[\n                                                                                        f(x_0)=0\n                                                                                        \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dlaczego miejsca zerowe są ważne?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        Jeśli funkcja określa dług zmieniający się w czasie, to miejsce zerowe oznacza, że długu nie ma.\n    </li>\n<li>\n        Jeśli funkcja oznacza prędkość obiektu  w czasie, to miejsce zerowe oznacza prędkość równą 0,  czyli zatrzymanie się tego obiektu.\n    </li>\n<li>\n        Jeśli funkcja modeluje zmiany temperatury w czasie, to miejsca zerowe pozwalają nam stwierdzić, kiedy temperatura ma być dodatnia.\n    </li>\n<li>\n        Jeśli funkcja opisuje tempo wzrostu jakiejś wartości, to miejsce zerowe  może oznaczać zatrzymanie tego  wzrostu, a więc wartość maksymalną  opisywanej wartości.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli więc funkcje opisują lub modelują jakieś rzeczywiste wielkości i ich zmiany, to miejsca zerowe najczęście odgrywają w nich niebanalne role.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Na wykresie funkcji miejsce zerowe można znaleźć na osi \\(OX\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"miejsce zerowe na wykresie\" src=\"static/miejsce_zerowe_1.png\" width=\"400\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Pamiętaj, że miejsce zerowe to\n        <strong>\n            argument\n        </strong>\n        (czyli \\(x\\)), dla którego wartość (czyli \\(y\\)) jest równa \\(0\\), a nie cały punkt na osi \\(OX\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Fragment wykresu funkcji \\(f:\\mathbb{R}\\longrightarrow\\mathbb{R}\\) pokazuje wszystkie miejsca zerowe funkcji \\(f\\).\n        </p>\n<div class=\"centered\">\n<img alt=\"miejsce zerowe na wykresie\" src=\"static/miejsce_zerowe_2.png\" width=\"600\"/>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Funkcja \\(f\\) ma zatem</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(0\\) miejsc zerowych\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(1\\) miejsce zerowe\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(2\\) miejsca zerowe\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(3\\) miejsca zerowe\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(4\\) miejsca zerowe\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>Te miejsca zerowe to</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(1\\), \\(2\\), \\(3\\) i \\(4\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(-1\\), \\(0\\), \\(2\\) i \\(3\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\((-1,0)\\), \\((0,0)\\), \\((2,0)\\) i \\((3,0)\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zgadza się, miejsca zerowe to liczby, a nie punkty.\n            </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "828c3efc4d6b80eee61765654317b81eb0efeb7c5a4d0416b8700b7c6ed5de78"
+}

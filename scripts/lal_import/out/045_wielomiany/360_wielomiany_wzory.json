@@ -1,0 +1,153 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Mówiąc o wzorach skróconego mnożenia, warto przyjrzeć się uogólnieniu wzoru na różnicę kwadratów i różnicę sześcianów - czyli wzorowi na różnicę \\(n\\)-tych potęg.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wzór jest prawdziwy dla dowolnych liczb / wyrażeń \\(a\\) i \\(b\\) oraz dla \\(n\\in\\mathbb{N}, n\\ge 2\\).\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(a^n-b^n=(a-b)(a^{n-1}+a^{n-2}b+a^{n-3}b^2+\\dots+a^2b^{n-3}+ab^{n-2}+b^{n-1})\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Przyjrzyj się, jak wzór wygląda dla kilku kolejnych wartości \\(n\\).\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(n=2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span style=\"display: inline-block; width: 50px;\">\n</span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a^2-b^2=(a-b)(a+b)\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(n=3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span style=\"display: inline-block; width: 50px;\">\n</span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a^3-b^3=(a-b)(a^2+ab+ab^2)\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(n=4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span style=\"display: inline-block; width: 50px;\">\n</span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a^4-b^4=(a-b)(a^3+a^2b+ab^2+ab^2+b^3)\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(n=5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span style=\"display: inline-block; width: 50px;\">\n</span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a^5-b^5=(a-b)(a^4+a^3b+a^2b^2+ab^3+b^4)\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Udowodnij, że liczba\n        \\[\n        11^{24}-16^{12}\n        \\]\n        jest podzielna przez \\(7\\)\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Wyrażenie \\(11^{24}-16^{12}\\) pasowałoby do wzoru \\(a^n-b^n\\) gdyby nie to, że\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        podstawy\n                    </div>\n<div class=\"switch_value\">\n                        wykładniki\n                    </div>\n                    są różne.\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Możemy to naprawić\n                </p>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                albo zmieniając \\(11^{24}\\) w \\(11^{2\\cdot 12}=(11^2)^{12}=121^{12}\\)\n                <div class=\"switch_line\">\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                    albo zmieniając \\(16^{12}\\) w \\((4^2)^{12}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(4^{24}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(4^{14}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(2^{24}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Trochę łatwiej będzie, gdy będziemy mieli mniejsze liczby w podstawach potęg, więc zdecydujmy się na zmianę \\(16\\) w \\(4\\):\n                </p>\n                \\[\n                11^{24}-16^{12}=11^{24}-4^{24}\n                \\]\n                <p>\n                    I teraz możemy użyć wzoru\n                </p>\n                \\[\n                a^n-b^n=(a-b)(a^{n-1}+a^{n-2}b+a^{n-3}b^2+\\dots+a^2b^{n-3}+ab^{n-2}+b^{n-1})\n                \\]\n                <p>\n                    dla \\(a=11\\), \\(b=4\\) i \\(n=24\\).\n                </p>\n<p>\n                    Zacznij od zapisania sobie całego wzoru samodzielnie i podstawienia tych trzech liczb.\n                </p>\n<div class=\"switch_line\">\n                    Długi czynnik, \\((a^{n-1}+a^{n-2}b+a^{n-3}b^2+\\dots+a^2b^{n-3}+ab^{n-2}+b^{n-1})\\) ma postać\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\((11^{23}+11^{22}\\cdot 4+11^{21}\\cdot 4^2+\\dots+11^2\\cdot 4^{21}+11\\cdot 4^{22}+4^{23})\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\((11^{11}+11^{10}\\cdot 4+11^{9}\\cdot 4^2+\\dots+11^2\\cdot 4^{9}+11\\cdot 4^{10}+4^{11})\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\((11^{24}+11^{23}\\cdot 4+11^{22}\\cdot 4^2+\\dots+11^2\\cdot 4^{22}+11\\cdot 4^{23}+4^{24})\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Jak widać, jest to suma potęg o podstawach i wykładnikach\n                    <u>\n                        naturalnych\n                    </u>\n                    , więc cała suma to także liczba\n                    <strong>\n                        naturalna\n                    </strong>\n                    .\n                </p>\n<p>\n                    Spójrzmy teraz na krótszy czynnik, \\((a-b)\\).\n                </p>\n<div class=\"switch_line\">\n                    Jego wartość to\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(11^{24}-4^{24}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(7\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(15\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<hr/>\n                Pokazaliśmy, że\n                <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                \\(11^{24}-16^{12}=7\\cdot(\\text{liczba naturalna})\\).\n                <br/>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n                A to oznacza, że liczba \\(11^{24}-16^{12}\\) jest podzielna przez \\(7\\).\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Udowodnij następujące podzielności na wzór poprzedniego zadania.\n        </p>\n<p>\n            Jeśli chcesz, zobacz wskazówkę.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Udowodnij, że liczba \\(11^{14}-4^7\\) jest podzielna przez \\(9\\).",
+      "body": "\n                        Zamień \\(4^7\\) na potęgę o podstawie \\(2\\).\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "Udowodnij, że liczba \\(7^{39}-8^{13}\\) jest podzielna przez \\(5\\).",
+      "body": "\n                        Zamień \\(8^{13}\\) na potęgę o wykładniku \\(39\\).\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "Udowodnij, że liczba \\(49^{18}-27^{12}\\) jest podzielna przez \\(4\\).",
+      "body": "\n                        Zamień obie potęgi tak, by ich wykładniki były równe \\(36\\).\n                    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a2644e6b71329e4b203271624e8b8d7745701a05dcfa5fd34e0f988a6a73deea"
+}

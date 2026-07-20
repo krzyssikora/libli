@@ -1,0 +1,139 @@
+{
+  "elements": [
+    {
+      "type": "spoiler",
+      "label": "Przypomnijmy, czym jest podobieństwo czworokątów:",
+      "body": "\n\n<div class=\"important\">\n<p>\n            Czworokąty \\(A_1B_1C_1D_1\\) i \\(A_2B_2C_2D_2\\) są <strong>podobne</strong> (\\(A_1B_1C_1D_1\\sim A_2B_2C_2D_2\\)) jeśli\n        </p>\n<ul class=\"nolist\">\n<li>\n                równe są kolejne kąty wewnętrzne:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\color{red}{A_1}=\\color{red}{A_2},\\quad \\color{green}{B_1}=\\color{green}{B_2},\\quad \\color{orange}{C_1}=\\color{orange}{C_2},\\quad \\color{blue}{D_1}=\\color{blue}{D_2}\n                    \\]\n                </div>\n</li>\n<li>\n                odpowiednie boki są proporcjonalne:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\color{red}{\\frac{A_2B_2}{A_1B_1}}=\\color{green}{\\frac{B_2C_2}{B_1C_1}}=\\color{orange}{\\frac{C_2D_2}{C_1D_1}}=\\color{blue}{\\frac{D_2A_2}{D_1A_1}}\n                    \\]\n                </div>\n</li>\n</ul>\n<figure>\n<img src=\"static/czworokaty_podobne_def_1.png\" style=\"max-height: 250px;\"/>\n</figure>\n<p>\n            Wartość każdego ułamka z powyższych to <strong>skala podobieństwa</strong> czworokąta \\(A_2B_2C_2D_2\\) do \\(A_1B_1C_1D_1\\).\n        </p>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli \n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            figura \\(F_1\\) jest podobna do figury \\(F_2\\) w skali \\(k\\) \n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            figura \\(F_2\\) jest podobna do figury \\(F_1\\) w skali \\(\\frac{1}{k}\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        F_1\\underset{k}{\\sim} F_2\\quad \\Rightarrow \\quad F_2\\underset{\\frac{1}{k}}{\\sim} F_1\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/podobienstwo_skala_symetryczna.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(W_2\\) jest podobny do \\(W_1\\)<br/>\n                        w skali \\(\\frac{3}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(W_1\\) jest podobny do \\(W_2\\)<br/>\n                        w skali \\(\\frac{2}{3}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(10 \\cdot\\frac{3}{2}=15\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(15\\cdot\\frac{2}{3}=10\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(8\\cdot\\frac{3}{2}=12\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(12\\cdot\\frac{2}{3}=8\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(4\\cdot\\frac{3}{2}=6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\cdot\\frac{2}{3}=4\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(6\\cdot\\frac{3}{2}=9\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(9\\cdot\\frac{2}{3}=6\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Uzupełnij zdania.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            Jeśli wielokąt \\(W_2\\) jest podobny do wielokąta \\(W_1\\) w skali \\(4\\), to wielokąt \\(W_1\\) jest podobny do wielokąta \\(W_2\\) w skali <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>.\n        </li>\n<li>\n            Jeśli wielokąt \\(W_2\\) jest podobny do wielokąta \\(W_1\\) w skali \\(\\frac{4}{3}\\), to wielokąt \\(W_1\\) jest podobny do wielokąta \\(W_2\\) w skali <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>.\n        </li>\n<li>\n            Wielokąt \\(W_1\\) jest podobny do wielokąta \\(W_2\\) w skali \\(2\\).<br/>\n            Pewna długość w wielokącie \\(W_1\\) jest równa \\(6\\). Wówczas odpowiadająca jej długość w wielokącie \\(W_2\\) jest równa <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>.\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Świetnie!\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7812119eee26e0c28c8ab9328e881d80e086379a37a9c7aab37081903be3d300"
+}

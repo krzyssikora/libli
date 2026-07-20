@@ -321,39 +321,6 @@ def test_fragment_anchor_href_is_not_flagged():
 
 # Rule 7: interactive widgets that aren't native-mapped yet (Group B) collapse to
 # ONE flagged placeholder block instead of fragmenting; prompt/feedback handled.
-SWITCH_QUESTION = r"""
-<div id="question10">
-  <p class="question"></p>
-  <div class="question_text"><p>Uzupełnij działania na zbiorach.</p></div>
-  <div class="switch_options">
-    <div class="switch_line">
-      <div class="switch_around">\(A\)</div>
-      <div class="switch_value">\(\cup\)</div>
-      <div class="switch_value">\(\cap\)</div>
-      <div class="switch_around">\(B\)</div>
-    </div>
-    <div class="switch_confirm ks_button">zatwierdź</div>
-    <div class="switch_summary success hidden">Świetnie!</div>
-  </div>
-</div>
-"""
-
-
-def test_switch_widget_becomes_single_placeholder_prompt_kept():
-    elements, flags = parse_lesson(SWITCH_QUESTION, "x.html")
-    placeholders = [e for e in elements if e.get("flagged")]
-    assert len(placeholders) == 1
-    assert "switch" in placeholders[0]["reason"]
-    # Prompt survives as native text.
-    text = " ".join(e.get("body", "") for e in elements if e["type"] == "text")
-    assert "Uzupełnij działania" in text
-    # No fragmentation: the switch options do NOT become many text elements.
-    assert not any(e["type"] == "text" and "cup" in e.get("body", "") for e in elements)
-    # Feedback praise is stripped even from inside the placeholder.
-    assert "Świetnie" not in placeholders[0]["raw"]
-    assert any(f["kind"] == "unmapped_pattern" for f in flags)
-
-
 MULTI_MANY_QUESTION = r"""
 <div id="question20">
   <div class="question_text"><p>Wybierz wszystkie dzielniki.</p></div>
@@ -417,6 +384,53 @@ def test_example_label_becomes_przyklad_heading():
     assert any("Przykład" in b for b in bodies)
 
 
+# --- Group B #3: switch_confirm -> SwitchGrid ---
+SWITCH_CONFIRM = r"""
+<div id="question10">
+  <div class="question_text"><p>Uzupełnij działania na zbiorach.</p></div>
+  <div class="switch_options">
+    <div class="switch_line">
+      <div class="switch_around">\(A\)</div>
+      <div class="switch_value">\(\cup\)</div>
+      <div class="switch_value">\(\cap\)</div>
+      <div class="switch_value">\(\setminus\)</div>
+      <div class="switch_around">\(B\)</div>
+    </div>
+    <div class="switch_line">
+      <div class="switch_around">\(A\)</div>
+      <div class="switch_value">\(\cup\)</div>
+      <div class="switch_value">\(\cap\)</div>
+      <div class="switch_value">\(\setminus\)</div>
+      <div class="switch_around">\(C\)</div>
+    </div>
+    <div class="switch_confirm ks_button">zatwierdź</div>
+    <div class="switch_summary success hidden">Świetnie!</div>
+  </div>
+</div>
+<script>localStorage.setItem("switch_answers", JSON.stringify({10: [2, 1]}));</script>
+"""
+
+
+def test_switch_confirm_becomes_switch_grid():
+    elements, flags = parse_lesson(SWITCH_CONFIRM, "x.html")
+    grids = [e for e in elements if e["type"] == "switch_grid"]
+    assert len(grids) == 1
+    lines = grids[0]["lines"]
+    assert len(lines) == 2
+    assert lines[0]["cyclers"][0]["options"] == [
+        r"\(\cup\)",
+        r"\(\cap\)",
+        r"\(\setminus\)",
+    ]
+    assert lines[0]["cyclers"][0]["answer"] == 2
+    assert lines[1]["cyclers"][0]["answer"] == 1
+    # prompt renders as native text; feedback praise never leaks.
+    joined = " ".join(str(e) for e in elements)
+    assert "Uzupełnij działania" in joined
+    assert "Świetnie" not in joined
+    assert not any(e.get("flagged") for e in elements)
+
+
 # --- Group B #1: show_next progressive reveal -> RevealGate chain ---
 SHOW_NEXT_WIDGET = r"""
 <div class="steps">
@@ -440,6 +454,46 @@ def test_show_next_becomes_reveal_gate_chain():
     assert any("Krok" in b and r"\(1\)" in b for b in bodies)
     assert not any(e.get("flagged") for e in elements)
     assert flags == []
+
+
+# --- Group B #2: switch_show_next progressive reveal -> SwitchGate chain ---
+SWITCH_SHOW_NEXT = r"""
+<div id="question13">
+  <div class="question_text"><p>Policz wartości funkcji.</p></div>
+  <div class="switch_steps">
+    <div class="switch_step">
+      <p>Dla \(x=4\):</p>
+      <div class="switch_line">
+        <div class="switch_value">>> wybierz >></div>
+        <div class="switch_value">\(-1\)</div>
+        <div class="switch_value">\(0\)</div>
+        <div class="switch_show_next ks_button">zatwierdź</div>
+      </div>
+    </div>
+    <div class="switch_step hidden">
+      <p>Dobrze, \(f(4)=0\).</p>
+    </div>
+  </div>
+</div>
+<script>localStorage.setItem("switch_answers", JSON.stringify({13: [2]}));</script>
+"""
+
+
+def test_switch_show_next_becomes_switch_gate_chain():
+    elements, flags = parse_lesson(SWITCH_SHOW_NEXT, "x.html")
+    types = [e["type"] for e in elements]
+    assert "switch_gate" in types
+    assert not any(e.get("flagged") for e in elements)
+    gate = next(e for e in elements if e["type"] == "switch_gate")
+    assert gate["options"] == [r"&gt;&gt; wybierz &gt;&gt;", r"\(-1\)", r"\(0\)"]
+    assert gate["answer"] == 2  # switch_answers[13][0]
+    # Step content (before and after the gate) survives as native text.
+    bodies = " ".join(e.get("body", "") for e in elements if e["type"] == "text")
+    assert "Policz wartości" in bodies
+    assert "Dla" in bodies and "Dobrze" in bodies
+    # The gate sits between its own step's content and the next step's content.
+    order = [e["type"] for e in elements]
+    assert order.index("switch_gate") < len(order) - 1
 
 
 def test_show_next_step_with_block_math_kept_as_math_element():

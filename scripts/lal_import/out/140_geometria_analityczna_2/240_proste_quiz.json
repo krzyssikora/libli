@@ -1,0 +1,188 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Któremu równaniu ogólnemu jest równoważne równanie kierunkowe \\(y=\\tfrac{3}{5}x+2\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(3x+5y+10=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5x-3y+6=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3x-5y+10=0\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5x+3y+6=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Któremu równaniu kierunkowemu jest równoważne równanie ogólne \\(3x+4y-5=0\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=-\\tfrac{3}{4}x+\\tfrac{5}{4}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-\\tfrac{3}{4}x+\\tfrac{5}{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=\\tfrac{3}{4}x-\\tfrac{5}{4}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-\\tfrac{4}{3}x+\\tfrac{5}{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Które z poniższych prostych są równoległe do prostej \\(y=-1\\tfrac{1}{2}x+5\\)?</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(y=2x-7\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-\\frac{3}{2}x-4\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=\\frac{2}{3}x+1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=1\\tfrac{1}{2}x\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-1\\tfrac{1}{2}x+12\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Które z poniższych prostych są prostopadłe do prostej \\(y=-1\\tfrac{1}{2}x+5\\)?</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(y=2x-7\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-\\frac{3}{2}x-4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=\\frac{2}{3}x+1\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=1\\tfrac{1}{2}x\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=-1\\tfrac{1}{2}x+12\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Które z poniższych prostych są równoległe do prostej \\(9x-12y+7=0\\)?</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(3x-4y+7=0\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(9x+12y-5=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(6x-8y-9=0\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(12x+9y-1=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4x+3y+1=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Które z poniższych prostych są prostopadłe do prostej \\(9x-12y+7=0\\)?</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(3x-4y+7=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(9x+12y-5=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(12x+9y-1=0\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(6x-8y-9=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4x+3y+1=0\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "df2ef4db3a3889ba10f0be21d30215799121f240dd76c648fa6b568c7f8ec212"
+}

@@ -1,0 +1,132 @@
+{
+  "elements": [
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\((-2)^2=4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-2)^3=-8\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-2)^4=16\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-2)^5=-32\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-2)^6=64\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-2)^7=-128\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((-3)^2=9\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-3)^3=-27\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-3)^4=81\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-3)^5=-243\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-3)^6=729\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-3)^7=-2187\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się powyższym, kolejnym (od 2 do 7) potęgom liczb \\(-2\\) i \\(-3\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zwróć uwagę, kiedy wyniki potęgowania są\n            <strong>\n                dodatnie\n            </strong>\n            , a kiedy\n            <strong>\n                ujemne\n            </strong>\n            . Następnie klikaj niżej w obramowane granatowo prostokąty, aż uzyskasz prawdziwe zdania - wtedy zatwierdź odpowiedź.\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                    Liczba ujemna podniesiona do\n                </div>\n<div class=\"switch_value\">\n                    każdej\n                </div>\n<div class=\"switch_value\">\n                    parzystej\n                </div>\n<div class=\"switch_value\">\n                    nieparzystej\n                </div>\n<div class=\"switch_around\">\n                    potęgi daje wynik\n                    <strong>\n                        dodatni\n                    </strong>\n                    .\n                </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                    Liczba ujemna podniesiona do\n                </div>\n<div class=\"switch_value\">\n                    każdej\n                </div>\n<div class=\"switch_value\">\n                    parzystej\n                </div>\n<div class=\"switch_value\">\n                    nieparzystej\n                </div>\n<div class=\"switch_around\">\n                    potęgi daje wynik\n                    <strong>\n                        ujemny\n                    </strong>\n                    .\n                </div>\n</div>\n<div class=\"switch_confirm ks_button\">\n                zatwierdź\n            </div>\n\n</div>",
+      "reason": "interactive_widget (Group B): switch_around,switch_confirm,switch_line,switch_options,switch_value"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Z powyższego wynika, że pierwiastki nieparzystego stopnia można liczyć zarówno z liczb dodatnich, jak i z liczb ujemnych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\((-2)^5=-32\\), więc \\(\\sqrt[5]{-32}=-2\\).\n"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Oblicz i wpisz wyniki w puste pola. Użyj potęg z tabeli na górze strony.</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<ul class=\"nolist\">\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[5]{-243}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[7]{-128}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[3]{-343}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n</ul>",
+      "reason": "interactive_widget (Group B): table_input"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Podsumowanie:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"centered\">\n        \\(\\sqrt[n]{a}=b\\) oznacza, że \\(b^n=a\\)\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            Jeśli \\(a\\ge 0\\) to także \\(b\\ge 0\\) (niezależnie od stopnia pierwiastka \\(n\\)).\n        </li>\n<li>\n            Jeśli \\(a\\lt 0\\) to także \\(b\\lt 0\\), ale tylko, jeśli stopień pierwiastka \\(n\\) jest\n            <strong>\n                nieparzysty\n            </strong>\n            .\n        </li>\n<li>\n            Jeśli \\(a\\lt 0\\), a stopień pierwiastka \\(n\\) jest\n            <strong>\n                parzysty\n            </strong>\n            , to nie istnieje taka liczba rzeczywista \\(b\\), tj. nie da się policzyć pierwiastka rzeczywistego stopnia parzystego z liczby ujemnej.\n        </li>\n</ul>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "dad12fe67cf15d8403b785fcf00e8fdf4dc0fb108f75800bf5ab0449448a03ff"
+}

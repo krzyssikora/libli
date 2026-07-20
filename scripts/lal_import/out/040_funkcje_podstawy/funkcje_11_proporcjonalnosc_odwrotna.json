@@ -1,0 +1,34 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"justified\">\n        Mówimy, że\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"centered\">\n        \"zmienna \\(y\\) jest\n        <strong>\n            odwrotnie proporcjonalna\n        </strong>\n        do zmiennej \\(x\\) ze stałą proporcjonalności \\(a\\) (\\(a\\ne 0\\))\"\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"justified\">\n        jeśli:\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "xy=a"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Wpisz wartości \\(y\\) tak, by były odwrotnie proporcjonalne do \\(x\\).\n        </p>\n<p>\n            Wpisane wartości pozwolą Ci ustalić, jaka jest stała proporcjonalności.\n        </p>\n<p>\n            Gdy wpiszesz poprawnie wszystkie wartości, zobaczysz ciąg dalszy tej lekcji.\n        </p>\n<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                            \\(x\\)\n                        </td>\n<td>\n                            \\(\\frac{1}{5}\\)\n                        </td>\n<td>\n                            \\(\\frac{1}{2}\\)\n                        </td>\n<td>\n                            \\(\\frac{2}{3}\\)\n                        </td>\n<td>\n                            \\(1\\)\n                        </td>\n<td>\n                            \\(2\\)\n                        </td>\n<td>\n                            \\(4\\)\n                        </td>\n<td>\n                            \\(5\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(y\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            \\(1\\)\n                        </td>\n<td>\n                            \\(\\frac{1}{2}\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Świetnie!\n    </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "0e82874d490884d03e5aa813852e4ed577428e96757cba92b4ebe1293f526b3a"
+}

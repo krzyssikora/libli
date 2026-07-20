@@ -1,0 +1,232 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>Podaj liczbę rozwiązań równania \\(|x|=17\\)</p>",
+      "value": "2",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Podaj liczbę rozwiązań równania \\(|x|=-3\\)</p>",
+      "value": "0",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Podaj liczbę rozwiązań równania \\(|2x-5|=0\\)</p>",
+      "value": "1",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż rozwiązanie nierówności \\(|x|\\gt 6\\).</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x\\in\\{-6,6\\}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(6,+\\infty)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(-\\infty,-6)\\cup(6,+\\infty)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(-\\infty,-6\\rangle\\cup\\langle 6,+\\infty)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(-6,6)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in\\langle -6, 6\\rangle\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=6\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in\\emptyset\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in\\mathbb{R}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż rozwiązanie nierówności \\(|x|\\le 6\\).</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x\\in\\{-6,6\\}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(6,+\\infty)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(-\\infty,-6)\\cup(6,+\\infty)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(-\\infty,-6\\rangle\\cup\\langle 6,+\\infty)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(-6,6)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in\\langle -6, 6\\rangle\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=6\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in\\emptyset\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in\\mathbb{R}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż rozwiązanie nierówności \\(|x|\\lt -6\\).</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x\\in\\{-6,6\\}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(6,+\\infty)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(-\\infty,-6)\\cup(6,+\\infty)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(-\\infty,-6\\rangle\\cup\\langle 6,+\\infty)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(-6,6)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in\\langle -6, 6\\rangle\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=6\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in\\emptyset\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in\\mathbb{R}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wskaż rozwiązanie nierówności \\(|x|\\ge -6\\).</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x\\in\\{-6,6\\}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(6,+\\infty)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(-\\infty,-6)\\cup(6,+\\infty)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(-\\infty,-6\\rangle\\cup\\langle 6,+\\infty)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in(-6,6)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in\\langle -6, 6\\rangle\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=6\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in\\emptyset\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\in\\mathbb{R}\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c9bfde41b464f9e1c92ba60299546f10b14c4f91ab0d74e51bc239b4ae43f98b"
+}

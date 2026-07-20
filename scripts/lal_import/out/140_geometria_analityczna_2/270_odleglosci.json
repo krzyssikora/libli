@@ -1,0 +1,65 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Odległość \\(d\\) punktu o współrzędnych \\((x_0, y_0)\\) od prostej o równaniu \\(Ax+By+C=0\\) jest dana wzorem\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_odleglosc_punktu_od_prostej_wzor.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        \\color{orange}{d}=\\frac{|\\color{blue}{A\\cdot\\color{red}{x_0}+B\\cdot\\color{red}{y_0}+C}|}{\\sqrt{A^2+B^2}}\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jak używamy wzoru?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold clearfix\">\n<li>\n<p>\n                Do wyrażenia z lewej strony równania ogólnego prostej, \\(\\color{blue}{Ax+By+C}\\), podstawiamy współrzędne punktu, \\(\\color{blue}{x}=\\color{red}{x_0}\\) oraz \\(\\color{blue}{y}=\\color{red}{y_0}\\).\n            </p>\n<p style=\"float: right\">\n                Otrzymujemy: \\(\\color{blue}{A\\cdot\\color{red}{x_0}+B\\cdot\\color{red}{y_0}+C}\\)\n            </p>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold clearfix\" start=\"2\">\n<li>\n<p>\n                Obliczamy wartość bezwzględną tego wyniku (czyli usuwamy minus, jeśli wynik jest ujemny).\n            </p>\n<p style=\"float: right\">\n                Otrzymujemy: \\(|\\color{blue}{A\\cdot\\color{red}{x_0}+B\\cdot\\color{red}{y_0}+C}|\\)\n            </p>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold clearfix\" start=\"3\">\n<li>\n<p>\n                Dzielimy przez pierwiastek z sumy kwadratów współczynników \\(x\\)-a i \\(y\\)-a równania prostej.\n            </p>\n<ul class=\"nolist\">\n<li>współczynniki \\(x\\)-a i \\(y\\)-a to \\(A\\) i \\(B\\),</li>\n<li>suma ich kwadratów to \\(A^2+B^2\\),</li>\n<li>pierwiastek z tej sumy to \\(\\sqrt{A^2+B^2}\\).</li>\n</ul>\n<p style=\"float: right\">\n                Otrzymujemy: \\(\\frac{|\\color{blue}{A\\cdot\\color{red}{x_0}+B\\cdot\\color{red}{y_0}+C}|}{\\sqrt{A^2+B^2}}\\)\n            </p>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyjmy się zadaniu, jakie wcześniej rozwiązaliśmy długą metodą.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź odległość punktu \\(P=(-3,1)\\) od prostej o równaniu \\(2x+3y-23=0\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie (nagranie i krok po kroku)",
+      "body": "\n\n<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li><a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a></li>\n<li><a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a></li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-1-1\">\n<p><strong>Uwaga</strong>! Długie nagranie (4:16).</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometria_analityczna_2_zadanie_700.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-1-2\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                            Zaczynamy od wyrażenia z lewej strony rónania ogólnego prostej:\n                        </p>\n                        \\[\n                        2x+3y-23\n                        \\]\n                        <p>\n                            i podstawiamy do niego współrzędne punktu \\(P=(-3,1)\\).\n                        </p>\n<div class=\"switch_line\">\n                            Otrzymujemy\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2\\cdot 3+3\\cdot 1-23\\)</div>\n<div class=\"switch_value\">\\(2\\cdot(-3)+3\\cdot 1-23\\)</div>\n<div class=\"switch_value\">\\(2-3+3+1-23\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                            Ta liczba znajdzie się (w wartości bezwzględnej) na górze ułamka we wzorze\n                        </p>\n                        \\[\n                        d=\\frac{A\\cdot x_0+B\\cdot y_0+C}{\\sqrt{A^2+B^2}}\n                        \\]\n                        <div class=\"switch_line\">\n                            Na dole ułamka znajdzie się liczba\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\sqrt{2^2+3^2}\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{(-3)^2+1^2}\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{2^2+(-23)^2}\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{3^2+(-23)^2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                            Cały wzór przyjmuje postać:\n                        </p>\n<div class=\"table_wrapper\">\n                            \\[\n                            d=\\frac{|2\\cdot(-3)+3\\cdot 1-23|}{\\sqrt{2^2+3^2}}=\\frac{|-26|}{\\sqrt{13}}\n                            \\]\n                        </div>\n<div class=\"switch_line\">\n                            Wartość góry ułamka to\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(26\\)</div>\n<div class=\"switch_value\">\\(-26\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n                        Dostajemy więc \\(d=\\frac{26}{\\sqrt{13}}\\).\n                        <div class=\"switch_line\">\n                            Aby usunąć niewymierność z mianownika\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">podnosimy mianownik do kwadratu</div>\n<div class=\"switch_value\">mnożymy licznik i mianownik przez \\(\\sqrt{13}\\)</div>\n<div class=\"switch_value\">podnosimy ułamek do kwadratu</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"table_wrapper\">\n                            \\[\n                            d=\\frac{26}{\\sqrt{13}}\\cdot \\frac{\\sqrt{13}}{\\sqrt{13}}=\\frac{26\\sqrt{13}}{13}\n                            \\]\n                        </div>\n<div class=\"switch_line\">\n                            Stąd odległość punktu \\(P\\) od prostej \\(2x+3y-23=0\\) jest równa\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2\\sqrt{13}\\)</div>\n<div class=\"switch_value\">\\(13\\sqrt{13}\\)</div>\n<div class=\"switch_value\">\\(2\\)</div>\n<div class=\"switch_value\">\\(26\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"table_wrapper\">\n                            \\[\n                            \\begin{align}\n                            d&amp;=\\frac{2\\cdot(-3)+3\\cdot 1-23}{\\sqrt{2^2+3^2}}=\\\\\n                            &amp;=\\frac{|-26|}{\\sqrt{13}}=\\\\\n                            &amp;\\frac{26}{\\sqrt{13}}\\cdot \\frac{\\sqrt{13}}{\\sqrt{13}}=\\\\\n                            &amp;=\\frac{26\\sqrt{13}}{13}=\\\\\n                            &amp;=2\\sqrt{13}\n                            \\end{align}\n                            \\]\n                        </div>\n</div>\n</div>\n</div>\n</div>\n<p>\n            Przyznasz, że z użyciem tego wzoru znalezienie odległości punktu od prostej jest łatwiejsze i szybsze? Gdy zyskasz trochę wprawy, będzie to jeszcze wyraźniejsze. \n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czas zyskać trochę wprawy.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<ol class=\"bold\">\n<li>\n<p>\n                    Znajdź odległość punktu \\((-11, 7)\\) od prostej \\(x-2y+5=0\\).\n                </p>\n<ul class=\"nolist\">\n<li>\n<details>\n<summary>wzór</summary>\n                            \\(\\frac{|1\\cdot (-11)-2\\cdot 7+5|}{\\sqrt{1^2+(-2)^2}}\\)\n                        </details>\n</li>\n<li>\n<details>\n<summary>uproszczenie</summary>\n                            \\(\\frac{20}{\\sqrt{5}}\\)\n                        </details>\n</li>\n<li>\n<details>\n<summary>wynik</summary>\n                            \\(4\\sqrt{5}\\)\n                        </details>\n</li>\n</ul>\n</li>\n<li>\n<p>\n                    Znajdź odległość punktu \\((13, 11)\\) od prostej \\(3x+4y-8=0\\).\n                </p>\n<ul class=\"nolist\">\n<li>\n<details>\n<summary>wzór</summary>\n                            \\(\\frac{|3\\cdot 13+4\\cdot 11-8|}{\\sqrt{3^2+4^2}}\\)\n                        </details>\n</li>\n<li>\n<details>\n<summary>uproszczenie</summary>\n                            \\(\\frac{75}{\\sqrt{25}}\\)\n                        </details>\n</li>\n<li>\n<details>\n<summary>wynik</summary>\n                            \\(15\\)\n                        </details>\n</li>\n</ul>\n</li>\n<li>\n<p>\n                    Znajdź odległość punktu \\((7, -6)\\) od prostej \\(3x-y-7=0\\).\n                </p>\n<ul class=\"nolist\">\n<li>\n<details>\n<summary>wzór</summary>\n                            \\(\\frac{|3\\cdot 7-1\\cdot (-6)-7|}{\\sqrt{3^2+(-1)^2}}\\)\n                        </details>\n</li>\n<li>\n<details>\n<summary>uproszczenie</summary>\n                            \\(\\frac{20}{\\sqrt{10}}\\)\n                        </details>\n</li>\n<li>\n<details>\n<summary>wynik</summary>\n                            \\(2\\sqrt{10}\\)\n                        </details>\n</li>\n</ul>\n</li>\n<li>\n<p>\n                    Znajdź odległość punktu \\((-35, 7)\\) od prostej \\(15x-8y+3=0\\).\n                </p>\n<ul class=\"nolist\">\n<li>\n<details>\n<summary>wzór</summary>\n                            \\(\\frac{|15\\cdot (-35)-8\\cdot 7+3|}{\\sqrt{15^2+(-8)^2}}\\)\n                        </details>\n</li>\n<li>\n<details>\n<summary>uproszczenie</summary>\n                            \\(\\frac{578}{\\sqrt{289}}\\)\n                        </details>\n</li>\n<li>\n<details>\n<summary>wynik</summary>\n                            \\(34\\)\n                        </details>\n</li>\n</ul>\n</li>\n</ol>\n"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "ffa085a45e5c6dccc54553373e6f4d4b8dfb0dea95a4fa46fa6333fdceafdc98"
+}
