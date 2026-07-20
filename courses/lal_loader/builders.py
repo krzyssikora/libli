@@ -7,10 +7,13 @@ from courses.lal_loader.media import get_or_create_asset
 from courses.lal_loader.media import resolve_source
 from courses.models import Blank
 from courses.models import Choice
+from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
 from courses.models import Element
 from courses.models import FillBlankQuestionElement
 from courses.models import FillTableElement
+from courses.models import GridColumn
+from courses.models import GridRow
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
@@ -66,6 +69,20 @@ def build_element(
         return _attach(
             unit, RevealGateElement.objects.create(label=el.get("label", "")[:120])
         )
+    if etype == "choice_grid":
+        # Group B #7: matrix single-choice. Columns are saved first so each row's
+        # correct_column FK resolves (mirrors the transfer importer).
+        q = ChoiceGridQuestionElement.objects.create()
+        cols = [
+            GridColumn.objects.create(question=q, label=c[:500])
+            for c in el["columns"]
+        ]
+        for r in el["rows"]:
+            idx = r["correct"] if 0 <= r["correct"] < len(cols) else 0
+            GridRow.objects.create(
+                question=q, statement=r["statement"][:500], correct_column=cols[idx]
+            )
+        return _attach(unit, q)
     if etype == "tabs":
         # Group B #6: a tabbed container. Build the tabs join row first, then
         # recurse each tab's children under it (parent=join, tab_id=tab's id).

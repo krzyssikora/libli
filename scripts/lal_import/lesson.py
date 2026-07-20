@@ -57,6 +57,8 @@ _CHROME_CLASSES = {
     "info_iframe",
     "iframe_zonk",
     "mailto_tag",
+    # widget confirm buttons whose native element supplies its own Check button:
+    "confirm_choice",  # one_choice grid (Group B #7)
 }
 _BLOCK_CHILD_TAGS = {
     "p",
@@ -85,9 +87,8 @@ _BLOCK_CHILD_TAGS = {
 _INTERACTIVE_MARKERS = {
     # NB: switch_* are NOT markers — switch_options -> SwitchGrid (Group B #3),
     # switch_steps -> SwitchGate chain (Group B #2); both containers descend.
-    # one-choice-in-a-line
-    "one_choice",
-    "confirm_choice",
+    # NB: one_choice/confirm_choice are NOT markers — one_choice maps to a native
+    # ChoiceGrid / per-row MCQ (Group B #7); confirm_choice is dropped as chrome.
     # multi-select grid (all-or-nothing rows)
     "multi_many_ans",
     "multi_many_option",
@@ -269,6 +270,7 @@ def parse_lesson(html, source_html):
         # answer keys live in the RAW file's inline setItem scripts (pre-escape).
         "switch_answers": extract_int_map(html, "switch_answers"),
         "table_answers": extract_str_map(html, "table_answers"),
+        "correct_choices": extract_int_map(html, "correct_choices"),
     }
     _walk(list(root.children), elements, flags, consumed, state)
     return elements, flags
@@ -329,6 +331,14 @@ def _walk(nodes, elements, flags, consumed, state):
         if "switch_options" in classes_here:
             # Group B #3: a confirmed switch grid -> SwitchGridElement.
             _emit_switch_grid(node, elements, state)
+            continue
+        if (
+            not _is_structural_container(node)
+            and node.find(class_="one_choice") is not None
+        ):
+            # Group B #7: a pick-one-per-line one_choice widget -> ChoiceGrid
+            # (shared columns) or per-row single-choice MCQ (varying columns).
+            elements.extend(_emit_one_choice(node, state))
             continue
         if "ks_tabs" in classes_here:
             # Group B #6: a tabbed container -> TabsElement with nested children.
@@ -594,6 +604,59 @@ def _emit_switch_gate_chain(container, elements, flags, consumed, state):
             else:
                 content.append(child)
         _walk(content, elements, flags, consumed, state)
+
+
+def _one_choice_rows(node):
+    """Group a container's .one_choice options by their parent (JS groups by
+    parentElement) into ordered rows of {statement, options}. Text is decoded
+    (literal <) — ChoiceGrid labels/statements are auto-escaped by format_html."""
+    groups, order = {}, []
+    for oc in node.find_all(class_="one_choice"):
+        pid = id(oc.parent)
+        if pid not in groups:
+            groups[pid] = {"parent": oc.parent, "options": []}
+            order.append(pid)
+        groups[pid]["options"].append(oc.get_text(" ", strip=True))
+    rows = []
+    for pid in order:
+        parent = groups[pid]["parent"]
+        stmt = parent.find(class_="statement")
+        statement = (stmt or parent).get_text(" ", strip=True)
+        rows.append({"statement": statement, "options": groups[pid]["options"]})
+    return rows
+
+
+def _emit_one_choice(node, state):
+    """Group B #7: build a ChoiceGrid when every row shares the same option set,
+    else one single-choice MCQ per row. correct_choices[qid] is 1-based (elt_id+1)."""
+    answers = state.get("correct_choices", {}).get(_enclosing_qid(node), [])
+    rows = _one_choice_rows(node)
+    for i, r in enumerate(rows):
+        r["correct"] = (answers[i] - 1) if i < len(answers) else 0
+    if rows and len({tuple(r["options"]) for r in rows}) == 1:
+        return [
+            {
+                "type": "choice_grid",
+                "columns": rows[0]["options"],
+                "rows": [
+                    {"statement": r["statement"], "correct": r["correct"]}
+                    for r in rows
+                ],
+            }
+        ]
+    # varying columns -> a single-choice MCQ per row (stem is a sanitized field).
+    return [
+        {
+            "type": "choice",
+            "stem": f"<p>{escape_math_delimited(r['statement'])}</p>",
+            "multiple": False,
+            "choices": [
+                {"text": o, "is_correct": (j == r["correct"])}
+                for j, o in enumerate(r["options"])
+            ],
+        }
+        for r in rows
+    ]
 
 
 def _emit_tabs(ks_tabs, flags, consumed, state):

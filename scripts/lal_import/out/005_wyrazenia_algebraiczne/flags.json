@@ -1,18 +1,6 @@
 [
   {
     "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n                        \\(a^n\\cdot a^k=a^{n+k}\\)\n                    </td>\n<td>\n<span class=\"myequation\">\n                            \\(3^5\\cdot 3^4=3\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"?",
-    "unit_json": "wyr_alg_030_potegi.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): ks_tabs",
-    "raw_excerpt": "<ul class=\"nolist\">\n<li>\n<details>\n<summary>\n                    Co to jest pierwiastek kwadratowy?\n                </summary>\n<p>\n                    Pierwiastek kwadratowy z liczby \\(a\\) to taka liczba \\(b\\), której kwadrat jest równy \\(a\\).\n                </p>\n<p>\n                    Zapisujemy ",
-    "unit_json": "wyr_alg_040_pierwiastki.json"
-  },
-  {
-    "kind": "unmapped_pattern",
     "reason": "interactive_widget (Group B): fill_answer,fill_show_next,fill_step",
     "raw_excerpt": "<div class=\"fill_steps\">\n<p>\n            Najpierw, wyłącz czynnik przed znak pierwiastka w trzech kolejnych przypadkach:\n        </p>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n            \\(\\sqrt{75}=\\)\n            <span class=\"myequation\">\n<span>\n<i",
     "unit_json": "wyr_alg_040_pierwiastki.json"
@@ -22,30 +10,6 @@
     "reason": "interactive_widget (Group B): fill_answer,fill_show_next,fill_step",
     "raw_excerpt": "<div class=\"fill_steps\">\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                Włącz liczbę \\(3\\) sprzed pierwiastka w liczbie \\(3\\sqrt{5}\\) pod pierwiastek, to znaczy znajdź taką liczbę \\(a\\), że\n            </p>\n            \\[\n            3",
     "unit_json": "wyr_alg_040_pierwiastki.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<ul class=\"nolist\">\n<li>\n                \\(3^5=243\\), więc\n                <span class=\"myequation\">\n                    \\(\\sqrt[5]{243}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n                \\(5^4=625\\), więc\n                <span clas",
-    "unit_json": "wyr_alg_050_pierwiastki.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<ul class=\"nolist\">\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[4]{256}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[6]{729}=\\)\n                    <input class=\"table_input",
-    "unit_json": "wyr_alg_050_pierwiastki.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): switch_around,switch_confirm,switch_line,switch_options,switch_value",
-    "raw_excerpt": "<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                    Liczba ujemna podniesiona do\n                </div>\n<div class=\"switch_value\">\n                    każdej\n                </div>\n<div class=\"switch_value\">\n                    parzystej\n           ",
-    "unit_json": "wyr_alg_060_pierwiastki.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<ul class=\"nolist\">\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[5]{-243}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[7]{-128}=\\)\n                    <input class=\"table_inp",
-    "unit_json": "wyr_alg_060_pierwiastki.json"
   },
   {
     "kind": "unmapped_pattern",
@@ -61,99 +25,9 @@
   },
   {
     "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<div class=\"table_wrapper\">\n<table class=\"my_table_border\" style=\"background-color: white;\">\n<tr>\n<th>\n                        wyraz\n                    </th>\n<td>\n                        \\(5ab^3\\)\n                    </td>\n<td>\n                        \\(-2xy\\)\n                    </td>\n<td>\n       ",
-    "unit_json": "wyr_alg_120_wyrazenia.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                        wyraz\n                    </td>\n<td>\n                        współczyniki\n                    </td>\n<td>\n                        suma współczyników\n                    </td>\n<td>\n                        zre",
-    "unit_json": "wyr_alg_120_wyrazenia.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<p>\n            \\(-(-5bc-3b^3+4c^2)=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(5bc\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(3b^3\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n ",
-    "unit_json": "wyr_alg_135_wyrazenia.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<p>\n            \\(2xy(3y+4xy-2y^2)=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(y^2+8x^2y^2\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(y^3\\)\n        </p>",
-    "unit_json": "wyr_alg_135_wyrazenia.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<p>\n            \\((2a-3b)(5d-4a)=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(ad\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(a^2-15\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n   ",
-    "unit_json": "wyr_alg_135_wyrazenia.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): ks_tabs",
-    "raw_excerpt": "<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                kwadrat sumy\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                kwadrat różnicy\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-3\" id=\"tab-1-3\">\n    ",
-    "unit_json": "wyr_alg_141_wsm.json"
-  },
-  {
-    "kind": "unmapped_pattern",
     "reason": "interactive_widget (Group B): more_less_input",
     "raw_excerpt": "<div>\n<p class=\"question\">\n</p>\n<div class=\"question_text\">\n        W sposób analogiczny do powyższego wykonaj działania i wpisz swoje wyniki, żeby je sprawdzić.\n        <div id=\"question150\">\n<div class=\"more_less_guess\">\n<div>\n                    \\(201^2=\\)\n                    <span>\n<input class=",
     "unit_json": "wyr_alg_145_wsm.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<ul>\n<li>\n                \\(0,5^{-1}=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n                \\(\\left(\\frac{2}{5}\\right)^{-2}=(\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                \\()^2=\\)\n                <i",
-    "unit_json": "wyr_alg_160_potegi_2.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<ul>\n<li>\n                \\(8^{\\frac{1}{3}}=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n                \\(27^{\\frac{2}{3}}=\\left(27^{\\frac{1}{3}}\\right)^2=(\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                \\",
-    "unit_json": "wyr_alg_180_potegi_2.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<ul>\n<li>\n                \\(8^{-\\frac{1}{3}}=8^{\\frac{1}{3}\\cdot(-1)}=\\left(8^{\\frac{1}{3}}\\right)^{-1}=(\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                \\()^{-1}=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>",
-    "unit_json": "wyr_alg_180_potegi_2.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<ul>\n<li>\n                \\(\\left(5^{\\sqrt{2}}\\right)^{\\sqrt{2}}=5\\)\n                <sup>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</sup>\n                \\(=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n                \\((2-\\sqrt{3})^",
-    "unit_json": "wyr_alg_200_potegi_2.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<ol class=\"list15\">\n<li>\n<span class=\"myequation\">\n                    \\(\\log_4 4 = \\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(4\\)\n                    <sup>\n<input cl",
-    "unit_json": "wyr_alg_220_logarytmy.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<p>\n            \\(\\log_2 \\sqrt{2}+\\log_2 \\sqrt{2}=\\log_2 \\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</p>",
-    "unit_json": "wyr_alg_230_logarytmy.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<p>\n            \\(\\log_3 45-\\log_3 5=\\log_3 \\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</p>",
-    "unit_json": "wyr_alg_230_logarytmy.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<p>\n            \\(\\log_2 4^{11}=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(\\log_2 4=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(\\cdot 2=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"tex",
-    "unit_json": "wyr_alg_230_logarytmy.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): table_input",
-    "raw_excerpt": "<p>\n            \\(\\log_{16} 8=\\frac{\\log_2 8}{\\log_2 16}=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</p>",
-    "unit_json": "wyr_alg_230_logarytmy.json"
   },
   {
     "kind": "unmapped_pattern",

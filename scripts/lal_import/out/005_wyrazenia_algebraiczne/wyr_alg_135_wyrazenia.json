@@ -37,10 +37,19 @@
       "body": "<p>\n            Wpisz odpowiednie znaki (\"+\" lub \"-\").\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>\n            \\(-(-5bc-3b^3+4c^2)=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(5bc\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(3b^3\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(4c^2\\)\n        </p>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fillblank",
+      "stem": "\n            \\(-(-5bc-3b^3+4c^2)=\\)\n            ￿0￿\n            \\(5bc\\)\n            ￿1￿\n            \\(3b^3\\)\n            ￿2￿\n            \\(4c^2\\)\n        ",
+      "blanks": [
+        [
+          "+"
+        ],
+        [
+          "+"
+        ],
+        [
+          "-"
+        ]
+      ]
     },
     {
       "type": "text",
@@ -51,10 +60,16 @@
       "body": "<p>\n            Wpisz brakujące znaki, zmienne, wyrazy lub liczby.\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>\n            \\(2xy(3y+4xy-2y^2)=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(y^2+8x^2y^2\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(y^3\\)\n        </p>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fillblank",
+      "stem": "\n            \\(2xy(3y+4xy-2y^2)=\\)\n            ￿0￿\n            \\(y^2+8x^2y^2\\)\n            ￿1￿\n            \\(y^3\\)\n        ",
+      "blanks": [
+        [
+          "6x"
+        ],
+        [
+          "-4x"
+        ]
+      ]
     },
     {
       "type": "text",
@@ -65,12 +80,24 @@
       "body": "<p>\n            Wpisz brakujące znaki, zmienne, wyrazy lub liczby.\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>\n            \\((2a-3b)(5d-4a)=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(ad\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(a^2-15\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(+\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(ab\\)\n        </p>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fillblank",
+      "stem": "\n            \\((2a-3b)(5d-4a)=\\)\n            ￿0￿\n            \\(ad\\)\n            ￿1￿\n            \\(a^2-15\\)\n            ￿2￿\n            \\(+\\)\n            ￿3￿\n            \\(ab\\)\n        ",
+      "blanks": [
+        [
+          "10"
+        ],
+        [
+          "-8"
+        ],
+        [
+          "bd"
+        ],
+        [
+          "12"
+        ]
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "8f27093d3ee281fee9609ff6b7c33f88f859786a5b571c44278c64e3807eb04f"
+  "fully_mapped": true,
+  "seed_hash": "ca2dc5b45ed34132984ff5e89974a72bb1a5ab415338f3e6ac144484d1f324e1"
 }

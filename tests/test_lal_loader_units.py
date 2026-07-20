@@ -16,6 +16,7 @@ from courses.lal_loader.media import resolve_source
 from courses.lal_loader.tree import prune_orphans
 from courses.lal_loader.tree import rebuild_unit_elements
 from courses.lal_loader.tree import upsert_node
+from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Element
@@ -128,6 +129,31 @@ def test_build_reveal_gate(tmp_path):
     assert isinstance(obj, RevealGateElement)
     assert obj.label == "pokaż dalej"
     assert Element.objects.filter(unit=unit).count() == 1
+
+
+def test_build_choice_grid(tmp_path):
+    course = CourseFactory()
+    unit = _unit(course)
+    obj = build_element(
+        course,
+        unit,
+        {
+            "type": "choice_grid",
+            "columns": ["tak", "nie"],
+            "rows": [
+                {"statement": "Czy A?", "correct": 1},
+                {"statement": "Czy B?", "correct": 0},
+            ],
+        },
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert isinstance(obj, ChoiceGridQuestionElement)
+    assert [c.label for c in obj.columns.all()] == ["tak", "nie"]
+    rows = list(obj.rows.all())
+    assert rows[0].correct_column.label == "nie"
+    assert rows[1].correct_column.label == "tak"
 
 
 def test_build_tabs_nests_children_under_join_with_tab_id(tmp_path):

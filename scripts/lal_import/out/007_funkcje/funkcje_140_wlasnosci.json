@@ -17,10 +17,26 @@
       "body": "<p>\n            Którą z tych funkcji nazwał(a)byś\n            <strong>\n                rosnącą\n            </strong>\n            , którą\n            <strong>\n                malejącą\n            </strong>\n            , a którą\n            <strong>\n                stałą\n            </strong>\n            ?\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<ul>\n<li>\n<div class=\"statement\" data-width=\"300px\">\n                Funkcja z wykresem\n                <span style=\"color: green;\">\n                    zielonym\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                rosnąca\n            </div>\n<div class=\"one_choice ks_button\">\n                malejąca\n            </div>\n<div class=\"one_choice ks_button\">\n                stała\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"300px\">\n                Funkcja z wykresem\n                <span style=\"color: red;\">\n                    czerwonym\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                rosnąca\n            </div>\n<div class=\"one_choice ks_button\">\n                malejąca\n            </div>\n<div class=\"one_choice ks_button\">\n                stała\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"300px\">\n                Funkcja z wykresem\n                <span style=\"color: blue;\">\n                    niebieskim\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                rosnąca\n            </div>\n<div class=\"one_choice ks_button\">\n                malejąca\n            </div>\n<div class=\"one_choice ks_button\">\n                stała\n            </div>\n</li>\n</ul>\n<div class=\"confirm_choice ks_button\">\n        potwierdź\n    </div>",
-      "reason": "interactive_widget (Group B): confirm_choice,one_choice"
+      "type": "choice_grid",
+      "columns": [
+        "rosnąca",
+        "malejąca",
+        "stała"
+      ],
+      "rows": [
+        {
+          "statement": "Funkcja z wykresem zielonym",
+          "correct": 2
+        },
+        {
+          "statement": "Funkcja z wykresem czerwonym",
+          "correct": 0
+        },
+        {
+          "statement": "Funkcja z wykresem niebieskim",
+          "correct": 1
+        }
+      ]
     },
     {
       "type": "text",
@@ -67,6 +83,6 @@
       "body": "<p>\n            Czy widzisz, w których miesiącach zużycie energii\n            <strong>\n                rosło\n            </strong>\n            , w których\n            <strong>\n                malało\n            </strong>\n            , a w których było\n            <strong>\n                stałe\n            </strong>\n            ?\n        </p>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "22b31274ee6deee38f810d19118441de44320f6fea74ccba04d9e4eb0a3bbd6f"
+  "fully_mapped": true,
+  "seed_hash": "67904a4a2f9947618fed381fc9a8960228ad6c26b50a17aad6b1414c3cf34994"
 }

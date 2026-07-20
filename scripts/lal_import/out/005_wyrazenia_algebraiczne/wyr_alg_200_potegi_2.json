@@ -17,12 +17,24 @@
       "body": "<p>\n            Uzupełnij obliczenia:\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<ul>\n<li>\n                \\(\\left(5^{\\sqrt{2}}\\right)^{\\sqrt{2}}=5\\)\n                <sup>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</sup>\n                \\(=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n                \\((2-\\sqrt{3})^7(2+\\sqrt{3})^7=((2-\\sqrt{3})(2+\\sqrt{3}))^7=\\left(2^2-(\\sqrt{3})^2\\right)^7=(\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                \\()^7=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n</ul>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fillblank",
+      "stem": "\n<li>\n                \\(\\left(5^{\\sqrt{2}}\\right)^{\\sqrt{2}}=5\\)\n                <sup>\n￿0￿\n</sup>\n                \\(=\\)\n                ￿1￿\n</li>\n<li>\n                \\((2-\\sqrt{3})^7(2+\\sqrt{3})^7=((2-\\sqrt{3})(2+\\sqrt{3}))^7=\\left(2^2-(\\sqrt{3})^2\\right)^7=(\\)\n                ￿2￿\n                \\()^7=\\)\n                ￿3￿\n</li>\n",
+      "blanks": [
+        [
+          "2"
+        ],
+        [
+          "25"
+        ],
+        [
+          "1"
+        ],
+        [
+          "1"
+        ]
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "0e678917a592eebd789d623a7ce10ab0f7d2e4bab97d04288e99020a77289525"
+  "fully_mapped": true,
+  "seed_hash": "e0b1fd6280b0796bd236d8459437acdcaeb1857780087802ccc093e982612bc7"
 }

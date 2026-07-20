@@ -25,10 +25,53 @@
       "body": "<p>\n            Pomyśl o każdym działaniu i odpowiedz na pytanie \"czy wolno ... ?\"\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<ul>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                dzielić przez \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                mnożyć przez \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                podnosić \\(0\\) do potęgi\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                podnosić liczby do potęgi \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                podnosić liczby do potęgi ujemnej\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                podnosić liczby do potęgi ułamkowej\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                obliczać pierwiastek nieparzystego stopnia z liczby ujemnej\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                obliczać pierwiastek parzystego stopnia z liczby ujemnej\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                obliczać pierwiastek nieparzystego stopnia z \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                obliczać pierwiastek parzystego stopnia z \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n</ul>\n<div class=\"confirm_choice ks_button\">\n        potwierdź\n    </div>",
-      "reason": "interactive_widget (Group B): confirm_choice,one_choice"
+      "type": "choice_grid",
+      "columns": [
+        "tak",
+        "nie"
+      ],
+      "rows": [
+        {
+          "statement": "dzielić przez \\(0\\)",
+          "correct": 1
+        },
+        {
+          "statement": "mnożyć przez \\(0\\)",
+          "correct": 0
+        },
+        {
+          "statement": "podnosić \\(0\\) do potęgi",
+          "correct": 0
+        },
+        {
+          "statement": "podnosić liczby do potęgi \\(0\\)",
+          "correct": 0
+        },
+        {
+          "statement": "podnosić liczby do potęgi ujemnej",
+          "correct": 0
+        },
+        {
+          "statement": "podnosić liczby do potęgi ułamkowej",
+          "correct": 0
+        },
+        {
+          "statement": "obliczać pierwiastek nieparzystego stopnia z liczby ujemnej",
+          "correct": 0
+        },
+        {
+          "statement": "obliczać pierwiastek parzystego stopnia z liczby ujemnej",
+          "correct": 1
+        },
+        {
+          "statement": "obliczać pierwiastek nieparzystego stopnia z \\(0\\)",
+          "correct": 0
+        },
+        {
+          "statement": "obliczać pierwiastek parzystego stopnia z \\(0\\)",
+          "correct": 0
+        }
+      ]
     },
     {
       "type": "switch_gate",
@@ -46,6 +89,6 @@
       "body": "<p>\n                Przejdźmy dalej, by zobaczyć, jak to zrobić w praktyce.\n            </p>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "a64988a0131c60242dbccd5ac5da94c57d0f46282b01d41e31e817722dfffdda"
+  "fully_mapped": true,
+  "seed_hash": "dfd719baaf4d229ace0c9e52bcf026525ffd1b03116b9819e8d19703ee2044ec"
 }

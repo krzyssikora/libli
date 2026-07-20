@@ -1,12 +1,89 @@
 {
   "elements": [
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                kwadrat sumy\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                kwadrat różnicy\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-3\" id=\"tab-1-3\">\n                różnica kwadratów\n            </a>\n</li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-1-1\">\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/wsm_kwadrat_sumy.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<div class=\"important\">\n            \\[\n            (a+b)^2 = a^2+2ab+b^2\n            \\]\n        </div>\n<strong style=\"color: red\">\n            Uwaga!\n        </strong>\n<p>\n            W miejsce zmiennych \\(a\\) i \\(b\\) możemy wstawić dowolne inne liczby lub wyrażenia:\n        </p>\n        \\[\n        \\begin{align*}\n        (\\color{red}{a}+\\color{blue}{b})^2 &amp;= \\color{red}{a}^2+2\\color{red}{a}\\color{blue}{b}+\\color{blue}{b}^2\\\\[10pt]\n        (\\color{red}{2xy}+\\color{blue}{3y^2})^2 &amp;= (\\color{red}{2xy})^2+2\\cdot\\color{red}{2xy}\\cdot\\color{blue}{3y^2}+(\\color{blue}{3y^2})^2\\\\\n        &amp;= 4x^2y^2+12xy^3+9y^4\n        \\end{align*}\n        \\]\n    </div>\n<div id=\"tabcontent-1-2\">\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/wsm_kwadrat_roznicy.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<div class=\"important\">\n            \\[\n            (a-b)^2 = a^2-2ab+b^2\n            \\]\n        </div>\n<strong style=\"color: red\">\n            Uwaga!\n        </strong>\n<p>\n            Jak poprzednio, w miejsce zmiennych \\(a\\) i \\(b\\) możemy wstawić dowolne inne liczby lub wyrażenia:\n        </p>\n        \\[\n        \\begin{align*}\n        (\\color{red}{a}-\\color{blue}{b})^2 &amp;= \\color{red}{a}^2+2\\color{red}{a}\\color{blue}{b}+\\color{blue}{b}^2\\\\[10pt]\n        (\\color{red}{2xy}-\\color{blue}{3y^2})^2 &amp;= (\\color{red}{2xy})^2-2\\cdot\\color{red}{2xy}\\cdot\\color{blue}{3y^2}+(\\color{blue}{3y^2})^2\\\\\n        &amp;= 4x^2y^2-12xy^3+9y^4\n        \\end{align*}\n        \\]\n    </div>\n<div id=\"tabcontent-1-3\">\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/wsm_roznica_kwadratow.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<div class=\"important\">\n            \\[\n            (a+b)(a-b) = a^2-b^2\n            \\]\n        </div>\n<strong style=\"color: red\">\n            Uwaga!\n        </strong>\n<p>\n            Ponownie, w miejsce zmiennych \\(a\\) i \\(b\\) możemy wstawić dowolne inne liczby lub wyrażenia:\n        </p>\n        \\[\n        \\begin{align*}\n        (\\color{red}{a}+\\color{blue}{b})(\\color{red}{a}-\\color{blue}{b}) &amp;= \\color{red}{a}^2-\\color{blue}{b}^2\\\\[10pt]\n        (\\color{red}{2xy}+\\color{blue}{3y^2})(\\color{red}{2xy}-\\color{blue}{3y^2}) &amp;= (\\color{red}{2xy})^2-(\\color{blue}{3y^2})^2\\\\\n        &amp;= 4x^2y^2-9y^4\n        \\end{align*}\n        \\]\n    </div>\n</div>",
-      "reason": "interactive_widget (Group B): ks_tabs"
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "kwadrat sumy",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/wsm_kwadrat_sumy.mp4"
+            },
+            {
+              "type": "text",
+              "body": "\n            \\[\n            (a+b)^2 = a^2+2ab+b^2\n            \\]\n        "
+            },
+            {
+              "type": "text",
+              "body": "<strong style=\"color: red\">\n            Uwaga!\n        </strong>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            W miejsce zmiennych \\(a\\) i \\(b\\) możemy wstawić dowolne inne liczby lub wyrażenia:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n        \\begin{align*}\n        (\\color{red}{a}+\\color{blue}{b})^2 &= \\color{red}{a}^2+2\\color{red}{a}\\color{blue}{b}+\\color{blue}{b}^2\\\\[10pt]\n        (\\color{red}{2xy}+\\color{blue}{3y^2})^2 &= (\\color{red}{2xy})^2+2\\cdot\\color{red}{2xy}\\cdot\\color{blue}{3y^2}+(\\color{blue}{3y^2})^2\\\\\n        &= 4x^2y^2+12xy^3+9y^4\n        \\end{align*}\n        "
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "kwadrat różnicy",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/wsm_kwadrat_roznicy.mp4"
+            },
+            {
+              "type": "text",
+              "body": "\n            \\[\n            (a-b)^2 = a^2-2ab+b^2\n            \\]\n        "
+            },
+            {
+              "type": "text",
+              "body": "<strong style=\"color: red\">\n            Uwaga!\n        </strong>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Jak poprzednio, w miejsce zmiennych \\(a\\) i \\(b\\) możemy wstawić dowolne inne liczby lub wyrażenia:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n        \\begin{align*}\n        (\\color{red}{a}-\\color{blue}{b})^2 &= \\color{red}{a}^2+2\\color{red}{a}\\color{blue}{b}+\\color{blue}{b}^2\\\\[10pt]\n        (\\color{red}{2xy}-\\color{blue}{3y^2})^2 &= (\\color{red}{2xy})^2-2\\cdot\\color{red}{2xy}\\cdot\\color{blue}{3y^2}+(\\color{blue}{3y^2})^2\\\\\n        &= 4x^2y^2-12xy^3+9y^4\n        \\end{align*}\n        "
+            }
+          ]
+        },
+        {
+          "id": "t000002",
+          "label": "różnica kwadratów",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/wsm_roznica_kwadratow.mp4"
+            },
+            {
+              "type": "text",
+              "body": "\n            \\[\n            (a+b)(a-b) = a^2-b^2\n            \\]\n        "
+            },
+            {
+              "type": "text",
+              "body": "<strong style=\"color: red\">\n            Uwaga!\n        </strong>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Ponownie, w miejsce zmiennych \\(a\\) i \\(b\\) możemy wstawić dowolne inne liczby lub wyrażenia:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n        \\begin{align*}\n        (\\color{red}{a}+\\color{blue}{b})(\\color{red}{a}-\\color{blue}{b}) &= \\color{red}{a}^2-\\color{blue}{b}^2\\\\[10pt]\n        (\\color{red}{2xy}+\\color{blue}{3y^2})(\\color{red}{2xy}-\\color{blue}{3y^2}) &= (\\color{red}{2xy})^2-(\\color{blue}{3y^2})^2\\\\\n        &= 4x^2y^2-9y^4\n        \\end{align*}\n        "
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "8d63070a0b1bcdc555729afc34b7b0dc1a8c634d02884ea2a694c4b5bd0b5188"
+  "fully_mapped": true,
+  "seed_hash": "13e1c307c50a3cb61feb3c43736a1a0a7b0f23721d97533392b54f6b8861536e"
 }

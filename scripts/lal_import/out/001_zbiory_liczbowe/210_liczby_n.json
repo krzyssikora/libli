@@ -9,12 +9,81 @@
       "body": "\n        Odpowiedz na każde z pytań, a potem sprawdź swoje odpowiedzi.\n    "
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Czy \\(1\\) jest liczbą pierwszą?\n            </div>\n<div class=\"one_choice ks_button\">\n                tak\n            </div>\n<div class=\"one_choice ks_button\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Czy \\(1\\) jest liczbą złożoną?\n            </div>\n<div class=\"one_choice ks_button\">\n                tak\n            </div>\n<div class=\"one_choice ks_button\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Ile dzielników ma liczba \\(16\\)?\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(4\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(5\\)\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Czy \\(17\\) jest liczbą pierwszą?\n            </div>\n<div class=\"one_choice ks_button\">\n                tak\n            </div>\n<div class=\"one_choice ks_button\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Czy \\(39\\) jest liczbą pierwszą?\n            </div>\n<div class=\"one_choice ks_button\">\n                tak\n            </div>\n<div class=\"one_choice ks_button\">\n                nie\n            </div>\n</li>\n</ul>\n<div class=\"confirm_choice ks_button\">\n        potwierdź\n    </div>",
-      "reason": "interactive_widget (Group B): confirm_choice,one_choice"
+      "type": "choice",
+      "stem": "<p>Czy \\(1\\) jest liczbą pierwszą?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": false
+        },
+        {
+          "text": "nie",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy \\(1\\) jest liczbą złożoną?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": false
+        },
+        {
+          "text": "nie",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Ile dzielników ma liczba \\(16\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(4\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(5\\)",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy \\(17\\) jest liczbą pierwszą?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": true
+        },
+        {
+          "text": "nie",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy \\(39\\) jest liczbą pierwszą?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": false
+        },
+        {
+          "text": "nie",
+          "is_correct": true
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "240c0d39d7fa8c6216ee05bb291c557e8644bc420658a607fff2dc7920319129"
+  "fully_mapped": true,
+  "seed_hash": "3a0e54dcb302d39aaa57d799c140c0bc9436dbb1e672cf36ede8b241bace21be"
 }

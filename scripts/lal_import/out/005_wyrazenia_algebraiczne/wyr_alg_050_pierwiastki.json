@@ -21,10 +21,19 @@
       "body": "<p>Uzupełnij puste pola liczbami.</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<ul class=\"nolist\">\n<li>\n                \\(3^5=243\\), więc\n                <span class=\"myequation\">\n                    \\(\\sqrt[5]{243}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n                \\(5^4=625\\), więc\n                <span class=\"myequation\">\n                    \\(\\sqrt[4]{625}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n                \\(2^7=128\\), więc\n                <span class=\"myequation\">\n                    \\(\\sqrt[7]{128}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n</ul>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fillblank",
+      "stem": "\n<li>\n                \\(3^5=243\\), więc\n                <span class=\"myequation\">\n                    \\(\\sqrt[5]{243}=\\)\n                    ￿0￿\n</span>\n</li>\n<li>\n                \\(5^4=625\\), więc\n                <span class=\"myequation\">\n                    \\(\\sqrt[4]{625}=\\)\n                    ￿1￿\n</span>\n</li>\n<li>\n                \\(2^7=128\\), więc\n                <span class=\"myequation\">\n                    \\(\\sqrt[7]{128}=\\)\n                    ￿2￿\n</span>\n</li>\n",
+      "blanks": [
+        [
+          "3"
+        ],
+        [
+          "5"
+        ],
+        [
+          "2"
+        ]
+      ]
     },
     {
       "type": "text",
@@ -343,12 +352,21 @@
       "body": "<p>Oblicz i wpisz wyniki w puste pola.</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<ul class=\"nolist\">\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[4]{256}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[6]{729}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[3]{343}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n</ul>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fillblank",
+      "stem": "\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[4]{256}=\\)\n                    ￿0￿\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[6]{729}=\\)\n                    ￿1￿\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[3]{343}=\\)\n                    ￿2￿\n</span>\n</li>\n",
+      "blanks": [
+        [
+          "4"
+        ],
+        [
+          "3"
+        ],
+        [
+          "7"
+        ]
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "ecfcfa749ecddf481ccf90ca224b9015a782d281278d8ccc5b635f61b59d3de4"
+  "fully_mapped": true,
+  "seed_hash": "e9d4c04170e498af79a43d22307208652773d7f70caf77a709e7c55ca08cfa9d"
 }

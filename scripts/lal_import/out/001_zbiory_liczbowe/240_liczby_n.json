@@ -5,12 +5,31 @@
       "body": "<p>\n    Obejrzyj albo nagranie, w którym tłumaczę, jak wyliczamy największy wspólny dzielnik i najmniejszą wspólną wielokrotność, albo krótką animację.\n</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                nagranie\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                animacja\n            </a>\n</li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-1-1\">\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/nwd_nww.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-1-2\">\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/nwd_nww_animacja.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n</div>",
-      "reason": "interactive_widget (Group B): ks_tabs"
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/nwd_nww.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "animacja",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/nwd_nww_animacja.mp4"
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "254bf293eba720e7f4a2a1bc862cfe22cfbbce01c61ab43aedf5ae5097325b29"
+  "fully_mapped": true,
+  "seed_hash": "3b385eda59a6eeaea33d8465f7f172401f26c09bb7c3bfcc98f2db8fec47e1e1"
 }

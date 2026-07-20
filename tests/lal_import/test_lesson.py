@@ -373,6 +373,63 @@ def test_example_label_becomes_przyklad_heading():
     assert any("Przykład" in b for b in bodies)
 
 
+# --- Group B #7: one_choice -> ChoiceGrid (consistent) / per-row MCQ (varying) ---
+ONE_CHOICE_GRID = r"""
+<div id="question20">
+  <div class="question_text"><p>Odpowiedz na każde pytanie.</p></div>
+  <ul>
+    <li><div class="statement">Czy \(1\) jest pierwsza?</div>
+        <div class="one_choice">tak</div><div class="one_choice">nie</div></li>
+    <li><div class="statement">Czy \(2\) jest pierwsza?</div>
+        <div class="one_choice">tak</div><div class="one_choice">nie</div></li>
+  </ul>
+  <div class="confirm_choice ks_button">potwierdź</div>
+  <div class="success hidden">Brawo!</div>
+</div>
+<script>localStorage.setItem("correct_choices",
+JSON.stringify({20: [2, 1]}));</script>
+"""
+
+
+def test_one_choice_consistent_becomes_choice_grid():
+    elements, flags = parse_lesson(ONE_CHOICE_GRID, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    grids = [e for e in elements if e["type"] == "choice_grid"]
+    assert len(grids) == 1
+    assert grids[0]["columns"] == ["tak", "nie"]
+    rows = grids[0]["rows"]
+    assert [r["correct"] for r in rows] == [1, 0]  # correct_choices 1-based -> 0-based
+    assert "Czy" in rows[0]["statement"]
+    # prompt kept, confirm/feedback chrome dropped
+    joined = " ".join(str(e) for e in elements)
+    assert "Odpowiedz" in joined
+    assert "Brawo" not in joined and "potwierdź" not in joined
+
+
+ONE_CHOICE_VARYING = r"""
+<div id="question30">
+  <ul>
+    <li><div class="statement">A?</div>
+        <div class="one_choice">tak</div><div class="one_choice">nie</div></li>
+    <li><div class="statement">Ile?</div>
+        <div class="one_choice">\(4\)</div><div class="one_choice">\(5\)</div></li>
+  </ul>
+</div>
+<script>localStorage.setItem("correct_choices",
+JSON.stringify({30: [1, 2]}));</script>
+"""
+
+
+def test_one_choice_varying_falls_back_to_per_row_mcq():
+    elements, flags = parse_lesson(ONE_CHOICE_VARYING, "x.html")
+    assert not any(e["type"] == "choice_grid" for e in elements)
+    mcqs = [e for e in elements if e["type"] == "choice"]
+    assert len(mcqs) == 2
+    # row 0 correct index 0 ("tak"), row 1 correct index 1 ("\(5\)")
+    assert [c["is_correct"] for c in mcqs[0]["choices"]] == [True, False]
+    assert [c["is_correct"] for c in mcqs[1]["choices"]] == [False, True]
+
+
 # --- Group B #6: ks_tabs -> TabsElement (nested children) ---
 KS_TABS = r"""
 <div class="ks_tabs">

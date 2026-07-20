@@ -87,10 +87,36 @@
       "body": "<p>\n            Zwróć uwagę, kiedy wyniki potęgowania są\n            <strong>\n                dodatnie\n            </strong>\n            , a kiedy\n            <strong>\n                ujemne\n            </strong>\n            . Następnie klikaj niżej w obramowane granatowo prostokąty, aż uzyskasz prawdziwe zdania - wtedy zatwierdź odpowiedź.\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                    Liczba ujemna podniesiona do\n                </div>\n<div class=\"switch_value\">\n                    każdej\n                </div>\n<div class=\"switch_value\">\n                    parzystej\n                </div>\n<div class=\"switch_value\">\n                    nieparzystej\n                </div>\n<div class=\"switch_around\">\n                    potęgi daje wynik\n                    <strong>\n                        dodatni\n                    </strong>\n                    .\n                </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                    Liczba ujemna podniesiona do\n                </div>\n<div class=\"switch_value\">\n                    każdej\n                </div>\n<div class=\"switch_value\">\n                    parzystej\n                </div>\n<div class=\"switch_value\">\n                    nieparzystej\n                </div>\n<div class=\"switch_around\">\n                    potęgi daje wynik\n                    <strong>\n                        ujemny\n                    </strong>\n                    .\n                </div>\n</div>\n<div class=\"switch_confirm ks_button\">\n                zatwierdź\n            </div>\n\n</div>",
-      "reason": "interactive_widget (Group B): switch_around,switch_confirm,switch_line,switch_options,switch_value"
+      "type": "switch_grid",
+      "prompt": "",
+      "lines": [
+        {
+          "stem": "\n\n                    Liczba ujemna podniesiona do\n                \n\n\n\n￿0￿\n                    potęgi daje wynik\n                    <strong>\n                        dodatni\n                    </strong>\n                    .\n                \n",
+          "cyclers": [
+            {
+              "options": [
+                "każdej",
+                "parzystej",
+                "nieparzystej"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                    Liczba ujemna podniesiona do\n                \n\n\n\n￿0￿\n                    potęgi daje wynik\n                    <strong>\n                        ujemny\n                    </strong>\n                    .\n                \n",
+          "cyclers": [
+            {
+              "options": [
+                "każdej",
+                "parzystej",
+                "nieparzystej"
+              ],
+              "answer": 2
+            }
+          ]
+        }
+      ]
     },
     {
       "type": "text",
@@ -109,10 +135,19 @@
       "body": "<p>Oblicz i wpisz wyniki w puste pola. Użyj potęg z tabeli na górze strony.</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<ul class=\"nolist\">\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[5]{-243}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[7]{-128}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[3]{-343}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n</ul>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fillblank",
+      "stem": "\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[5]{-243}=\\)\n                    ￿0￿\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[7]{-128}=\\)\n                    ￿1￿\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\sqrt[3]{-343}=\\)\n                    ￿2￿\n</span>\n</li>\n",
+      "blanks": [
+        [
+          "-3"
+        ],
+        [
+          "-2"
+        ],
+        [
+          "-7"
+        ]
+      ]
     },
     {
       "type": "text",
@@ -127,6 +162,6 @@
       "body": "<ul>\n<li>\n            Jeśli \\(a\\ge 0\\) to także \\(b\\ge 0\\) (niezależnie od stopnia pierwiastka \\(n\\)).\n        </li>\n<li>\n            Jeśli \\(a\\lt 0\\) to także \\(b\\lt 0\\), ale tylko, jeśli stopień pierwiastka \\(n\\) jest\n            <strong>\n                nieparzysty\n            </strong>\n            .\n        </li>\n<li>\n            Jeśli \\(a\\lt 0\\), a stopień pierwiastka \\(n\\) jest\n            <strong>\n                parzysty\n            </strong>\n            , to nie istnieje taka liczba rzeczywista \\(b\\), tj. nie da się policzyć pierwiastka rzeczywistego stopnia parzystego z liczby ujemnej.\n        </li>\n</ul>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "dad12fe67cf15d8403b785fcf00e8fdf4dc0fb108f75800bf5ab0449448a03ff"
+  "fully_mapped": true,
+  "seed_hash": "e56183c01819d7bad2ac83ec0cf7055e34bded0e9ddbdf02a234178bd8c3fccb"
 }

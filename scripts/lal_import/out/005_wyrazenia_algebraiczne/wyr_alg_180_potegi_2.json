@@ -13,10 +13,25 @@
       "body": "<p>\n            Uzupełnij obliczenia:\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<ul>\n<li>\n                \\(8^{\\frac{1}{3}}=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n                \\(27^{\\frac{2}{3}}=\\left(27^{\\frac{1}{3}}\\right)^2=(\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                \\()^2=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n                \\(4^{\\frac{3}{2}}=\\left(4^{\\frac{1}{2}}\\right)^3=(\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                \\()^3=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n</ul>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fillblank",
+      "stem": "\n<li>\n                \\(8^{\\frac{1}{3}}=\\)\n                ￿0￿\n</li>\n<li>\n                \\(27^{\\frac{2}{3}}=\\left(27^{\\frac{1}{3}}\\right)^2=(\\)\n                ￿1￿\n                \\()^2=\\)\n                ￿2￿\n</li>\n<li>\n                \\(4^{\\frac{3}{2}}=\\left(4^{\\frac{1}{2}}\\right)^3=(\\)\n                ￿3￿\n                \\()^3=\\)\n                ￿4￿\n</li>\n",
+      "blanks": [
+        [
+          "2"
+        ],
+        [
+          "3"
+        ],
+        [
+          "9"
+        ],
+        [
+          "2"
+        ],
+        [
+          "4"
+        ]
+      ]
     },
     {
       "type": "text",
@@ -39,12 +54,24 @@
       "body": "<p>\n            Uzupełnij obliczenia:\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<ul>\n<li>\n                \\(8^{-\\frac{1}{3}}=8^{\\frac{1}{3}\\cdot(-1)}=\\left(8^{\\frac{1}{3}}\\right)^{-1}=(\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                \\()^{-1}=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n                \\(\\left(\\frac{1}{16}\\right)^{-\\frac{1}{2}}=\\left(\\frac{1}{16}\\right)^{-1\\cdot\\frac{1}{2}}=\\left(\\left(\\frac{1}{16}\\right)^{-1}\\right)^{\\frac{1}{2}}=(\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                \\()^{\\frac{1}{2}}=\\)\n                <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n</ul>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fillblank",
+      "stem": "\n<li>\n                \\(8^{-\\frac{1}{3}}=8^{\\frac{1}{3}\\cdot(-1)}=\\left(8^{\\frac{1}{3}}\\right)^{-1}=(\\)\n                ￿0￿\n                \\()^{-1}=\\)\n                ￿1￿\n</li>\n<li>\n                \\(\\left(\\frac{1}{16}\\right)^{-\\frac{1}{2}}=\\left(\\frac{1}{16}\\right)^{-1\\cdot\\frac{1}{2}}=\\left(\\left(\\frac{1}{16}\\right)^{-1}\\right)^{\\frac{1}{2}}=(\\)\n                ￿2￿\n                \\()^{\\frac{1}{2}}=\\)\n                ￿3￿\n</li>\n",
+      "blanks": [
+        [
+          "2"
+        ],
+        [
+          "1/2"
+        ],
+        [
+          "16"
+        ],
+        [
+          "4"
+        ]
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "22e7b23cee293ca4bdd146708990f2a464e34cc6881154d1ae32e18dab97b2d6"
+  "fully_mapped": true,
+  "seed_hash": "7d0dad4aef3fd1513c05f8bd8295fa1bdda191ee9dc76f68723ecaef4a2e229e"
 }

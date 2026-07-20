@@ -33,10 +33,40 @@
       "body": "<p>\n<span class=\"myequation\">\n                    \\(\\log_5 125 = 3\\)\n                </span>\n                , bo\n                <span class=\"myequation\">\n                    \\(5^3=125\\)\n                </span>\n</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<ol class=\"list15\">\n<li>\n<span class=\"myequation\">\n                    \\(\\log_4 4 = \\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(4\\)\n                    <sup>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</sup>\n                    \\(=4\\)\n                </span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\log_7 1 = \\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(7\\)\n                    <sup>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</sup>\n                    \\(=1\\)\n                </span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\log_2 8 = \\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(2\\)\n                    <sup>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</sup>\n                    \\(=8\\)\n                </span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\log_3 9 = \\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(3^2=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\log_9 3 = \\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(9^{\\tfrac{1}{2}}=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n</ol>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fillblank",
+      "stem": "\n<li>\n<span class=\"myequation\">\n                    \\(\\log_4 4 = \\)\n                    ￿0￿\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(4\\)\n                    <sup>\n￿1￿\n</sup>\n                    \\(=4\\)\n                </span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\log_7 1 = \\)\n                    ￿2￿\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(7\\)\n                    <sup>\n￿3￿\n</sup>\n                    \\(=1\\)\n                </span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\log_2 8 = \\)\n                    ￿4￿\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(2\\)\n                    <sup>\n￿5￿\n</sup>\n                    \\(=8\\)\n                </span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\log_3 9 = \\)\n                    ￿6￿\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(3^2=\\)\n                    ￿7￿\n</span>\n</li>\n<li>\n<span class=\"myequation\">\n                    \\(\\log_9 3 = \\)\n                    ￿8￿\n</span>\n                , bo\n                <span class=\"myequation\">\n                    \\(9^{\\tfrac{1}{2}}=\\)\n                    ￿9￿\n</span>\n</li>\n",
+      "blanks": [
+        [
+          "1"
+        ],
+        [
+          "1"
+        ],
+        [
+          "0"
+        ],
+        [
+          "0"
+        ],
+        [
+          "3"
+        ],
+        [
+          "3"
+        ],
+        [
+          "2"
+        ],
+        [
+          "9"
+        ],
+        [
+          "1/2"
+        ],
+        [
+          "3"
+        ]
+      ]
     },
     {
       "type": "text",
@@ -62,6 +92,6 @@
       "body": "\n\n<div class=\"important\">\n<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                            1.\n                        </td>\n<td>\n                            \\(\\log_a a = 1\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            2.\n                        </td>\n<td>\n                            \\(\\log_a 1 = 0\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            3.\n                        </td>\n<td>\n                            \\(\\log_a a^x = x\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            4.\n                        </td>\n<td>\n                            \\(a^{\\log_a x}=x\\)\n                        </td>\n</tr>\n</table>\n</div>\n</div>\n<p>\n            Zwróć uwagę, że wzory 3. i 4. wskazują na to, że\n        </p>\n<ul>\n<li>\n                potęga o podstawie \\(a\\) oraz\n            </li>\n<li>\n                logarytm o podstawie \\(a\\)\n            </li>\n</ul>\n<p>\n            to operacje odwrotne, tzn. że dla dowolnej liczby \\(x\\), jeśli\n        </p>\n<ul>\n<li>\n                obliczymy z niej najpierw potęgę o podstawie \\(a\\)\n            </li>\n<li>\n                a potem z wyniku logarytm o podstawie \\(a\\)\n            </li>\n</ul>\n<p>\n            (lub odwrotnie) to otrzymamy spowrotem liczbę \\(x\\).\n        </p>\n        \\[\n        x\\quad\\xrightarrow{\\text{potęga o podstawie }a}\\quad a^x\\quad\\xrightarrow{\\text{logarytm po podstawie }a}\\quad \\log_a a^x=x\n        \\]\n        \\[\n        x\\quad\\xrightarrow{\\text{logarytm o podstawie }a}\\quad\\log_a x\\quad\\xrightarrow{\\text{potęga po podstawie }a}\\quad a^{\\log_a x}=x\n        \\]\n    </div>\n"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "050d1df989fabc7b638f9017a9adda54c4a48b3760f85bea98e042609ea62923"
+  "fully_mapped": true,
+  "seed_hash": "4f20486b6e13123043125489543b51b4f7a4f29ab64c12b6f6e76c69d40186dd"
 }
