@@ -1,6 +1,8 @@
 import pytest
 
 from courses.models import FillTableElement
+from tests.factories import make_course
+from tests.factories import make_image_asset
 
 pytestmark = pytest.mark.django_db
 
@@ -173,3 +175,34 @@ def test_image_only_fill_table_has_no_math():
                                            {"kind": "answer", "answer": "1"}]]})
     el.save()
     assert _fill_table_has_math(el) is False
+
+
+def test_resolved_cells_replaces_pk_with_asset():
+    course = make_course()
+    asset = make_image_asset(course, "g.png")
+    el = FillTableElement(
+        data={"cells": [[{"kind": "image", "media": asset.pk, "alt": "graph"}]]}
+    )
+    el.save()
+    cell = el.resolved_cells[0][0]
+    assert cell["kind"] == "image"
+    assert cell["media"].pk == asset.pk  # a MediaAsset instance, not the int pk
+    assert cell["alt"] == "graph"
+
+
+def test_resolved_cells_unresolved_pk_degrades_to_static():
+    el = FillTableElement(data={"cells": [[{"kind": "image", "media": 999999, "alt": "x"}]]})
+    el.save()
+    cell = el.resolved_cells[0][0]
+    assert cell["kind"] == "static" and cell["html"] == ""
+
+
+def test_resolved_cells_static_and_answer_pass_through():
+    el = FillTableElement(
+        data={"cells": [[{"kind": "static", "html": "s"},
+                         {"kind": "answer", "answer": "1"}]]}
+    )
+    el.save()
+    grid = el.resolved_cells
+    assert grid[0][0]["kind"] == "static" and grid[0][0]["html"] == "s"
+    assert grid[0][1]["kind"] == "answer"

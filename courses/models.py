@@ -1054,6 +1054,31 @@ class FillTableElement(ElementBase):
     def normalized_data(self):
         return self.normalize_data(self.data)
 
+    @property
+    def resolved_cells(self):
+        """The normalized grid with each image cell's `media` int pk replaced by its
+        MediaAsset (one in_bulk pass). Unresolved pks degrade to an empty static cell
+        so a dangling asset never 500s a lesson. Static/answer cells pass through.
+        A property (parallel to normalized_data) so the editor template can read it."""
+        cells = self.normalize_data(self.data)["cells"]
+        ids = [c["media"] for row in cells for c in row if c.get("kind") == "image"]
+        assets = MediaAsset.objects.in_bulk(ids)
+        out = []
+        for row in cells:
+            out_row = []
+            for c in row:
+                if c.get("kind") == "image":
+                    asset = assets.get(c["media"])
+                    if asset is not None:
+                        out_row.append({**c, "media": asset})
+                    else:
+                        out_row.append({"kind": self.STATIC, "html": "",
+                                        "halign": c["halign"], "valign": c["valign"]})
+                else:
+                    out_row.append(c)
+            out.append(out_row)
+        return out
+
 
 class GalleryElement(ElementBase):
     """Image carousel: an ordered list of course-image references, each with an
