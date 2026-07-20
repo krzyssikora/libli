@@ -655,3 +655,61 @@ def test_rebuild_wipes_then_recreates_in_order(tmp_path):
     assert len(rows) == 2  # rebuilt, not duplicated
     assert TextElement.objects.filter(elements__unit=unit).count() == 2
     assert rows[0].order < rows[1].order  # JSON array order preserved
+
+
+def test_build_spoiler_nested_creates_children_in_order():
+    from courses.models import SpoilerElement
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    el = {
+        "type": "spoiler",
+        "label": "Answer",
+        "elements": [
+            {"type": "text", "body": "<p>step 1</p>"},
+            {"type": "text", "body": "<p>step 2</p>"},
+        ],
+    }
+    obj = build_element(
+        course, unit, el, source_root="", source_dir="", allow_html=False
+    )
+    assert isinstance(obj, SpoilerElement)
+    join = obj.join_row()
+    kids = list(join.children.order_by("order", "pk"))
+    assert [k.tab_id for k in kids] == [SpoilerElement.SLOT_ID, SpoilerElement.SLOT_ID]
+    assert [k.content_object.body for k in kids] == ["<p>step 1</p>", "<p>step 2</p>"]
+
+
+def test_build_spoiler_empty_elements_list_builds_empty_disclosure():
+    from courses.models import SpoilerElement
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    el = {"type": "spoiler", "label": "L", "elements": []}  # key present, no body
+    obj = build_element(course, unit, el, source_root="", source_dir="", allow_html=False)
+    assert isinstance(obj, SpoilerElement)
+    assert obj.resolved_children() == []
+    assert obj.body == ""
+
+
+def test_build_spoiler_legacy_body_still_flat():
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    el = {"type": "spoiler", "label": "L", "body": "<p>legacy</p>"}
+    obj = build_element(course, unit, el, source_root="", source_dir="", allow_html=False)
+    assert obj.resolved_children() == []
+    assert "<p>legacy</p>" in obj.body
+
+
+def test_build_spoiler_rejects_container_child():
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    el = {
+        "type": "spoiler",
+        "label": "L",
+        "elements": [{"type": "tabs", "tabs": []}],  # container child -> refuse
+    }
+    with pytest.raises(LoaderError):
+        build_element(course, unit, el, source_root="", source_dir="", allow_html=False)

@@ -62,10 +62,37 @@ def build_element(
     if etype == "math":
         return _attach(unit, MathElement.objects.create(latex=el["latex"]))
     if etype == "spoiler":
+        if "elements" in el:  # nested path — key presence, NOT truthiness
+            obj = SpoilerElement.objects.create(label=el.get("label", "")[:120])
+            join = Element.objects.create(
+                unit=unit, parent=parent, tab_id=tab_id, content_object=obj
+            )
+            for child in el["elements"]:
+                ctype = child.get("type")
+                # Defence-in-depth: the parser's no-nest-container mode never emits
+                # a container child of a spoiler, so one here is malformed JSON.
+                if ctype in ("tabs", "two_column") or (
+                    ctype == "spoiler" and "elements" in child
+                ):
+                    raise LoaderError(
+                        f"container element ({ctype}) nested inside a spoiler "
+                        f"in unit {unit.pk}"
+                    )
+                build_element(
+                    course,
+                    unit,
+                    child,
+                    source_root=source_root,
+                    source_dir=source_dir,
+                    allow_html=allow_html,
+                    parent=join,
+                    tab_id=SpoilerElement.SLOT_ID,
+                )
+            return obj
         return _attach(
             unit,
             SpoilerElement.objects.create(
-                label=el.get("label", "")[:120],  # SpoilerElement.label is varchar(120)
+                label=el.get("label", "")[:120],  # varchar(120); parser labels uncapped
                 body=el["body"],
             ),
         )
