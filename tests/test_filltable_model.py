@@ -131,8 +131,13 @@ def test_cell_image_kind_valid_media_preserved():
         {"cells": [[{"kind": "image", "media": 7, "alt": "graph", "halign": "center"}]]}
     )
     c = nd["cells"][0][0]
-    assert c == {"kind": "image", "media": 7, "alt": "graph",
-                 "halign": "center", "valign": "top"}
+    assert c == {
+        "kind": "image",
+        "media": 7,
+        "alt": "graph",
+        "halign": "center",
+        "valign": "top",
+    }
 
 
 @pytest.mark.parametrize("bad_media", [None, "7", 7.0, True, {"x": 1}])
@@ -151,7 +156,9 @@ def test_cell_image_missing_media_key_degrades():
 
 
 def test_cell_image_non_string_alt_coerced():
-    nd = FillTableElement.normalize_data({"cells": [[{"kind": "image", "media": 3, "alt": 9}]]})
+    nd = FillTableElement.normalize_data(
+        {"cells": [[{"kind": "image", "media": 3, "alt": 9}]]}
+    )
     assert nd["cells"][0][0]["alt"] == ""
 
 
@@ -163,7 +170,9 @@ def test_sanitized_data_image_cell_keeps_media_trims_alt_no_html():
     cell = el.data["cells"][0][0]
     assert cell["kind"] == "image" and cell["media"] == 5
     assert cell["alt"] == "a graph"
-    assert "html" not in cell  # the else-branch's sanitize_cell must NOT run on image cells
+    assert (
+        "html" not in cell
+    )  # the else-branch's sanitize_cell must NOT run on image cells
 
 
 def test_image_only_fill_table_has_no_math():
@@ -171,8 +180,16 @@ def test_image_only_fill_table_has_no_math():
     # html; an image cell has no html key, so it contributes no math.
     from courses.views import _fill_table_has_math
 
-    el = FillTableElement(data={"cells": [[{"kind": "image", "media": 5, "alt": "x"},
-                                           {"kind": "answer", "answer": "1"}]]})
+    el = FillTableElement(
+        data={
+            "cells": [
+                [
+                    {"kind": "image", "media": 5, "alt": "x"},
+                    {"kind": "answer", "answer": "1"},
+                ]
+            ]
+        }
+    )
     el.save()
     assert _fill_table_has_math(el) is False
 
@@ -191,7 +208,9 @@ def test_resolved_cells_replaces_pk_with_asset():
 
 
 def test_resolved_cells_unresolved_pk_degrades_to_static():
-    el = FillTableElement(data={"cells": [[{"kind": "image", "media": 999999, "alt": "x"}]]})
+    el = FillTableElement(
+        data={"cells": [[{"kind": "image", "media": 999999, "alt": "x"}]]}
+    )
     el.save()
     cell = el.resolved_cells[0][0]
     assert cell["kind"] == "static" and cell["html"] == ""
@@ -199,8 +218,11 @@ def test_resolved_cells_unresolved_pk_degrades_to_static():
 
 def test_resolved_cells_static_and_answer_pass_through():
     el = FillTableElement(
-        data={"cells": [[{"kind": "static", "html": "s"},
-                         {"kind": "answer", "answer": "1"}]]}
+        data={
+            "cells": [
+                [{"kind": "static", "html": "s"}, {"kind": "answer", "answer": "1"}]
+            ]
+        }
     )
     el.save()
     grid = el.resolved_cells

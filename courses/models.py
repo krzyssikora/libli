@@ -1072,8 +1072,14 @@ class FillTableElement(ElementBase):
                     if asset is not None:
                         out_row.append({**c, "media": asset})
                     else:
-                        out_row.append({"kind": self.STATIC, "html": "",
-                                        "halign": c["halign"], "valign": c["valign"]})
+                        out_row.append(
+                            {
+                                "kind": self.STATIC,
+                                "html": "",
+                                "halign": c["halign"],
+                                "valign": c["valign"],
+                            }
+                        )
                 else:
                     out_row.append(c)
             out.append(out_row)
