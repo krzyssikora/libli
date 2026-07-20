@@ -189,11 +189,35 @@ def build_element(
         return _attach(unit, q)
     if etype == "fill_table":
         # Group B #4: a fill-in-the-blanks self-check table (input cells ->
-        # accepted-answer cells). normalize_data sanitizes static cells.
+        # accepted-answer cells). Image cells (Task 4's parser output) carry a
+        # media_src path that must be resolved to a MediaAsset pk before
+        # normalize_data (which only accepts an already-resolved int `media`
+        # and otherwise degrades the cell to empty static) sanitizes the rest.
+        data = el["data"]
+        rows = data.get("cells") if isinstance(data.get("cells"), list) else []
+        resolved_rows = []
+        for row in rows:
+            resolved_row = []
+            for cell in row if isinstance(row, list) else []:
+                if isinstance(cell, dict) and cell.get("kind") == "image":
+                    path = resolve_source(source_root, source_dir, cell["media_src"])
+                    asset = get_or_create_asset(course, "image", path)
+                    resolved_row.append(
+                        {
+                            "kind": "image",
+                            "media": asset.pk,
+                            "alt": cell.get("alt", ""),
+                            **{k: cell[k] for k in ("halign", "valign") if k in cell},
+                        }
+                    )
+                else:
+                    resolved_row.append(cell)
+            resolved_rows.append(resolved_row)
+        resolved_data = {**data, "cells": resolved_rows}
         return _attach(
             unit,
             FillTableElement.objects.create(
-                data=FillTableElement.normalize_data(el["data"])
+                data=FillTableElement.normalize_data(resolved_data)
             ),
         )
     if etype == "switch_gate":

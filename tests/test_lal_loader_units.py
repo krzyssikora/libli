@@ -344,6 +344,67 @@ def test_build_fill_table(tmp_path):
     assert Element.objects.filter(unit=unit).count() == 1
 
 
+def _write_png(path):
+    from io import BytesIO
+
+    from PIL import Image
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    buf = BytesIO()
+    Image.new("RGB", (1, 1)).save(buf, "PNG")
+    path.write_bytes(buf.getvalue())
+
+
+def test_build_fill_table_resolves_image_cell_media(tmp_path):
+    course = CourseFactory()
+    unit = _unit(course)
+    _write_png(tmp_path / "x" / "static" / "g.png")
+    el = {
+        "type": "fill_table",
+        "data": {
+            "cells": [
+                [
+                    {"kind": "image", "media_src": "static/g.png", "alt": "graph"},
+                    {"kind": "answer", "answer": "1"},
+                ]
+            ]
+        },
+    }
+    obj = build_element(
+        course, unit, el, source_root=tmp_path, source_dir="x", allow_html=False
+    )
+    assert isinstance(obj, FillTableElement)
+    cell = obj.data["cells"][0][0]
+    assert cell["kind"] == "image"
+    asset = MediaAsset.objects.get(pk=cell["media"])
+    assert asset.course == course and asset.kind == "image"
+    assert cell["alt"] == "graph"
+
+
+def test_build_fill_table_image_dedups_on_reload(tmp_path):
+    course = CourseFactory()
+    unit = _unit(course)
+    _write_png(tmp_path / "x" / "static" / "g.png")
+    el = {
+        "type": "fill_table",
+        "data": {
+            "cells": [
+                [
+                    {"kind": "image", "media_src": "static/g.png", "alt": ""},
+                    {"kind": "answer", "answer": "1"},
+                ]
+            ]
+        },
+    }
+    build_element(
+        course, unit, el, source_root=tmp_path, source_dir="x", allow_html=False
+    )
+    build_element(
+        course, unit, el, source_root=tmp_path, source_dir="x", allow_html=False
+    )
+    assert MediaAsset.objects.filter(course=course, kind="image").count() == 1
+
+
 def test_build_switch_gate(tmp_path):
     from courses.fillblank import SENTINEL
 
@@ -686,7 +747,9 @@ def test_build_spoiler_empty_elements_list_builds_empty_disclosure():
 
     course, unit = make_course_with_unit()
     el = {"type": "spoiler", "label": "L", "elements": []}  # key present, no body
-    obj = build_element(course, unit, el, source_root="", source_dir="", allow_html=False)
+    obj = build_element(
+        course, unit, el, source_root="", source_dir="", allow_html=False
+    )
     assert isinstance(obj, SpoilerElement)
     assert obj.resolved_children() == []
     assert obj.body == ""
@@ -697,7 +760,9 @@ def test_build_spoiler_legacy_body_still_flat():
 
     course, unit = make_course_with_unit()
     el = {"type": "spoiler", "label": "L", "body": "<p>legacy</p>"}
-    obj = build_element(course, unit, el, source_root="", source_dir="", allow_html=False)
+    obj = build_element(
+        course, unit, el, source_root="", source_dir="", allow_html=False
+    )
     assert obj.resolved_children() == []
     assert "<p>legacy</p>" in obj.body
 
@@ -729,7 +794,12 @@ def test_build_spoiler_flagged_child_builds_html_under_allow_html():
         "label": "L",
         "elements": [
             {"type": "text", "body": "<p>a</p>"},
-            {"flagged": True, "type": "html", "raw": "<div>x</div>", "reason": "unmapped"},
+            {
+                "flagged": True,
+                "type": "html",
+                "raw": "<div>x</div>",
+                "reason": "unmapped",
+            },
         ],
     }
     obj = build_element(
@@ -753,7 +823,12 @@ def test_build_spoiler_flagged_child_still_errors_without_allow_html():
         "type": "spoiler",
         "label": "L",
         "elements": [
-            {"flagged": True, "type": "html", "raw": "<div>x</div>", "reason": "unmapped"}
+            {
+                "flagged": True,
+                "type": "html",
+                "raw": "<div>x</div>",
+                "reason": "unmapped",
+            }
         ],
     }
     with pytest.raises(LoaderError):
