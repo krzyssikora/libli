@@ -608,6 +608,48 @@ localStorage.setItem('multiple_feedback', JSON.stringify({20: [['tak', 'nie']]})
 """
 
 
+def test_img_alone_in_paragraph_becomes_image_not_empty_text():
+    # nh3 strips <img> from TextElement.body, so a <p> holding only an image used
+    # to render as an empty paragraph. It must become an ImageElement.
+    elements, _ = parse_lesson(
+        '<p><img alt="d" src="static/diagram.png"/></p>', "x.html"
+    )
+    imgs = [e for e in elements if e["type"] == "image"]
+    assert [e["media_src"] for e in imgs] == ["static/diagram.png"]
+    # no empty/near-empty text block left behind
+    assert not any(e["type"] == "text" for e in elements)
+
+
+def test_img_inside_inline_div_is_extracted():
+    elements, _ = parse_lesson(
+        '<div style="display:inline-block"><img alt="" src="static/g.gif"/></div>',
+        "x.html",
+    )
+    assert [e["media_src"] for e in elements if e["type"] == "image"] == [
+        "static/g.gif"
+    ]
+
+
+def test_text_around_inline_image_keeps_order_and_text():
+    elements, _ = parse_lesson(
+        '<p>Zobacz <img alt="" src="static/pic.png"/> ten rysunek.</p>', "x.html"
+    )
+    kinds = [e["type"] for e in elements]
+    assert kinds == ["text", "image", "text"]
+    assert "Zobacz" in elements[0]["body"]
+    assert elements[1]["media_src"] == "static/pic.png"
+    assert "rysunek" in elements[2]["body"]
+
+
+def test_plain_paragraph_without_image_is_single_text_block():
+    # regression guard: a normal paragraph is untouched (one TextElement).
+    elements, _ = parse_lesson("<p>Zwykły akapit bez obrazka.</p>", "x.html")
+    texts = [e for e in elements if e["type"] == "text"]
+    assert len(texts) == 1
+    assert "Zwykły akapit" in texts[0]["body"]
+    assert not any(e["type"] == "image" for e in elements)
+
+
 def test_multi_ans_image_prompt_renders_images_not_flattened():
     elements, flags = parse_lesson(MULTI_ANS_IMAGE_STEM, "x.html")
     imgs = [e for e in elements if e["type"] == "image"]

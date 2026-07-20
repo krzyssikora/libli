@@ -443,7 +443,7 @@ def _walk(nodes, elements, flags, consumed, state):
             # F3: a top-level <span> (one that survived F1's inline-div text
             # emit, e.g. a span at a level with block siblings) -> TextElement.
             _flag_relative_hrefs(node, flags)
-            elements.append({"type": "text", "body": str(node)})  # already escaped
+            _emit_text_or_images(node, str(node), elements, flags)  # already escaped
             continue
 
         if name in _TEXT_TAGS or name in _INLINE_TAGS:
@@ -452,7 +452,9 @@ def _walk(nodes, elements, flags, consumed, state):
                 elements.append({"type": "math", "latex": latex})  # display math
             else:
                 _flag_relative_hrefs(node, flags)  # warn on nh3-dropped hrefs (I2)
-                elements.append({"type": "text", "body": str(node)})  # already escaped
+                _emit_text_or_images(
+                    node, str(node), elements, flags
+                )  # already escaped
             continue
 
         if name == "figure":
@@ -542,7 +544,7 @@ def _walk(nodes, elements, flags, consumed, state):
                     _walk(list(node.children), elements, flags, consumed, state)
                 else:
                     _flag_relative_hrefs(node, flags)
-                    elements.append({"type": "text", "body": node.decode_contents()})
+                    _emit_text_or_images(node, node.decode_contents(), elements, flags)
                 continue
             if "question_solution" not in classes:
                 # R1: descend into any other container div (table_wrapper,
@@ -554,7 +556,7 @@ def _walk(nodes, elements, flags, consumed, state):
                     _walk(list(node.children), elements, flags, consumed, state)
                 else:
                     _flag_relative_hrefs(node, flags)
-                    elements.append({"type": "text", "body": node.decode_contents()})
+                    _emit_text_or_images(node, node.decode_contents(), elements, flags)
                 continue
             # A .question_solution that a LATER show_solution button will claim
             # (R4 reverse order) must be skipped now, not emitted as unmapped —
@@ -574,7 +576,7 @@ def _walk(nodes, elements, flags, consumed, state):
                 _walk(list(node.children), elements, flags, consumed, state)
             else:
                 _flag_relative_hrefs(node, flags)
-                elements.append({"type": "text", "body": node.decode_contents()})
+                _emit_text_or_images(node, node.decode_contents(), elements, flags)
             continue
 
         _unmapped(f"unmapped <{name}> in lesson body", node, elements, flags)
@@ -1011,6 +1013,43 @@ def _image_dict(img):
         "alt": img.get("alt", ""),
         "figcaption": "",
     }
+
+
+def _emit_text_with_images(node, elements, flags):
+    """Emit a text-destined block that contains <img>: nh3 strips <img> from a
+    sanitized TextElement.body, so pull each image out as its own ImageElement and
+    coalesce the surrounding content into TextElements, preserving reading order.
+    NavigableStrings are math-escaped like the F2 bare-text rule; child tags are
+    already re-escaped by str()."""
+    buf = []
+
+    def flush():
+        html = "".join(buf).strip()
+        buf.clear()
+        if html and BeautifulSoup(html, "html.parser").get_text(strip=True):
+            elements.append({"type": "text", "body": f"<p>{html}</p>"})
+
+    for child in list(node.children):
+        if isinstance(child, NavigableString):
+            buf.append(escape_math_delimited(str(child)))
+        elif getattr(child, "name", None) == "img":
+            flush()
+            elements.append(_image_dict(child))
+        elif isinstance(child, Tag) and child.find("img") is not None:
+            flush()
+            _emit_text_with_images(child, elements, flags)
+        else:
+            buf.append(str(child))
+    flush()
+
+
+def _emit_text_or_images(node, body, elements, flags):
+    """Emit `node` as a single TextElement, unless it holds an <img> (which nh3
+    would strip from the sanitized body) — then split it into text + images."""
+    if isinstance(node, Tag) and node.find("img") is not None:
+        _emit_text_with_images(node, elements, flags)
+    else:
+        elements.append({"type": "text", "body": body})
 
 
 def _emit_image_table(table, elements, flags):
