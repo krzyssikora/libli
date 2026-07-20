@@ -107,12 +107,9 @@ _INTERACTIVE_MARKERS = {
     "truth",
     "false",
     "confirmTF",
-    # NB: table_input* are NOT markers — a table holding them maps to a native
-    # FillTableElement (Group B #4), so the table is reached, not placeholdered.
-    # fill show-next
-    "fill_show_next",
-    "fill_step",
-    "fill_answer",
+    # NB: table_input* / fill_answer / fill_show_next / fill_step are NOT markers —
+    # table_input -> FillTable/FillBlank (Group B #4/#5), and fill_show_next is a
+    # RevealGate chain with an inline FillBlank per step (Group B #8).
     # NB: show_next/show_step are NOT markers — they map natively to a RevealGate
     # chain (Group B #1), so their container must descend, not be placeholdered.
     # guess higher/lower
@@ -270,8 +267,13 @@ def parse_lesson(html, source_html):
         # answer keys live in the RAW file's inline setItem scripts (pre-escape).
         "switch_answers": extract_int_map(html, "switch_answers"),
         "table_answers": extract_str_map(html, "table_answers"),
+        "answers_fill_next": extract_str_map(html, "answers_fill_next"),
         "correct_choices": extract_int_map(html, "correct_choices"),
     }
+    # Precompute each fill input's accepted answer BEFORE the walk mutates the tree
+    # (a block's inputs are replace_with()'d by tokens; a later block's positional
+    # index would otherwise shift). Keyed by the input node's id().
+    state["fill_answer_of"] = _fill_answer_map(soup, state)
     _walk(list(root.children), elements, flags, consumed, state)
     return elements, flags
 
@@ -304,10 +306,10 @@ def _walk(nodes, elements, flags, consumed, state):
         if any(c in _CHROME_CLASSES for c in classes_here):
             continue  # Rule 2: JS-only feedback/iframe chrome -> drop silently
 
-        if "show_next" in classes_here:
-            # Group B #1: a "pokaż dalej" progressive-reveal trigger -> RevealGate.
-            # The following .show_step's content becomes the revealed siblings
-            # (the client cascade reveals up to the next gate).
+        if "show_next" in classes_here or "fill_show_next" in classes_here:
+            # Group B #1/#8: a "pokaż dalej" progressive-reveal trigger -> RevealGate.
+            # The following .show_step / .fill_step content becomes the revealed
+            # siblings (a fill_step's fill_answer becomes an inline FillBlank).
             elements.append(
                 {
                     "type": "reveal_gate",
@@ -319,7 +321,7 @@ def _walk(nodes, elements, flags, consumed, state):
                 consumed.add(id(step))
                 _walk(list(step.children), elements, flags, consumed, state)
             continue
-        if "show_step" in classes_here:
+        if "show_step" in classes_here or "fill_step" in classes_here:
             # Consumed by its gate above (skipped via `consumed`); an orphan one
             # with no preceding gate still descends its content in place.
             _walk(list(node.children), elements, flags, consumed, state)
@@ -357,12 +359,13 @@ def _walk(nodes, elements, flags, consumed, state):
         if (
             name != "table"
             and not _has_block_child(node)
-            and node.find(class_="table_input") is not None
+            and _has_fill_input(node)
         ):
-            # Group B #5: an inline text block holding table_input(s) NOT inside a
-            # <table> -> a FillBlank self-check (else nh3 strips the <input> and the
-            # block renders as an empty paragraph). Block containers descend first
-            # (so a real fill TABLE is reached by the table branch, not here).
+            # Group B #5/#8: an inline text block holding table_input/fill_answer
+            # input(s) NOT inside a <table> -> a FillBlank self-check (else nh3
+            # strips the <input> and the block renders as an empty paragraph).
+            # Block containers descend first (a real fill TABLE reaches the table
+            # branch, a fill_step reaches the show-next handler).
             elements.append(_fillblank_from_block(node, state))
             continue
 
@@ -537,20 +540,38 @@ def _answer_alt_list(raw):
     return [raw]
 
 
+# inline fill-in input classes and the localStorage key holding their answers.
+_FILL_INPUTS = (("table_input", "table_answers"), ("fill_answer", "answers_fill_next"))
+
+
+def _has_fill_input(node):
+    return any(node.find(class_=cls) is not None for cls, _ in _FILL_INPUTS)
+
+
+def _fill_answer_map(soup, state):
+    """Map every fill input node's id() to its accepted answer, indexed per input
+    class within its enclosing question (the JS numbers table_input/fill_answer
+    per-question). Built once, before the walk mutates the tree."""
+    out = {}
+    for qnode in soup.find_all(id=lambda x: x and x.startswith("question")):
+        m = re.search(r"\d+", qnode.get("id", ""))
+        qid = int(m.group()) if m else None
+        for cls, key in _FILL_INPUTS:
+            answers = state.get(key, {}).get(qid, [])
+            for i, inp in enumerate(qnode.find_all(class_=cls)):
+                out[id(inp)] = answers[i] if i < len(answers) else ""
+    return out
+
+
 def _fillblank_from_block(node, state):
-    """Group B #5: turn a text block holding inline table_input(s) into a
-    {type:fillblank} dict — the block content becomes the stem with each input
-    replaced by a sentinel blank token, and each blank's accepted answers come
-    from table_answers[qid] (indexed over ALL inputs in the enclosing question)."""
-    qid = _enclosing_qid(node)
-    answers = state.get("table_answers", {}).get(qid, [])
-    qnode = node.find_parent(id=lambda x: x and x.startswith("question")) or node
-    idx_map = {id(inp): i for i, inp in enumerate(qnode.find_all(class_="table_input"))}
+    """Group B #5/#8: turn a text block holding inline table_input/fill_answer
+    input(s) into a {type:fillblank} dict — the block content becomes the stem
+    with each input replaced by a sentinel blank token; accepted answers come from
+    the precomputed state["fill_answer_of"] map (see _fill_answer_map)."""
+    answer_of = state.get("fill_answer_of", {})
     blanks = []
-    for inp in node.find_all(class_="table_input"):
-        gidx = idx_map.get(id(inp))
-        raw = answers[gidx] if gidx is not None and gidx < len(answers) else ""
-        blanks.append(_answer_alt_list(raw))
+    for inp in node.find_all(class_=[cls for cls, _ in _FILL_INPUTS]):
+        blanks.append(_answer_alt_list(answer_of.get(id(inp), "")))
         inp.replace_with(NavigableString(_blank_token(len(blanks) - 1)))
     return {"type": "fillblank", "stem": node.decode_contents(), "blanks": blanks}
 
@@ -723,9 +744,9 @@ def _next_show_step(nodes, start, consumed):
         if not isinstance(n, Tag):
             continue
         cls = n.get("class") or []
-        if "show_step" in cls and id(n) not in consumed:
+        if ("show_step" in cls or "fill_step" in cls) and id(n) not in consumed:
             return n
-        if "show_next" in cls:
+        if "show_next" in cls or "fill_show_next" in cls:
             return None  # the next gate begins before any step
     return None
 

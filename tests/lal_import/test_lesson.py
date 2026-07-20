@@ -626,6 +626,34 @@ def test_switch_confirm_becomes_switch_grid():
     assert not any(e.get("flagged") for e in elements)
 
 
+# --- Group B #8: fill_show_next -> RevealGate chain + inline FillBlank per step ---
+FILL_SHOW_NEXT = r"""
+<div id="question10">
+  <div class="fill_steps">
+    <p>Wstęp do zadania.</p>
+    <div class="fill_show_next ks_button">pokaż dalej</div>
+    <div class="fill_step"><p>Krok \(1\): <input class="fill_answer"></p></div>
+    <div class="fill_show_next ks_button">pokaż dalej</div>
+    <div class="fill_step"><p>Krok \(2\): <input class="fill_answer"></p></div>
+  </div>
+</div>
+<script>localStorage.setItem("answers_fill_next",
+JSON.stringify({10: [8, 0]}));</script>
+"""
+
+
+def test_fill_show_next_becomes_reveal_gate_chain_with_fillblanks():
+    elements, flags = parse_lesson(FILL_SHOW_NEXT, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    types = [e["type"] for e in elements]
+    assert types.count("reveal_gate") == 2
+    fbs = [e for e in elements if e["type"] == "fillblank"]
+    assert len(fbs) == 2
+    assert fbs[0]["blanks"] == [["8"]]
+    assert fbs[1]["blanks"] == [["0"]]
+    assert any("Wstęp" in e.get("body", "") for e in elements if e["type"] == "text")
+
+
 # --- Group B #1: show_next progressive reveal -> RevealGate chain ---
 SHOW_NEXT_WIDGET = r"""
 <div class="steps">
