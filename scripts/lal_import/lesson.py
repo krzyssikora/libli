@@ -232,25 +232,18 @@ def _is_reveal_table(table):
     )
 
 
-def _reveal_table_spoilers(table):
-    """R3: one Spoiler per <tr> that has a .question_solution cell. label = the
-    row's first <td> text (the concept cell); the empty .question_answer cell and
-    the .show_solution button cell are ignored."""
+def _reveal_table_spoilers(table, consumed, state):
+    """One nested Spoiler per <tr> with a .question_solution cell (or inlined rows,
+    inside a spoiler). label = the row's first <td> text."""
     elements, flags = [], []
     for tr in table.find_all("tr"):
         sol = tr.find(class_="question_solution")
         if sol is None:
-            continue  # skip rows with no solution
+            continue
         first_td = tr.find("td")
         label = first_td.get_text(strip=True) if first_td is not None else ""
-        _flag_relative_hrefs(sol, flags)  # spoiler body is nh3-sanitized too
-        elements.append(
-            {
-                "type": "spoiler",
-                "label": label,
-                "body": sol.decode_contents(),  # re-escapes entities on serialize
-            }
-        )
+        _flag_relative_hrefs(sol, flags)
+        _emit_solution_region(label, list(sol.children), elements, flags, consumed, state)
     return elements, flags
 
 
@@ -282,6 +275,29 @@ def parse_lesson(html, source_html):
     state["fill_answer_of"] = _fill_answer_map(soup, state)
     _walk(list(root.children), elements, flags, consumed, state)
     return elements, flags
+
+
+def _emit_solution_region(label, content_nodes, elements, flags, consumed, state):
+    """A labelled disclosure region (from <details>, show_solution, or a reveal-
+    table row). At TOP LEVEL -> a nested SpoilerElement dict whose children are the
+    walked content (images/tables/math survive as their own children). INSIDE a
+    spoiler (no-nest-container mode) -> inlined in place (label -> heading child,
+    content walked inline), never a nested container dict, keeping depth at 1."""
+    if state.get("in_spoiler"):
+        if label:
+            elements.append({"type": "text", "body": f"<h4>{label}</h4>"})
+        _walk(content_nodes, elements, flags, consumed, state)
+    else:
+        child_elements = []
+        prev = state.get("in_spoiler", False)  # always False here, but be explicit
+        state["in_spoiler"] = True
+        try:
+            _walk(content_nodes, child_elements, flags, consumed, state)
+        finally:
+            state["in_spoiler"] = prev
+        elements.append(
+            {"type": "spoiler", "label": label, "elements": child_elements}
+        )
 
 
 def _walk(nodes, elements, flags, consumed, state):
@@ -390,17 +406,22 @@ def _walk(nodes, elements, flags, consumed, state):
             _emit_multi_ans(node, elements, flags, consumed, state)
             continue
         if "ks_tabs" in classes_here:
-            # Group B #6: a tabbed container -> TabsElement with nested children.
-            tabs_el = _emit_tabs(node, flags, consumed, state)
-            if tabs_el is not None:
-                elements.append(tabs_el)
+            if state.get("in_spoiler"):
+                # No-nest-container mode: a ks_tabs inside a spoiler can't become a
+                # nested Tabs (depth-1), so flatten it inline.
+                _flatten_tabs_inline(node, elements, flags, consumed, state)
             else:
-                _unmapped(
-                    "ks_tabs outside TabsElement's 2..10 tab bounds",
-                    node,
-                    elements,
-                    flags,
-                )
+                # Group B #6: a tabbed container -> TabsElement with nested children.
+                tabs_el = _emit_tabs(node, flags, consumed, state)
+                if tabs_el is not None:
+                    elements.append(tabs_el)
+                else:
+                    _unmapped(
+                        "ks_tabs outside TabsElement's 2..10 tab bounds",
+                        node,
+                        elements,
+                        flags,
+                    )
             continue
 
         if name != "table" and not _has_block_child(node) and _has_fill_input(node):
@@ -474,9 +495,10 @@ def _walk(nodes, elements, flags, consumed, state):
             continue
         if name == "details":
             if node.find(class_="ks_tabs") is not None:
-                # A <details> that wraps a tab group: drop the collapse wrapper and
-                # emit its content natively (summary -> heading, inner ks_tabs ->
-                # TabsElement). User choice: native tabs, no wrapper (Group B #6).
+                # A <details> wrapping a tab group: drop the collapse wrapper and
+                # emit its content (summary -> heading). At top level the inner
+                # ks_tabs becomes a native TabsElement; inside a spoiler the ks_tabs
+                # branch below flattens it (in_spoiler propagates via `state`).
                 summary = node.find("summary")
                 if summary is not None:
                     label = summary.decode_contents().strip()
@@ -485,20 +507,20 @@ def _walk(nodes, elements, flags, consumed, state):
                     summary.extract()
                 _walk(list(node.children), elements, flags, consumed, state)
             else:
-                _emit_details(node, elements, flags)
+                _emit_details(node, elements, flags, consumed, state)
             continue
         if _is_show_solution_button(node):
             sol = _find_solution(nodes, i, consumed)
             if sol is not None:
                 consumed.add(id(sol))  # so the loop does not re-flag it (I2)
-                _flag_relative_hrefs(sol, flags)  # spoiler body is nh3-sanitized too
-                body = sol.decode_contents()  # re-escapes entities on serialize
-                elements.append(
-                    {
-                        "type": "spoiler",
-                        "label": node.get_text(strip=True) or "zobacz",
-                        "body": body,
-                    }
+                _flag_relative_hrefs(sol, flags)
+                _emit_solution_region(
+                    node.get_text(strip=True) or "zobacz",
+                    list(sol.children),
+                    elements,
+                    flags,
+                    consumed,
+                    state,
                 )
                 continue
             _unmapped("show_solution button without solution", node, elements, flags)
@@ -513,7 +535,7 @@ def _walk(nodes, elements, flags, consumed, state):
                 flags.extend(tflags)
                 _flag_relative_hrefs(node, flags)
             elif _is_reveal_table(node):
-                sp_elements, sp_flags = _reveal_table_spoilers(node)
+                sp_elements, sp_flags = _reveal_table_spoilers(node, consumed, state)
                 elements.extend(sp_elements)
                 flags.extend(sp_flags)
             elif node.find("img") is not None:
@@ -904,6 +926,23 @@ def _emit_tabs(ks_tabs, flags, consumed, state):
     return {"type": "tabs", "tabs": tabs}
 
 
+def _flatten_tabs_inline(node, elements, flags, consumed, state):
+    """No-nest-container mode: reuse _emit_tabs to parse the tab group, then splice
+    it inline -- each tab label -> a heading text child, each tab's parsed content
+    appended as sibling children. _emit_tabs's internal walk sees state['in_spoiler']
+    too, so any deeper container inside a panel is likewise flattened."""
+    tabs_el = _emit_tabs(node, flags, consumed, state)
+    if tabs_el is None:
+        _unmapped(
+            "ks_tabs inside spoiler outside 2..10 tab bounds", node, elements, flags
+        )
+        return
+    for tab in tabs_el["tabs"]:
+        if tab.get("label"):
+            elements.append({"type": "text", "body": f"<h4>{tab['label']}</h4>"})
+        elements.extend(tab.get("elements", []))
+
+
 def _emit_switch_grid(container, elements, state):
     """Group B #3: a .switch_options block -> one SwitchGridElement. Each
     .switch_line is one grid line with a single cycler; its correct index is
@@ -1127,17 +1166,12 @@ def _emit_video(video, elements, flags):
     elements.append({"type": "video", "media_src": src})
 
 
-def _emit_details(details, elements, flags):
-    """R4: <details><summary>LABEL</summary>BODY</details> -> Spoiler."""
+def _emit_details(details, elements, flags, consumed, state):
+    """<details><summary>LABEL</summary>BODY</details> -> nested SpoilerElement
+    (or inlined, inside a spoiler). BODY is walked into child element dicts."""
     summary = details.find("summary")
     label = summary.get_text(strip=True) if summary is not None else ""
     if summary is not None:
-        summary.extract()  # so decode_contents() below yields BODY only
-    _flag_relative_hrefs(details, flags)  # spoiler body is nh3-sanitized too
-    elements.append(
-        {
-            "type": "spoiler",
-            "label": label,
-            "body": details.decode_contents(),  # re-escapes entities on serialize
-        }
-    )
+        summary.extract()
+    _flag_relative_hrefs(details, flags)  # spoiler children are nh3-sanitized too
+    _emit_solution_region(label, list(details.children), elements, flags, consumed, state)

@@ -50,7 +50,7 @@ def test_spoiler_from_show_solution():
     elements, flags = parse_lesson(html, "x.html")
     sp = next(e for e in elements if e["type"] == "spoiler")
     assert sp["label"] == "zobacz"
-    assert "emptyset" in sp["body"]
+    assert any("emptyset" in c.get("body", "") for c in sp["elements"])
     # The consumed solution div must NOT be re-emitted as an "unmapped div" flag.
     assert flags == []
 
@@ -118,7 +118,8 @@ def test_spoiler_body_preserves_escaped_math():
     )
     elements, _ = parse_lesson(html, "x.html")
     sp = next(e for e in elements if e["type"] == "spoiler")
-    assert r"\(a&lt;b\)" in sp["body"]  # entity preserved, not literal <
+    # entity preserved, not literal <
+    assert any(r"\(a&lt;b\)" in c.get("body", "") for c in sp["elements"])
 
 
 def test_r1_generic_question_div_descends_into_children():
@@ -166,8 +167,9 @@ def test_r4_details_becomes_spoiler():
     elements, _ = parse_lesson(html, "x.html")
     sp = next(e for e in elements if e["type"] == "spoiler")
     assert sp["label"] == "obliczenia"
-    assert r"\(a&lt;b\)" in sp["body"]
-    assert "obliczenia" not in sp["body"]
+    assert any(r"\(a&lt;b\)" in c.get("body", "") for c in sp["elements"])
+    # the summary label must not leak into any child body
+    assert not any("obliczenia" in c.get("body", "") for c in sp["elements"])
 
 
 def test_r5_bare_display_math_text_node_becomes_math_element():
@@ -304,7 +306,7 @@ def test_reverse_order_show_solution_finds_preceding_solution():
     elements, flags = parse_lesson(html, "x.html")
     sp = next(e for e in elements if e["type"] == "spoiler")
     assert sp["label"] == "zobacz rozwiązanie"
-    assert "x=2" in sp["body"]
+    assert any("x=2" in c.get("body", "") for c in sp["elements"])
     assert flags == []
     # The solution div must not also leak as a standalone text element.
     assert not any(e["type"] == "text" and "x=2" in e.get("body", "") for e in elements)
@@ -1052,3 +1054,101 @@ def test_show_next_step_with_block_math_kept_as_math_element():
     types = [e["type"] for e in elements]
     assert types[0] == "reveal_gate"
     assert "math" in types  # the \[...\] display block becomes a MathElement
+
+
+# --- Nestable spoiler (Task 5): all three spoiler sources emit nested `elements` ---
+
+
+def _only_spoiler(elements):
+    sp = [e for e in elements if e.get("type") == "spoiler"]
+    assert len(sp) == 1, elements
+    return sp[0]
+
+
+def test_details_with_image_becomes_nested_spoiler_with_image_child():
+    html = (
+        "<body><details><summary>Solution</summary>"
+        "<p>see</p><img src='fig.png' alt='f'></details></body>"
+    )
+    elements, _flags = parse_lesson(html, html)
+    sp = _only_spoiler(elements)
+    assert "elements" in sp and "body" not in sp
+    kinds = [c["type"] for c in sp["elements"]]
+    assert "image" in kinds
+
+
+def test_show_solution_with_image_becomes_nested_spoiler():
+    html = (
+        "<body>"
+        "<div class='show_solution'>zobacz</div>"
+        "<div class='question_solution'><p>x</p><img src='a.png'></div>"
+        "</body>"
+    )
+    elements, _flags = parse_lesson(html, html)
+    sp = _only_spoiler(elements)
+    assert "elements" in sp
+    assert any(c["type"] == "image" for c in sp["elements"])
+
+
+def test_reveal_table_row_becomes_nested_spoiler():
+    html = (
+        "<body><table><tr>"
+        "<td>concept</td>"
+        "<td class='question_solution'><p>ans</p><img src='r.png'></td>"
+        "</tr></table></body>"
+    )
+    elements, _flags = parse_lesson(html, html)
+    sp = _only_spoiler(elements)
+    assert sp["label"] == "concept"
+    assert any(c["type"] == "image" for c in sp["elements"])
+
+
+def test_details_inside_solution_is_inlined_not_nested_spoiler():
+    # No-nest-container mode: an inner <details> must NOT emit a nested spoiler dict.
+    html = (
+        "<body>"
+        "<div class='show_solution'>zobacz</div>"
+        "<div class='question_solution'>"
+        "<p>outer</p><details><summary>inner</summary><p>deep</p></details>"
+        "</div></body>"
+    )
+    elements, _flags = parse_lesson(html, html)
+    sp = _only_spoiler(elements)  # exactly ONE spoiler total (no nested one)
+    child_types = [c["type"] for c in sp["elements"]]
+    assert "spoiler" not in child_types  # inner disclosure inlined
+    # inner content is present (heading + deep text among the inlined children)
+    assert any(c["type"] == "text" for c in sp["elements"])
+
+
+def test_show_solution_inside_solution_is_inlined_not_nested_spoiler():
+    # A show_solution button + its solution INSIDE a question_solution cell must
+    # NOT emit a depth-2 spoiler dict (which the loader guard would abort on).
+    html = (
+        "<body>"
+        "<div class='show_solution'>outer</div>"
+        "<div class='question_solution'>"
+        "<p>lead</p>"
+        "<div class='show_solution'>inner</div>"
+        "<div class='question_solution'><p>deep</p></div>"
+        "</div></body>"
+    )
+    elements, _flags = parse_lesson(html, html)
+    sp = _only_spoiler(elements)  # exactly ONE spoiler (the inner one inlined)
+    assert "spoiler" not in [c["type"] for c in sp["elements"]]
+    assert any(c["type"] == "text" for c in sp["elements"])
+
+
+def test_reveal_table_inside_solution_is_inlined_not_nested_spoiler():
+    # A reveal-<table> INSIDE a question_solution cell must inline its rows, not
+    # emit nested spoiler dicts.
+    html = (
+        "<body>"
+        "<div class='show_solution'>outer</div>"
+        "<div class='question_solution'>"
+        "<table><tr><td>row</td>"
+        "<td class='question_solution'><p>ans</p></td></tr></table>"
+        "</div></body>"
+    )
+    elements, _flags = parse_lesson(html, html)
+    sp = _only_spoiler(elements)  # exactly ONE spoiler total
+    assert "spoiler" not in [c["type"] for c in sp["elements"]]
