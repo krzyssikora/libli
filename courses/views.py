@@ -195,7 +195,7 @@ def _element_has_math(obj):
             has_math_delimiters(o) for o in (obj.options or [])
         )
     if isinstance(obj, SpoilerElement):
-        return has_math_delimiters(obj.body)
+        return _spoiler_has_math(obj)
     if isinstance(obj, CalloutElement):
         return has_math_delimiters(obj.body)
     if isinstance(obj, SwitchGridElement):
@@ -236,6 +236,20 @@ def _tabs_has_math(el):
         _element_has_math(child.content_object)
         for child in join.children.prefetch_related("content_object")
     )
+
+
+def _spoiler_has_math(el):
+    """COLLECT + MUST RECURSE, mirrors _tabs_has_math. A nested spoiler has an
+    empty body, so math lives in its children; a legacy body-only spoiler has no
+    children and falls back to its body."""
+    from courses.models import SpoilerElement
+
+    if not isinstance(el, SpoilerElement):
+        return False
+    children = el.resolved_children()
+    if not children:
+        return has_math_delimiters(el.body)
+    return any(_element_has_math(c.content_object) for c in children)
 
 
 def _twocolumn_has_math(el):

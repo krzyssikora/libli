@@ -59,3 +59,34 @@ def test_render_falls_back_to_body_when_no_children():
     el = add_element(unit, sp)
     html = sp.render(element=el, state={}, slug="x", node_pk=unit.pk)
     assert "LEGACY-BODY" in html
+
+
+def test_spoiler_with_math_child_reports_has_math():
+    from courses.models import MathElement
+    from courses.views import _element_has_math
+
+    _course, unit = make_course_with_unit()
+    sp = SpoilerElement.objects.create(label="x")
+    join = Element.objects.create(unit=unit, content_object=sp)
+    Element.objects.create(
+        unit=unit,
+        content_object=MathElement.objects.create(latex="x^2"),
+        parent=join,
+        tab_id=SpoilerElement.SLOT_ID,
+        order=0,
+    )
+    assert _element_has_math(sp) is True
+
+
+def test_legacy_body_spoiler_math_still_detected():
+    from courses.views import _element_has_math
+
+    sp = SpoilerElement.objects.create(label="x", body=r"<p>\(a\)</p>")
+    assert _element_has_math(sp) is True
+
+
+def test_empty_spoiler_reports_no_math():
+    from courses.views import _element_has_math
+
+    sp = SpoilerElement.objects.create(label="x", body="")
+    assert _element_has_math(sp) is False
