@@ -324,10 +324,16 @@ The `spoiler` branch of `build_element` becomes dual-path:
   Fill-in table nestable in tabs) and contradicting this spec's own "legacy
   body-only spoiler nestable as a leaf child of Tabs is still supported." Instead
   pass a **separate `in_spoiler=True`** parameter only from the spoiler branch, and
-  gate the extra card-hiding (drop `spoiler` + the interactive/stateful cards, per
-  the I1 allowlist) on `in_spoiler`, leaving the Tabs/TwoColumn `nested` menus
-  unchanged. This is defence-in-depth over the server allowlist (I1), not a
-  substitute for it.
+  gate the extra card-hiding on `in_spoiler`, leaving the Tabs/TwoColumn `nested`
+  menus unchanged. The `in_spoiler` hiding must drop **every** card not in the
+  server allowlist so no visible card ever errors on click: the `spoiler` card and
+  the whole Interactive group, **and also the `html` card** — `html` lives in the
+  always-shown Content group (`editor/_add_menu.html:20`) and is NOT in the spoiler
+  allowlist (`{text,math,image,video,iframe,table,gallery,callout}`), so leaving it
+  visible would make it the first add card that always fails its POST
+  (`NestingError`). This is defence-in-depth over the server allowlist (I1), not a
+  substitute for it; the invariant is "every card the spoiler menu shows is one the
+  server accepts."
 - **Nesting depth — DECIDED (C5): keep the existing one-level depth invariant
   unchanged.** `validate_nesting` (`payloads.py:722`) hard-rejects any element
   whose parent itself has a parent, and that bound is load-bearing for the
@@ -493,7 +499,8 @@ under the join row → same render path.
   — is rejected with `NestingError` by the `resolve_scope` spoiler-child allowlist,
   while an allowed leaf (`text`/`image`/`table`/`math`/`video`/`iframe`/`gallery`/
   `callout`) succeeds. **Add-menu (C2/M1):** the spoiler branch's `_add_menu`
-  (passed `in_spoiler=True`) omits the `spoiler` + interactive cards; a Tabs nested
+  (passed `in_spoiler=True`) omits the `spoiler` + interactive cards **and the
+  `html` card** (every shown card is in the server allowlist); a Tabs nested
   `_add_menu` (only `nested=True`) still shows the `spoiler`/self-check cards
   (no PR #126 regression); the `_element_row` spoiler branch renders the child
   list + add-menu only for a top-level spoiler (nested spoiler → leaf `{% else %}`).
