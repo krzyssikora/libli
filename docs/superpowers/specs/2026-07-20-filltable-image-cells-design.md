@@ -206,7 +206,10 @@ inventing a new one.
   (upload/list URLs are already available to `media_picker.js` via the editor page).
   Add an **"Image cell"** toolbar toggle (peer of the existing "Answer cell"
   toggle) and a small optional **alt** input that appears when the focused cell is
-  an image cell.
+  an image cell. **The alt input is a single toolbar control, but alt is stored
+  PER CELL** (see the serialize note below): the toolbar input is only an editing
+  surface for the *focused* cell's stored alt — it must write back to that cell on
+  input, never be the sole storage.
 - **`filltable_editor.js`**:
   - A cell can now be in one of three states: static (`td[contenteditable]`),
     answer (`td[data-answer]` with an `<input>`), or **image**
@@ -237,8 +240,16 @@ inventing a new one.
     toggling a cell's kind remembers the other kinds' content so a round-trip does
     not lose the author's work. First-time → image seeds empty; image → static/
     answer restores stashed html/answer.
-  - `serialize()` emits `{kind:"image", media: <int id>, alt: <input value>,
-    halign, valign}` for image cells. `media` must serialise as a **number**
+  - **Per-cell alt storage (not the shared toolbar input).** Each `td[data-image]`
+    stores its **own** alt (e.g. a `data-alt` attribute or a nested hidden field);
+    the single toolbar alt input writes to the **focused** cell's stored alt on
+    `input`. `serialize()` reads **each cell's own** stored alt — **never** the
+    shared toolbar input. Wiring alt from the toolbar input directly would give every
+    image cell the focused cell's alt; since all 7 corpus files are multi-image
+    `[image][answer]` grids, that is the common path, and a **single-image** test
+    would pass while multi-image silently corrupts alts (a vacuous-test trap).
+  - `serialize()` emits `{kind:"image", media: <int id>, alt: <that cell's stored
+    alt>, halign, valign}` for image cells. `media` must serialise as a **number**
     (JSON int), matching `_cell`'s int check. **Note: the picker hands the asset id
     back as a string** (`data-asset-id`, media_picker.js ~117) — the editor must
     `parseInt` it before stashing/serialising, or `_cell`'s `isinstance(media, int)`
@@ -288,11 +299,16 @@ inventing a new one.
   there.
 - No `FORMAT_VERSION` bump: the transfer format already round-trips
   `FillTableElement.data`; an extra cell kind rides along. **Forward-compat note
-  (accepted):** a bundle containing an image cell, imported by an older pre-image
-  build, passes that build's lenient `_val_fill_table` but its `_cell` (no image
-  branch) sees a non-int `media` and **silently degrades the cell to empty static**
-  — the image is dropped with no error. This is accepted (no version marker); it is
-  a graceful degrade, not a crash.
+  (accepted):** a bundle containing an image cell **hard-fails** import on an older
+  pre-image build — the required export change **registers** the image asset in the
+  media manifest, but that build's lenient `_val_fill_table` returns `set()` (no
+  image branch), so the registered asset is unreferenced and `schema.py` (~313-315)
+  raises the "Media entry is not referenced by any element" `TransferError`,
+  rejecting the whole bundle **before** any builder/`_cell` runs (it never reaches a
+  degrade path). This is accepted (no version marker): a clean loud rejection on an
+  old build, not silent corruption. (Within the **same** build, an invalid/missing
+  media id still degrades to empty static via `_cell` — that separate degrade is
+  unchanged.)
 - **Transfer media registration is a REQUIRED component, not a rider** (verified in
   `courses/transfer/`). Today `_ser_fill_table` returns `dict(el.data)` **raw**,
   and `_build_fill_table` calls `normalize_data(data)` **without touching media** —
@@ -360,9 +376,11 @@ the "Falsify tests, don't run them" lesson).
   stores `media: asset.pk`; reloading is idempotent (no duplicate asset).
 - **Editor** (JS + form): serialising an image cell yields the right JSON;
   round-trip through the edit path preserves the image; the answer-required submit
-  guard ignores image cells. (Editor JS tested at whatever level the repo already
-  tests `filltable_editor.js` — e2e if that's the convention, else a form/round-trip
-  test.)
+  guard ignores image cells. **The round-trip / edit test MUST use ≥2 image cells
+  with DISTINCT alts** (all corpus grids are multi-image), so a shared-toolbar-input
+  alt bug is caught — a single-image test would pass vacuously. (Editor JS tested at
+  whatever level the repo already tests `filltable_editor.js` — e2e if that's the
+  convention, else a form/round-trip test.)
 - **Regression**: an existing fill-table with only static/answer cells is byte-for-
   byte unchanged through normalize/save/render.
 
