@@ -75,7 +75,11 @@ one ordered list), which the design leans on throughout.
   required for determinism, not optional). Return `[]` when the join row is `None`
   (transient, mid-create). Children are read via
   `join.children.order_by("order", "pk").select_related("content_type").prefetch_related("content_object")`,
-  mirroring the Tabs/two-column query.
+  mirroring the Tabs/two-column query. As with Tabs/two-column (the "ACCEPTED
+  LIMITATION" at `views.py:296-298`), nested spoiler children are **not** in
+  `build_lesson_context`'s top-level prefetch, so each rendered spoiler incurs one
+  bounded child query — accepted and consistent with the existing containers, not
+  a regression (M1).
 - Add an explicit **`SpoilerElement.render(self, *, element=None, state=None,
   slug=None, node_pk=None)`** mirroring `TabsElement.render` (`models.py:1214`),
   rendering `templates/courses/elements/spoilerelement.html` with context
@@ -96,8 +100,22 @@ one ordered list), which the design leans on throughout.
   `_spoiler_has_math(el)` that recurses `el.resolved_children()` →
   `_element_has_math(child.content_object)` (mirroring `_tabs_has_math`,
   `views.py:222`), and route `SpoilerElement` through it (prefer children when
-  present, fall back to `body`). Because container children are out of scope
-  (see C5), no other `has_*`/JS-enablement flag needs spoiler recursion.
+  present, fall back to `body`).
+- **Why only `has_math` needs recursion (I5 — corrected reasoning).** It is NOT
+  because container children are out of scope. The flags computed from the
+  top-level `elements` list are `has_math`, `has_html` (`views.py:325`), and
+  `has_questions` (`326`); the gate/stepper/markdone/switch/fill_table flags
+  (`330-351`) are already recursion-safe because they use **flat**
+  `node.elements.filter(...)` queries (a child keeps its own `unit` FK), not the
+  top-level list. `has_questions` is safe because no question type is in
+  `NESTABLE_TYPE_KEYS`. `has_math` MUST recurse (above). **`has_html` is the one
+  known gap**: `html` IS a nestable leaf, so an `HtmlElement` inside a spoiler
+  (or, already today, inside a tab) won't set `has_html` and `html_element.js`
+  won't load (`lesson_unit.html:64`). This is a **pre-existing limitation shared
+  with `TabsElement`**; the import targets zero `HtmlElement`, so it is
+  **ACCEPTED as-is** (not fixed in this feature) — but stated so it isn't
+  rediscovered as a regression. Fixing it (recursing `has_html`) is an optional
+  follow-up.
 - `save()` still sanitizes `body` (unchanged). Children are independent Elements;
   they are not affected by the spoiler's `body` sanitize.
 
@@ -133,6 +151,24 @@ don't pass them. The three spoiler emitters must therefore:
 - thread `consumed`/`state` through the changed emitter signatures and update
   every caller accordingly.
 
+**No spoiler-inside-a-spoiler (C1 — enforce the depth-1 scope at parse time).**
+`_walk` itself is what turns `<details>` / reveal-tables / `show_solution` into
+spoilers, so a spoiler-source nested inside another spoiler-source (e.g. a `<details>`
+hint inside a `question_solution`) would otherwise make the sub-walk emit a
+`spoiler` dict inside the parent spoiler's `elements` — a depth-2 tree the loader
+would build but `walk_unit_joins` can only export one level of, breaking the
+round-trip (§6) and re-import (`validate_nesting` depth check). Prevent it at the
+source: the sub-walk runs in a **"no-nest-spoiler" mode** (thread an
+`in_spoiler=True` flag, or pass a walk-context that suppresses the spoiler
+emitters) so that an inner `<details>`/reveal/`show_solution` **inlines its
+content in place** — summary/label → a `text` heading child, its body walked into
+sibling children (the same "drop the wrapper" precedent used for
+`<details>`-containing-tabs) — and never emits a nested `spoiler` dict. Result:
+all spoiler content stays at depth 1, with no content loss. Pin this explicitly in
+the plan and test it (a `<details>` inside a solution → the outer spoiler's
+children include the inner content inlined, and there is **no** nested `spoiler`
+dict).
+
 Edge cases: a spoiler whose content is purely inline text still yields a single
 `text` child (fine). An empty solution → a spoiler with no children (`elements:
 []`) and no `body`, which the loader builds as an empty disclosure (see C5 / M4).
@@ -152,34 +188,68 @@ but the child rows still carry `tab_id=SLOT_ID` so the editor/transfer paths agr
 
 The `spoiler` branch of `build_element` becomes dual-path:
 
-- **Nested path** — when `el` has an `elements` list: create the
-  `SpoilerElement`, create its `Element` join row (via the same
-  `parent`/`_attach` mechanism the `tabs` branch uses), then recurse
-  `build_element(child, …, parent=join, tab_id=SpoilerElement.SLOT_ID)` for each
-  child. **Returns the concrete `SpoilerElement`** (mirroring the `tabs` branch,
-  `builders.py:131`), not the join row; confirm no caller depends on the legacy
-  `_attach` return value.
+- **Nested path** — when `el` has an `elements` list: create
+  `SpoilerElement.objects.create(label=el.get("label","")[:120])` (the `[:120]`
+  truncation from commit `2d4ca95` is **required here too** — parser labels from
+  reveal-table cells / `<details>` summaries are not length-capped, and
+  `objects.create` skips `full_clean`, so a >120-char label raises Postgres
+  `DataError` and aborts the unit; see I2), then create the join row **exactly as
+  the `tabs` branch does** — `join = Element.objects.create(unit=unit,
+  parent=parent, tab_id=tab_id, content_object=obj)` (`builders.py:116-118`) — and
+  recurse `build_element(child, …, parent=join, tab_id=SpoilerElement.SLOT_ID)` for
+  each child. Do **not** describe this as the `_attach` mechanism: `_attach`/
+  `_attach_row` returns the concrete `obj` and discards the `Element` row, so it
+  cannot hand back the `join` the children need. **Returns the concrete
+  `SpoilerElement`** (mirroring the `tabs` branch, `builders.py:131`).
+- **Loader depth guard (C2).** When building nested (`parent is not None`), the
+  loader must refuse a child that is itself a container — a `spoiler` dict carrying
+  `elements`, or a `tabs`/`two_column` dict — by raising `LoaderError`. The parser
+  fix (C1) guarantees this never fires on real import content, but the guard turns
+  a malformed/hand-edited JSON depth-2 tree into a clear error instead of a
+  silently un-exportable structure.
 - **Legacy path** — when `el` has `body` (authored content / older JSON): the
-  current flat `SpoilerElement.objects.create(label[:120], body=…)` path,
-  unchanged. (`label[:120]` truncation from commit `2d4ca95` stays.)
+  current flat `SpoilerElement.objects.create(label=el.get("label","")[:120],
+  body=…)` path, unchanged.
 
 ### 4. Builder editor (`courses/builder.py` + editor templates)
 
 - Register `SpoilerElement` in `_CONTAINER_REGISTRY` as a **single-slot**
   container keyed on `SpoilerElement.SLOT_ID` (C4). The registry contract is
   slot-based (`normalizer`, `slot_list_key`, `slot_id_key`) and `resolve_scope`
-  calls `normalizer(parent_obj.data)` (`builder.py:110`) — but `SpoilerElement`
-  has **no `data` field** (and we add none). So the plan must adapt the
-  single-slot path so it does **not** read `parent_obj.data`: e.g. a normalizer
-  that ignores its argument and always returns `{slot_list_key: [{slot_id_key:
-  SpoilerElement.SLOT_ID}]}`, and/or a small `resolve_scope` special-case that,
-  for a single-slot container, validates `tab == SLOT_ID` without touching
-  `.data`. The contract: a nested add/save resolves to "this spoiler's one child
-  list," with the sole valid slot id being `SLOT_ID`.
+  calls `normalizer(parent_obj.data)[list_key]` (`builder.py:110`) — but
+  `SpoilerElement` has **no `data` field** (and we add none), so `parent_obj.data`
+  is evaluated as the call argument and would raise `AttributeError` regardless of
+  whether the normalizer uses it (I3). The `resolve_scope` change is therefore
+  **mandatory, not optional**: add a single-slot branch **before** the
+  `normalizer(parent_obj.data)` call that, for a `SpoilerElement` parent,
+  validates `tab == SpoilerElement.SLOT_ID` without touching `.data` (equivalently
+  `getattr(parent_obj, "data", {})`). The contract: a nested add/save resolves to
+  "this spoiler's one child list," with the sole valid slot id being `SLOT_ID`.
+- **Editor depth guard (C2).** `resolve_scope` (`builder.py:78-116`) does **no**
+  depth check — it validates only parent-is-container, valid tab, and child in
+  `NESTABLE_TYPE_KEYS`. Because `spoiler` stays in `NESTABLE_TYPE_KEYS` and is now
+  itself a container, an author could add a `spoiler` child to a tab (allowed —
+  leaf, body-only), then add children to that inner spoiler, producing a depth-2
+  tree the editor/loader accept but transfer rejects. Add an explicit guard: a
+  container may receive children **only when its own join row is top-level**
+  (`join.parent_id is None`). So `resolve_scope`, when the resolved parent is a
+  spoiler that is itself nested, raises `NestingError`. This preserves
+  "legacy body-only spoiler nestable as a leaf inside Tabs" while making it
+  impossible to give a *nested* spoiler children.
 - Recursive editor modeled on the Tabs editor: render each child with the
   existing recursive editor partial, and support **add child / edit child /
   reorder children / delete child** inside a spoiler, plus the container's own
-  label field.
+  label field. **Template (I6):** `templates/courses/manage/_element_row.html`
+  routes `tabselement`/`twocolumnelement` to nested branches and drops everything
+  else (spoiler included) into the generic leaf `{% else %}`. Add a
+  `{% elif el.content_type.model == "spoilerelement" %}` branch that iterates
+  `obj.resolved_children` as the single slot and includes `_add_menu.html with
+  nested=True parent=el.pk tab=obj.SLOT_ID`. Expose `SLOT_ID` as a
+  `SpoilerElement` **class attribute** so `{{ obj.SLOT_ID }}` resolves in the
+  template (the add-menu needs the slot id, but `resolved_children()` is a flat
+  list with no slot dict to read it from — unlike `resolved_tabs`). Mirror the
+  tabs/two-column recursion-termination comment; termination is guaranteed by the
+  C1/C2 depth-1 enforcement.
 - **Nesting depth — DECIDED (C5): keep the existing one-level depth invariant
   unchanged.** `validate_nesting` (`payloads.py:722`) hard-rejects any element
   whose parent itself has a parent, and that bound is load-bearing for the
@@ -189,20 +259,35 @@ The `spoiler` branch of `build_element` becomes dual-path:
     the supported shape and is exactly what the import produces (depth 1). ✓
   - **Container children inside a spoiler are OUT OF SCOPE**: `tabs`/`two_column`
     are already absent from `NESTABLE_TYPE_KEYS`, so they can never be a spoiler
-    child. A `spoiler`-with-children placed inside another container is depth-2
-    and is **correctly rejected by the existing depth check** — no new code, and
-    acceptable because the import needs it nowhere (the one real
+    child. A nested `spoiler`-with-children (spoiler-inside-spoiler) is barred by
+    the parser (C1 inlines inner disclosures) and the loader depth guard (C2).
+    Acceptable because the import needs container-in-spoiler nowhere (the one real
     `<details>`-containing-tabs case was already resolved by dropping the
     `<details>` wrapper — the "native tabs, no wrapper" decision).
   - `spoiler` **stays in `NESTABLE_TYPE_KEYS`**, so a **legacy body-only** spoiler
-    may still be nested as a leaf child inside Tabs (unchanged from today); only a
-    spoiler that *has its own children* is barred from being nested.
+    may still be nested as a leaf child inside Tabs (unchanged from today). But
+    because `spoiler` is now BOTH a container AND nestable — the first such type —
+    and neither the parser/loader nor `resolve_scope` runs `validate_nesting`,
+    the depth-1 invariant is **not** self-enforcing here. It is upheld by three
+    explicit guards: the parser no-nest-spoiler mode (C1), the loader container-
+    child refusal (C2), and the `resolve_scope` "container must be top-level to
+    receive children" guard (C2). Only a spoiler that *has its own children* is
+    barred from being nested.
 
 ### 5. Backward-compat & safety
 
 - **No migration**; existing spoilers keep rendering `body`.
 - The nested path is **opt-in by presence of children** — a spoiler with zero
   children falls back to `body`.
+- **`body` fate when children exist (M2).** Render, `has_math`, and export all key
+  off children-presence, so a spoiler with both children and a non-empty `body`
+  would silently orphan the `body` (still serialized, never rendered). The nested
+  loader path creates with `body=""` so this cannot arise from the import. Pin the
+  rule for the editor's add-first-child flow too: a spoiler that gains children
+  keeps `body` **unused-but-harmless** (do NOT add cleanup logic that blanks it),
+  and tests assert children win over any residual `body`. (The optional legacy-body
+  → child-`TextElement` conversion nicety below, if built, is the one path that
+  would consume `body`.)
 - **Template branch (M4).** `spoilerelement.html` today always renders
   `<div class="el el--text spoiler__body">{{ el.body|sanitize }}</div>`. Change it
   to a branch: if `children` is non-empty, loop them via `{% render_element %}`
@@ -241,14 +326,18 @@ whether":
   sole valid slot id is `SpoilerElement.SLOT_ID`, WITHOUT requiring a `data`
   slot-list. The one-level depth check (`payloads.py:722`) stays and is what
   enforces the C5 leaf-only scope.
-- **Per-element (de)serializers (C3).** Make the spoiler transfer path dual-shape:
-  `_val_spoiler` (`payloads.py:187`, currently `_exact_keys(data, ["label",
-  "body"])`), `_ser_spoiler` (`export.py:110`, currently `{label, body}`), and
-  `_build_spoiler` (`importer.py:535`, currently `data["body"]`) must all accept a
-  nested spoiler (children carried as separate nested `Element` payloads with
-  `parent`/`tab` refs, exactly like Tabs — the spoiler's own serialized `data`
-  keeps `label` and, for legacy, `body`) as well as the legacy `{label, body}`.
-  `_build_spoiler` must not `KeyError` when `body` is absent.
+- **Per-element (de)serializers — NO CHANGE NEEDED (I4).** Children are serialized
+  as **separate** `Element` payloads via the generic walk and linked by the
+  importer's second pass (`importer.py:892-898`: it sets `join.parent`/`join.tab_id`
+  from each child payload's `parent`/`tab` refs) — exactly like Tabs, whose
+  `_build_tabs` (`importer.py:765`) never touches children and `_ser_tabs`
+  (`export.py:176`) emits only metadata. So `_ser_spoiler` (`export.py:110`) keeps
+  emitting `{label, body}` (a nested spoiler's `concrete.body` is just `""`),
+  `_val_spoiler` (`payloads.py:187`) keeps `_exact_keys(["label","body"])`, and
+  `_build_spoiler` (`importer.py:535`) keeps building from `{label, body}` — none
+  needs a nested-vs-legacy discriminator, and `body` is never absent. Do NOT add a
+  dual-shape serializer (an earlier draft did; it was unnecessary and left the
+  discriminator unpinned).
 - **FORMAT_VERSION — no bump (M5).** The `parent`/`tab` nesting refs already exist
   at `FORMAT_VERSION = 4` (`schema.py:14`); a nested spoiler reuses the existing
   format and introduces no new incompatible key, so **do not bump** it (consistent
