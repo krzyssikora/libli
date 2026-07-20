@@ -107,7 +107,9 @@ first alternative as today. **Image cells must be resolved here too** — see th
 render composition below — so a done-state render carries a real `MediaAsset`, not a
 raw int pk.
 
-New method **`resolved_cells()`** (the Gallery `resolved_images()` analog): return
+New **`@property resolved_cells`** (the Gallery `resolved_images()` analog; a
+property, parallel to `normalized_data`, so the editor template can read
+`form.instance.resolved_cells` — see the deserialize path): returns
 the normalised grid with every image cell's `media` **pk replaced by its
 `MediaAsset`** (resolved in one `MediaAsset.objects.in_bulk(all_image_pks)` pass).
 An image cell whose pk does not resolve degrades to an empty static cell for
@@ -119,14 +121,14 @@ because `render()` (models.py ~1015-1029) uses `canonical_cells` when
 `ctx["mine"].done` and the plain grid otherwise, and BOTH must carry resolved image
 cells or the template's `cell.media.file.url` yields an empty `src` (an int has no
 `.file`). Concretely:
-- **not done:** `ctx["data"]["cells"] = resolved_cells()`.
+- **not done:** `ctx["data"]["cells"] = self.resolved_cells` (property, no parens).
 - **done:** build the grid by applying the canonical answer swap **on top of**
-  `resolved_cells()` (i.e. resolve images first, then rewrite answer cells) — do
+  `self.resolved_cells` (i.e. resolve images first, then rewrite answer cells) — do
   **not** use the current `canonical_cells` (which reads unresolved
-  `normalize_data(self.data)["cells"]`). Either refactor `canonical_cells` to start
-  from `resolved_cells()`, or add a `resolved_canonical_cells()` used on the done
-  path. Pick one in planning; the invariant is: **every image cell is a resolved
-  `MediaAsset` in both render states.**
+  `normalize_data(self.data)["cells"]`). Either refactor the `canonical_cells`
+  property to start from `self.resolved_cells`, or add a `resolved_canonical_cells`
+  property used on the done path. Pick one in planning; the invariant is: **every
+  image cell is a resolved `MediaAsset` in both render states.**
 
 Rationale for resolving in the model, not the template: the template must never
 run a query per cell, and an unresolved pk must be handled once, centrally — same
@@ -142,7 +144,7 @@ reasons Gallery resolves in `resolved_images()`.
 {% else %}{{ cell.html|safe }}{% endif %}
 ```
 
-- `cell.media` is a resolved `MediaAsset` (from `resolved_cells()`); a cell that
+- `cell.media` is a resolved `MediaAsset` (from `resolved_cells`); a cell that
   failed to resolve was degraded to static `html:""` upstream, so this branch only
   ever sees a real asset.
 - Responsive sizing reuses the ImageElement rule (`max-width:100%`); add a
@@ -296,12 +298,17 @@ inventing a new one.
   and `_build_fill_table` calls `normalize_data(data)` **without touching media** —
   correct while cells hold no media, but an image cell's `media` pk would export as
   a raw local pk and import dangling. Fix, mirroring the gallery path exactly:
-  - **Export** `_ser_fill_table` (`export.py` ~170): walk `cells`; for each
-    `kind=="image"` cell, resolve its pk and replace `media` with
-    `ids.register(asset)` (the bundle-local id), carrying `alt` (and `halign`/
-    `valign`) through unchanged, **skipping unresolved** pks by degrading that cell
-    to empty static (same "unresolved ids cannot be exported" rule `_gallery_assets`
-    uses). Static/answer cells pass through.
+  - **Export** `_ser_fill_table` (`export.py` ~170): build a **fresh** data structure;
+    do **not** mutate `el.data`. Today it returns `dict(el.data)`, a **shallow** copy
+    whose nested `cells` lists/dicts still alias the live instance — so an in-place
+    `cell["media"] = ids.register(...)` would clobber the model's in-memory pk (a real
+    hazard: export runs in-process, e.g. duplicate-unit). Instead rebuild gallery-style
+    (which never mutates): deep-copy the cells (or construct fresh cell dicts), and for
+    each `kind=="image"` cell set `media = ids.register(asset)` (the bundle-local id),
+    carrying `alt`/`halign`/`valign` through, **skipping unresolved** pks by degrading
+    that cell to empty static (the `_gallery_assets` "unresolved ids cannot be exported"
+    rule). Carry the top-level keys (`header_row`/`header_col`/`case_sensitive`/
+    `border`/`prompt`) and all static/answer cells through the rebuild unchanged.
   - **Import** `_build_fill_table` (`importer.py` ~589): walk `cells`; for each
     `kind=="image"` cell, remap `media` (a **string** local id) via
     `assets[<local id>].pk` (mirroring `_build_gallery`'s `assets[img["media"]].pk`),
@@ -341,7 +348,7 @@ tests under `courses/tests/`). Each test must be **falsifiable** (RED first — 
 the "Falsify tests, don't run them" lesson).
 
 - **Model**: `_cell` accepts a valid image cell; rejects non-int / bool / missing
-  media → empty static; `resolved_cells()` resolves pks and skips unresolved;
+  media → empty static; `resolved_cells` resolves pks and skips unresolved;
   `_sanitized_data` leaves image cells' media intact and trims alt; `canonical_cells`
   passes image cells through; a `mine.done` render keeps images.
 - **Render**: an image cell renders `<img src=…>` with the resolved asset URL and
