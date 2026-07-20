@@ -70,29 +70,61 @@ User-approved design (the "faithful split"): `image | [ | ⟨x⟩ | , | ⟨y⟩ 
 
 ## Design
 
-### Splitting one `<td>` into a run of sub-cells
+### Cell-kind cascade (explicit ordering)
 
-Add a helper that, given a `<td>` with ≥2 inputs, walks its **direct rendered
-content in document order** and produces a list of cell dicts:
+Restructure the per-`<td>` decision to count inputs first (recursively —
+`inputs = c.find_all(class_="table_input")`, matching today's recursive
+`c.find(...)` detection so wrapped inputs are seen):
 
-- Accumulate consecutive non-input content (NavigableStrings + non-input child
-  tags, e.g. the `\([\)`, `\(,\)`, `\(]\)` math spans) into a **static run**.
-  When an input is reached, first flush any pending non-empty static run as a
-  `{kind:"static", html: <decoded, escaped, stripped>}` cell (empty/whitespace-
-  only runs are dropped — no empty static columns between adjacent inputs unless
-  there is real content), then emit `{kind:"answer", answer:
-  _answer_alternatives(answer_by_input.get(id(inp), ""))}` for the input.
-- After the last input, flush the trailing static run (the closing `]`).
-- Static html is produced the SAME way as the existing static branch — from the
-  node stream via the cell's `decode_contents()`-style serialisation so math `<`
-  stays `&lt;` (do NOT `str(NavigableString)` a decoded run and lose the escape;
-  build the run's html by joining the ESCAPED serialisation of each member, i.e.
-  the same output `decode_contents()` gives for those children). The result for
-  the vector cell is: `static "\([\)"`, `answer(x)`, `static "\(,\)"`,
-  `answer(y)`, `static "\(]\)"` — 5 sub-cells.
+1. `len(inputs) >= 2` → **split** into a run of sub-cells (below).
+2. `len(inputs) == 1` → a single `{kind:"answer", answer:
+   _answer_alternatives(answer_by_input.get(id(inputs[0]), ""))}` cell — TODAY's
+   behaviour, unchanged (a surrounding label is still dropped; out of scope).
+3. `len(inputs) == 0` → the existing pure-`<img>` image branch (Task 4) else
+   static branch, unchanged.
 
-A `<td>` with exactly one input is NOT sent to the splitter (keeps today's single
-answer cell); a `<td>` with zero inputs is a normal static/image/th cell.
+### Splitting one `<td>` into a run of sub-cells (placeholder-token technique)
+
+Do **not** walk children and re-serialise a node list — there is no bs4 API that
+serialises a sibling *list* with correct re-escaping, and `str(NavigableString)`
+would DECODE math `&lt;` and reintroduce the corruption in
+[[bs4-navigablestring-decodes-tag-reescapes]]. Instead, serialise the whole cell
+**once** so escaping is byte-identical to the existing static path:
+
+1. For each input in `c.find_all(class_="table_input")` (document order), record its
+   answer `_answer_alternatives(answer_by_input.get(id(inp), ""))`, then
+   `inp.replace_with(<unique sentinel token>)` — a token that cannot occur in the
+   content and survives serialisation unchanged (e.g. the fillblank `SENTINEL`
+   =U+FFFF wrapping an index, as `switch`/`fillblank` already use;
+   `￿{i}￿`). Mutating the tree here is safe — this `<td>` is being
+   consumed into the grid and not walked again.
+2. `html = c.decode_contents()` — ONE call on the Tag → the same re-escaped output
+   (math `<` → `&lt;`) the existing static branch produces.
+3. Split `html` on the sentinel tokens in order. This yields alternating
+   **static segments** and **input positions**: `seg0, in0, seg1, in1, …, segN`.
+   Emit, in order: for each static segment, a `{kind:"static", html: seg.strip()}`
+   cell **iff the segment is non-empty content** (see the emptiness rule below,
+   dropped otherwise so adjacent inputs get no spurious empty column); for each
+   input position, its recorded `{kind:"answer", answer}` cell. For the vector
+   cell this yields `static "\([\)"`, `answer(x)`, `static "\(,\)"`, `answer(y)`,
+   `static "\(]\)"` — 5 sub-cells.
+
+**Emptiness rule (pin the representation):** a static segment is DROPPED iff its
+decoded text is whitespace-only — `BeautifulSoup(seg, "html.parser")
+.get_text(strip=True)` is `""` — treating `&nbsp;`/lone `<br>` as empty. A segment
+with real text/math (e.g. `\([\)`) is kept. This mirrors the image branch's
+`get_text(strip=True)` emptiness test rather than the static branch's
+serialized-string `.strip()`, so `&nbsp;`/`<br>`-only gaps between adjacent inputs
+do not create spurious columns.
+
+**Interleaved images (fidelity, not silent loss):** a kept static segment whose
+significant content is a single `<img>` (same test as the Task 4 pure-image
+branch: `get_text(strip=True)` empty AND exactly one `<img>`) is emitted as an
+`{kind:"image", media_src, alt}` sub-cell instead of static — so an image between
+inputs is preserved (its `<img>` would otherwise be stripped by `sanitize_cell`,
+CELL_TAGS has no `img`). A segment mixing an image with other tags stays static
+(image dropped, as elsewhere) — no such shape is expected in the corpus, but this
+keeps a lone interleaved image from vanishing silently.
 
 ### Reshaping the grid (padding)
 
@@ -105,6 +137,20 @@ so the image/label column stays col 0 and the split answer group occupies the
 same columns across data rows; the shorter **header** row pads on the right, so
 `wektor | współrzędne` becomes `wektor | współrzędne | "" | "" | "" | ""`, with
 `współrzędne` sitting above the opening `[`. Acceptable and faithful enough.)
+
+**MAX_COLS guard:** `FillTableElement.MAX_COLS == 20`; a `normalize_data` grid over
+this passes silently but `FillTableElementForm.clean_data` would later reject it.
+If the post-split `width > MAX_COLS`, fall back to the flagged HtmlElement path for
+that table (same fallback as span/nested/ragged) rather than emitting a grid the
+editor can't save. Unreachable for the current corpus (widest split is the 6-col
+vector), but bounded.
+
+**Correctness is per-cell, not per-column:** each answer cell is checked
+independently against its own stored accepted answer by grid position
+(`courses/filltable.py:answer_cells` + the per-cell check), so even a
+hypothetical non-uniform split (data rows of differing widths, right-padded) only
+affects visual column alignment, never answer correctness. Uniform corpus rows
+align exactly.
 
 ### Header detection after padding
 
@@ -148,14 +194,30 @@ Follow TDD; every test falsifiable (RED before GREEN).
 - **Single input unchanged**: a lone `<input>` cell (with or without a label)
   still yields exactly one answer cell (documents the deliberate out-of-scope
   boundary; guards against over-splitting).
+- **Wrapped inputs** (C1 guard): a multi-input cell whose inputs are inside a
+  `<span>`/`<div>` (e.g. `<td><span>\([\) <in> \(,\) <in> \(]\)</span></td>`)
+  still splits into two answer cells — proving the recursive `find_all` +
+  whole-`<td>` `decode_contents()` path descends, not a direct-children walk that
+  would emit one static run and lose both inputs.
+- **Escape invariant** (I1 guard): a split static segment whose math contains a
+  comparison, e.g. `<in> \(a<b\) <in>`, reaches the middle static cell as the
+  re-escaped `\(a&lt;b\)` (NOT a decoded `\(a<b\)`), matching the existing
+  static-cell path. This test must FAIL under a naive `str(node)`-join
+  implementation.
+- **`&nbsp;`/`<br>` gaps** (I2 guard): `<in>&nbsp;<in>` and `<in><br><in>` each
+  yield exactly two adjacent answer cells with NO empty static column between
+  them; a real-content gap `<in> \(,\) <in>` yields the middle static cell.
+- **Interleaved image** (I3 guard): a segment that is a lone `<img>` between
+  inputs emits an `image` sub-cell (media_src preserved), not an empty static.
 - **Rectangular padding**: a table whose header row is shorter than the split
   data rows yields a rectangular grid (all rows equal width); header row padded
   with empty statics; `header_row` still correct.
 - **Image row + split answer** (the real `wykresy_20` shape): `[img] | [ x , y ]`
   → row `[image, static "[", answer, static ",", answer, static "]"]`; 6 columns;
   the image cell (Task 4) intact.
-- **Regression**: an existing single-input-per-cell fill-table file parses
-  byte-identically (no reshape).
+- **Regression**: an existing single-input-per-cell fill-table file parses to the
+  identical `data` structure (same cells grid) — "byte-identical" here means the
+  emitted parse is unchanged when no cell has ≥2 inputs (the split path never runs).
 - **End-to-end count** (integration, not unit): re-parsing `wykresy_20` yields
   **10** answer cells (was 5), matching the 10 source answers.
 
