@@ -625,6 +625,7 @@ def _val_fill_table(data, elid, media_kinds):
     rows = data.get("cells")
     if rows is not None and not isinstance(rows, list):
         _err(_("Element '%(el)s': fill-in table cells must be a list."), el=elid)
+    refs = set()
     for row in rows or []:
         if not isinstance(row, list):
             _err(_("Element '%(el)s': fill-in table row must be a list."), el=elid)
@@ -634,7 +635,9 @@ def _val_fill_table(data, elid, media_kinds):
                     _("Element '%(el)s': fill-in table cell must be an object."),
                     el=elid,
                 )
-    return set()
+            if cell.get("kind") == "image":
+                refs |= _require_media(cell.get("media"), elid, media_kinds, "image")
+    return refs
 
 
 def _val_tabs(data, elid, media_kinds):
