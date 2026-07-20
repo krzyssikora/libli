@@ -376,7 +376,7 @@ def _walk(nodes, elements, flags, consumed, state):
             # .mult_option/.mult_feedback_incorrect layout varies — wrapped or bare
             # children) so the confirm button + success/failure chrome inside are
             # dropped, not descended.
-            _emit_mult_choice(node, elements, state)
+            _emit_mult_choice(node, elements, flags, consumed, state)
             continue
         if (
             (node.get("id") or "").startswith("question")
@@ -387,7 +387,7 @@ def _walk(nodes, elements, flags, consumed, state):
             # one ChoiceQuestion(multiple=True). Only the LEAF question div (no
             # nested question) is intercepted; a parent group div still descends
             # so its prompt text + interleaved \[..\] math render before each MCQ.
-            _emit_multi_ans(node, elements, state)
+            _emit_multi_ans(node, elements, flags, consumed, state)
             continue
         if "ks_tabs" in classes_here:
             # Group B #6: a tabbed container -> TabsElement with nested children.
@@ -514,6 +514,13 @@ def _walk(nodes, elements, flags, consumed, state):
                 sp_elements, sp_flags = _reveal_table_spoilers(node)
                 elements.extend(sp_elements)
                 flags.extend(sp_flags)
+            elif node.find("img") is not None:
+                # A plain (non-fill, non-reveal) table that arranges diagrams:
+                # nh3 strips <img> from cell HTML, so a TableElement would lose
+                # them. Unpack it into a linear sequence of native ImageElements
+                # (+ label captions). This is the fallback for what would else be
+                # a plain TableElement, so real fill/reveal tables keep their type.
+                _emit_image_table(node, elements, flags)
             else:
                 from scripts.lal_import.tables import table_element
 
@@ -794,17 +801,33 @@ def _emit_multi_many(nodes, start, elements, flags, consumed, state):
         )
 
 
-def _emit_mult_choice(question, elements, state):
+_MEDIA_TAGS = ["img", "figure", "iframe", "video"]
+
+
+def _mcq_stem(question, elements, flags, consumed, state):
+    """The stem for an intercepted MCQ. If .question_text carries media (a
+    diagram / figure), descend it so images render as native ImageElements and
+    return "" (an empty stem); otherwise flatten the prompt text into the stem (a
+    sanitized field, so re-escape math)."""
+    qt = question.find(class_="question_text")
+    if qt is None:
+        return ""
+    if qt.find(_MEDIA_TAGS) is not None:
+        _walk(list(qt.children), elements, flags, consumed, state)
+        return ""
+    text = qt.get_text(" ", strip=True)
+    return f"<p>{escape_math_delimited(text)}</p>" if text else ""
+
+
+def _emit_mult_choice(question, elements, flags, consumed, state):
     """Group B #10: a checkbox MCQ with per-option feedback -> one
     ChoiceQuestion(multiple=True). `question` is the whole div[id^=question]; its
     .mult_option (option text) and .mult_feedback_incorrect (its hint) blocks are
     paired in document order. is_correct comes from
-    multiple_many_correct_answers[qid][0] (a single 0/1 mask row). The stem is the
-    .question_text (a sanitized field, so re-escape math)."""
+    multiple_many_correct_answers[qid][0] (a single 0/1 mask row)."""
     m = re.search(r"\d+", question.get("id", ""))
     qid = int(m.group()) if m else None
-    qt = question.find(class_="question_text")
-    stem_text = qt.get_text(" ", strip=True) if qt is not None else ""
+    stem = _mcq_stem(question, elements, flags, consumed, state)
     mask = state.get("multiple_many_correct_answers", {}).get(qid, [])
     mask = mask[0] if mask else []
     options = question.find_all(class_="mult_option")
@@ -820,27 +843,21 @@ def _emit_mult_choice(question, elements, state):
             }
         )
     elements.append(
-        {
-            "type": "choice",
-            "stem": f"<p>{escape_math_delimited(stem_text)}</p>",
-            "multiple": True,
-            "choices": choices,
-        }
+        {"type": "choice", "stem": stem, "multiple": True, "choices": choices}
     )
 
 
-def _emit_multi_ans(question, elements, state):
+def _emit_multi_ans(question, elements, flags, consumed, state):
     """Group B #11: a multi-select button MCQ with per-option feedback -> one
     ChoiceQuestion(multiple=True). `question` is the leaf div[id^=question]; its
     .multi_ans buttons are the options. is_correct comes from
     multiple_correct_answers[qid][0] and each option's feedback from
     multiple_feedback[qid][0] (both a single row). The stem is this question's own
-    .question_text if present (a sanitized field, so re-escape math), else empty —
-    a preceding \\[..\\] math block or the group prompt is the context."""
+    .question_text (empty if absent — a preceding \\[..\\] math block or the group
+    prompt is the context)."""
     m = re.search(r"\d+", question.get("id", ""))
     qid = int(m.group()) if m else None
-    qt = question.find(class_="question_text")
-    stem_text = qt.get_text(" ", strip=True) if qt is not None else ""
+    stem = _mcq_stem(question, elements, flags, consumed, state)
     correct = state.get("multiple_correct_answers", {}).get(qid, [])
     mask = correct[0] if correct else []
     fb_rows = state.get("multiple_feedback", {}).get(qid, [])
@@ -855,12 +872,7 @@ def _emit_multi_ans(question, elements, state):
             }
         )
     elements.append(
-        {
-            "type": "choice",
-            "stem": f"<p>{escape_math_delimited(stem_text)}</p>" if stem_text else "",
-            "multiple": True,
-            "choices": choices,
-        }
+        {"type": "choice", "stem": stem, "multiple": True, "choices": choices}
     )
 
 
@@ -999,6 +1011,49 @@ def _image_dict(img):
         "alt": img.get("alt", ""),
         "figcaption": "",
     }
+
+
+def _emit_image_table(table, elements, flags):
+    """Unpack a layout table that arranges diagrams (nh3 strips <img> from cell
+    HTML, so a TableElement would drop them). Emit its cells in reading order:
+    an image cell -> ImageElement, a text cell -> a label TextElement. When a
+    text label sits directly ABOVE an image (same column, previous row) it is
+    consumed as that image's figcaption instead (e.g. "1" over the first
+    diagram), so numbered diagram grids read as captioned images."""
+    grid = [tr.find_all(["td", "th"], recursive=False) for tr in table.find_all("tr")]
+
+    def _cell(r, c):
+        return grid[r][c] if 0 <= r < len(grid) and 0 <= c < len(grid[r]) else None
+
+    def _text(cell):
+        return cell.get_text(" ", strip=True) if cell is not None else ""
+
+    # label cells consumed as the caption of the image directly below them
+    caption_cells = set()
+    for r, row in enumerate(grid):
+        for c, cell in enumerate(row):
+            if cell.find("img") is None and _text(cell):
+                below = _cell(r + 1, c)
+                if below is not None and below.find("img") is not None:
+                    caption_cells.add((r, c))
+    for r, row in enumerate(grid):
+        for c, cell in enumerate(row):
+            if (r, c) in caption_cells:
+                continue
+            imgs = cell.find_all("img")
+            if imgs:
+                above = _cell(r - 1, c)
+                cap = _text(above) if (r - 1, c) in caption_cells else ""
+                for k, img in enumerate(imgs):
+                    d = _image_dict(img)
+                    if cap and k == 0:
+                        d["figcaption"] = cap[:255]
+                    elements.append(d)
+            elif _text(cell):
+                elements.append(
+                    {"type": "text", "body": f"<p>{cell.decode_contents().strip()}</p>"}
+                )
+    _flag_relative_hrefs(table, flags)
 
 
 def _emit_figure(fig, elements, flags):

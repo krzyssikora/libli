@@ -552,6 +552,78 @@ def test_multi_ans_with_own_stem_multi_correct():
     )
 
 
+# --- Image-bearing layout tables unpack to ImageElements (nh3 strips <img> from
+# table cells, so a TableElement would drop the diagrams). A label cell directly
+# above an image becomes that image's figcaption.
+IMAGE_TABLE = r"""
+<div class="table_wrapper">
+<table class="my_table_noborder">
+  <tr><td><strong>1</strong></td><td><strong>2</strong></td></tr>
+  <tr><td><img alt="" src="static/tri_1.png"/></td>
+      <td><img alt="" src="static/tri_2.png"/></td></tr>
+  <tr><td><strong>3</strong></td><td></td></tr>
+  <tr><td><img alt="" src="static/tri_3.png"/></td><td></td></tr>
+</table>
+</div>
+"""
+
+
+def test_image_bearing_table_unpacks_to_captioned_images():
+    elements, flags = parse_lesson(IMAGE_TABLE, "x.html")
+    assert not any(e["type"] == "table" for e in elements)  # not a TableElement
+    imgs = [e for e in elements if e["type"] == "image"]
+    assert [e["media_src"] for e in imgs] == [
+        "static/tri_1.png",
+        "static/tri_2.png",
+        "static/tri_3.png",
+    ]
+    # the label directly above each image becomes its caption
+    assert [e.get("figcaption") for e in imgs] == ["1", "2", "3"]
+    # those label cells are consumed as captions, not left as stray text blocks
+    assert not any(e["type"] == "text" and "1" in e.get("body", "") for e in elements)
+
+
+# multi_ans/mult_choice whose question_text carries diagrams must render the
+# images (descend the prompt) rather than flatten it into the stem (u/229 bug).
+MULTI_ANS_IMAGE_STEM = r"""
+<div id="question20">
+  <div class="question_text">
+    <p>Które trójkąty są przystające?</p>
+    <div class="table_wrapper"><table class="my_table_noborder">
+      <tr><td><strong>1</strong></td><td><strong>2</strong></td></tr>
+      <tr><td><img alt="" src="static/t1.png"/></td>
+          <td><img alt="" src="static/t2.png"/></td></tr>
+    </table></div>
+  </div>
+  <div>
+    <div class="multi_ans ks_button">para 1</div>
+    <div class="multi_ans ks_button">para 2</div>
+  </div>
+  <div class="confirm_button_feedback ks_button">potwierdź</div>
+</div>
+<script>
+localStorage.setItem('multiple_correct_answers', JSON.stringify({20: [[1, 0]]}));
+localStorage.setItem('multiple_feedback', JSON.stringify({20: [['tak', 'nie']]}));
+</script>
+"""
+
+
+def test_multi_ans_image_prompt_renders_images_not_flattened():
+    elements, flags = parse_lesson(MULTI_ANS_IMAGE_STEM, "x.html")
+    imgs = [e for e in elements if e["type"] == "image"]
+    assert [e["media_src"] for e in imgs] == ["static/t1.png", "static/t2.png"]
+    assert [e.get("figcaption") for e in imgs] == ["1", "2"]
+    # the prompt text renders as its own block
+    assert any(
+        e["type"] == "text" and "Które trójkąty" in e.get("body", "") for e in elements
+    )
+    choices = [e for e in elements if e["type"] == "choice"]
+    assert len(choices) == 1
+    # media prompt descended -> empty stem (no "1 2" label leak)
+    assert choices[0]["stem"] == ""
+    assert [c["is_correct"] for c in choices[0]["choices"]] == [True, False]
+
+
 def test_plain_lesson_has_no_widget_placeholder():
     # A non-interactive lesson must not trip the widget detector.
     html = "<h2>T</h2><p>Zwykły tekst.</p><figure><img src='a.png' alt='x'/></figure>"
