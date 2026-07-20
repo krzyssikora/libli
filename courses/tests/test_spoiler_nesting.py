@@ -1,7 +1,6 @@
 import pytest
 
 from courses.models import Element
-from courses.models import ImageElement
 from courses.models import SpoilerElement
 from courses.models import TextElement
 from tests.factories import add_element
@@ -33,7 +32,8 @@ def test_resolved_children_returns_join_rows_in_order():
     _course, unit = make_course_with_unit()
     sp, join = _nested_spoiler(unit, ("<p>first</p>", "<p>second</p>"))
     children = sp.resolved_children()
-    assert [c.content_object.body for c in children] == ["<p>first</p>", "<p>second</p>"]
+    bodies = [c.content_object.body for c in children]
+    assert bodies == ["<p>first</p>", "<p>second</p>"]
     assert all(c.parent_id == join.pk for c in children)
 
 
