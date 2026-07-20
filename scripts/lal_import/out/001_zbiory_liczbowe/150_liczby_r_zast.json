@@ -204,8 +204,13 @@
       "body": "<p>\n        Czy biorąc pod uwagę te obliczenia, Bartek pomylił się bardziej niż Artur?\n    </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<input class=\"table_input\" placeholder=\"tak/nie\" type=\"text\"/>\n</p>"
+      "type": "fillblank",
+      "stem": "\n￿0￿\n",
+      "blanks": [
+        [
+          "nie"
+        ]
+      ]
     },
     {
       "type": "text",
@@ -213,5 +218,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "7fe02a19e61f382c2b7def10de17bb7c8de208c29bef003416317d3395c17554"
+  "seed_hash": "ad545189000eb3aa90f5cc9c47c358c7648000d7bcbd27961ddbdf34985072f9"
 }

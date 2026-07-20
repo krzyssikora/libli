@@ -348,17 +348,6 @@ def test_multi_many_widget_collapses_and_prompt_kept():
     assert "Brawo" not in placeholders[0]["raw"]
 
 
-def test_tabs_widget_becomes_placeholder():
-    html = (
-        '<div class="ks_tabs"><ul><li><a href="#tabcontent-1-1">Tab</a></li></ul>'
-        '<div id="tabcontent-1-1">content</div></div>'
-    )
-    elements, flags = parse_lesson(html, "x.html")
-    placeholders = [e for e in elements if e.get("flagged")]
-    assert len(placeholders) == 1
-    assert "ks_tabs" in placeholders[0]["reason"]
-
-
 def test_plain_lesson_has_no_widget_placeholder():
     # A non-interactive lesson must not trip the widget detector.
     html = "<h2>T</h2><p>Zwykły tekst.</p><figure><img src='a.png' alt='x'/></figure>"
@@ -382,6 +371,49 @@ def test_example_label_becomes_przyklad_heading():
     elements, _ = parse_lesson(html, "x.html")
     bodies = [e["body"] for e in elements if e["type"] == "text"]
     assert any("Przykład" in b for b in bodies)
+
+
+# --- Group B #6: ks_tabs -> TabsElement (nested children) ---
+KS_TABS = r"""
+<div class="ks_tabs">
+  <ul>
+    <li><a id="tab-1-1" href="#tabcontent-1-1">Sposób I</a></li>
+    <li><a id="tab-1-2" href="#tabcontent-1-2">Sposób II</a></li>
+  </ul>
+  <div id="tabcontent-1-1" class="visible"><p>Pierwszy: \(1\%\).</p></div>
+  <div id="tabcontent-1-2"><p>Drugi sposób.</p><p>Wynik \(240\).</p></div>
+</div>
+"""
+
+
+def test_ks_tabs_becomes_tabs_with_nested_children():
+    elements, flags = parse_lesson(KS_TABS, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    tabs = [e for e in elements if e["type"] == "tabs"]
+    assert len(tabs) == 1
+    t = tabs[0]["tabs"]
+    assert [x["label"] for x in t] == ["Sposób I", "Sposób II"]
+    # ids are the conforming t[0-9a-f]{6} form and unique
+    assert t[0]["id"] == "t000000" and t[1]["id"] == "t000001"
+    # tab 1 content is nested (native text with escaped math), not flattened out
+    assert [e["type"] for e in t[0]["elements"]] == ["text"]
+    assert r"\(1\%\)" in t[0]["elements"][0]["body"]
+    # tab 2 has both paragraphs
+    assert len(t[1]["elements"]) == 2
+    # the tab bodies must NOT also leak as top-level siblings
+    top_text = " ".join(e.get("body", "") for e in elements if e["type"] == "text")
+    assert "Pierwszy" not in top_text
+
+
+def test_ks_tabs_with_wrong_tab_count_falls_back_to_placeholder():
+    html = (
+        '<div class="ks_tabs"><ul><li><a href="#tabcontent-1-1">Only</a></li></ul>'
+        '<div id="tabcontent-1-1"><p>one</p></div></div>'
+    )
+    elements, flags = parse_lesson(html, "x.html")
+    # a single tab is out of TabsElement bounds (min 2) -> placeholder, not tabs
+    assert not any(e["type"] == "tabs" for e in elements)
+    assert any(e.get("flagged") for e in elements)
 
 
 # --- Group B #5: inline table_input (not in a table) -> FillBlank self-check ---

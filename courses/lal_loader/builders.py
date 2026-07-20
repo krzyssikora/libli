@@ -22,6 +22,7 @@ from courses.models import SpoilerElement
 from courses.models import SwitchGateElement
 from courses.models import SwitchGridElement
 from courses.models import TableElement
+from courses.models import TabsElement
 from courses.models import TextElement
 from courses.models import VideoElement
 
@@ -30,7 +31,15 @@ class LoaderError(Exception):
     pass
 
 
-def build_element(course, unit, el, *, source_root, source_dir, allow_html):
+def build_element(
+    course, unit, el, *, source_root, source_dir, allow_html, parent=None, tab_id=""
+):
+    # A local _attach that injects this call's parent/tab_id, so every branch's
+    # `_attach(unit, obj)` places a top-level element by default but a nested
+    # TabsElement child (parent + tab_id set) when built recursively.
+    def _attach(u, obj):
+        return _attach_row(u, obj, parent=parent, tab_id=tab_id)
+
     etype = el.get("type")
     if el.get("flagged"):
         if not allow_html:
@@ -57,6 +66,29 @@ def build_element(course, unit, el, *, source_root, source_dir, allow_html):
         return _attach(
             unit, RevealGateElement.objects.create(label=el.get("label", "")[:120])
         )
+    if etype == "tabs":
+        # Group B #6: a tabbed container. Build the tabs join row first, then
+        # recurse each tab's children under it (parent=join, tab_id=tab's id).
+        tabs_meta = [{"id": t["id"], "label": t["label"]} for t in el["tabs"]]
+        obj = TabsElement.objects.create(
+            data=TabsElement.normalize_labels_and_ids({"tabs": tabs_meta})
+        )
+        join = Element.objects.create(
+            unit=unit, parent=parent, tab_id=tab_id, content_object=obj
+        )
+        for t in el["tabs"]:
+            for child in t.get("elements", []):
+                build_element(
+                    course,
+                    unit,
+                    child,
+                    source_root=source_root,
+                    source_dir=source_dir,
+                    allow_html=allow_html,
+                    parent=join,
+                    tab_id=t["id"],
+                )
+        return obj
     if etype == "fillblank":
         # Group B #5: an inline fill-in-the-blank self-check. The stem keeps its
         # sentinel blank tokens; non-token segments are sanitized here.
@@ -185,6 +217,6 @@ def _max_marks_kwargs(el):
     return {"max_marks": Decimal(points)}
 
 
-def _attach(unit, obj):
-    Element.objects.create(unit=unit, content_object=obj)
+def _attach_row(unit, obj, *, parent=None, tab_id=""):
+    Element.objects.create(unit=unit, parent=parent, tab_id=tab_id, content_object=obj)
     return obj

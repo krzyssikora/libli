@@ -119,11 +119,12 @@ _INTERACTIVE_MARKERS = {
     "more_less_big",
     "more_less_small",
     "more_less_equal",
-    # mark-done, slideshow, tabs
+    # NB: ks_tabs is NOT a marker — it maps to a native TabsElement with nested
+    # children (Group B #6), so the container is handled, not placeholdered.
+    # mark-done, slideshow
     "mark_done",
     "show_slides",
     "slide_show",
-    "ks_tabs",
     "user_input_enter",
 }
 _BINARY_ATTRS = ("data-binary-choose", "data-binary-choices-id")
@@ -328,6 +329,19 @@ def _walk(nodes, elements, flags, consumed, state):
         if "switch_options" in classes_here:
             # Group B #3: a confirmed switch grid -> SwitchGridElement.
             _emit_switch_grid(node, elements, state)
+            continue
+        if "ks_tabs" in classes_here:
+            # Group B #6: a tabbed container -> TabsElement with nested children.
+            tabs_el = _emit_tabs(node, flags, consumed, state)
+            if tabs_el is not None:
+                elements.append(tabs_el)
+            else:
+                _unmapped(
+                    "ks_tabs outside TabsElement's 2..10 tab bounds",
+                    node,
+                    elements,
+                    flags,
+                )
             continue
 
         if (
@@ -580,6 +594,32 @@ def _emit_switch_gate_chain(container, elements, flags, consumed, state):
             else:
                 content.append(child)
         _walk(content, elements, flags, consumed, state)
+
+
+def _emit_tabs(ks_tabs, flags, consumed, state):
+    """Group B #6: a .ks_tabs container -> a {type:tabs} dict with nested child
+    elements per panel. Returns None (caller placeholders) if the tab count is
+    out of TabsElement's 2..10 bounds. Each <a id=tab-S-P href=#tabcontent-S-P>
+    is a tab label; its panel div's children recurse via _walk into that tab's
+    child elements."""
+    links = ks_tabs.select("ul li a")
+    if not (2 <= len(links) <= 10):
+        return None
+    tabs = []
+    for i, a in enumerate(links):
+        href = a.get("href", "")
+        panel = ks_tabs.find(id=href[1:]) if href.startswith("#") else None
+        child_elements = []
+        if panel is not None:
+            _walk(list(panel.children), child_elements, flags, consumed, state)
+        tabs.append(
+            {
+                "id": f"t{i:06d}",
+                "label": a.get_text(strip=True) or f"Tab {i + 1}",
+                "elements": child_elements,
+            }
+        )
+    return {"type": "tabs", "tabs": tabs}
 
 
 def _emit_switch_grid(container, elements, state):

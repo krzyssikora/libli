@@ -27,6 +27,7 @@ from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SwitchGateElement
 from courses.models import SwitchGridElement
+from courses.models import TabsElement
 from courses.models import TextElement
 from courses.validators import validate_embed_url
 from tests.factories import ContentNodeFactory
@@ -127,6 +128,45 @@ def test_build_reveal_gate(tmp_path):
     assert isinstance(obj, RevealGateElement)
     assert obj.label == "pokaż dalej"
     assert Element.objects.filter(unit=unit).count() == 1
+
+
+def test_build_tabs_nests_children_under_join_with_tab_id(tmp_path):
+    course = CourseFactory()
+    unit = _unit(course)
+    obj = build_element(
+        course,
+        unit,
+        {
+            "type": "tabs",
+            "tabs": [
+                {
+                    "id": "t000000",
+                    "label": "Sposób I",
+                    "elements": [{"type": "text", "body": "<p>a</p>"}],
+                },
+                {
+                    "id": "t000001",
+                    "label": "Sposób II",
+                    "elements": [
+                        {"type": "text", "body": "<p>b</p>"},
+                        {"type": "math", "latex": "x"},
+                    ],
+                },
+            ],
+        },
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert isinstance(obj, TabsElement)
+    assert [t["label"] for t in obj.data["tabs"]] == ["Sposób I", "Sposób II"]
+    join = Element.objects.get(object_id=obj.pk, content_type__model="tabselement")
+    # top-level rows: only the tabs join row (children have parent set)
+    assert Element.objects.filter(unit=unit, parent__isnull=True).count() == 1
+    kids = Element.objects.filter(unit=unit, parent=join)
+    assert kids.count() == 3
+    assert set(kids.values_list("tab_id", flat=True)) == {"t000000", "t000001"}
+    assert kids.filter(tab_id="t000001").count() == 2
 
 
 def test_build_fillblank(tmp_path):
