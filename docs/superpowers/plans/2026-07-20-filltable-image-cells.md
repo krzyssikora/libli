@@ -762,26 +762,28 @@ def _build_fill_table(data, assets):
 
 In `_val_fill_table` (`payloads.py`), keep the existing gross-corruption leniency, and while walking cells accumulate a ref set. For each cell that is a dict with `kind == "image"`, call `_require_media(cell.get("media"), elid, media_kinds, "image")` and union its return into the ref set; **return the ref set** instead of `set()`. Sketch:
 
+The real `_val_fill_table` is deliberately lenient: it tolerates a **missing** `cells` key (`rows = data.get("cells"); if rows is not None and not isinstance(rows, list): _err(...)` then iterates `rows or []`). Keep that exact leniency — only add the `refs` accumulation, the image branch, and `return refs` (instead of `return set()`):
+
 ```python
 def _val_fill_table(data, elid, media_kinds):
     if not isinstance(data, dict):
-        _err(...)  # existing message
-    cells = data.get("cells")
-    if not isinstance(cells, list):
-        _err(...)
+        _err(...)  # existing message, verbatim
+    rows = data.get("cells")
+    if rows is not None and not isinstance(rows, list):
+        _err(...)  # existing message, verbatim
     refs = set()
-    for row in cells:
+    for row in rows or []:               # keep the lenient `rows or []` walk
         if not isinstance(row, list):
-            _err(...)
+            _err(...)                    # existing message, verbatim
         for cell in row:
             if not isinstance(cell, dict):
-                _err(...)
+                _err(...)                # existing message, verbatim
             if cell.get("kind") == "image":
                 refs |= _require_media(cell.get("media"), elid, media_kinds, "image")
     return refs
 ```
 
-Match the EXACT existing `_err` messages/structure already in `_val_fill_table` — only add the `refs` accumulation, the image branch, and the `return refs`. Confirm `_require_media` returns `{local_id}` (used with `|=`) by reading its definition (~97-102).
+Match the EXACT existing `_err` messages/structure already in `_val_fill_table` — do NOT tighten the missing-`cells` tolerance. Confirm `_require_media` returns `{local_id}` (used with `|=`) by reading its definition (~97-102).
 
 - [ ] **Step 6: Run tests to verify they pass**
 
@@ -862,7 +864,7 @@ git commit -m "feat(transfer): _element_mids fill_table branch for image attribu
 
 **Files:**
 - Modify: `courses/element_forms.py` (`FillTableElementForm`)
-- Modify: `courses/views_manage.py` (~842 add-path tuple; the edit-path form construction ~1115-1123)
+- Modify: `courses/builder.py` (`save_element` — the `extra` tuple ~739; the REAL POST/save path)
 - Test: `tests/test_filltable_form.py`
 
 **Interfaces:**
@@ -1031,7 +1033,7 @@ Expected: PASS (new directly-constructed scoping tests + the real-save-endpoint 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add courses/element_forms.py courses/views_manage.py tests/test_filltable_form.py
+git add courses/element_forms.py courses/builder.py tests/test_filltable_form.py
 git commit -m "feat(filltable): course-scope image-cell media in the editor form"
 ```
 
@@ -1165,15 +1167,16 @@ def test_author_two_image_cells_with_distinct_alts(page, live_server):
     editor = page.locator("[data-filltable-editor]")
     grid = editor.locator("[data-table-grid]")
 
-    def make_image_cell(cell, alt, asset_name):
+    def make_image_cell(cell, alt, asset_pk):
         cell.click()
         editor.locator("[data-image-toggle]").click()          # opens the media picker
-        page.locator(".picker .asset-pick", has_text=asset_name).first.click()
+        page.wait_for_selector(".picker-overlay", timeout=5000)
+        page.locator(f".picker-overlay .asset-pick[data-asset-id='{asset_pk}']").click()
         editor.locator("[data-image-alt]").fill(alt)
 
     cells = grid.locator("td")
-    make_image_cell(cells.nth(0), "first graph", "seedA")
-    make_image_cell(cells.nth(1), "second graph", "seedB")
+    make_image_cell(cells.nth(0), "first graph", asset_a.pk)
+    make_image_cell(cells.nth(1), "second graph", asset_b.pk)
     # ... ensure at least one answer cell exists so the form validates ...
     page.locator("button[type='submit']").click()
 
@@ -1184,7 +1187,7 @@ def test_author_two_image_cells_with_distinct_alts(page, live_server):
     assert imgs.nth(1).get_attribute("data-alt") == "second graph"
 ```
 
-The seed must create two course image assets named so the picker grid shows them (`make_image_asset(course, ...)` + set `original_filename` to `seedA`/`seedB`). Use the file's existing `_seed_*`/`_login` helpers; if the editor add-flow is heavy to drive, seed the FillTable element via ORM with two static cells and only drive the toggle→pick→alt→save→reload path (still a REAL gesture, per the repo's e2e lesson — no `page.evaluate` shortcut into serialize()).
+The seed creates two course image assets, `asset_a = make_image_asset(course, "a.png")` and `asset_b = make_image_asset(course, "b.png")` (picked by `data-asset-id` = pk, so filenames are irrelevant). Use the gallery file's editor-navigation + `_login` helpers; if the editor add-flow is heavy to drive, seed the FillTable element via ORM with two static cells + one answer cell and drive only the real toggle→pick→alt→save→reload path (still a REAL gesture, per the repo's e2e lesson — no `page.evaluate` shortcut into serialize()).
 
 - [ ] **Step 2: Run the e2e to verify it fails**
 
