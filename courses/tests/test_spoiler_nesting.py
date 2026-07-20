@@ -42,7 +42,6 @@ def test_resolved_children_empty_when_no_join_row():
     assert sp.resolved_children() == []
 
 
-@pytest.mark.xfail(reason="template branch lands in Task 3", strict=True)
 def test_render_prefers_children_over_body():
     _course, unit = make_course_with_unit()
     sp, join = _nested_spoiler(unit, ("<p>CHILD-BODY</p>",))
@@ -90,3 +89,12 @@ def test_empty_spoiler_reports_no_math():
 
     sp = SpoilerElement.objects.create(label="x", body="")
     assert _element_has_math(sp) is False
+
+
+def test_empty_nested_spoiler_renders_no_body_wrapper():
+    _course, unit = make_course_with_unit()
+    sp = SpoilerElement.objects.create(label="x", body="")
+    join = Element.objects.create(unit=unit, content_object=sp)  # join, zero children
+    html = sp.render(element=join, state={}, slug="x", node_pk=unit.pk)
+    assert "spoiler__body" not in html  # no stray el--text wrapper
+    assert "<details" in html
