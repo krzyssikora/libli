@@ -329,6 +329,19 @@ inventing a new one.
     `kind=="image"` cell, remap `media` (a **string** local id) via
     `assets[<local id>].pk` (mirroring `_build_gallery`'s `assets[img["media"]].pk`),
     carrying `alt` through unchanged, then `normalize_data` + save.
+  - **Media-ref router** `_element_mids` (`export.py` ~366): this by-type-key helper
+    feeds `mid_refs` (the mid → [(walk_index, unit_pk, unit_title)] map used for
+    tolerant-export **missing-media attribution/reporting**). It has a `gallery`
+    branch (walks `images[].media`) and a scalar default (`data.get("media")`); a
+    `fill_table` currently matches neither → returns `[]`, so an image cell's
+    registered mid never enters `mid_refs`. Add a **`fill_table` branch** that walks
+    `data["cells"]` and yields each `kind=="image"` cell's `media` **string** local
+    id (mirroring the gallery branch's `isinstance(..., str)` guard). Without it the
+    asset is still bundled (pass 5 iterates `media_ids` directly, so the happy-path
+    round-trip stays green — a trap), but a tolerant export of a fill-table with a
+    **missing** image would silently placeholder it with **no `missing_image`
+    problem entry and no unit attribution**. This is part of "mirror the gallery path
+    exactly."
   - **Validator** `_val_fill_table` (`courses/transfer/payloads.py` ~618): this
     validator is **deliberately lenient** — today it rejects only gross structural
     corruption (non-dict data/row/cell) and returns `set()`, leaving all key/enum
@@ -355,6 +368,10 @@ inventing a new one.
     fresh asset namespace preserves the image (bundled asset, remapped pk) **and its
     `alt`**; and a bundle that registers the image asset but whose validator omits
     the ref is rejected (falsifies the "return the ref set" requirement).
+  - Tolerant-export test: a **tolerant** export of a fill-table whose image cell's
+    asset file is missing reports a `missing_image` problem **attributed to the
+    unit** (falsifies the `_element_mids` `fill_table` branch — without it the
+    problem list would be empty despite the missing image).
 
 ## Testing
 
