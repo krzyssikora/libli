@@ -1358,7 +1358,13 @@ class TableElementForm(forms.ModelForm):
         return TableElement.normalize_data(data)
 
 
-class FillTableElementForm(forms.ModelForm):
+class FillTableElementForm(_CourseScopedMediaForm):
+    """Fill-in table. `data` JSON holds {cells:[[cell,...],...]}; image cells carry
+    a `media` id that is course-scoped against the referenced image in clean_data
+    (mirrors GalleryElementForm — the same author-submitted-pk risk)."""
+
+    media_kind = "image"
+
     class Meta:
         model = FillTableElement
         fields = ["data"]
@@ -1394,6 +1400,19 @@ class FillTableElementForm(forms.ModelForm):
                     "or make it a normal cell."
                 )
             )
+        # Course-scope image cells (mirrors GalleryElementForm): every image cell's
+        # media must be an image in this course.
+        img_ids = {c["media"] for row in cells for c in row if c.get("kind") == "image"}
+        if img_ids and self.course is not None:
+            allowed = set(
+                MediaAsset.objects.filter(
+                    course=self.course, kind="image", pk__in=img_ids
+                ).values_list("pk", flat=True)
+            )
+            if img_ids - allowed:
+                raise forms.ValidationError(
+                    _("A table image is not an image in this course.")
+                )
         return nd
 
 

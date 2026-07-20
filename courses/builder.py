@@ -736,7 +736,11 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
             f.instance.save()
             idx += 1
     else:
-        extra = {"course": course} if type_key in ("image", "video", "gallery") else {}
+        extra = (
+            {"course": course}
+            if type_key in ("image", "video", "gallery", "filltable")
+            else {}
+        )
         form = FORM_FOR_TYPE[type_key](
             data=post_data, files=files, instance=instance, **extra
         )
