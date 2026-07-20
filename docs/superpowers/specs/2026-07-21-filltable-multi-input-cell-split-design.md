@@ -109,22 +109,23 @@ would DECODE math `&lt;` and reintroduce the corruption in
    cell this yields `static "\([\)"`, `answer(x)`, `static "\(,\)"`, `answer(y)`,
    `static "\(]\)"` — 5 sub-cells.
 
-**Emptiness rule (pin the representation):** a static segment is DROPPED iff its
-decoded text is whitespace-only — `BeautifulSoup(seg, "html.parser")
-.get_text(strip=True)` is `""` — treating `&nbsp;`/lone `<br>` as empty. A segment
-with real text/math (e.g. `\([\)`) is kept. This mirrors the image branch's
-`get_text(strip=True)` emptiness test rather than the static branch's
-serialized-string `.strip()`, so `&nbsp;`/`<br>`-only gaps between adjacent inputs
-do not create spurious columns.
+**Per-segment classification (explicit precedence, mirroring the Task 4 cascade).**
+Parse each static segment once (`seg_soup = BeautifulSoup(seg, "html.parser")`) and
+classify in THIS order — image is checked BEFORE the emptiness drop, because a
+lone `<img>` has empty `get_text` and would otherwise be dropped:
 
-**Interleaved images (fidelity, not silent loss):** a kept static segment whose
-significant content is a single `<img>` (same test as the Task 4 pure-image
-branch: `get_text(strip=True)` empty AND exactly one `<img>`) is emitted as an
-`{kind:"image", media_src, alt}` sub-cell instead of static — so an image between
-inputs is preserved (its `<img>` would otherwise be stripped by `sanitize_cell`,
-CELL_TAGS has no `img`). A segment mixing an image with other tags stays static
-(image dropped, as elsewhere) — no such shape is expected in the corpus, but this
-keeps a lone interleaved image from vanishing silently.
+1. **Image** — `seg_soup.get_text(strip=True) == ""` AND exactly one `<img>`
+   (`len(seg_soup.find_all("img")) == 1`) → emit `{kind:"image", media_src, alt}`
+   (same test as the Task 4 pure-image branch; preserves an image between inputs
+   that `sanitize_cell` would otherwise strip, CELL_TAGS has no `img`).
+2. **Static** — else `seg_soup.get_text(strip=True) != ""` (real text/math, e.g.
+   `\([\)`) → emit `{kind:"static", html: seg.strip()}`.
+3. **Drop** — else (whitespace-only, treating `&nbsp;`/lone `<br>` as empty, with
+   no single `<img>`) → emit nothing, so `&nbsp;`/`<br>`-only gaps between adjacent
+   inputs create no spurious column.
+
+(A segment mixing an image with other tags falls to case 2 = static, dropping the
+image as elsewhere — no such shape is expected in the corpus.)
 
 ### Reshaping the grid (padding)
 
@@ -141,9 +142,15 @@ same columns across data rows; the shorter **header** row pads on the right, so
 **MAX_COLS guard:** `FillTableElement.MAX_COLS == 20`; a `normalize_data` grid over
 this passes silently but `FillTableElementForm.clean_data` would later reject it.
 If the post-split `width > MAX_COLS`, fall back to the flagged HtmlElement path for
-that table (same fallback as span/nested/ragged) rather than emitting a grid the
-editor can't save. Unreachable for the current corpus (widest split is the 6-col
-vector), but bounded.
+that table rather than emitting a grid the editor can't save. **CAUTION — the raw
+must be captured BEFORE mutation:** the split calls `inp.replace_with(<sentinel>)`
+on the live tree, so by the time width is known `str(table)` would serialise the
+U+FFFF tokens (garbage, inputs lost). Capture `raw = str(table)` (or the
+`_flag_html(table, …)` result) ONCE at the top of `fill_table_element` before any
+`replace_with`, and use that pristine raw for the MAX_COLS fallback — OR perform
+each split on a copy of the `<td>` so the original tree stays intact. Do NOT
+re-serialise the mutated table. Unreachable for the current corpus (widest split
+= 6-col vector vs MAX_COLS 20), but bounded and non-corrupting.
 
 **Correctness is per-cell, not per-column:** each answer cell is checked
 independently against its own stored accepted answer by grid position
@@ -198,7 +205,14 @@ Follow TDD; every test falsifiable (RED before GREEN).
   `<span>`/`<div>` (e.g. `<td><span>\([\) <in> \(,\) <in> \(]\)</span></td>`)
   still splits into two answer cells — proving the recursive `find_all` +
   whole-`<td>` `decode_contents()` path descends, not a direct-children walk that
-  would emit one static run and lose both inputs.
+  would emit one static run and lose both inputs. **Known limitation (documented,
+  not fixed):** the recursive-descent guarantee is for the ANSWER cells; splitting
+  the decoded html on tokens cuts through the wrapper, so the static segments are
+  fragments like `<span>\([\)` … `\(]\)</span>`. This is fine for wrappers NOT in
+  `sanitize_cell`'s CELL_TAGS (`span`/`div` are stripped at load → clean `\([\)`),
+  but an allowed inline wrapper (`<b>…</b>`) straddling both statics would style
+  only the opening fragment. Acceptable — no such shape in the corpus; the answer
+  cells (the correctness-bearing part) are always correct.
 - **Escape invariant** (I1 guard): a split static segment whose math contains a
   comparison, e.g. `<in> \(a<b\) <in>`, reaches the middle static cell as the
   re-escaped `\(a&lt;b\)` (NOT a decoded `\(a<b\)`), matching the existing
