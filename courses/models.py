@@ -983,15 +983,17 @@ class FillTableElement(ElementBase):
 
     @property
     def canonical_cells(self):
-        """Grid shaped exactly like normalize_data(self.data)["cells"]: static
-        cells pass through unchanged; each answer cell's `answer` is replaced by
-        its FIRST pipe-delimited alternative (courses.filltable.split_alternatives
-        ()[0]; no configured alternatives -> ""). Restore-only (mine.done); reads
-        self.data via normalize_data() but NEVER mutates it -- normalize_data()
+        """Grid shaped exactly like resolved_cells: image cells resolved to a
+        MediaAsset (or degraded to empty static); static cells pass through
+        unchanged; each answer cell's `answer` is replaced by its FIRST
+        pipe-delimited alternative (courses.filltable.split_alternatives()[0];
+        no configured alternatives -> ""). Restore-only (mine.done); reads
+        self.data via resolved_cells but NEVER mutates it -- resolved_cells
         already returns fresh cell dicts, not references into self.data."""
         from courses.filltable import split_alternatives
 
-        cells = self.normalize_data(self.data)["cells"]
+        # resolve image pks -> MediaAsset, then swap answers
+        cells = self.resolved_cells
         out = []
         for row in cells:
             out_row = []
@@ -1047,7 +1049,10 @@ class FillTableElement(ElementBase):
                 "cells": self.canonical_cells,
             }
         else:
-            ctx["data"] = self.normalize_data(self.data)
+            ctx["data"] = {
+                **self.normalize_data(self.data),
+                "cells": self.resolved_cells,
+            }
         return render_to_string("courses/elements/filltableelement.html", ctx)
 
     @property

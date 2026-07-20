@@ -746,6 +746,7 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
    pass only, matching the sibling table's note above. --- */
 .filltable { margin: var(--space-4) 0; }
 .filltable__prompt { margin: 0 0 var(--space-2); font-weight: 600; }
+.filltable__img { max-width: 100%; height: auto; display: block; }
 .el--filltable__scroll { overflow-x: auto; }
 .el--filltable table { border-collapse: collapse; width: 100%; }
 .el--filltable th, .el--filltable td { padding: var(--space-2); }

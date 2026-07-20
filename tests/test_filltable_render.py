@@ -1,6 +1,8 @@
 import pytest
 
 from courses.models import FillTableElement
+from tests.factories import make_course
+from tests.factories import make_image_asset
 
 pytestmark = pytest.mark.django_db
 
@@ -45,3 +47,61 @@ def test_root_has_check_url_and_summary_msgs():
 def test_prompt_rendered_escaped_when_present():
     html = _render([[{"kind": "answer", "answer": "1"}]], prompt="Fill <it> in")
     assert "Fill &lt;it&gt; in" in html  # escaped, not |safe
+
+
+def test_image_cell_renders_img_with_url_and_alt():
+    course = make_course()
+    asset = make_image_asset(course, "g.png")
+    el = FillTableElement(
+        data={
+            "cells": [
+                [
+                    {"kind": "image", "media": asset.pk, "alt": "graph"},
+                    {"kind": "answer", "answer": "1"},
+                ]
+            ]
+        }
+    )
+    el.save()
+    html = el.render()
+    assert asset.file.url in html
+    assert 'alt="graph"' in html
+    assert "filltable__img" in html
+
+
+def test_image_cell_unresolved_renders_no_broken_img():
+    el = FillTableElement(
+        data={
+            "cells": [
+                [
+                    {"kind": "image", "media": 999999, "alt": "x"},
+                    {"kind": "answer", "answer": "1"},
+                ]
+            ]
+        }
+    )
+    el.save()
+    html = el.render()
+    assert "filltable__img" not in html  # degraded to empty static, no <img>
+
+
+def test_done_render_keeps_image_and_canonicalises_answer():
+    # mine.done path must resolve image cells too (uses canonical_cells)
+    course = make_course()
+    asset = make_image_asset(course, "g.png")
+    el = FillTableElement(
+        data={
+            "cells": [
+                [
+                    {"kind": "image", "media": asset.pk, "alt": "g"},
+                    {"kind": "answer", "answer": "4 | four"},
+                ]
+            ]
+        }
+    )
+    el.save()
+    # canonical_cells is the done-path grid; assert the image cell is resolved there
+    done_cells = el.canonical_cells
+    assert done_cells[0][0]["kind"] == "image"
+    assert done_cells[0][0]["media"].pk == asset.pk  # resolved, not an int
+    assert done_cells[0][1]["answer"] == "4"  # first alternative
