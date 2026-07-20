@@ -158,6 +158,44 @@ def test_build_choice_grid(tmp_path):
     assert rows[1].correct_column.label == "tak"
 
 
+def test_build_spoiler_truncates_over_120_char_label(tmp_path):
+    # SpoilerElement.label is varchar(120); a longer LAL reveal label must be
+    # truncated (as reveal_gate does) rather than raising a DB DataError on load.
+    course = CourseFactory()
+    unit = _unit(course)
+    obj = build_element(
+        course,
+        unit,
+        {"type": "spoiler", "label": "x" * 200, "body": "<p>b</p>"},
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert len(obj.label) == 120
+
+
+def test_choice_grid_deletes_without_protected_error(tmp_path):
+    # Reload = delete-and-rebuild; deleting a ChoiceGrid must not trip
+    # GridRow.correct_column's PROTECT FK (Django cascade-ordering edge case).
+    course = CourseFactory()
+    unit = _unit(course)
+    obj = build_element(
+        course,
+        unit,
+        {
+            "type": "choice_grid",
+            "columns": ["tak", "nie"],
+            "rows": [{"statement": "A", "correct": 1}],
+        },
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    pk = obj.pk
+    obj.delete()  # must NOT raise ProtectedError
+    assert not ChoiceGridQuestionElement.objects.filter(pk=pk).exists()
+
+
 def test_build_multi_grid(tmp_path):
     course = CourseFactory()
     unit = _unit(course)

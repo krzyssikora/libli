@@ -64,7 +64,10 @@ def build_element(
     if etype == "spoiler":
         return _attach(
             unit,
-            SpoilerElement.objects.create(label=el.get("label", ""), body=el["body"]),
+            SpoilerElement.objects.create(
+                label=el.get("label", "")[:120],  # SpoilerElement.label is varchar(120)
+                body=el["body"],
+            ),
         )
     if etype == "reveal_gate":
         # Group B #1: a "show more" gate. The step content it reveals is emitted

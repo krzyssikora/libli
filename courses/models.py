@@ -1829,6 +1829,15 @@ class ChoiceGridQuestionElement(QuestionElement):
     REVEAL_TEMPLATE = "courses/elements/_reveal_choicegrid.html"
     elements = GenericRelation(Element)
 
+    def delete(self, *args, **kwargs):
+        # GridRow.correct_column PROTECTs GridColumn. Both rows and columns are
+        # CASCADE children of this question, but Django's collector can gather a
+        # column before the row that protects it and then raise ProtectedError.
+        # Deleting the rows first drops those PROTECT references so the question's
+        # own cascade can remove the (now unreferenced) columns cleanly.
+        self.rows.all().delete()
+        return super().delete(*args, **kwargs)
+
     def build_answer(self, post):
         rows = list(self.rows.all())
         valid = {c.pk for c in self.columns.all()}
