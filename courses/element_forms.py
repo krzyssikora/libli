@@ -220,6 +220,14 @@ class SpoilerElementForm(forms.ModelForm):
         model = SpoilerElement
         fields = ["label", "body"]
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # A nested spoiler edits its children via the nested editor rows, not this
+        # flat form; drop `body` so a save can never blank it or orphan children.
+        inst = self.instance
+        if inst is not None and inst.pk and inst.resolved_children():
+            self.fields.pop("body", None)
+
 
 class CalloutElementForm(forms.ModelForm):
     class Meta:

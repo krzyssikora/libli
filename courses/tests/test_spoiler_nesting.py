@@ -156,3 +156,22 @@ def test_resolve_scope_refuses_children_for_nested_spoiler():
     _sp, sp_join = _spoiler_join(unit, parent=tjoin, tab_id=tab_id)
     with pytest.raises(NestingError):
         builder.resolve_scope(unit, str(sp_join.pk), SpoilerElement.SLOT_ID, "text")
+
+
+def test_spoiler_form_keeps_body_for_legacy_spoiler():
+    from courses.element_forms import SpoilerElementForm
+
+    sp = SpoilerElement.objects.create(label="L", body="<p>x</p>")
+    form = SpoilerElementForm(instance=sp)
+    assert "body" in form.fields
+    assert "label" in form.fields
+
+
+def test_spoiler_form_drops_body_when_instance_has_children():
+    from courses.element_forms import SpoilerElementForm
+
+    _course, unit = make_course_with_unit()
+    sp, _join = _nested_spoiler(unit, ("<p>c</p>",))
+    form = SpoilerElementForm(instance=sp)
+    assert "body" not in form.fields
+    assert "label" in form.fields
