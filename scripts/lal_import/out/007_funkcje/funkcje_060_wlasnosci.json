@@ -34,13 +34,12 @@
       "type": "switch_gate",
       "stem": "\n                Szukając dziedziny funkcji o danym równaniu,\n                \n\n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "możemy uznać, że jest nią cały zbiór \\(\\mathbb{R}\\)",
         "musimy upewnić się, że nie dzielimy przez \\(0\\)",
         "musimy upewnić się, że nie liczymy pierwiastka parzystego stopnia z liczby ujemnej",
         "musimy upewnić się, że nie dzielimy przez \\(0\\) i nie liczymy pierwiastka parzystego stopnia z liczby ujemnej"
       ],
-      "answer": 4
+      "answer": 3
     },
     {
       "type": "text",
@@ -48,5 +47,5 @@
     }
   ],
   "fully_mapped": false,
-  "seed_hash": "069e5741b0edf04645705b9e51989c01dafdfe6ffb41cb8abfcf2b61b1fdffaf"
+  "seed_hash": "a64988a0131c60242dbccd5ac5da94c57d0f46282b01d41e31e817722dfffdda"
 }

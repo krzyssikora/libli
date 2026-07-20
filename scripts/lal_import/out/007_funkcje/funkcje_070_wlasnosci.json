@@ -28,13 +28,12 @@
       "type": "switch_gate",
       "stem": "\n                W równaniu funkcji widzimy ułamek, mamy więc do czynienia z dzieleniem. Dlatego musimy rozpatrzeć warunek\n                \n\n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(2+x\\ne 0\\)",
         "\\(2x-1\\ne 0\\)",
         "\\(2+x\\ge 0\\)",
         "\\(2x+1\\ge 0\\)"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -44,13 +43,12 @@
       "type": "switch_gate",
       "stem": "\n                Rozwiązując tę nierówność otrzymujemy\n                \n\n\n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(x=2\\)",
         "\\(x\\ne 2\\)",
         "\\(x=\\tfrac{1}{2}\\)",
         "\\(x\\ne\\tfrac{1}{2}\\)"
       ],
-      "answer": 4
+      "answer": 3
     },
     {
       "type": "text",
@@ -68,13 +66,12 @@
       "type": "switch_gate",
       "stem": "\n                W równaniu funkcji widzimy pierwiastek, więc liczba pod pierwiastkiem nie może być ujemna. Oznacza to, że\n                \n\n\n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(9-3x \\gt 0\\)",
         "\\(9-3x \\lt 0\\)",
         "\\(9-3x \\ge 0\\)",
         "\\(9-3x \\le 0\\)"
       ],
-      "answer": 3
+      "answer": 2
     },
     {
       "type": "text",
@@ -84,13 +81,12 @@
       "type": "switch_gate",
       "stem": "\n                Rozwiązując nierówność \\(9-3x\\ge 0\\) otrzymamy najpierw\n                \\[\n                -3x\\ge -9\n                \\]\n                a następnie, dzieląc obie strony przez \\(-3\\) (i pamiętając, że przy dzieleniu przez liczbę ujemną należy zmienić znak nierówności na przeciwny), otrzymamy:\n                \n\n\n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(x \\gt 3\\)",
         "\\(x \\lt 3\\)",
         "\\(x \\ge 3\\)",
         "\\(x \\le 3\\)"
       ],
-      "answer": 4
+      "answer": 3
     },
     {
       "type": "text",
@@ -106,5 +102,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "121234aa422503bd34364f52003f018cecafa356839d274397ff0464d7463bbe"
+  "seed_hash": "62dc76299a575c21a9f3d9af90c9c1b46829a1f72846bdf1e71bc0cf4902ab45"
 }

@@ -39,3 +39,27 @@ def extract_int_map(html, key):
         int(qm.group(1)): [int(v) for v in _INT.findall(qm.group(2))]
         for qm in _QID_INT_LIST.finditer(body)
     }
+
+
+def _raw_item(tok):
+    """Normalize one JS array item to its canonical answer string: a quoted
+    string keeps its inner text; a number/fraction keeps its literal form."""
+    tok = tok.strip()
+    if len(tok) >= 2 and tok[0] in "\"'" and tok[-1] == tok[0]:
+        return tok[1:-1]
+    return tok
+
+
+def extract_str_map(html, key):
+    """Return {qid: [str, ...]} for a flat localStorage key whose items are
+    decimals / fractions / quoted strings (table_answers, answers_fill_next);
+    {} if absent. Values are kept in their literal JS form (11/30 stays "11/30")."""
+    m = _setitem_re(key).search(html)
+    if not m:
+        return {}
+    body = _strip_js_comments(m.group(1))
+    out = {}
+    for qm in _QID_INT_LIST.finditer(body):
+        items = [_raw_item(t) for t in qm.group(2).split(",")]
+        out[int(qm.group(1))] = [it for it in items if it != ""]
+    return out

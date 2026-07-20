@@ -44,13 +44,12 @@
       "type": "switch_gate",
       "stem": "\n                Dla \\(x=4\\), \\(f(4)=\\frac{1}{2}\\cdot 4-2=\\)\n                \n\n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(-1\\)",
         "\\(0\\)",
         "\\(1\\)",
         "\\(2\\)"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -64,13 +63,12 @@
       "type": "switch_gate",
       "stem": "\n                Dla \\(x=6\\), \\(f(6)=\\frac{1}{2}\\cdot 6-2=\\)\n                \n\n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(-1\\)",
         "\\(0\\)",
         "\\(1\\)",
         "\\(2\\)"
       ],
-      "answer": 3
+      "answer": 2
     },
     {
       "type": "text",
@@ -163,22 +161,20 @@
       "type": "switch_gate",
       "stem": "\n                Jak widać, wykres układa się wzdłuź\n                \n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "krzywej",
         "prostej",
         "łamanej"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "switch_gate",
       "stem": "\n                Punkt \\((6, 1)\\)\n                \n\n￿0￿\n                do wykresu.\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "należy",
         "nie należy"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -219,5 +215,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "e60433e10b732415721cebdc22a180b240a85d387169aca0bd330ca42f8e9363"
+  "seed_hash": "d93689c1ba3905a7ae41ba4541ce87cacaf9e23153eb72bfb983639a655dda50"
 }

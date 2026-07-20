@@ -19,6 +19,7 @@ from courses.lal_loader.tree import upsert_node
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Element
+from courses.models import FillTableElement
 from courses.models import MediaAsset
 from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
@@ -124,6 +125,41 @@ def test_build_reveal_gate(tmp_path):
     )
     assert isinstance(obj, RevealGateElement)
     assert obj.label == "pokaż dalej"
+    assert Element.objects.filter(unit=unit).count() == 1
+
+
+def test_build_fill_table(tmp_path):
+    course = CourseFactory()
+    unit = _unit(course)
+    obj = build_element(
+        course,
+        unit,
+        {
+            "type": "fill_table",
+            "data": {
+                "header_row": True,
+                "header_col": False,
+                "border": "grid",
+                "cells": [
+                    [
+                        {"kind": "static", "html": "wymiar"},
+                        {"kind": "static", "html": "błąd"},
+                    ],
+                    [
+                        {"kind": "static", "html": r"\(50,5\)"},
+                        {"kind": "answer", "answer": "0.5|0,5"},
+                    ],
+                ],
+            },
+        },
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert isinstance(obj, FillTableElement)
+    cells = obj.data["cells"]
+    assert cells[1][1]["kind"] == "answer"
+    assert cells[1][1]["answer"] == "0.5|0,5"
     assert Element.objects.filter(unit=unit).count() == 1
 
 

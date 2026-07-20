@@ -24,12 +24,11 @@
       "type": "switch_gate",
       "stem": "\n                Dziedziną funkcji \\(g\\) jest więc spójny przedział\n                \n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(\\langle-5,2\\rangle\\)",
         "\\((-5,2)\\)",
         "\\((-5,2\\rangle\\)"
       ],
-      "answer": 3
+      "answer": 2
     },
     {
       "type": "text",
@@ -63,12 +62,11 @@
       "type": "switch_gate",
       "stem": "\n                Z tego powodu zbiór wartości funkcji \\(g\\) jest sumą dwóch przedziałów, a dokładniej.\n                \n                    najmniejsza wartość\n                \n                funkcji \\(f\\) to\n                \n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\((-1,1)\\cup\\langle 2, 5\\rangle\\)",
         "\\((-1,1\\rangle\\cup(2, 5\\rangle\\)",
         "\\((-1,-1)\\cup\\langle -1, 5\\rangle\\)"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "type": "text",
@@ -88,5 +86,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "d4af6c2a50e666213e05b5d086a88cb5d5017195c30c8a2739ba68d818781c3d"
+  "seed_hash": "e9b821f22bcbd7d98545ba78b185c7d557138466bc8ba754e3cafda58d928217"
 }

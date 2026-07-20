@@ -40,10 +40,9 @@
       "type": "switch_gate",
       "stem": "\n                Dziedziną funkcji jest zbiór\n                \n￿0￿\n                ,\n                \n\n￿1￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\((-4,-1)\\cup(-1,3\\rangle\\)"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -61,12 +60,11 @@
       "type": "switch_gate",
       "stem": "\n                Zbiorem wartości funkcji jest zbiór\n                \n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(\\langle -2, 2\\rangle\\)",
         "\\((-2,2)\\)",
         "\\(\\langle -2,2)\\)"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "type": "text",
@@ -76,13 +74,12 @@
       "type": "switch_gate",
       "stem": "\n                Najmniejsza wartość to\n                \n\n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(-4\\)",
         "\\(-3\\)",
         "\\(-2\\)",
         "\\(2\\)"
       ],
-      "answer": 3
+      "answer": 2
     },
     {
       "type": "text",
@@ -92,13 +89,12 @@
       "type": "switch_gate",
       "stem": "\n                Największa wartość to\n                \n\n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(2\\)",
         "\\(1\\)",
         "\\(0\\)",
         "\\(-1\\)"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "type": "text",
@@ -112,13 +108,12 @@
       "type": "switch_gate",
       "stem": "\n                Miejsca zerowe to\n                \n\n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(-3,5\\)",
         "\\(2\\)",
         "\\(-3,5\\) oraz \\(2\\)",
         "\\(1,5\\)"
       ],
-      "answer": 3
+      "answer": 2
     },
     {
       "type": "text",
@@ -136,12 +131,11 @@
       "type": "switch_gate",
       "stem": "\n                Funkcja rośnie dla argumentów\n                \n\n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(x\\in\\langle -3, -1\\rangle\\) oraz dla \\(x\\in (-1, 1\\rangle\\)",
         "\\(x\\in \\langle -3, 1\\rangle\\)",
         "\\(x\\in\\langle 1, 2\\rangle\\)"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "type": "text",
@@ -167,11 +161,10 @@
       "type": "switch_gate",
       "stem": "\n                Funkcja przedstawiona na wykresie\n                \n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "jest różnowartowościowa",
         "nie jest różnowartowościowa"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -179,5 +172,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "206bdb2500d071de946dd1af5e2c6dc4684e40203b7070ba7ffa7ee929f33007"
+  "seed_hash": "d606754ab2faa2eb2181c9dc096ebcc3f8489b8a58951e50dff8acbb68240e94"
 }

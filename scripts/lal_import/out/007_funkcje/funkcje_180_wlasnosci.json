@@ -40,12 +40,11 @@
       "type": "switch_gate",
       "stem": "\n                Odejmując \\(7\\) od obu stron i potem dzieląc na \\(-5\\) otrzymamy\n                \n\n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(x_1=-x_2\\)",
         "\\(x_1=x_2\\)",
         "\\(x_1=x_2+\\tfrac{14}{5}\\)"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -87,12 +86,11 @@
       "type": "switch_gate",
       "stem": "\n                Mnożąc na krzyż otrzymamy\n                \n\n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\((2x_1+1)(x_1-3)=(2x_2+1)(x_2-3)\\)",
         "\\((2x_1+1)(x_2-3)=(2x_2+1)(x_1-3)\\)",
         "\\((2x_1+1)(2x_2+1)=(x_2-3)(x_1-3)\\)"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -106,12 +104,11 @@
       "type": "switch_gate",
       "stem": "\n                Redukując wyrazy podobne otrzymamy\n                \n\n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(x_1=x_2\\)",
         "\\(7x_1=5x_2\\)",
         "\\(7x_1-7x_2=6\\)"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "type": "text",
@@ -157,25 +154,23 @@
       "type": "switch_gate",
       "stem": "\n                Zacznijmy od \\(x=5\\). \\(h(5)=(5-3)^2=\\)\n                \n\n\n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(4\\)",
         "\\(-4\\)",
         "\\(2\\)",
         "\\(16\\)"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "type": "switch_gate",
       "stem": "\n                A teraz rozpatrzmy \\(x=1\\). Wówczas \\(h(1)=(1-3)^2=\\)\n                \n\n\n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(-4\\)",
         "\\(4\\)",
         "\\(-8\\)",
         "\\(16\\)"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -189,11 +184,10 @@
       "type": "switch_gate",
       "stem": "\n                Oznacza to, że funkcja \\(h\\)\n                \n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "jest różnowartowościowa",
         "nie jest różnowartowościowa"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -300,5 +294,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "220126d0a74e43b05ed67bbf2a603008e58065b8357cbb7dc09db158f4d33859"
+  "seed_hash": "2a23193af98e28d7d4e9fd30ca52e5f79df0d53930a110fe1451eb66b9117d38"
 }

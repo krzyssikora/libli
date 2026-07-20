@@ -20,11 +20,10 @@
       "type": "switch_gate",
       "stem": "\n                Dziedzina funkcji \\(f\\) to zbiór\n                \n\n￿0￿\n                .\n                ￿1￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(\\langle-6,2\\rangle\\)",
         "\\((-6,2)\\)"
       ],
-      "answer": 3
+      "answer": 2
     },
     {
       "type": "text",
@@ -38,12 +37,11 @@
       "type": "switch_gate",
       "stem": "\n                Teraz spójrzmy na najniższy punkt wykresu. Z niego odczytujemy, że\n                \n                    najmniejsza wartość\n                \n                funkcji \\(f\\) to\n                \n\n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(y=-6\\)",
         "\\(y=-2\\)",
         "\\(x=-6\\)"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -57,13 +55,12 @@
       "type": "switch_gate",
       "stem": "\n                Zauważ, że funkcja\n                \n                    nie ma największej wartości\n                \n                . Jest tak dlatego, że najwyższy punkt, \\((2,5)\\), nie należy do wykresu (jest niezamalowany). Gdyby ten punkt należał do wykresu, wówczas największą wartością byłaby\n                \n\n\n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(y=5\\)",
         "\\(y=2\\)",
         "\\(x=2\\)",
         "\\(y=4\\)"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "type": "text",
@@ -77,12 +74,11 @@
       "type": "switch_gate",
       "stem": "\n                Skoro najmniejszą wartością jest \\(y=-2\\), a największej nie ma, lecz wartości prawie osiągają \\(y=5\\), to znaczy, że zbiorem wartości funkcji \\(f\\) jest zbiór\n                \n\n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\((-2,5)\\)",
         "\\(\\langle -2, 5)\\)",
         "\\(\\langle -2, 5\\rangle\\)"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -102,5 +98,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "98e8cf1d1a5d0942a569a8cfe2b3e6542a91cdbb739b2f59219be8eaccf39a3a"
+  "seed_hash": "421596685a2509e85e840fd02e0ffbd0e46fb8f025a847dd786de23424a364bb"
 }

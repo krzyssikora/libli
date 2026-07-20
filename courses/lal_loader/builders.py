@@ -8,6 +8,7 @@ from courses.lal_loader.media import resolve_source
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
 from courses.models import Element
+from courses.models import FillTableElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
@@ -53,6 +54,15 @@ def build_element(course, unit, el, *, source_root, source_dir, allow_html):
         # next gate); this builds only the gate divider itself.
         return _attach(
             unit, RevealGateElement.objects.create(label=el.get("label", "")[:120])
+        )
+    if etype == "fill_table":
+        # Group B #4: a fill-in-the-blanks self-check table (input cells ->
+        # accepted-answer cells). normalize_data sanitizes static cells.
+        return _attach(
+            unit,
+            FillTableElement.objects.create(
+                data=FillTableElement.normalize_data(el["data"])
+            ),
         )
     if etype == "switch_gate":
         # Group B #2: a cycler-triggered reveal gate. The stem's sentinel token

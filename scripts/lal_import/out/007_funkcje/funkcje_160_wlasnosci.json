@@ -156,11 +156,10 @@
       "type": "switch_gate",
       "stem": "\n                Zgodnie z obserwacją spod tabeli, rozważmy teraz różnicę \\(f(x_1)-f(x_2)=(-5x_1+7)-(-5x_2+7)=-5x_1+7+5x_2\\)\n                \n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(+7\\)",
         "\\(-7\\)"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -178,35 +177,32 @@
       "type": "switch_gate",
       "stem": "\n                Z założenia (oznaczonego wyżej \\((*)\\)) widzimy, że liczba w nawiasie jest\n                \n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "dodatnia",
         "ujemna",
         "równa zero"
-      ],
-      "answer": 2
-    },
-    {
-      "type": "switch_gate",
-      "stem": "\n                Tak więc wynikiem \\(f(x_1)-f(x_2)\\) jest iloczyn ujemnej liczby \\(-5\\) oraz ujemnej liczby \\(x_1-x_2\\), czyli wynik jest\n                \n\n￿0￿\n                .\n                \n",
-      "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
-        "dodatni",
-        "ujemny"
       ],
       "answer": 1
     },
     {
       "type": "switch_gate",
+      "stem": "\n                Tak więc wynikiem \\(f(x_1)-f(x_2)\\) jest iloczyn ujemnej liczby \\(-5\\) oraz ujemnej liczby \\(x_1-x_2\\), czyli wynik jest\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "dodatni",
+        "ujemny"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
       "stem": "\n                Otrzymaliśmy \\(f(x_1)-f(x_2)\\gt 0\\) co oznacza, że funkcja \\(f\\) jest\n                \n\n\n\n\n\n￿0￿\n                (jeśli nie masz pewności, sprawdź w tabeli powyżej).\n            ",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "rosnąca",
         "malejąca",
         "stała",
         "niemalejąca",
         "nierosnąca"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "math",
@@ -236,11 +232,10 @@
       "type": "switch_gate",
       "stem": "\n                Rrozważmy różnicę \\(f(x_1)-f(x_2)=\\frac{5}{2-x_1}-\\frac{5}{2-x_2}\\). Aby tę różnicę obliczyć, musimy\n                \n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "odjąć liczniki i mianowniki",
         "znaleźć wspólny mianownik"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -254,12 +249,11 @@
       "type": "switch_gate",
       "stem": "\n                Ze względu na założenie \\((*)\\), wyrażenie to jest\n                \n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "dodatnie",
         "ujemne",
         "równe zero"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -269,31 +263,28 @@
       "type": "switch_gate",
       "stem": "\n                Skoro \\(x_1\\in(2,+\\infty)\\), czyli \\(x_1\\gt 2\\), więc odejmując od \\(2\\) liczbę większą niż \\(2\\) otrzymujemy wynik \\(2-x_1\\) będący liczbą\n                \n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "dodatnią",
         "ujemną"
-      ],
-      "answer": 2
-    },
-    {
-      "type": "switch_gate",
-      "stem": "\n                Analogicznie \\(2-x_2\\) jest też ujemne, więc cały mianownik jest\n                \n\n￿0￿\n                .\n                \n",
-      "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
-        "dodatni",
-        "ujemny"
       ],
       "answer": 1
     },
     {
       "type": "switch_gate",
+      "stem": "\n                Analogicznie \\(2-x_2\\) jest też ujemne, więc cały mianownik jest\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "dodatni",
+        "ujemny"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
       "stem": "\n                Z powyższego wynika, że licznik jest ujemny, a mianownik dodatni, czyli całe wyrażenie \\(f(x_1)-f(x_2)=\\frac{5(x_1-x_2)}{(2-x_1)(2-x_2)}\\) jest\n                \n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "dodatnie",
         "ujemne"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -303,14 +294,13 @@
       "type": "switch_gate",
       "stem": "\n\n\n\n\n\n\n￿0￿\n                (jeśli nie masz pewności, sprawdź w tabeli powyżej).\n            ",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "rosnąca",
         "malejąca",
         "stała",
         "niemalejąca",
         "nierosnąca"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "type": "math",
@@ -322,5 +312,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "24ed612026fc506e7b92a4c16dd17234222212aedf5b17ad6190fa15e2096580"
+  "seed_hash": "830b0289301e2e805a3e3dc8fdd5567cd2adb0497a3f7b91fa449c19af9e01e9"
 }

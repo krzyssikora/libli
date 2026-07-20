@@ -384,6 +384,42 @@ def test_example_label_becomes_przyklad_heading():
     assert any("Przykład" in b for b in bodies)
 
 
+# --- Group B #4: table_input -> FillTableElement ---
+TABLE_INPUT = r"""
+<div id="question10">
+  <div class="question_text"><p>Uzupełnij tabelę.</p></div>
+  <table class="my_table_border">
+    <tr><th>wymiar</th><th>błąd</th></tr>
+    <tr><td>\(50,5\)</td><td><input class="table_input" placeholder="wpisz"></td></tr>
+    <tr><td>\(90,5\)</td><td><input class="table_input" placeholder="wpisz"></td></tr>
+  </table>
+</div>
+<script>localStorage.setItem("table_answers",
+JSON.stringify({10: [0.5, 0.7]}));</script>
+"""
+
+
+def test_table_input_becomes_fill_table():
+    elements, flags = parse_lesson(TABLE_INPUT, "x.html")
+    fills = [e for e in elements if e["type"] == "fill_table"]
+    assert len(fills) == 1
+    assert not any(e.get("flagged") for e in elements)
+    cells = fills[0]["data"]["cells"]
+    assert fills[0]["data"]["header_row"] is True
+    # header row is static
+    assert cells[0][0]["kind"] == "static" and "wymiar" in cells[0][0]["html"]
+    # the input cell is an answer cell; the decimal accepts dot- and comma-forms
+    ans = cells[1][1]
+    assert ans["kind"] == "answer"
+    assert ans["answer"] == "0.5|0,5"
+    assert cells[2][1]["answer"] == "0.7|0,7"
+    # static math cell keeps its escaped body
+    assert cells[1][0]["kind"] == "static"
+    # prompt rendered as native text
+    joined = " ".join(str(e) for e in elements)
+    assert "Uzupełnij tabelę" in joined
+
+
 # --- Group B #3: switch_confirm -> SwitchGrid ---
 SWITCH_CONFIRM = r"""
 <div id="question10">

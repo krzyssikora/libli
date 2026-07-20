@@ -28,35 +28,32 @@
       "type": "switch_gate",
       "stem": "\n                O godzinie 4 rano poziom wody był równy\n                \n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "4 metry",
         "4,5 metra",
         "5 metrów"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "switch_gate",
       "stem": "\n                Taki sam poziom wody jak o 4 nad ranem został zaobserwowany później o godzinie\n                \n\n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "6 rano",
         "6 wieczorem",
         "8 wieczorem",
         "10 wieczorem"
       ],
-      "answer": 3
+      "answer": 2
     },
     {
       "type": "switch_gate",
       "stem": "\n                O godzinie 16-ej poziom wody był taki sam jak wcześniej o\n                \n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "6 rano",
         "8 rano",
         "10 rano"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -121,5 +118,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "be0a93f99dfcb0f6ef617795de12b6085897dc6aa2a7565f18b0efda0d615ef8"
+  "seed_hash": "226acd0f8325d86999388a4054626e11b0ad6096c0297f6d5e6a9e69c5bba1ce"
 }

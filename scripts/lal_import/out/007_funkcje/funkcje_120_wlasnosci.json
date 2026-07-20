@@ -68,24 +68,22 @@
       "type": "switch_gate",
       "stem": "\n                Funkcja \\(f\\) ma zatem\n                \n\n\n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(0\\) miejsc zerowych",
         "\\(1\\) miejsce zerowe",
         "\\(2\\) miejsca zerowe",
         "\\(3\\) miejsca zerowe",
         "\\(4\\) miejsca zerowe"
       ],
-      "answer": 5
+      "answer": 4
     },
     {
       "type": "switch_gate",
       "stem": "\n                Te miejsca zerowe to\n                \n\n￿0￿\n                .\n                \n\n￿1￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(1\\), \\(2\\), \\(3\\) i \\(4\\)",
         "\\(-1\\), \\(0\\), \\(2\\) i \\(3\\)"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -93,5 +91,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "12e06df495887a623193897e21d474e6da2d0c467b05bf8883f12f6bb55e712b"
+  "seed_hash": "5d3a0af77e29eeb4c8c691c58bb8159254b8c08bb704a7343522ce2c143abc17"
 }

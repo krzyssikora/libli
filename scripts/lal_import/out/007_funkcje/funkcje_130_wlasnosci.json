@@ -12,22 +12,20 @@
       "type": "switch_gate",
       "stem": "\n                Miejsca zerowe to argumenty (\\(x\\)) dla których wartość jest równa \\(0\\). Musimy więc\n                \n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "rozwiązać równanie \\(x^2-9=0\\)",
         "podstawić \\(x=0\\) do równania funkcji"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "type": "switch_gate",
       "stem": "\n                Równanie \\(x^2-9=0\\) możemy zmienić w \\(x^2=9\\), więc\n                \n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "rozwiązaniem jest \\(x=3\\)",
         "rozwiązaniami są \\(x=-3\\) oraz \\(x=3\\)",
         "rozwiązaniami są \\(x=-9\\) oraz \\(x=9\\)"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -41,11 +39,10 @@
       "type": "switch_gate",
       "stem": "\n                Uwzględniając dziedzinę, i odrzucając rozwiązanie spoza dziedziny otrzymujemy\n                \n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(x=3\\)",
         "\\(x=-3\\)"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "text",
@@ -63,12 +60,11 @@
       "type": "switch_gate",
       "stem": "\n                Tym razem dziedzina nie jest podana, musimy więc wyznaczyć ją samodzielnie. W tym celu musimy rozwiązać\n                \n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "równanie \\(x^2-4=0\\)",
         "nierówność \\(x-1\\ge 0\\)",
         "nierówność \\(x-1\\gt 0\\)"
       ],
-      "answer": 3
+      "answer": 2
     },
     {
       "type": "text",
@@ -86,32 +82,29 @@
       "type": "switch_gate",
       "stem": "\n                To równanie jest równoważne równaniu\n                \n\n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(x^2-4=0\\)",
         "\\(x-1=0\\)",
         "\\(x^2-4=x-1\\)"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "type": "switch_gate",
       "stem": "\n                Rozwiązując równanie \\(x^2-4=0\\), czyli równoważnie \\(x^2=4\\), otrzymujemy\n                \n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(x=-2\\)",
         "\\(x=-2\\) oraz \\(x=2\\)"
       ],
-      "answer": 2
+      "answer": 1
     },
     {
       "type": "switch_gate",
       "stem": "\n                Uwzględniając dziedzinę, i odrzucając rozwiązanie spoza dziedziny otrzymujemy\n                \n\n\n\n￿0￿",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(x=2\\)",
         "\\(x=-2\\)"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "type": "text",
@@ -119,5 +112,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "2042458f336210bc62c6133125b547cda3de5ed6eb62e63d9ceb8832bae860bc"
+  "seed_hash": "31bbafc8467edbe90da6b40609cecfc6d0e4d7df1040386c5f7e77f6d6f98888"
 }

@@ -13,6 +13,7 @@ from bs4 import NavigableString
 from bs4 import Tag
 
 from scripts.lal_import.answers import extract_int_map
+from scripts.lal_import.answers import extract_str_map
 from scripts.lal_import.mathsafe import escape_math_delimited
 from scripts.lal_import.switch import strip_lead_prompt
 from scripts.lal_import.switch import switch_line_stem_cyclers
@@ -104,10 +105,9 @@ _INTERACTIVE_MARKERS = {
     "truth",
     "false",
     "confirmTF",
-    # fill-in table / fill show-next
-    "table_input",
-    "table_input_30",
-    "table_input_50",
+    # NB: table_input* are NOT markers — a table holding them maps to a native
+    # FillTableElement (Group B #4), so the table is reached, not placeholdered.
+    # fill show-next
     "fill_show_next",
     "fill_step",
     "fill_answer",
@@ -266,6 +266,7 @@ def parse_lesson(html, source_html):
         "h2_skipped": False,  # shared across recursive _walk calls (I2)
         # answer keys live in the RAW file's inline setItem scripts (pre-escape).
         "switch_answers": extract_int_map(html, "switch_answers"),
+        "table_answers": extract_str_map(html, "table_answers"),
     }
     _walk(list(root.children), elements, flags, consumed, state)
     return elements, flags
@@ -406,7 +407,15 @@ def _walk(nodes, elements, flags, consumed, state):
             _unmapped("show_solution button without solution", node, elements, flags)
             continue
         if name == "table":
-            if _is_reveal_table(node):
+            if node.find(class_="table_input") is not None:
+                # Group B #4: a fill-in table -> FillTableElement.
+                from scripts.lal_import.tables import fill_table_element
+
+                el, tflags = fill_table_element(node, _table_answer_map(node, state))
+                elements.append(el)
+                flags.extend(tflags)
+                _flag_relative_hrefs(node, flags)
+            elif _is_reveal_table(node):
                 sp_elements, sp_flags = _reveal_table_spoilers(node)
                 elements.extend(sp_elements)
                 flags.extend(sp_flags)
@@ -467,6 +476,20 @@ def _walk(nodes, elements, flags, consumed, state):
             continue
 
         _unmapped(f"unmapped <{name}> in lesson body", node, elements, flags)
+
+
+def _table_answer_map(table, state):
+    """Map each table_input node (by id) in `table` to its accepted answer,
+    matched positionally against table_answers[qid] over ALL inputs in the
+    enclosing question (the JS numbers them per-question, not per-table)."""
+    qid = _enclosing_qid(table)
+    answers = state.get("table_answers", {}).get(qid, [])
+    qnode = table.find_parent(id=lambda x: x and x.startswith("question")) or table
+    out = {}
+    for i, inp in enumerate(qnode.find_all(class_="table_input")):
+        if i < len(answers):
+            out[id(inp)] = answers[i]
+    return out
 
 
 def _enclosing_qid(node):

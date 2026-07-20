@@ -23,6 +23,56 @@ def _flag_html(table, kind, reason):
     )
 
 
+def _answer_alternatives(raw):
+    """A decimal answer accepts both dot and Polish-comma forms (mirrors the LAL
+    standardizeDP eval); a fraction/integer/string is kept verbatim."""
+    if "." in raw and "/" not in raw:
+        return raw + "|" + raw.replace(".", ",")
+    return raw
+
+
+def fill_table_element(table, answer_by_input):
+    """A <table> holding <input class="table_input"> cells -> FillTableElement
+    grid: an input cell becomes an `answer` cell (its accepted answer looked up
+    in `answer_by_input` by input node id), every other cell stays `static`.
+    Falls back to a flagged html element on an irregular (span/nested/ragged)
+    grid, exactly like table_element."""
+    rows = _rows(table)
+    if not rows:
+        return _flag_html(table, "table_empty", "table has no rows")
+    grid = [_cells(tr) for tr in rows]
+    for tr in rows:
+        for c in tr.find_all(["td", "th"]):
+            if c.get("colspan") or c.get("rowspan"):
+                return _flag_html(table, "table_span", "table uses rowspan/colspan")
+    if any(c.find("table") for tr in rows for c in tr.find_all(["td", "th"])):
+        return _flag_html(table, "table_nested", "table nests another table")
+    width = len(grid[0])
+    if any(len(r) != width for r in grid):
+        return _flag_html(table, "table_ragged", "rows have differing cell counts")
+
+    header_row = all(c.name == "th" for c in grid[0])
+    header_col = all(r[0].name == "th" for r in grid)
+    cells = []
+    for r in grid:
+        row = []
+        for c in r:
+            inp = c.find(class_="table_input")
+            if inp is not None:
+                raw = answer_by_input.get(id(inp), "")
+                row.append({"kind": "answer", "answer": _answer_alternatives(raw)})
+            else:
+                row.append({"kind": "static", "html": c.decode_contents().strip()})
+        cells.append(row)
+    data = {
+        "header_row": header_row,
+        "header_col": header_col,
+        "border": "grid",
+        "cells": cells,
+    }
+    return {"type": "fill_table", "data": data}, []
+
+
 def table_element(table):
     rows = _rows(table)
     if not rows:

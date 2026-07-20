@@ -1,4 +1,25 @@
 from scripts.lal_import.answers import extract_int_map
+from scripts.lal_import.answers import extract_str_map
+
+
+def test_extract_str_map_keeps_decimals_fractions_and_strings():
+    html = (
+        'localStorage.setItem("table_answers", JSON.stringify({'
+        '10: [0.5, 11/30, 240, "nie"],'
+        "20: [0.0077]"
+        "}));"
+    )
+    assert extract_str_map(html, "table_answers") == {
+        10: ["0.5", "11/30", "240", "nie"],
+        20: ["0.0077"],
+    }
+
+
+def test_extract_str_map_tolerates_trailing_comma():
+    html = (
+        'localStorage.setItem("table_answers", JSON.stringify({10: [2.56, 0.999,],}));'
+    )
+    assert extract_str_map(html, "table_answers") == {10: ["2.56", "0.999"]}
 
 
 def test_extracts_flat_int_lists_by_qid():

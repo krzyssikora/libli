@@ -54,38 +54,35 @@
       "type": "switch_gate",
       "stem": "\n                Zbiorem wartości funkcji \\(f\\) jest zbiór\n                \n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(\\mathbb{N}\\)",
         "\\(\\{-2, 1, 4, 5, 8\\}\\)",
         "\\(\\{-1, \\tfrac{1}{2}, 2, \\tfrac{5}{2}, 4\\}\\)"
       ],
-      "answer": 3
+      "answer": 2
     },
     {
       "type": "switch_gate",
       "stem": "\n                Największą liczbą w zbiorze wartości jest\n                \n\n\n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(-1\\)",
         "\\(\\tfrac{1}{2}\\)",
         "\\(2\\)",
         "\\(\\tfrac{5}{2}\\)",
         "\\(4\\)"
       ],
-      "answer": 5
+      "answer": 4
     },
     {
       "type": "switch_gate",
       "stem": "\n                Najmniejszą liczbą w zbiorze wartości jest\n                \n\n\n\n\n￿0￿\n                .\n                \n",
       "options": [
-        "&gt;&gt; wybierz &gt;&gt;",
         "\\(-1\\)",
         "\\(\\tfrac{1}{2}\\)",
         "\\(2\\)",
         "\\(\\tfrac{5}{2}\\)",
         "\\(4\\)"
       ],
-      "answer": 1
+      "answer": 0
     },
     {
       "type": "text",
@@ -97,5 +94,5 @@
     }
   ],
   "fully_mapped": false,
-  "seed_hash": "ac8d42dd197aebaed806ea39ebcb43cd3bfa685115162970e293330229c714a5"
+  "seed_hash": "55452debc46e6d850cc75d8e4f077433246627b178ad19b47547aab23b08dfbe"
 }
