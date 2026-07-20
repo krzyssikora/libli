@@ -12,6 +12,7 @@ from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
 from courses.models import MathElement
+from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import SpoilerElement
@@ -43,6 +44,13 @@ def build_element(course, unit, el, *, source_root, source_dir, allow_html):
         return _attach(
             unit,
             SpoilerElement.objects.create(label=el.get("label", ""), body=el["body"]),
+        )
+    if etype == "reveal_gate":
+        # Group B #1: a "show more" gate. The step content it reveals is emitted
+        # as the following sibling elements (the client cascade reveals up to the
+        # next gate); this builds only the gate divider itself.
+        return _attach(
+            unit, RevealGateElement.objects.create(label=el.get("label", "")[:120])
         )
     if etype == "iframe":
         url = canonicalize_geogebra_url(el["url"])

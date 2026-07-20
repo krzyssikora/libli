@@ -415,3 +415,41 @@ def test_example_label_becomes_przyklad_heading():
     elements, _ = parse_lesson(html, "x.html")
     bodies = [e["body"] for e in elements if e["type"] == "text"]
     assert any("Przykład" in b for b in bodies)
+
+
+# --- Group B #1: show_next progressive reveal -> RevealGate chain ---
+SHOW_NEXT_WIDGET = r"""
+<div class="steps">
+  <div class="show_next ks_button">pokaż dalej</div>
+  <div class="show_step"><p>Krok \(1\): rozłóż.</p></div>
+  <div class="show_next ks_button">pokaż dalej</div>
+  <div class="show_step"><p>Krok \(2\): policz.</p></div>
+</div>
+"""
+
+
+def test_show_next_becomes_reveal_gate_chain():
+    elements, flags = parse_lesson(SHOW_NEXT_WIDGET, "x.html")
+    types = [e["type"] for e in elements]
+    # gate, step1 content, gate, step2 content — in order.
+    assert types == ["reveal_gate", "text", "reveal_gate", "text"]
+    gates = [e for e in elements if e["type"] == "reveal_gate"]
+    assert all(g["label"] == "pokaż dalej" for g in gates)
+    # Step content survives as native text (not a placeholder), math escaped.
+    bodies = [e["body"] for e in elements if e["type"] == "text"]
+    assert any("Krok" in b and r"\(1\)" in b for b in bodies)
+    assert not any(e.get("flagged") for e in elements)
+    assert flags == []
+
+
+def test_show_next_step_with_block_math_kept_as_math_element():
+    html = (
+        '<div class="steps">'
+        '<div class="show_next ks_button">dalej</div>'
+        r'<div class="show_step"><p>Stąd:</p>\[a=b\]</div>'
+        "</div>"
+    )
+    elements, _ = parse_lesson(html, "x.html")
+    types = [e["type"] for e in elements]
+    assert types[0] == "reveal_gate"
+    assert "math" in types  # the \[...\] display block becomes a MathElement

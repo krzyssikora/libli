@@ -20,6 +20,7 @@ from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Element
 from courses.models import MediaAsset
+from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
 from courses.models import TextElement
@@ -105,6 +106,22 @@ def test_build_text_element(tmp_path):
         allow_html=False,
     )
     assert isinstance(obj, TextElement)
+    assert Element.objects.filter(unit=unit).count() == 1
+
+
+def test_build_reveal_gate(tmp_path):
+    course = CourseFactory()
+    unit = _unit(course)
+    obj = build_element(
+        course,
+        unit,
+        {"type": "reveal_gate", "label": "pokaż dalej"},
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert isinstance(obj, RevealGateElement)
+    assert obj.label == "pokaż dalej"
     assert Element.objects.filter(unit=unit).count() == 1
 
 

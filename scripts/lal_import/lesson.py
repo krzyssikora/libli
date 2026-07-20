@@ -114,9 +114,8 @@ _INTERACTIVE_MARKERS = {
     "fill_show_next",
     "fill_step",
     "fill_answer",
-    # progressive reveal
-    "show_next",
-    "show_step",
+    # NB: show_next/show_step are NOT markers — they map natively to a RevealGate
+    # chain (Group B #1), so their container must descend, not be placeholdered.
     # guess higher/lower
     "more_less_input",
     "more_less_big",
@@ -295,8 +294,30 @@ def _walk(nodes, elements, flags, consumed, state):
             continue
         name = node.name
 
-        if any(c in _CHROME_CLASSES for c in (node.get("class") or [])):
+        classes_here = node.get("class") or []
+        if any(c in _CHROME_CLASSES for c in classes_here):
             continue  # Rule 2: JS-only feedback/iframe chrome -> drop silently
+
+        if "show_next" in classes_here:
+            # Group B #1: a "pokaż dalej" progressive-reveal trigger -> RevealGate.
+            # The following .show_step's content becomes the revealed siblings
+            # (the client cascade reveals up to the next gate).
+            elements.append(
+                {
+                    "type": "reveal_gate",
+                    "label": node.get_text(strip=True) or "pokaż dalej",
+                }
+            )
+            step = _next_show_step(nodes, i, consumed)
+            if step is not None:
+                consumed.add(id(step))
+                _walk(list(step.children), elements, flags, consumed, state)
+            continue
+        if "show_step" in classes_here:
+            # Consumed by its gate above (skipped via `consumed`); an orphan one
+            # with no preceding gate still descends its content in place.
+            _walk(list(node.children), elements, flags, consumed, state)
+            continue
 
         if _contains_marker(node) and not _is_structural_container(node):
             # Rule 7: a not-yet-native interactive widget -> single placeholder,
@@ -437,6 +458,21 @@ def _walk(nodes, elements, flags, consumed, state):
             continue
 
         _unmapped(f"unmapped <{name}> in lesson body", node, elements, flags)
+
+
+def _next_show_step(nodes, start, consumed):
+    """The .show_step revealed by the show_next gate at `start` — the next
+    unconsumed sibling, but never past the following gate."""
+    for j in range(start + 1, len(nodes)):
+        n = nodes[j]
+        if not isinstance(n, Tag):
+            continue
+        cls = n.get("class") or []
+        if "show_step" in cls and id(n) not in consumed:
+            return n
+        if "show_next" in cls:
+            return None  # the next gate begins before any step
+    return None
 
 
 def _emit_widget_placeholder(nodes, start, elements, flags, consumed):
