@@ -39,6 +39,20 @@ _DISPLAY_MATH = re.compile(r"^\\\[(.*)\\\]$", re.DOTALL)
 # if they actually contain block-level content; a container holding only
 # inline content (text, span, br, strong, a, ...) is emitted whole as text (F1).
 _ALWAYS_DESCEND_TAGS = {"html", "body"}
+# JS-only presentation chrome: success/failure feedback (start `hidden`, revealed
+# on a correct answer), inline warnings, and the GeoGebra no-JS fallback / email
+# report boxes. None of it is lesson content — drop it silently (no flag).
+_CHROME_CLASSES = {
+    "success",
+    "failure",
+    "ans_warning",
+    "inline_warning",
+    "iframe_small",
+    "iframe_telemetry",
+    "info_iframe",
+    "iframe_zonk",
+    "mailto_tag",
+}
 _BLOCK_CHILD_TAGS = {
     "p",
     "div",
@@ -57,6 +71,95 @@ _BLOCK_CHILD_TAGS = {
     "blockquote",
     "pre",
 }
+
+
+# Rule 7: classes that mark a LAL interactive widget. Until Group B maps each to
+# its native libli element, the whole widget container collapses to ONE flagged
+# placeholder (loaded with --allow-html) rather than fragmenting into dozens of
+# broken text blocks. Detection is by any marker in the node's subtree.
+_INTERACTIVE_MARKERS = {
+    # switch grid / switch show-next
+    "switch_options",
+    "switch_line",
+    "switch_value",
+    "switch_around",
+    "switch_confirm",
+    "switch_show_next",
+    "switch_step",
+    # one-choice-in-a-line
+    "one_choice",
+    "confirm_choice",
+    # multi-select grid (all-or-nothing rows)
+    "multi_many_ans",
+    "multi_many_option",
+    "confirm_multiple",
+    # MCQ with per-option feedback
+    "mult_choice",
+    "mult_option",
+    "confirm_feedback_multiple",
+    "mult_feedback_incorrect",
+    # MCQ many lines with feedback
+    "multi_ans",
+    "confirm_button_feedback",
+    "multi_feedback_ans",
+    "multi_summary_ans",
+    # true/false toggles
+    "truth",
+    "false",
+    "confirmTF",
+    # fill-in table / fill show-next
+    "table_input",
+    "table_input_30",
+    "table_input_50",
+    "fill_show_next",
+    "fill_step",
+    "fill_answer",
+    # progressive reveal
+    "show_next",
+    "show_step",
+    # guess higher/lower
+    "more_less_input",
+    "more_less_big",
+    "more_less_small",
+    "more_less_equal",
+    # mark-done, slideshow, tabs
+    "mark_done",
+    "show_slides",
+    "slide_show",
+    "ks_tabs",
+    "user_input_enter",
+}
+_BINARY_ATTRS = ("data-binary-choose", "data-binary-choices-id")
+
+
+def _marker_classes(node):
+    """Every interactive-marker class found in node's subtree (incl. node)."""
+    found = set()
+    for el in [node] + node.find_all(True):
+        for c in el.get("class") or []:
+            if c in _INTERACTIVE_MARKERS:
+                found.add(c)
+        if any(el.get(a) for a in _BINARY_ATTRS):
+            found.add("binary_choice")
+    return found
+
+
+def _contains_marker(node):
+    return bool(_marker_classes(node))
+
+
+def _is_structural_container(node):
+    """Containers that must be DESCENDED (so their prompt renders and only their
+    widget children are placeholdered), never collapsed wholesale: <html>/<body>
+    and a question wrapper (div[id^=question] or div.question_text)."""
+    if node.name in _ALWAYS_DESCEND_TAGS:
+        return True
+    if node.name == "div":
+        if (node.get("id") or "").startswith("question"):
+            return True
+        if "question_text" in (node.get("class") or []):
+            return True
+    return False
 
 
 def _has_block_child(node):
@@ -95,6 +198,8 @@ def _flag_relative_hrefs(node, flags):
     )
     for a in anchors:
         href = a.get("href", "")
+        if href.startswith("#"):
+            continue  # in-page anchor (tab/toc target), not a dropped external link
         scheme = href.split(":", 1)[0].lower() if ":" in href else ""
         if scheme not in _OK_SCHEMES:
             flags.append(
@@ -190,6 +295,26 @@ def _walk(nodes, elements, flags, consumed, state):
             continue
         name = node.name
 
+        if any(c in _CHROME_CLASSES for c in (node.get("class") or [])):
+            continue  # Rule 2: JS-only feedback/iframe chrome -> drop silently
+
+        if _contains_marker(node) and not _is_structural_container(node):
+            # Rule 7: a not-yet-native interactive widget -> single placeholder,
+            # coalescing consecutive widget siblings into one block.
+            _emit_widget_placeholder(nodes, i, elements, flags, consumed)
+            continue
+
+        node_classes = node.get("class") or []
+        if "question" in node_classes or "example" in node_classes:
+            # Rule 8: an exercise label. Its source content is empty — script.js
+            # rewrites it to "Zadanie N"/"Przykład N" — so emit a real label
+            # instead of a blank styled paragraph.
+            label = "Przykład" if "example" in node_classes else "Zadanie"
+            elements.append(
+                {"type": "text", "body": f"<p><strong>{label}</strong></p>"}
+            )
+            continue
+
         if name == "hr":
             continue  # R6: skipped silently
 
@@ -235,7 +360,7 @@ def _walk(nodes, elements, flags, consumed, state):
             _emit_details(node, elements, flags)
             continue
         if _is_show_solution_button(node):
-            sol = _next_solution(nodes, i + 1)
+            sol = _find_solution(nodes, i, consumed)
             if sol is not None:
                 consumed.add(id(sol))  # so the loop does not re-flag it (I2)
                 _flag_relative_hrefs(sol, flags)  # spoiler body is nh3-sanitized too
@@ -267,9 +392,16 @@ def _walk(nodes, elements, flags, consumed, state):
         if name == "div":
             classes = node.get("class") or []
             if "question_text" in classes:
-                # R2: the prompt text itself -> TextElement
-                _flag_relative_hrefs(node, flags)
-                elements.append({"type": "text", "body": node.decode_contents()})
+                # R2/Rule 1: the prompt. If it holds block content (a GeoGebra
+                # <figure>, a table, multiple <p>), descend so _emit_figure runs
+                # and tables/paragraphs map natively — emitting it wholesale via
+                # decode_contents() would let nh3 strip the <iframe> and leak the
+                # fallback chrome text. An inline-only prompt still -> one TextElement.
+                if _has_block_child(node):
+                    _walk(list(node.children), elements, flags, consumed, state)
+                else:
+                    _flag_relative_hrefs(node, flags)
+                    elements.append({"type": "text", "body": node.decode_contents()})
                 continue
             if "question_solution" not in classes:
                 # R1: descend into any other container div (table_wrapper,
@@ -282,6 +414,13 @@ def _walk(nodes, elements, flags, consumed, state):
                 else:
                     _flag_relative_hrefs(node, flags)
                     elements.append({"type": "text", "body": node.decode_contents()})
+                continue
+            # A .question_solution that a LATER show_solution button will claim
+            # (R4 reverse order) must be skipped now, not emitted as unmapped —
+            # the button consumes it via _find_solution's backward scan.
+            if "question_solution" in classes and _followed_by_show_solution(
+                nodes, i, consumed
+            ):
                 continue
             # else: an orphan question_solution div (not consumed by a preceding
             # show_solution button) falls through to the unmapped catch-all below.
@@ -300,12 +439,75 @@ def _walk(nodes, elements, flags, consumed, state):
         _unmapped(f"unmapped <{name}> in lesson body", node, elements, flags)
 
 
-def _next_solution(nodes, start):
-    for j in range(start, len(nodes)):
+def _emit_widget_placeholder(nodes, start, elements, flags, consumed):
+    """Rule 7: collect the run of consecutive interactive-widget siblings starting
+    at `start` (absorbing whitespace + dropping chrome between them) and emit ONE
+    flagged html placeholder. Chrome descendants (success/failure praise) are
+    stripped from the serialized HTML so no answer/feedback leaks."""
+    parts, kinds = [], set()
+    j = start
+    while j < len(nodes):
         n = nodes[j]
-        if isinstance(n, Tag) and "question_solution" in (n.get("class") or []):
+        if isinstance(n, NavigableString):
+            if n.strip() == "":
+                j += 1
+                continue  # whitespace between widget siblings -> absorb
+            break  # real prose ends the widget run
+        if not isinstance(n, Tag):
+            j += 1
+            continue
+        cls = n.get("class") or []
+        if any(c in _CHROME_CLASSES for c in cls):
+            consumed.add(id(n))
+            j += 1
+            continue  # drop chrome sitting between widgets
+        if _contains_marker(n) and not _is_structural_container(n):
+            for chrome in n.find_all(
+                lambda t: (
+                    isinstance(t, Tag)
+                    and any(c in _CHROME_CLASSES for c in (t.get("class") or []))
+                )
+            ):
+                chrome.decompose()  # strip leaked feedback from the placeholder HTML
+            kinds |= _marker_classes(n)
+            parts.append(str(n))
+            consumed.add(id(n))
+            j += 1
+            continue
+        break  # non-widget, non-chrome content ends the run
+    reason = "interactive_widget (Group B): " + (
+        ",".join(sorted(kinds)) or "unclassified"
+    )
+    elements.append(
+        {"type": "html", "flagged": True, "raw": "\n".join(parts), "reason": reason}
+    )
+    flags.append(_flag(reason, nodes[start]))
+
+
+def _is_question_solution(n):
+    return isinstance(n, Tag) and "question_solution" in (n.get("class") or [])
+
+
+def _find_solution(nodes, button_i, consumed):
+    """R4: pair a show_solution button with the nearest unconsumed
+    .question_solution — forward first (the common case), then backward (some
+    units place the solution BEFORE its button)."""
+    order = list(range(button_i + 1, len(nodes))) + list(range(button_i - 1, -1, -1))
+    for j in order:
+        n = nodes[j]
+        if id(n) not in consumed and _is_question_solution(n):
             return n
     return None
+
+
+def _followed_by_show_solution(nodes, i, consumed):
+    """True if an unconsumed show_solution button appears after index i — meaning
+    a preceding .question_solution at i will be claimed by it (R4 reverse order),
+    so it must not be emitted as unmapped now."""
+    return any(
+        _is_show_solution_button(nodes[j]) and id(nodes[j]) not in consumed
+        for j in range(i + 1, len(nodes))
+    )
 
 
 def _image_dict(img):

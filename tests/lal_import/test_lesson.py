@@ -236,3 +236,182 @@ def test_f3_top_level_br_is_skipped_silently():
     elements, flags = parse_lesson(html, "x.html")
     assert [e["type"] for e in elements] == ["text", "text"]
     assert flags == []
+
+
+# --- Group A (2026-07-20): render-correctness fixes ---
+
+# The real GeoGebra "Sprawdź się!" shape (001_zbiory_liczbowe/032_zbiory.html):
+# the applet lives inside a .question_text div, wrapped in a <figure> alongside
+# .iframe_small (no-JS fallback chrome) and a details.info_iframe (email chrome).
+GEOGEBRA_QUESTION = r"""
+<div id="question10">
+  <p class="question"></p>
+  <div class="question_text">
+    <p>Klikaj na obszary oznaczone \(A\cap B\).</p>
+    <div>
+      <figure>
+        <div class="iframe_small hidden">
+          <small>Jeśli poniższy aplet nie wygląda dobrze...</small>
+        </div>
+        <iframe src="https://www.geogebra.org/material/iframe/id/abc"></iframe>
+        <details class="info_iframe">
+          <summary>aplet nie działa poprawnie?</summary>
+          <a class="mailto_tag" href="mailto:x@y">wyślij</a>
+        </details>
+      </figure>
+    </div>
+  </div>
+</div>
+"""
+
+
+def test_geogebra_question_emits_one_iframe_and_drops_chrome():
+    elements, flags = parse_lesson(GEOGEBRA_QUESTION, "032_zbiory.html")
+    iframes = [e for e in elements if e["type"] == "iframe"]
+    assert len(iframes) == 1
+    assert "geogebra.org/material/iframe/id/abc" in iframes[0]["url"]
+    # No fallback/email chrome may leak as visible content.
+    all_text = " ".join(
+        e.get("body", "") for e in elements if e["type"] in ("text", "spoiler")
+    )
+    assert "aplet" not in all_text.lower()
+    assert "Jeśli poniższy" not in all_text
+    assert "wyślij" not in all_text
+    # The real prompt survives.
+    assert "Klikaj na obszary" in all_text
+
+
+def test_success_and_failure_feedback_chrome_is_dropped():
+    html = (
+        '<div class="question_text"><p>Wybierz.</p></div>'
+        '<div class="switch_summary success hidden">Świetnie!</div>'
+        '<div class="failure hidden">Zastanów się jeszcze.</div>'
+    )
+    elements, flags = parse_lesson(html, "x.html")
+    all_text = " ".join(e.get("body", "") for e in elements)
+    assert "Świetnie" not in all_text
+    assert "Zastanów się" not in all_text
+    assert "Wybierz." in all_text
+
+
+def test_reverse_order_show_solution_finds_preceding_solution():
+    # Some units place the .question_solution BEFORE its show_solution button;
+    # _next_solution scanned forward only and flagged them as unmapped.
+    html = (
+        '<div class="question_solution hidden">Odp: \\(x=2\\).</div>'
+        '<div class="show_solution ks_button">zobacz rozwiązanie</div>'
+    )
+    elements, flags = parse_lesson(html, "x.html")
+    sp = next(e for e in elements if e["type"] == "spoiler")
+    assert sp["label"] == "zobacz rozwiązanie"
+    assert "x=2" in sp["body"]
+    assert flags == []
+    # The solution div must not also leak as a standalone text element.
+    assert not any(e["type"] == "text" and "x=2" in e.get("body", "") for e in elements)
+
+
+def test_fragment_anchor_href_is_not_flagged():
+    # In-page anchors (tab targets, toc links) start with '#'; they are intentional
+    # fragments, not dropped external links, so they must not raise relative_href.
+    elements, flags = parse_lesson(
+        '<p>zob. <a href="#tabcontent-1-1">tu</a></p>', "x.html"
+    )
+    assert not any(f["kind"] == "relative_href" for f in flags)
+
+
+# Rule 7: interactive widgets that aren't native-mapped yet (Group B) collapse to
+# ONE flagged placeholder block instead of fragmenting; prompt/feedback handled.
+SWITCH_QUESTION = r"""
+<div id="question10">
+  <p class="question"></p>
+  <div class="question_text"><p>Uzupełnij działania na zbiorach.</p></div>
+  <div class="switch_options">
+    <div class="switch_line">
+      <div class="switch_around">\(A\)</div>
+      <div class="switch_value">\(\cup\)</div>
+      <div class="switch_value">\(\cap\)</div>
+      <div class="switch_around">\(B\)</div>
+    </div>
+    <div class="switch_confirm ks_button">zatwierdź</div>
+    <div class="switch_summary success hidden">Świetnie!</div>
+  </div>
+</div>
+"""
+
+
+def test_switch_widget_becomes_single_placeholder_prompt_kept():
+    elements, flags = parse_lesson(SWITCH_QUESTION, "x.html")
+    placeholders = [e for e in elements if e.get("flagged")]
+    assert len(placeholders) == 1
+    assert "switch" in placeholders[0]["reason"]
+    # Prompt survives as native text.
+    text = " ".join(e.get("body", "") for e in elements if e["type"] == "text")
+    assert "Uzupełnij działania" in text
+    # No fragmentation: the switch options do NOT become many text elements.
+    assert not any(e["type"] == "text" and "cup" in e.get("body", "") for e in elements)
+    # Feedback praise is stripped even from inside the placeholder.
+    assert "Świetnie" not in placeholders[0]["raw"]
+    assert any(f["kind"] == "unmapped_pattern" for f in flags)
+
+
+MULTI_MANY_QUESTION = r"""
+<div id="question20">
+  <div class="question_text"><p>Wybierz wszystkie dzielniki.</p></div>
+  <div>
+    <div class="multi_many_option statement">\(432\)</div>
+    <div class="multi_many_ans ks_button">\(2\)</div>
+    <div class="multi_many_ans ks_button">\(3\)</div>
+  </div>
+  <div class="confirm_multiple ks_button">potwierdź</div>
+  <div class="success hidden">Brawo!</div>
+</div>
+"""
+
+
+def test_multi_many_widget_collapses_and_prompt_kept():
+    elements, flags = parse_lesson(MULTI_MANY_QUESTION, "x.html")
+    placeholders = [e for e in elements if e.get("flagged")]
+    # The option rows + confirm coalesce into ONE placeholder (not 4+ fragments).
+    assert len(placeholders) == 1
+    text = " ".join(e.get("body", "") for e in elements if e["type"] == "text")
+    assert "Wybierz wszystkie dzielniki" in text
+    assert not any(
+        e["type"] == "text" and r"\(2\)" in e.get("body", "") for e in elements
+    )
+    assert "Brawo" not in placeholders[0]["raw"]
+
+
+def test_tabs_widget_becomes_placeholder():
+    html = (
+        '<div class="ks_tabs"><ul><li><a href="#tabcontent-1-1">Tab</a></li></ul>'
+        '<div id="tabcontent-1-1">content</div></div>'
+    )
+    elements, flags = parse_lesson(html, "x.html")
+    placeholders = [e for e in elements if e.get("flagged")]
+    assert len(placeholders) == 1
+    assert "ks_tabs" in placeholders[0]["reason"]
+
+
+def test_plain_lesson_has_no_widget_placeholder():
+    # A non-interactive lesson must not trip the widget detector.
+    html = "<h2>T</h2><p>Zwykły tekst.</p><figure><img src='a.png' alt='x'/></figure>"
+    elements, flags = parse_lesson(html, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+
+
+def test_empty_question_label_becomes_zadanie_heading():
+    # <p class="question"> is emptied in source; JS rewrites it to "Zadanie N".
+    # Emit a real label instead of a blank styled paragraph.
+    html = '<p class="question"></p><div class="question_text"><p>Oblicz.</p></div>'
+    elements, flags = parse_lesson(html, "x.html")
+    bodies = [e["body"] for e in elements if e["type"] == "text"]
+    assert any("Zadanie" in b for b in bodies)
+    # The blank <p class="question"> placeholder text is gone.
+    assert not any(b.strip() in ("<p></p>", '<p class="question"></p>') for b in bodies)
+
+
+def test_example_label_becomes_przyklad_heading():
+    html = '<p class="example"></p><p>Rozwiązanie.</p>'
+    elements, _ = parse_lesson(html, "x.html")
+    bodies = [e["body"] for e in elements if e["type"] == "text"]
+    assert any("Przykład" in b for b in bodies)
