@@ -160,6 +160,26 @@ def test_filltable_correct_value_locks_and_summarizes(page, live_server):
     expect(inp).to_be_disabled()
 
 
+@pytest.mark.django_db(transaction=True)
+def test_filltable_enter_key_submits_like_check(page, live_server):
+    """Pressing Enter in a fill cell submits the same as clicking Check: the
+    correct value locks + summarizes without ever touching the button."""
+    _student, unit = _new_unit("ftbl_enter")
+    _seed_filltable(unit)
+    _login(page, live_server, "ftbl_enter")
+    page.goto(_unit_url(live_server, unit))
+
+    inp = _answer_input(page)
+    expect(inp).to_be_visible()
+    inp.fill("4")
+    inp.press("Enter")
+
+    expect(inp).to_have_class(_CORRECT)
+    expect(_summary(page)).to_be_visible()
+    expect(_summary(page)).to_have_class(_SUCCESS)
+    expect(_confirm(page)).to_be_hidden()
+
+
 # ---------------------------------------------------------------------------
 # 2. Wrong value -> Check -> retry summary + incorrect class; NOT locked
 # ---------------------------------------------------------------------------
