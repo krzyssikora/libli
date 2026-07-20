@@ -12,6 +12,12 @@ import re
 _COMMENT_BLOCK = re.compile(r"/\*.*?\*/", re.DOTALL)
 _COMMENT_LINE = re.compile(r"//[^\n]*")
 _QID_INT_LIST = re.compile(r"(\d+)\s*:\s*\[([^\]]*)\]", re.DOTALL)
+# qid -> a one-level-nested list `[[...], [...]]`: the outer capture holds the
+# inner `[...]` row groups (and any whitespace/commas between them).
+_QID_NESTED_LIST = re.compile(
+    r"(\d+)\s*:\s*\[((?:[^\[\]]*\[[^\[\]]*\])*[^\[\]]*)\]", re.DOTALL
+)
+_ROW_LIST = re.compile(r"\[([^\[\]]*)\]")
 _INT = re.compile(r"-?\d+")
 
 
@@ -39,6 +45,24 @@ def extract_int_map(html, key):
         int(qm.group(1)): [int(v) for v in _INT.findall(qm.group(2))]
         for qm in _QID_INT_LIST.finditer(body)
     }
+
+
+def extract_nested_int_map(html, key):
+    """Return {qid: [[int, ...], ...]} for a localStorage key whose value is a
+    list of integer-list rows (multiple_many_correct_answers: one 0/1 mask row
+    per grid row); {} if the key is absent."""
+    m = _setitem_re(key).search(html)
+    if not m:
+        return {}
+    body = _strip_js_comments(m.group(1))
+    out = {}
+    for qm in _QID_NESTED_LIST.finditer(body):
+        rows = [
+            [int(v) for v in _INT.findall(rm.group(1))]
+            for rm in _ROW_LIST.finditer(qm.group(2))
+        ]
+        out[int(qm.group(1))] = rows
+    return out
 
 
 def _raw_item(tok):

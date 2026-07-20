@@ -19,6 +19,9 @@ from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
 from courses.models import MathElement
+from courses.models import MultiGridColumn
+from courses.models import MultiGridQuestionElement
+from courses.models import MultiGridRow
 from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
@@ -75,13 +78,29 @@ def build_element(
         # correct_column FK resolves (mirrors the transfer importer).
         q = ChoiceGridQuestionElement.objects.create()
         cols = [
-            GridColumn.objects.create(question=q, label=c[:500])
-            for c in el["columns"]
+            GridColumn.objects.create(question=q, label=c[:500]) for c in el["columns"]
         ]
         for r in el["rows"]:
             idx = r["correct"] if 0 <= r["correct"] < len(cols) else 0
             GridRow.objects.create(
                 question=q, statement=r["statement"][:500], correct_column=cols[idx]
+            )
+        return _attach(unit, q)
+    if etype == "multi_grid":
+        # Group B #9: multi-select grid. Columns are saved first so each row's
+        # correct_columns M2M can reference them; correct is a *set* of column
+        # indices (all-or-nothing per row).
+        q = MultiGridQuestionElement.objects.create()
+        cols = [
+            MultiGridColumn.objects.create(question=q, label=c[:500])
+            for c in el["columns"]
+        ]
+        for r in el["rows"]:
+            row = MultiGridRow.objects.create(
+                question=q, statement=r["statement"][:500]
+            )
+            row.correct_columns.set(
+                [cols[i] for i in r["correct"] if 0 <= i < len(cols)]
             )
         return _attach(unit, q)
     if etype == "tabs":

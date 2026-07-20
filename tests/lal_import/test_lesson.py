@@ -319,33 +319,75 @@ def test_fragment_anchor_href_is_not_flagged():
     assert not any(f["kind"] == "relative_href" for f in flags)
 
 
-# Rule 7: interactive widgets that aren't native-mapped yet (Group B) collapse to
-# ONE flagged placeholder block instead of fragmenting; prompt/feedback handled.
-MULTI_MANY_QUESTION = r"""
+# --- Group B #9: multi_many -> MultiGrid (shared cols) / per-row MCQ (varying) ---
+MULTI_MANY_GRID = r"""
 <div id="question20">
   <div class="question_text"><p>Wybierz wszystkie dzielniki.</p></div>
   <div>
     <div class="multi_many_option statement">\(432\)</div>
     <div class="multi_many_ans ks_button">\(2\)</div>
     <div class="multi_many_ans ks_button">\(3\)</div>
+    <div class="multi_many_ans ks_button">\(5\)</div>
+  </div>
+  <div>
+    <div class="multi_many_option statement">\(250\)</div>
+    <div class="multi_many_ans ks_button">\(2\)</div>
+    <div class="multi_many_ans ks_button">\(3\)</div>
+    <div class="multi_many_ans ks_button">\(5\)</div>
   </div>
   <div class="confirm_multiple ks_button">potwierdź</div>
   <div class="success hidden">Brawo!</div>
 </div>
+<script>localStorage.setItem("multiple_many_correct_answers",
+JSON.stringify({20: [[1, 1, 0], [1, 0, 1]]}));</script>
 """
 
 
-def test_multi_many_widget_collapses_and_prompt_kept():
-    elements, flags = parse_lesson(MULTI_MANY_QUESTION, "x.html")
-    placeholders = [e for e in elements if e.get("flagged")]
-    # The option rows + confirm coalesce into ONE placeholder (not 4+ fragments).
-    assert len(placeholders) == 1
-    text = " ".join(e.get("body", "") for e in elements if e["type"] == "text")
-    assert "Wybierz wszystkie dzielniki" in text
-    assert not any(
-        e["type"] == "text" and r"\(2\)" in e.get("body", "") for e in elements
-    )
-    assert "Brawo" not in placeholders[0]["raw"]
+def test_multi_many_consistent_becomes_multi_grid():
+    elements, flags = parse_lesson(MULTI_MANY_GRID, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    grids = [e for e in elements if e["type"] == "multi_grid"]
+    assert len(grids) == 1
+    assert grids[0]["columns"] == [r"\(2\)", r"\(3\)", r"\(5\)"]
+    rows = grids[0]["rows"]
+    assert [r["statement"] for r in rows] == [r"\(432\)", r"\(250\)"]
+    # correct_columns = the indices where the mask is 1
+    assert rows[0]["correct"] == [0, 1]
+    assert rows[1]["correct"] == [0, 2]
+    # prompt kept, confirm/feedback chrome dropped
+    joined = " ".join(str(e) for e in elements)
+    assert "Wybierz wszystkie dzielniki" in joined
+    assert "Brawo" not in joined and "potwierdź" not in joined
+
+
+MULTI_MANY_VARYING = r"""
+<div id="question30">
+  <div class="question_text"><p>Wskaż uproszczoną postać.</p></div>
+  <div>
+    <div class="multi_many_option statement">\((-3ab)(-2a)\)</div>
+    <div class="multi_many_ans ks_button">\(6b\)</div>
+    <div class="multi_many_ans ks_button">\(6a^2b\)</div>
+  </div>
+  <div>
+    <div class="multi_many_option statement">\((2ts)^2\)</div>
+    <div class="multi_many_ans ks_button">\(4t^2s^2\)</div>
+    <div class="multi_many_ans ks_button">\(4ts\)</div>
+  </div>
+</div>
+<script>localStorage.setItem("multiple_many_correct_answers",
+JSON.stringify({30: [[0, 1], [1, 0]]}));</script>
+"""
+
+
+def test_multi_many_varying_falls_back_to_per_row_multiselect():
+    elements, flags = parse_lesson(MULTI_MANY_VARYING, "x.html")
+    assert not any(e["type"] == "multi_grid" for e in elements)
+    mcqs = [e for e in elements if e["type"] == "choice"]
+    assert len(mcqs) == 2
+    # multi_many is a pick-a-set widget -> per-row checkboxes (multiple=True)
+    assert all(m["multiple"] for m in mcqs)
+    assert [c["is_correct"] for c in mcqs[0]["choices"]] == [False, True]
+    assert [c["is_correct"] for c in mcqs[1]["choices"]] == [True, False]
 
 
 def test_plain_lesson_has_no_widget_placeholder():

@@ -1,4 +1,5 @@
 from scripts.lal_import.answers import extract_int_map
+from scripts.lal_import.answers import extract_nested_int_map
 from scripts.lal_import.answers import extract_str_map
 
 
@@ -44,6 +45,40 @@ def test_strips_js_line_comments_and_negatives():
         20: [2, 2, 2, 1, 2],
         21: [-1, 0],
     }
+
+
+def test_extract_nested_int_map_reads_row_masks_by_qid():
+    # multiple_many_correct_answers is a list-of-lists per qid: one 0/1 mask row.
+    html = """
+    <script>
+      localStorage.setItem('multiple_many_correct_answers', JSON.stringify({
+        30: [
+          [1, 1, 1, 0, 1, 1, 0],
+          [1, 0, 0, 1, 0, 0, 1],
+          [0, 1, 0, 1, 0, 0, 0]
+        ]
+      }));
+    </script>
+    """
+    assert extract_nested_int_map(html, "multiple_many_correct_answers") == {
+        30: [
+            [1, 1, 1, 0, 1, 1, 0],
+            [1, 0, 0, 1, 0, 0, 1],
+            [0, 1, 0, 1, 0, 0, 0],
+        ]
+    }
+
+
+def test_extract_nested_int_map_handles_multiple_qids_and_absent_key():
+    html = (
+        'localStorage.setItem("multiple_many_correct_answers", JSON.stringify('
+        "{20: [[1, 0, 0, 1], [0, 1, 1, 0]], 120: [[0, 1], [1, 0]]}));"
+    )
+    assert extract_nested_int_map(html, "multiple_many_correct_answers") == {
+        20: [[1, 0, 0, 1], [0, 1, 1, 0]],
+        120: [[0, 1], [1, 0]],
+    }
+    assert extract_nested_int_map("<script>x</script>", "missing_key") == {}
 
 
 def test_missing_key_returns_empty():

@@ -13,6 +13,7 @@ from bs4 import NavigableString
 from bs4 import Tag
 
 from scripts.lal_import.answers import extract_int_map
+from scripts.lal_import.answers import extract_nested_int_map
 from scripts.lal_import.answers import extract_str_map
 from scripts.lal_import.mathsafe import escape_math_delimited
 from scripts.lal_import.switch import strip_lead_prompt
@@ -59,6 +60,7 @@ _CHROME_CLASSES = {
     "mailto_tag",
     # widget confirm buttons whose native element supplies its own Check button:
     "confirm_choice",  # one_choice grid (Group B #7)
+    "confirm_multiple",  # multi_many grid (Group B #9)
 }
 _BLOCK_CHILD_TAGS = {
     "p",
@@ -89,10 +91,8 @@ _INTERACTIVE_MARKERS = {
     # switch_steps -> SwitchGate chain (Group B #2); both containers descend.
     # NB: one_choice/confirm_choice are NOT markers — one_choice maps to a native
     # ChoiceGrid / per-row MCQ (Group B #7); confirm_choice is dropped as chrome.
-    # multi-select grid (all-or-nothing rows)
-    "multi_many_ans",
-    "multi_many_option",
-    "confirm_multiple",
+    # NB: multi_many_* are NOT markers — a multi-select grid maps to a native
+    # MultiGrid / per-row multi-select MCQ (Group B #9); confirm_multiple is chrome.
     # MCQ with per-option feedback
     "mult_choice",
     "mult_option",
@@ -269,6 +269,9 @@ def parse_lesson(html, source_html):
         "table_answers": extract_str_map(html, "table_answers"),
         "answers_fill_next": extract_str_map(html, "answers_fill_next"),
         "correct_choices": extract_int_map(html, "correct_choices"),
+        "multiple_many_correct_answers": extract_nested_int_map(
+            html, "multiple_many_correct_answers"
+        ),
     }
     # Precompute each fill input's accepted answer BEFORE the walk mutates the tree
     # (a block's inputs are replace_with()'d by tokens; a later block's positional
@@ -354,6 +357,14 @@ def _walk(nodes, elements, flags, consumed, state):
             # (shared columns) or per-row single-choice MCQ (varying columns).
             elements.extend(_emit_one_choice(node, state))
             continue
+        if (
+            not _is_structural_container(node)
+            and node.find(class_="multi_many_option") is not None
+        ):
+            # Group B #9: a multi-select grid row -> gather the run of sibling row
+            # divs into one MultiGrid (shared columns) or per-row multi-select MCQ.
+            _emit_multi_many(nodes, i, elements, flags, consumed, state)
+            continue
         if "ks_tabs" in classes_here:
             # Group B #6: a tabbed container -> TabsElement with nested children.
             tabs_el = _emit_tabs(node, flags, consumed, state)
@@ -368,11 +379,7 @@ def _walk(nodes, elements, flags, consumed, state):
                 )
             continue
 
-        if (
-            name != "table"
-            and not _has_block_child(node)
-            and _has_fill_input(node)
-        ):
+        if name != "table" and not _has_block_child(node) and _has_fill_input(node):
             # Group B #5/#8: an inline text block holding table_input/fill_answer
             # input(s) NOT inside a <table> -> a FillBlank self-check (else nh3
             # strips the <input> and the block renders as an empty paragraph).
@@ -448,9 +455,7 @@ def _walk(nodes, elements, flags, consumed, state):
                 if summary is not None:
                     label = summary.decode_contents().strip()
                     if label:
-                        elements.append(
-                            {"type": "text", "body": f"<h4>{label}</h4>"}
-                        )
+                        elements.append({"type": "text", "body": f"<h4>{label}</h4>"})
                     summary.extract()
                 _walk(list(node.children), elements, flags, consumed, state)
             else:
@@ -686,8 +691,7 @@ def _emit_one_choice(node, state):
                 "type": "choice_grid",
                 "columns": rows[0]["options"],
                 "rows": [
-                    {"statement": r["statement"], "correct": r["correct"]}
-                    for r in rows
+                    {"statement": r["statement"], "correct": r["correct"]} for r in rows
                 ],
             }
         ]
@@ -704,6 +708,66 @@ def _emit_one_choice(node, state):
         }
         for r in rows
     ]
+
+
+def _emit_multi_many(nodes, start, elements, flags, consumed, state):
+    """Group B #9: consecutive sibling row divs (each a .multi_many_option
+    statement + its .multi_many_ans column buttons) -> one MultiGrid when every
+    row shares the same column labels, else one per-row multi-select MCQ. The 0/1
+    correct mask per row is multiple_many_correct_answers[qid][row_index]."""
+    run = []
+    for j in range(start, len(nodes)):
+        n = nodes[j]
+        if isinstance(n, NavigableString):
+            if n.strip():
+                break
+            continue  # whitespace between row divs
+        if not isinstance(n, Tag):
+            break
+        if id(n) in consumed or n.find(class_="multi_many_option") is None:
+            break
+        run.append(n)
+    for n in run[1:]:  # nodes[start] is the current node; the rest are consumed
+        consumed.add(id(n))
+    masks = state.get("multiple_many_correct_answers", {}).get(
+        _enclosing_qid(run[0]), []
+    )
+    rows = []
+    for k, row_div in enumerate(run):
+        opt = row_div.find(class_="multi_many_option")
+        statement = opt.get_text(" ", strip=True) if opt else ""
+        options = [
+            a.get_text(" ", strip=True)
+            for a in row_div.find_all(class_="multi_many_ans")
+        ]
+        mask = masks[k] if k < len(masks) else []
+        correct = [idx for idx, v in enumerate(mask) if idx < len(options) and v]
+        rows.append({"statement": statement, "options": options, "correct": correct})
+    if rows and len({tuple(r["options"]) for r in rows}) == 1:
+        elements.append(
+            {
+                "type": "multi_grid",
+                "columns": rows[0]["options"],
+                "rows": [
+                    {"statement": r["statement"], "correct": r["correct"]} for r in rows
+                ],
+            }
+        )
+        return
+    # varying columns -> a per-row multi-select MCQ (multiple=True; multi_many is
+    # a pick-a-set widget). The stem is a sanitized field, so re-escape math.
+    for r in rows:
+        elements.append(
+            {
+                "type": "choice",
+                "stem": f"<p>{escape_math_delimited(r['statement'])}</p>",
+                "multiple": True,
+                "choices": [
+                    {"text": o, "is_correct": (j in r["correct"])}
+                    for j, o in enumerate(r["options"])
+                ],
+            }
+        )
 
 
 def _emit_tabs(ks_tabs, flags, consumed, state):

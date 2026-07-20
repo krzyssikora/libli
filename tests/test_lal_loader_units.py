@@ -24,6 +24,7 @@ from courses.models import FillBlankQuestionElement
 from courses.models import FillGateElement
 from courses.models import FillTableElement
 from courses.models import MediaAsset
+from courses.models import MultiGridQuestionElement
 from courses.models import RevealGateElement
 from courses.models import ShortNumericQuestionElement
 from courses.models import ShortTextQuestionElement
@@ -155,6 +156,32 @@ def test_build_choice_grid(tmp_path):
     rows = list(obj.rows.all())
     assert rows[0].correct_column.label == "nie"
     assert rows[1].correct_column.label == "tak"
+
+
+def test_build_multi_grid(tmp_path):
+    course = CourseFactory()
+    unit = _unit(course)
+    obj = build_element(
+        course,
+        unit,
+        {
+            "type": "multi_grid",
+            "columns": ["2", "3", "5"],
+            "rows": [
+                {"statement": "432", "correct": [0, 1]},
+                {"statement": "250", "correct": [0, 2]},
+            ],
+        },
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert isinstance(obj, MultiGridQuestionElement)
+    assert [c.label for c in obj.columns.all()] == ["2", "3", "5"]
+    rows = list(obj.rows.all())
+    # correct_columns is a *set* per row (all-or-nothing grading)
+    assert sorted(c.label for c in rows[0].correct_columns.all()) == ["2", "3"]
+    assert sorted(c.label for c in rows[1].correct_columns.all()) == ["2", "5"]
 
 
 def test_build_tabs_nests_children_under_join_with_tab_id(tmp_path):
