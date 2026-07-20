@@ -408,8 +408,9 @@ def serialize_element_data(concrete, media_ids):
 
 def _element_mids(type_key, data):
     """All media ids an element references, routed by the element TYPE KEY (not
-    by sniffing the data shape): a gallery reads its `images[].media` list; every
-    other media-bearing type reads the scalar `media`."""
+    by sniffing the data shape): a gallery reads its `images[].media` list; a
+    fill_table walks its `cells` grid for image-kind cells' `media`; every other
+    media-bearing type reads the scalar `media`."""
     if type_key == "gallery":
         return [
             img["media"]
