@@ -9,12 +9,56 @@
       "body": "\n        Oblicz i uzupełnij wartości największego wspólnego dzielnika i najmniejszej wspólnej wielokrotności.\n    "
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                    \\(NWD(15, 16)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                    \\(NWW(15, 16)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                    \\(NWD(35, 14)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                    \\(NWW(25, 14)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                    \\(NWD(132, 198)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                    \\(NWW(132, 198)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                    \\(NWD(72, 108)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                    \\(NWW(72, 108)=\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "answer",
+              "answer": "240"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "7"
+            },
+            {
+              "kind": "answer",
+              "answer": "70"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "66"
+            },
+            {
+              "kind": "answer",
+              "answer": "396"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "36"
+            },
+            {
+              "kind": "answer",
+              "answer": "216"
+            }
+          ]
+        ]
+      }
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "a7130bd3c5799be975941112461085c250508001de35a294e762a9d31f3a4aef"
+  "fully_mapped": true,
+  "seed_hash": "a9e5fb09eff06eb5252bbb9cf284174013b3be45d2008a91d2a08c7dda16f93b"
 }

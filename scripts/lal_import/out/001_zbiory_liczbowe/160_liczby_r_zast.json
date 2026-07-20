@@ -29,10 +29,68 @@
       "body": "<p>\n            Wartość prawdziwa to \\(0,00735\\).\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td style=\"border: none\">\n</td>\n<td>\n                            wartość przybliżona\n                        </td>\n<td>\n                            wyliczenie błędu bezwzględnego\n                        </td>\n<td>\n                            wartość błędu\n                        </td>\n</tr>\n<tr>\n<td>\n                            przybliżenie z niedomiarem\n                        </td>\n<td>\n                            \\(0,0077\\)\n                        </td>\n<td>\n                            \\(|0,007735-0,0077|\\)\n                        </td>\n<td>\n                            \\(0,000035\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            przybliżenie z nadmiarem\n                        </td>\n<td>\n                            \\(0,0078\\)\n                        </td>\n<td>\n                            \\(|0,007735-0,0078|\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": "wartość przybliżona"
+            },
+            {
+              "kind": "static",
+              "html": "wyliczenie błędu bezwzględnego"
+            },
+            {
+              "kind": "static",
+              "html": "wartość błędu"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "przybliżenie z niedomiarem"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0,0077\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(|0,007735-0,0077|\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0,000035\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "przybliżenie z nadmiarem"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0,0078\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(|0,007735-0,0078|\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.000065|0,000065"
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "text",
@@ -43,6 +101,6 @@
       "body": "\n<img alt=\"przybliżanie\" src=\"static/przyblizanie.png\"/>\n"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "78fd62416de09dfe915fda09653bc126a7f6369db019f761fe08808b79220876"
+  "fully_mapped": true,
+  "seed_hash": "c8c9e916afa6e600efef30006678f2a48fd25c2b6a6ae2a30e1c2b2edc363d89"
 }

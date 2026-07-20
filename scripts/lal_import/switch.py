@@ -28,8 +28,12 @@ def strip_lead_prompt(options, answer):
     return options, answer
 
 
-def _token(i):
+def token(i):
+    """The fillblank/switchgrid sentinel token for cycler/blank index i."""
     return SENTINEL + str(i) + SENTINEL
+
+
+_token = token  # internal alias
 
 
 def switch_line_stem_cyclers(line):

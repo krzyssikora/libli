@@ -17,6 +17,7 @@ from scripts.lal_import.answers import extract_str_map
 from scripts.lal_import.mathsafe import escape_math_delimited
 from scripts.lal_import.switch import strip_lead_prompt
 from scripts.lal_import.switch import switch_line_stem_cyclers
+from scripts.lal_import.switch import token as _blank_token
 
 # Tags whose inner HTML is valid TextElement body content (survive nh3). h2 is
 # included: the FIRST h2 is consumed as the unit title, later ones (and h1,
@@ -329,6 +330,18 @@ def _walk(nodes, elements, flags, consumed, state):
             _emit_switch_grid(node, elements, state)
             continue
 
+        if (
+            name != "table"
+            and not _has_block_child(node)
+            and node.find(class_="table_input") is not None
+        ):
+            # Group B #5: an inline text block holding table_input(s) NOT inside a
+            # <table> -> a FillBlank self-check (else nh3 strips the <input> and the
+            # block renders as an empty paragraph). Block containers descend first
+            # (so a real fill TABLE is reached by the table branch, not here).
+            elements.append(_fillblank_from_block(node, state))
+            continue
+
         if _contains_marker(node) and not _is_structural_container(node):
             # Rule 7: a not-yet-native interactive widget -> single placeholder,
             # coalescing consecutive widget siblings into one block.
@@ -476,6 +489,32 @@ def _walk(nodes, elements, flags, consumed, state):
             continue
 
         _unmapped(f"unmapped <{name}> in lesson body", node, elements, flags)
+
+
+def _answer_alt_list(raw):
+    """Accepted-answer alternatives for a fill blank: a decimal accepts both dot
+    and Polish-comma forms; a fraction/integer/string is kept verbatim."""
+    if "." in raw and "/" not in raw:
+        return [raw, raw.replace(".", ",")]
+    return [raw]
+
+
+def _fillblank_from_block(node, state):
+    """Group B #5: turn a text block holding inline table_input(s) into a
+    {type:fillblank} dict — the block content becomes the stem with each input
+    replaced by a sentinel blank token, and each blank's accepted answers come
+    from table_answers[qid] (indexed over ALL inputs in the enclosing question)."""
+    qid = _enclosing_qid(node)
+    answers = state.get("table_answers", {}).get(qid, [])
+    qnode = node.find_parent(id=lambda x: x and x.startswith("question")) or node
+    idx_map = {id(inp): i for i, inp in enumerate(qnode.find_all(class_="table_input"))}
+    blanks = []
+    for inp in node.find_all(class_="table_input"):
+        gidx = idx_map.get(id(inp))
+        raw = answers[gidx] if gidx is not None and gidx < len(answers) else ""
+        blanks.append(_answer_alt_list(raw))
+        inp.replace_with(NavigableString(_blank_token(len(blanks) - 1)))
+    return {"type": "fillblank", "stem": node.decode_contents(), "blanks": blanks}
 
 
 def _table_answer_map(table, state):

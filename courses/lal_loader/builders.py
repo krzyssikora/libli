@@ -5,9 +5,11 @@ from decimal import Decimal
 from courses.geogebra import canonicalize_geogebra_url
 from courses.lal_loader.media import get_or_create_asset
 from courses.lal_loader.media import resolve_source
+from courses.models import Blank
 from courses.models import Choice
 from courses.models import ChoiceQuestionElement
 from courses.models import Element
+from courses.models import FillBlankQuestionElement
 from courses.models import FillTableElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
@@ -55,6 +57,17 @@ def build_element(course, unit, el, *, source_root, source_dir, allow_html):
         return _attach(
             unit, RevealGateElement.objects.create(label=el.get("label", "")[:120])
         )
+    if etype == "fillblank":
+        # Group B #5: an inline fill-in-the-blank self-check. The stem keeps its
+        # sentinel blank tokens; non-token segments are sanitized here.
+        from courses.switchgrid import sanitize_stem_segments
+
+        q = FillBlankQuestionElement.objects.create(
+            stem=sanitize_stem_segments(el.get("stem", ""))
+        )
+        for i, alts in enumerate(el.get("blanks", [])):
+            Blank.objects.create(question=q, accepted="\n".join(alts), order=i)
+        return _attach(unit, q)
     if etype == "fill_table":
         # Group B #4: a fill-in-the-blanks self-check table (input cells ->
         # accepted-answer cells). normalize_data sanitizes static cells.

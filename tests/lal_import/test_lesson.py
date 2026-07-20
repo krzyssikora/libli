@@ -384,6 +384,44 @@ def test_example_label_becomes_przyklad_heading():
     assert any("Przykład" in b for b in bodies)
 
 
+# --- Group B #5: inline table_input (not in a table) -> FillBlank self-check ---
+INLINE_FILL = r"""
+<div id="question20">
+  <p>Czy Bartek pomylił się bardziej niż Artur?</p>
+  <p><input class="table_input" placeholder="wpisz"></p>
+</div>
+<script>localStorage.setItem("table_answers",
+JSON.stringify({20: ["nie"]}));</script>
+"""
+
+
+def test_inline_input_becomes_fillblank_not_empty():
+    elements, flags = parse_lesson(INLINE_FILL, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    # no empty text element leaks from the stripped <input>
+    assert not any(
+        e["type"] == "text" and e["body"].strip() in ("<p></p>", "<p>\n\n</p>")
+        for e in elements
+    )
+    fbs = [e for e in elements if e["type"] == "fillblank"]
+    assert len(fbs) == 1
+    assert fbs[0]["blanks"] == [["nie"]]
+    assert "￿" in fbs[0]["stem"]  # a sentinel blank token is present
+    # the question text is preserved
+    assert any("Bartek" in e.get("body", "") for e in elements if e["type"] == "text")
+
+
+def test_inline_input_decimal_gets_comma_alternative():
+    html = (
+        '<div id="question5"><p>Wynik: <input class="table_input"></p></div>'
+        '<script>localStorage.setItem("table_answers",'
+        "JSON.stringify({5: [0.5]}));</script>"
+    )
+    elements, _ = parse_lesson(html, "x.html")
+    fb = next(e for e in elements if e["type"] == "fillblank")
+    assert fb["blanks"] == [["0.5", "0,5"]]
+
+
 # --- Group B #4: table_input -> FillTableElement ---
 TABLE_INPUT = r"""
 <div id="question10">

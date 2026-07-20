@@ -34,10 +34,68 @@
       "body": "<p>\n        Obliczenia zostały już częściowo wykonane. Przed Tobą ostatni krok. Wpisz sam wynik liczbowy, bez jednostki (cm).\n    </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                        prawdziwy wymiar\n                    </td>\n<td>\n                        zmierzona długość\n                    </td>\n<td>\n                        obliczenie błędu\n                    </td>\n<td>\n                        błąd\n                    </td>\n</tr>\n<tr>\n<td>\n                        \\(50,5\\) cm\n                    </td>\n<td>\n                        \\(51\\) cm\n                    </td>\n<td>\n                        \\(|50,5-51|=|-0,5|\\)\n                    </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                        \\(90,5\\) cm\n                    </td>\n<td>\n                        \\(88,8\\) cm\n                    </td>\n<td>\n                        \\(|90,5-88,8|=|0,7|\\)\n                    </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "prawdziwy wymiar"
+            },
+            {
+              "kind": "static",
+              "html": "zmierzona długość"
+            },
+            {
+              "kind": "static",
+              "html": "obliczenie błędu"
+            },
+            {
+              "kind": "static",
+              "html": "błąd"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(50,5\\) cm"
+            },
+            {
+              "kind": "static",
+              "html": "\\(51\\) cm"
+            },
+            {
+              "kind": "static",
+              "html": "\\(|50,5-51|=|-0,5|\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.5|0,5"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(90,5\\) cm"
+            },
+            {
+              "kind": "static",
+              "html": "\\(88,8\\) cm"
+            },
+            {
+              "kind": "static",
+              "html": "\\(|90,5-88,8|=|0,7|\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.7|0,7"
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "text",
@@ -112,26 +170,48 @@
       "body": "<p>\n        Dokończ obliczenia dla Bartka. Użyj kalkulatora i zapisz wynik obcinając go po 4 cyfrach po przecinku.\n    </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                        błąd względny Artura\n                    </td>\n<td>\n                        \\(\\frac{|50,5-51|}{|50,5|}=\\frac{0,5}{50,5}\\approx 0,0099\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        błąd względny Bartka\n                    </td>\n<td>\n                        \\(\\frac{|90,5-88,8|}{|90,5|}=\\frac{0,7}{90,5}\\approx\\)\n                        <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "błąd względny Artura"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\frac{|50,5-51|}{|50,5|}=\\frac{0,5}{50,5}\\approx 0,0099\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "błąd względny Bartka"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.0077|0,0077"
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "text",
       "body": "<p>\n        Czy biorąc pod uwagę te obliczenia, Bartek pomylił się bardziej niż Artur?\n    </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>\n<input class=\"table_input\" placeholder=\"tak/nie\" type=\"text\"/>\n</p>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "text",
+      "body": "<p>\n<input class=\"table_input\" placeholder=\"tak/nie\" type=\"text\"/>\n</p>"
     },
     {
       "type": "text",
       "body": "\n    Czasami błąd względny podaje się w procentach:\n                \\[\\frac{|50,5-51|}{|50,5|}=\\frac{0,5}{50,5}\\approx 0,0099=0,0099\\cdot 100\\%=0,99\\%\\]\n"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "5c21c104c16c9c998304ea92d525231cf1322d9a04a9a12132e4c96b48663abc"
+  "fully_mapped": true,
+  "seed_hash": "7fe02a19e61f382c2b7def10de17bb7c8de208c29bef003416317d3395c17554"
 }

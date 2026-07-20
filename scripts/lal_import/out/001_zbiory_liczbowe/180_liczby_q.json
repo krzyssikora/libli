@@ -17,12 +17,88 @@
       "body": "<p>Uzupełnij tabelę. Wpisz tylko końcowe wyniki.</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\" style=\"background-color: white;\">\n<tr>\n<td>\n                            działanie\n                        </td>\n<td>\n                            dodawanie i odejmowanie\n                        </td>\n<td>\n                            mnożenie\n                        </td>\n<td>\n                            dzielenie\n                        </td>\n</tr>\n<tr>\n<td>\n                            metoda\n                        </td>\n<td>\n                            wspólny mianownik czyli\n                            <br/>\n                            najmniejsza wspólna wielokrotność (\\(NWW\\))\n                        </td>\n<td>\n                            skracamy liczniki z mianownikami\n                            <br/>\n                            potem mnożymy oddzielnie liczniki,\n                            <br/>\n                            oddzielnie mianowniki\n                        </td>\n<td>\n                            zamieniamy na mnożenie\n                            <br/>\n                            pierwszego ułamka przez odwrotność drugiego\n                        </td>\n</tr>\n<tr>\n<td>\n                            przykład\n                        </td>\n<td>\n                            \\[\\frac{5}{6}+\\frac{3}{4}=\\]\n                                                                               \\[[NWW(6,4)=12]\\]\n                                                                               \\[=\\frac{10}{12}+\\frac{9}{12}=\\frac{19}{12}\\]\n                        </td>\n<td>\n                            \\[\\frac{4}{9}\\cdot\\frac{15}{14}=\\]\n                                                                               skracamy przez \\(2\\) i przez \\(3\\)\n                                                                               \\[=\\frac{2}{3}\\cdot\\frac{5}{7}=\\]\n                                                                               mnożymy\n                                                                               \\[=\\frac{10}{21}\\]\n                        </td>\n<td>\n                            \\[\\frac{4}{9}:\\frac{14}{15}=\\]\n                                                                               zamieniamy na mnożenie\n                                                                               \\[\\frac{4}{9}\\cdot\\frac{15}{14}=\\]\n                                                                               i dalej tak samo, jak poprzednio\n                                                                               \\[=\\frac{10}{21}\\]\n                        </td>\n</tr>\n<tr>\n<td>\n                            ćwiczenie\n                        </td>\n<td>\n                            \\(\\frac{9}{10}-\\frac{8}{15}=\\)\n                            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            \\(\\frac{75}{14}\\cdot\\frac{21}{27}=\\)\n                            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            \\(\\frac{1}{2}:\\frac{1}{4}=\\)\n                            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "działanie"
+            },
+            {
+              "kind": "static",
+              "html": "dodawanie i odejmowanie"
+            },
+            {
+              "kind": "static",
+              "html": "mnożenie"
+            },
+            {
+              "kind": "static",
+              "html": "dzielenie"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "metoda"
+            },
+            {
+              "kind": "static",
+              "html": "wspólny mianownik czyli\n                            <br/>\n                            najmniejsza wspólna wielokrotność (\\(NWW\\))"
+            },
+            {
+              "kind": "static",
+              "html": "skracamy liczniki z mianownikami\n                            <br/>\n                            potem mnożymy oddzielnie liczniki,\n                            <br/>\n                            oddzielnie mianowniki"
+            },
+            {
+              "kind": "static",
+              "html": "zamieniamy na mnożenie\n                            <br/>\n                            pierwszego ułamka przez odwrotność drugiego"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "przykład"
+            },
+            {
+              "kind": "static",
+              "html": "\\[\\frac{5}{6}+\\frac{3}{4}=\\]\n                                                                               \\[[NWW(6,4)=12]\\]\n                                                                               \\[=\\frac{10}{12}+\\frac{9}{12}=\\frac{19}{12}\\]"
+            },
+            {
+              "kind": "static",
+              "html": "\\[\\frac{4}{9}\\cdot\\frac{15}{14}=\\]\n                                                                               skracamy przez \\(2\\) i przez \\(3\\)\n                                                                               \\[=\\frac{2}{3}\\cdot\\frac{5}{7}=\\]\n                                                                               mnożymy\n                                                                               \\[=\\frac{10}{21}\\]"
+            },
+            {
+              "kind": "static",
+              "html": "\\[\\frac{4}{9}:\\frac{14}{15}=\\]\n                                                                               zamieniamy na mnożenie\n                                                                               \\[\\frac{4}{9}\\cdot\\frac{15}{14}=\\]\n                                                                               i dalej tak samo, jak poprzednio\n                                                                               \\[=\\frac{10}{21}\\]"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "ćwiczenie"
+            },
+            {
+              "kind": "answer",
+              "answer": "11/30"
+            },
+            {
+              "kind": "answer",
+              "answer": "25/6"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            }
+          ]
+        ]
+      }
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "623ebe110f6cceeaf4fba4790acc55708613c716b585adad94d1455f81021553"
+  "fully_mapped": true,
+  "seed_hash": "dfd77c135db404bb61671c808f98a931c0ca0fad0622a7424546730330ff61d5"
 }

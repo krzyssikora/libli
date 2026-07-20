@@ -86,12 +86,86 @@
       "body": "\n        Wpisz przybliżenia do podanego stopnia dokładności\n    "
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                    liczba\n                </td>\n<td>\n                    dokładność\n                </td>\n<td>\n                    przybliżenie\n                </td>\n</tr>\n<tr>\n<td>\n                    \\(2,5555\\)\n                </td>\n<td>\n                    \\(0,01\\)\n                </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                    \\(0,9993\\)\n                </td>\n<td>\n                    \\(0,001\\)\n                </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                    \\(236\\)\n                </td>\n<td>\n                    \\(10\\)\n                </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                    \\(4,509\\)\n                </td>\n<td>\n                    \\(0,1\\)\n                </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>",
-      "reason": "interactive_widget (Group B): table_input"
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "liczba"
+            },
+            {
+              "kind": "static",
+              "html": "dokładność"
+            },
+            {
+              "kind": "static",
+              "html": "przybliżenie"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(2,5555\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0,01\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "2.56|2,56"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(0,9993\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0,001\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.999|0,999"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(236\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(10\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "240"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(4,509\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0,1\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4.5|4,5"
+            }
+          ]
+        ]
+      }
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "582e670a2e75f0f112d74420ae2a7c190d3a4b44be1665fce31394958972a950"
+  "fully_mapped": true,
+  "seed_hash": "16e925dbc3336a181936307c2d05928191ed215557e6a858a0ddbb9ef318393a"
 }

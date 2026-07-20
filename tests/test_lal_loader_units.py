@@ -19,6 +19,7 @@ from courses.lal_loader.tree import upsert_node
 from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Element
+from courses.models import FillBlankQuestionElement
 from courses.models import FillTableElement
 from courses.models import MediaAsset
 from courses.models import RevealGateElement
@@ -125,6 +126,31 @@ def test_build_reveal_gate(tmp_path):
     )
     assert isinstance(obj, RevealGateElement)
     assert obj.label == "pokaż dalej"
+    assert Element.objects.filter(unit=unit).count() == 1
+
+
+def test_build_fillblank(tmp_path):
+    from courses.fillblank import SENTINEL
+
+    course = CourseFactory()
+    unit = _unit(course)
+    obj = build_element(
+        course,
+        unit,
+        {
+            "type": "fillblank",
+            "stem": "Odp: " + SENTINEL + "0" + SENTINEL,
+            "blanks": [["0.5", "0,5"]],
+        },
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert isinstance(obj, FillBlankQuestionElement)
+    blanks = list(obj.blanks.all())
+    assert len(blanks) == 1
+    assert blanks[0].accepted == "0.5\n0,5"
+    assert SENTINEL + "0" + SENTINEL in obj.stem
     assert Element.objects.filter(unit=unit).count() == 1
 
 
