@@ -84,7 +84,20 @@ def test_sanitized_data_image_cell_keeps_media_trims_alt_no_html():
     assert cell["kind"] == "image" and cell["media"] == 5
     assert cell["alt"] == "a graph"
     assert "html" not in cell  # the else-branch's sanitize_cell must NOT run on image cells
+
+
+def test_image_only_fill_table_has_no_math():
+    # spec's has_math confirming test: _fill_table_has_math scans non-answer cells'
+    # html; an image cell has no html key, so it contributes no math.
+    from courses.views import _fill_table_has_math
+
+    el = FillTableElement(data={"cells": [[{"kind": "image", "media": 5, "alt": "x"},
+                                           {"kind": "answer", "answer": "1"}]]})
+    el.save()
+    assert _fill_table_has_math(el) is False
 ```
+
+(Confirm the exact name/arg of `_fill_table_has_math` in `courses/views.py` ~145 — it takes the concrete element; adjust the import/call if the signature differs.)
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -772,8 +785,8 @@ Match the EXACT existing `_err` messages/structure already in `_val_fill_table` 
 
 - [ ] **Step 6: Run tests to verify they pass**
 
-Run: `… uv run pytest tests/test_filltable_transfer.py -v`
-Expected: PASS (new image round-trip tests + all existing fill_table transfer tests, incl. `test_validator_accepts_tolerable_drift` and `test_validator_rejects_gross_corruption`).
+Run: `… uv run pytest tests/test_filltable_transfer.py tests/test_transfer_materialize_duplicate.py tests/test_builder_duplicate_unit.py tests/test_transfer_export_nondrop.py -v`
+Expected: PASS. Include the duplicate-unit/nondrop suites: `_ser_fill_table`/`_build_fill_table` are on the **in-process duplicate-unit** path (the no-mutation rewrite's rationale), and changing the serializer's output shape (now always normalized keys) could regress those unnoticed.
 
 - [ ] **Step 7: Commit**
 
@@ -899,6 +912,40 @@ def test_form_rejects_cross_course_image_cell():
 
 Also confirm the existing `_form` helper in this file (which builds `FillTableElementForm(data=…)` WITHOUT `course`) still works — `course=None` must be accepted (it is: `_CourseScopedMediaForm.__init__(course=None)`).
 
+Add a **real-save** rejection test (the directly-constructed form above gives false confidence — the production POST path is `save_element`, reached via the `manage_element_save` endpoint). Model it on `tests/test_filltable_manage_plumbing.py::test_nested_save_creates_child_and_renders_in_tab`:
+
+```python
+def test_save_endpoint_rejects_cross_course_image_cell(client):
+    import json
+    from django.urls import reverse
+    from courses.models import Element
+    from tests.factories import make_pa, CourseFactory, make_image_asset
+    from tests.test_filltable_manage_plumbing import _lesson_unit
+
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    other = CourseFactory(owner=pa)
+    foreign = make_image_asset(other, "g.png")  # image in a DIFFERENT course
+    unit.refresh_from_db()
+    resp = client.post(
+        reverse("courses:manage_element_save", kwargs={"slug": course.slug}),
+        {
+            "type": "filltable", "element": "new", "unit": unit.pk,
+            "unit_token": unit.updated.isoformat(),
+            "data": json.dumps({"cells": [[
+                {"kind": "image", "media": foreign.pk, "alt": "g"},
+                {"kind": "answer", "answer": "1"},
+            ]]}),
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 422  # ElementFormInvalid — cross-course image rejected
+    assert not Element.objects.filter(unit=unit).exists()  # atomic rollback, no orphan
+```
+
+(If `_lesson_unit` is not importable, inline a `ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=None, title="U")`. Confirm the 422 status matches how `manage_element_save` surfaces `ElementFormInvalid` — read the view; adjust the asserted code if the endpoint maps it differently.)
+
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `… uv run pytest tests/test_filltable_form.py -v -k image`
@@ -960,24 +1007,26 @@ class FillTableElementForm(_CourseScopedMediaForm):
 
 (`_CourseScopedMediaForm.__init__` guards `if "media" in self.fields` — FillTable has no `media` field, so it's a no-op; `self.course` is still set. `MediaAsset` is already imported in `element_forms.py`.)
 
-- [ ] **Step 4: Thread `course` in the editor views**
+- [ ] **Step 4: Thread `course` on the REAL save path (`builder.py:save_element`)**
 
-In `courses/views_manage.py`, add `"filltable"` to the add-path tuple (~842):
+The **POST/validation/save** path is `courses/builder.py:save_element` (~line 739), NOT the render-only view helpers. It builds the form with:
 
 ```python
-        extra = (
-            {"course": unit.course}
-            if type_key in ("image", "video", "dragtoimagequestion", "gallery", "filltable")
-            else {}
-        )
+        extra = {"course": course} if type_key in ("image", "video", "gallery") else {}
 ```
 
-Find the EDIT-path form construction (~1115-1123, `form = FORM_FOR_TYPE[type_key](instance=el.content_object, **extra)`) and ensure its `extra` likewise includes `{"course": course}` for `"filltable"`. Read that block and mirror whatever conditional the add-path uses (the two must agree). If the edit path builds `extra` separately, add `"filltable"` there too.
+Add `"filltable"` to that tuple so the bound form receives `course` on save:
+
+```python
+        extra = {"course": course} if type_key in ("image", "video", "gallery", "filltable") else {}
+```
+
+This is the only edit that matters for validation — `FillTableElementForm` has no `media` field, so `_CourseScopedMediaForm.__init__` only stores `self.course` (used by `clean_data`), which is exercised when the bound form is validated in `save_element`. (The GET-path form construction in `views_manage.py` renders the empty/instance editor and does not validate media; leave it unchanged.)
 
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `… uv run pytest tests/test_filltable_form.py tests/test_filltable_manage_plumbing.py -v`
-Expected: PASS (new scoping tests + existing form + manage-plumbing tests — the latter exercises the add/edit view wiring; confirm passing `course` didn't break an unscoped call site).
+Expected: PASS (new directly-constructed scoping tests + the real-save-endpoint rejection test + existing form + manage-plumbing tests — the latter exercises the real save-through-`save_element` wiring; confirm adding `"filltable"` to the `save_element` tuple didn't break an existing call site).
 
 - [ ] **Step 6: Commit**
 
@@ -1018,7 +1067,7 @@ def test_editor_renders_existing_image_cell():
     assert "data-image" in html
     assert asset.file.url in html          # thumbnail
     assert f'data-media="{asset.pk}"' in html   # hidden pk (NOT the asset __str__)
-    assert 'value="graph"' in html          # per-cell alt
+    assert 'data-alt="graph"' in html      # per-cell alt stored on the <td>, no <input>
 
 
 def test_editor_toolbar_has_image_toggle_and_alt_input():
@@ -1049,7 +1098,7 @@ In `_edit_filltable.html`, the grid loop is `{% for row in d.cells %}` where `d 
                  placeholder="{% trans 'Accepted answer' %}">
         </td>
         {% elif cell.kind == "image" %}
-        <td data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}"
+        <td data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}" tabindex="0"
             class="ta-{{ cell.halign }} va-{{ cell.valign }}"
             data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}">
           <img class="filltable-editor__img" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
@@ -1065,7 +1114,7 @@ In `_edit_filltable.html`, the grid loop is `{% for row in d.cells %}` where `d 
   </div>
 ```
 
-Note: `{{ cell.alt }}` reused for both the hidden `data-alt` and the `<input value>` (Task 10 wires the toolbar alt input to this per-cell `data-alt`). Keep the `{% with d=... %}` wrapper for the controls strip.
+Note: the image cell `<td>` has **no `<input>`** — alt lives in the `data-alt` attribute and the `<img alt>`. The single toolbar alt input (Task 10) reads/writes the focused image cell's `data-alt`. Keep the `{% with d=... %}` wrapper for the controls strip.
 
 - [ ] **Step 4: Add the "Image cell" toggle + alt input to the toolbar**
 
@@ -1108,7 +1157,7 @@ git commit -m "feat(filltable-editor): deserialize image cells + image-cell tool
 
 - [ ] **Step 1: Write the failing e2e test**
 
-Add to `tests/test_e2e_filltable.py` a test that (mirroring the file's login/seed harness) opens the editor for a unit, adds a FillTable, converts two cells to image cells via the picker, sets DISTINCT alts on each, saves, reopens, and asserts both alts survive. Skeleton (adapt seed/login helpers already in the file):
+`tests/test_e2e_filltable.py` only drives the STUDENT taking gesture (fill/check) — it has no manage-editor navigation. Model the editor-authoring harness on **`tests/test_e2e_gallery.py`**, which already drives the media picker in the real editor: it opens `{live_server.url}/manage/courses/{course.slug}/build/unit/{unit.pk}/edit/`, waits for `[data-scope="editor"]`, adds an element, opens the picker (`.picker-overlay .asset-pick[data-asset-id='{pk}']`), and saves via `[data-edit-slot] .editor-form__actions button[type='submit']`. Reuse those exact locators/URLs. Add the new test to `tests/test_e2e_filltable.py` (import the gallery file's editor-navigation helpers or copy them). It opens the editor for a unit, adds a FillTable (or seeds one via ORM with two static cells + one answer cell, then drives only the real toggle→pick→alt→save→reopen gestures — no `page.evaluate` into serialize()), converts two cells to image cells via the picker, sets DISTINCT alts on each, saves, reopens, and asserts both alts survive. Skeleton:
 
 ```python
 def test_author_two_image_cells_with_distinct_alts(page, live_server):
@@ -1169,21 +1218,23 @@ Declare `var fillTargetCb = null;` alongside `appendTarget`. `window.libliFillTa
 
 Extend `filltable_editor.js`:
 1. `dataCells(tr)` — currently `tr.querySelectorAll("td:not([data-control])")`, which already includes `td[data-image]`; confirm image columns are counted on resize (they are, by that selector — no change, but verify).
-2. Expose the picker hook. In `wire(editor)`, define:
+2. Expose the picker hook. In `wire(editor)`, define (declare the `pick` param so it matches the `media_picker.js` call site; single global is acceptable — one fill-table editor per page is the norm, mirroring the pre-existing `libliGalleryAdd` limitation; add a code comment noting the single-editor assumption):
 
 ```javascript
-    window.libliFillTablePickImage = function () {
+    // Single global; assumes one fill-table editor per page (like libliGalleryAdd).
+    window.libliFillTablePickImage = function (_pick) {
       var target = focusedCell;          // the cell the toggle was clicked on
       return function (id, _name, url) { // picker callback: id is a STRING
-        setImageCell(target, parseInt(id, 10), url, "");
+        setImageCell(target, parseInt(id, 10), url, target.dataset.alt || "");
+        focusedCell = target;            // keep focus on the converted cell
         serialize();
       };
     };
 ```
 
-3. `setImageCell(td, mediaInt, url, alt)` converts a cell to an image cell: stash the prior kind's content (reuse `stashFor`), set `td.setAttribute("data-image","")`, `td.dataset.media = String(mediaInt)`, `td.dataset.alt = alt`, replace innerHTML with `<img class="filltable-editor__img" src="url">`, remove `contenteditable`/`data-answer`.
-4. Toolbar handler: `data-image-toggle` click → if `focusedCell`, the picker opens via `media_picker.js` (the button has `data-pick-media="image" data-pick-mode="cell"`, so `media_picker.js` handles the open; `filltable_editor.js` only supplies the callback via `libliFillTablePickImage`). Ensure clicking the toggle does not also fire the answer-toggle path.
-5. Alt input: on `focusin` of a `td[data-image]`, show `[data-image-alt]` and set its value to `td.dataset.alt`; on `input` of `[data-image-alt]`, write `focusedCell.dataset.alt` (only if it's an image cell) and `serialize()`. Hide the alt input when the focused cell is not an image cell.
+3. `setImageCell(td, mediaInt, url, alt)` converts a cell to an image cell: stash the prior kind's content (reuse `stashFor`); set `td.setAttribute("data-image","")`, `td.dataset.media = String(mediaInt)`, `td.dataset.alt = alt`; **set `td.setAttribute("tabindex","0")`** so the cell is focusable (an image cell has no contenteditable/input, so without this `focusin` never fires); replace innerHTML with `<img class="filltable-editor__img" src="url">`; remove `contenteditable`/`data-answer`. Then **reveal + populate the alt input immediately** (do NOT rely on a later `focusin`): find `editor.querySelector("[data-image-alt]")`, `alt.hidden = false`, `alt.value = td.dataset.alt || ""`. This is what makes the authoring gesture's `[data-image-alt].fill()` work (Playwright `.fill()` waits for visibility).
+4. Toolbar handler: `data-image-toggle` click → the picker opens via `media_picker.js` (the button has `data-pick-media="image" data-pick-mode="cell"`, so `media_picker.js` handles the open; `filltable_editor.js` only supplies the callback via `libliFillTablePickImage`). Ensure clicking the toggle does not also fire the answer-toggle path (it won't — distinct `data-image-toggle` vs `data-answer-toggle` selectors).
+5. Alt input wiring for RE-EDIT: extend the grid `focusin` handler (currently matches `td[contenteditable], td[data-answer]` at ~line 319) to ALSO match `td[data-image]`, set `focusedCell`, reveal `[data-image-alt]`, and set its value to `td.dataset.alt`. On `input` of `[data-image-alt]`, if `focusedCell` is an image cell write `focusedCell.dataset.alt = e.target.value`, update the cell's `<img alt>`, and `serialize()`. Hide `[data-image-alt]` when the focused cell is not an image cell (in `refreshToolbarState`). The `tabindex="0"` from item 3 (and set in the Task 9 template for server-rendered image cells — add `tabindex="0"` to the `td[data-image]` there too) is what lets `focusin` fire on an image cell.
 6. `serialize()` — in the per-cell loop, add an image branch BEFORE the answer/static branches:
 
 ```javascript
@@ -1200,7 +1251,31 @@ Extend `filltable_editor.js`:
 
 `media` MUST be a JS number (`parseInt`), matching `_cell`'s int check.
 7. Submit guard (`onSubmit`): image cells are not answer cells, so the existing "≥1 answer cell / no blank answers" checks (which query `td[data-answer]`) already ignore them — confirm, no change.
-8. `toggleAnswerCell`/stash: extend the stash so a cell round-tripping image→static→answer does not lose content; an image cell being toggled to static should clear `data-image`/`data-media`/`data-alt` and restore the stashed html.
+8. `toggleAnswerCell(td)` — the current function treats any non-`data-answer` cell as static, so on an image cell it would stash the `<img>` innerHTML and convert to an answer input while leaving `data-media`/`data-alt`/`tabindex` stale (a corrupt cell). Add an **explicit image-cell guard at the top**: if `td.hasAttribute("data-image")`, first convert it back to static — clear `data-image`/`data-media`/`data-alt`, remove `tabindex`, restore `td.innerHTML = stashFor(td).html || ""`, set `contenteditable="true"`, hide `[data-image-alt]` — and return (so a single toggle click goes image→static; a second click static→answer). Concretely:
+
+```javascript
+    function toggleAnswerCell(td) {
+      if (!td) return;
+      if (td.hasAttribute("data-image")) {          // image -> static (one step)
+        var s = stashFor(td);
+        td.removeAttribute("data-image");
+        delete td.dataset.media;
+        delete td.dataset.alt;
+        td.removeAttribute("tabindex");
+        td.innerHTML = s.html != null ? s.html : "";
+        td.setAttribute("contenteditable", "true");
+        var altBox = editor.querySelector("[data-image-alt]");
+        if (altBox) altBox.hidden = true;
+        focusedCell = td;
+        refreshToolbarState();
+        serialize();
+        return;
+      }
+      // ...existing answer<->static logic unchanged...
+    }
+```
+
+Add a JS/e2e test for the image→static→answer round-trip: after `setImageCell`, click `data-answer-toggle` twice and assert the cell ends as an answer cell with no stale `data-media`/`data-alt`.
 
 - [ ] **Step 5: Run the e2e to verify it passes**
 
@@ -1209,8 +1284,8 @@ Expected: PASS (new multi-image-alt test + the existing correct/incorrect fill t
 
 - [ ] **Step 6: Run the full filltable + transfer + loader + parser suite (regression gate)**
 
-Run: `… uv run pytest tests/test_filltable_model.py tests/test_filltable_render.py tests/test_filltable_form.py tests/test_filltable_context.py tests/test_filltable_check.py tests/test_filltable_restore.py tests/test_filltable_transfer.py tests/test_filltable_editor_partial.py tests/test_filltable_manage_plumbing.py tests/test_transfer_export.py tests/test_transfer_schema.py tests/test_lal_loader_units.py tests/lal_import/test_tables.py -v`
-Expected: PASS (whole feature, no regressions).
+Run: `… uv run pytest tests/test_filltable_model.py tests/test_filltable_render.py tests/test_filltable_form.py tests/test_filltable_context.py tests/test_filltable_check.py tests/test_filltable_restore.py tests/test_filltable_transfer.py tests/test_filltable_editor_partial.py tests/test_filltable_manage_plumbing.py tests/test_transfer_export.py tests/test_transfer_schema.py tests/test_transfer_materialize_duplicate.py tests/test_builder_duplicate_unit.py tests/test_transfer_export_nondrop.py tests/test_lal_loader_units.py tests/lal_import/test_tables.py -v`
+Expected: PASS (whole feature + the duplicate-unit/nondrop transfer paths, no regressions).
 
 - [ ] **Step 7: Commit**
 
@@ -1241,6 +1316,6 @@ Not a task — the SDD driver runs this after Task 10 and reports URLs to the us
 
 ## Self-review notes
 
-- **Spec coverage:** model image kind (T1) ✓, resolved_cells (T2) ✓, render + template + done/not-done composition (T3) ✓, parser pure-image (T4) ✓, loader resolve+dedup (T5) ✓, transfer register/remap/validate + no-mutation (T6) ✓, `_element_mids` attribution (T7) ✓, editor deserialize (T9) ✓, editor JS + picker + per-cell alt + parseInt + submit guard (T10) ✓, has_math (no code change; covered by T1's no-`html`-key on image cells) ✓. Course-scoping (T8) is an ADDITION beyond the spec (flagged).
+- **Spec coverage:** model image kind (T1) ✓, resolved_cells (T2) ✓, render + template + done/not-done composition (T3) ✓, parser pure-image (T4) ✓, loader resolve+dedup (T5) ✓, transfer register/remap/validate + no-mutation (T6) ✓, `_element_mids` attribution (T7) ✓, editor deserialize (T9) ✓, editor JS + picker + per-cell alt + parseInt + submit guard (T10) ✓, has_math confirming test (T1) ✓. Course-scoping (T8) is an ADDITION beyond the spec (flagged); it is threaded on the REAL save path (`builder.py:save_element`, not the render-only view helpers) and tested via the `manage_element_save` endpoint.
 - **Type consistency:** `media` is a JS/JSON number and a Python int at the model/editor layer everywhere (`parseInt` in JS, `isinstance(int)` in `_cell`); a string local id everywhere at the transfer layer (`ids.register`, `_require_media`, `_element_mids`, `_build_fill_table` remap). `resolved_cells` is a property (no parens) at every call site.
 - **Ordering:** model (T1–3) → parser (T4) → loader (T5) → transfer (T6–7) → form (T8) → editor (T9–10). Each task is green and committable on its own.
