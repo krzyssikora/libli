@@ -54,6 +54,13 @@ NESTABLE_TYPE_KEYS = frozenset(
     }
 )
 
+# Static content leaves a spoiler may hold as children (server-enforced). Excludes
+# spoiler itself, containers, interactive/stateful types, and questions -- the
+# depth-1 leaf-only scope of the nestable-spoiler feature.
+SPOILER_CHILD_TYPES = frozenset(
+    {"text", "math", "image", "video", "iframe", "table", "gallery", "callout"}
+)
+
 # Form key -> transfer key, for the types where the two namespaces diverge.
 _NESTABLE_FORM_KEY_ALIASES = {
     "fillgate": "fill_gate",
@@ -98,6 +105,19 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     if join is None:
         raise NestingError("unknown parent")
     parent_obj = join.content_object
+    from courses.models import SpoilerElement
+
+    if isinstance(parent_obj, SpoilerElement):
+        # Single-slot container: no `data` slot list to read. A spoiler may receive
+        # children only when it is itself top-level (depth-1 invariant), and only
+        # allowlisted leaf child types (spoiler/containers/interactive excluded).
+        if join.parent_id is not None:
+            raise NestingError("a nested spoiler may not have children")
+        if tab != SpoilerElement.SLOT_ID:
+            raise NestingError("unknown slot")
+        if type_key not in SPOILER_CHILD_TYPES:
+            raise NestingError(f"{type_key} may not be nested inside a spoiler")
+        return join, SpoilerElement.SLOT_ID
     # normalize_data (behind normalized_data) is DESTRUCTIVE and read-side only: it
     # pads/truncates and mints fresh random ids on every call, so a slot validated
     # against it here could be an ephemeral phantom that never matches again at

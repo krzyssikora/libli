@@ -98,3 +98,61 @@ def test_empty_nested_spoiler_renders_no_body_wrapper():
     html = sp.render(element=join, state={}, slug="x", node_pk=unit.pk)
     assert "spoiler__body" not in html  # no stray el--text wrapper
     assert "<details" in html
+
+
+def _spoiler_join(unit, parent=None, tab_id=""):
+    sp = SpoilerElement.objects.create(label="L")
+    return sp, Element.objects.create(
+        unit=unit, content_object=sp, parent=parent, tab_id=tab_id
+    )
+
+
+def test_resolve_scope_accepts_leaf_child_in_top_level_spoiler():
+    from courses import builder
+
+    _course, unit = make_course_with_unit()
+    _sp, join = _spoiler_join(unit)
+    parent_join, tab = builder.resolve_scope(
+        unit, str(join.pk), SpoilerElement.SLOT_ID, "text"
+    )
+    assert parent_join == join
+    assert tab == SpoilerElement.SLOT_ID
+
+
+def test_resolve_scope_rejects_disallowed_child_type_in_spoiler():
+    import pytest
+    from courses import builder
+    from courses.builder import NestingError
+
+    _course, unit = make_course_with_unit()
+    _sp, join = _spoiler_join(unit)
+    for bad in ("tabs", "spoiler", "revealgate", "choicequestion"):
+        with pytest.raises(NestingError):
+            builder.resolve_scope(unit, str(join.pk), SpoilerElement.SLOT_ID, bad)
+
+
+def test_resolve_scope_rejects_wrong_slot_for_spoiler():
+    import pytest
+    from courses import builder
+    from courses.builder import NestingError
+
+    _course, unit = make_course_with_unit()
+    _sp, join = _spoiler_join(unit)
+    with pytest.raises(NestingError):
+        builder.resolve_scope(unit, str(join.pk), "wrong", "text")
+
+
+def test_resolve_scope_refuses_children_for_nested_spoiler():
+    import pytest
+    from courses import builder
+    from courses.builder import NestingError
+    from courses.models import TabsElement
+
+    _course, unit = make_course_with_unit()
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    tjoin = Element.objects.create(unit=unit, content_object=tabs)
+    tab_id = tabs.data["tabs"][0]["id"]
+    # a spoiler nested inside a tab (depth 1) may NOT itself receive children
+    _sp, sp_join = _spoiler_join(unit, parent=tjoin, tab_id=tab_id)
+    with pytest.raises(NestingError):
+        builder.resolve_scope(unit, str(sp_join.pk), SpoilerElement.SLOT_ID, "text")
