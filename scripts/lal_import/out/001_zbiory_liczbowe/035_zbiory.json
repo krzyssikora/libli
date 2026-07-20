@@ -75,12 +75,51 @@
       "body": "<p>\n            Klikaj pola zaznaczone na niebiesko, aż zobaczysz odpowiednie działanie na zbiorach, dające podany wynik. Gdy wybierzesz wszystkie działania, zatwierdź odpowiedź.\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cup\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cap\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\setminus\\)\n            </div>\n<div class=\"switch_around\">\n                \\(B=\\{1, 2\\}\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cup\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cap\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\setminus\\)\n            </div>\n<div class=\"switch_around\">\n                \\(B=\\{3, 4\\}\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cup\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cap\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\setminus\\)\n            </div>\n<div class=\"switch_around\">\n                \\(B=\\{1, 2, 3, 4, 5\\}\\)\n            </div>\n</div>\n<div class=\"switch_confirm ks_button\">\n            zatwierdź\n        </div>\n\n</div>",
-      "reason": "interactive_widget (Group B): switch_around,switch_confirm,switch_line,switch_options,switch_value"
+      "type": "switch_grid",
+      "prompt": "",
+      "lines": [
+        {
+          "stem": "\n\n                \\(A\\)\n            \n\n\n\n￿0￿\n                \\(B=\\{1, 2\\}\\)\n            \n",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\cup\\)",
+                "\\(\\cap\\)",
+                "\\(\\setminus\\)"
+              ],
+              "answer": 2
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(A\\)\n            \n\n\n\n￿0￿\n                \\(B=\\{3, 4\\}\\)\n            \n",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\cup\\)",
+                "\\(\\cap\\)",
+                "\\(\\setminus\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(A\\)\n            \n\n\n\n￿0￿\n                \\(B=\\{1, 2, 3, 4, 5\\}\\)\n            \n",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\cup\\)",
+                "\\(\\cap\\)",
+                "\\(\\setminus\\)"
+              ],
+              "answer": 0
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "cbafda3be3a8a68105e5b1c66e508f481917ab7cadc48ea554c876f4ee31973b"
+  "fully_mapped": true,
+  "seed_hash": "8afa0eb7c3d28f2f65cc15649926ef08cd4505c3011dc602b128d9b882504299"
 }

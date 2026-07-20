@@ -2,99 +2,61 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Wykres poniżej ilustruje głębokość pewnego zbiornika wody (\\(y\\), w metrach) zmieniającą się w ciągu jednego dnia (\\(x\\) to czas w godzinach).\n        <div class=\"centered\">\n<img alt=\"poziom wody\" src=\"static/poziom_wody.png\" width=\"600\"/>\n</div>\n<p>\n            Najwyższy poziom wody (5 metrów) miał miejsce o północy - na początku i na końcu dnia.\n        </p>\n<p>\n            Woda osiągnęła najniższy poziom 3 metrów w samo południe.\n        </p>\n<p>\n            Z wykresu można odczytać więcej.\n        </p>\n"
+      "body": "<p>Wykres poniżej ilustruje głębokość pewnego zbiornika wody (\\(y\\), w metrach) zmieniającą się w ciągu jednego dnia (\\(x\\) to czas w godzinach).</p>"
     },
     {
       "type": "text",
-      "body": "<p>O godzinie 4 rano poziom wody był równy</p>"
+      "body": "\n<img alt=\"poziom wody\" src=\"static/poziom_wody.png\" width=\"600\"/>\n"
     },
     {
       "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+      "body": "<p>\n            Najwyższy poziom wody (5 metrów) miał miejsce o północy - na początku i na końcu dnia.\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n                    4 metry\n                "
+      "body": "<p>\n            Woda osiągnęła najniższy poziom 3 metrów w samo południe.\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n                    4,5 metra\n                "
+      "body": "<p>\n            Z wykresu można odczytać więcej.\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n                    5 metrów\n                "
+      "type": "switch_gate",
+      "stem": "\n                O godzinie 4 rano poziom wody był równy\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "4 metry",
+        "4,5 metra",
+        "5 metrów"
+      ],
+      "answer": 2
     },
     {
-      "type": "text",
-      "body": "<p>.</p>"
+      "type": "switch_gate",
+      "stem": "\n                Taki sam poziom wody jak o 4 nad ranem został zaobserwowany później o godzinie\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "6 rano",
+        "6 wieczorem",
+        "8 wieczorem",
+        "10 wieczorem"
+      ],
+      "answer": 3
     },
     {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Taki sam poziom wody jak o 4 nad ranem został zaobserwowany później o godzinie</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    6 rano\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    6 wieczorem\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    8 wieczorem\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    10 wieczorem\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>O godzinie 16-ej poziom wody był taki sam jak wcześniej o</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    6 rano\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    8 rano\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    10 rano\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                O godzinie 16-ej poziom wody był taki sam jak wcześniej o\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "6 rano",
+        "8 rano",
+        "10 rano"
+      ],
+      "answer": 2
     },
     {
       "type": "text",
@@ -134,13 +96,30 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W aplecie poniżej możesz wybrać funkcję nr 1 lub nr 2 przesuwając niebieski suwak.\n        </p>\n<p>\n            Przesuwając czerwony punkt oznaczony krzyżykiem na osi \\(OY\\), przesuniesz poziomą prostą przechodzącą przez ten punkt.\n        </p>\n<p>\n            Przesuwaj tą prostą, by przekonać się, że\n        </p>\n<ul class=\"nolist\">\n<li>\n                funkcja nr 1 nie jest różnowartowościowa,\n            </li>\n<li>\n                funkcja nr 2 jest różnowartowościowa.\n            </li>\n</ul>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"721px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/qcc5e6bj/width/676/height/721/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"różnowartościowość\" width=\"676px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n"
+      "body": "<p>\n            W aplecie poniżej możesz wybrać funkcję nr 1 lub nr 2 przesuwając niebieski suwak.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwając czerwony punkt oznaczony krzyżykiem na osi \\(OY\\), przesuniesz poziomą prostą przechodzącą przez ten punkt.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwaj tą prostą, by przekonać się, że\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                funkcja nr 1 nie jest różnowartowościowa,\n            </li>\n<li>\n                funkcja nr 2 jest różnowartowościowa.\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/qcc5e6bj/width/676/height/721/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "0ba8fabd673383ecab66b8a70b64f2107a5c8957093f2bc05950d7f7ba7de470"
+  "seed_hash": "be0a93f99dfcb0f6ef617795de12b6085897dc6aa2a7565f18b0efda0d615ef8"
 }

@@ -7,6 +7,8 @@ token `SENTINEL + i + SENTINEL` (matches courses.switchgrid / courses.switchgate
 The trailing `.switch_confirm` / `.switch_show_next` button is not content.
 """
 
+import re
+
 from bs4 import NavigableString
 from bs4 import Tag
 
@@ -14,6 +16,16 @@ from scripts.lal_import.mathsafe import escape_math_delimited
 
 SENTINEL = "￿"  # == courses.fillblank.SENTINEL (U+FFFF)
 _BUTTON_CLASSES = {"switch_confirm", "switch_show_next"}
+_LEAD_PROMPT_RE = re.compile(r"wybierz", re.IGNORECASE)
+
+
+def strip_lead_prompt(options, answer):
+    """LAL cyclers carry a leading '>> wybierz >>' prompt as option 0; the libli
+    cycler supplies its own initial prompt, so drop it and shift the 0-based
+    answer index down to match. No-op when the first option is a real choice."""
+    if options and _LEAD_PROMPT_RE.search(options[0]):
+        return options[1:], max(0, answer - 1)
+    return options, answer
 
 
 def _token(i):

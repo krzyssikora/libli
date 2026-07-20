@@ -485,8 +485,10 @@ def test_switch_show_next_becomes_switch_gate_chain():
     assert "switch_gate" in types
     assert not any(e.get("flagged") for e in elements)
     gate = next(e for e in elements if e["type"] == "switch_gate")
-    assert gate["options"] == [r"&gt;&gt; wybierz &gt;&gt;", r"\(-1\)", r"\(0\)"]
-    assert gate["answer"] == 2  # switch_answers[13][0]
+    # the ">> wybierz >>" prompt is dropped (libli cycler supplies its own) and
+    # the answer index shifts down: LAL 2 ("0") -> libli 1.
+    assert gate["options"] == [r"\(-1\)", r"\(0\)"]
+    assert gate["answer"] == 1
     # Step content (before and after the gate) survives as native text.
     bodies = " ".join(e.get("body", "") for e in elements if e["type"] == "text")
     assert "Policz wartości" in bodies

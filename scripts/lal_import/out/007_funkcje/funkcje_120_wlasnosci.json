@@ -54,75 +54,38 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Fragment wykresu funkcji \\(f:\\mathbb{R}\\longrightarrow\\mathbb{R}\\) pokazuje wszystkie miejsca zerowe funkcji \\(f\\).\n        </p>\n<div class=\"centered\">\n<img alt=\"miejsce zerowe na wykresie\" src=\"static/miejsce_zerowe_2.png\" width=\"600\"/>\n</div>\n"
+      "body": "<p>\n            Fragment wykresu funkcji \\(f:\\mathbb{R}\\longrightarrow\\mathbb{R}\\) pokazuje wszystkie miejsca zerowe funkcji \\(f\\).\n        </p>"
     },
     {
       "type": "text",
-      "body": "<p>Funkcja \\(f\\) ma zatem</p>"
+      "body": "\n<img alt=\"miejsce zerowe na wykresie\" src=\"static/miejsce_zerowe_2.png\" width=\"600\"/>\n"
     },
     {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+      "type": "switch_gate",
+      "stem": "\n                Funkcja \\(f\\) ma zatem\n                \n\n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "\\(0\\) miejsc zerowych",
+        "\\(1\\) miejsce zerowe",
+        "\\(2\\) miejsca zerowe",
+        "\\(3\\) miejsca zerowe",
+        "\\(4\\) miejsca zerowe"
+      ],
+      "answer": 5
     },
     {
-      "type": "text",
-      "body": "\n                    \\(0\\) miejsc zerowych\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(1\\) miejsce zerowe\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(2\\) miejsca zerowe\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(3\\) miejsca zerowe\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(4\\) miejsca zerowe\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Te miejsca zerowe to</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(1\\), \\(2\\), \\(3\\) i \\(4\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(-1\\), \\(0\\), \\(2\\) i \\(3\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((-1,0)\\), \\((0,0)\\), \\((2,0)\\) i \\((3,0)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Te miejsca zerowe to\n                \n\n￿0￿\n                .\n                \n\n￿1￿",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "\\(1\\), \\(2\\), \\(3\\) i \\(4\\)",
+        "\\(-1\\), \\(0\\), \\(2\\) i \\(3\\)"
+      ],
+      "answer": 2
     },
     {
       "type": "text",
@@ -130,5 +93,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "828c3efc4d6b80eee61765654317b81eb0efeb7c5a4d0416b8700b7c6ed5de78"
+  "seed_hash": "12e06df495887a623193897e21d474e6da2d0c467b05bf8883f12f6bb55e712b"
 }

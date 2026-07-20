@@ -58,17 +58,15 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Spójrz na poniższe rysunki. Czy przedstawiają one funkcje \\(f:A\\longrightarrow B\\)? Dlaczego?\n        </p>\n<p>\n            Gdy odpowiesz, sprawdź moje odpowiedzi.\n        </p>\n"
+      "body": "<p>\n            Spójrz na poniższe rysunki. Czy przedstawiają one funkcje \\(f:A\\longrightarrow B\\)? Dlaczego?\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n<div>\n<img alt=\"czy to funkcja? 1 - odpowiedź\" src=\"static/funkcja_def_1_2.png\" width=\"600\"/>\n</div>\n<p>\n<strong>\n<span style=\"color: green;\">\n                    Tak\n                </span>\n                , to jest funkcja.\n            </strong>\n</p>\n<p>\n            Zwróć uwagę, że dwóm argumentom może byc przyporządkowana ta sama wartość (punkt zaznaczony ciemnozielonym okręgiem).\n        </p>\n<p>\n            Zwróć też uwagę, że nie wszystkie elementy przeciwdziedziny muszą być przyporządkowane jakimś argumentom (punkt zaznaczony jasnozielonym okręgiem).\n        </p>\n<p>\n            Spełniony jest warunek, że\n            <strong>\n                każdy\n            </strong>\n            argument ma przyporządkowaną\n            <strong>\n                dokładnie jedną\n            </strong>\n            wartość.\n        </p>\n</div>",
-      "reason": "unmapped <div> in lesson body"
+      "type": "text",
+      "body": "<p>\n            Gdy odpowiesz, sprawdź moje odpowiedzi.\n        </p>"
     },
     {
       "type": "text",
@@ -93,12 +91,11 @@
       "body": "\n<img alt=\"czy to funkcja? 3\" src=\"static/funkcja_def_3_1.png\" width=\"600\"/>\n"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
-      "reason": "show_solution button without solution"
+      "type": "spoiler",
+      "label": "zobacz",
+      "body": "\n<div>\n<img alt=\"czy to funkcja? 1 - odpowiedź\" src=\"static/funkcja_def_1_2.png\" width=\"600\"/>\n</div>\n<p>\n<strong>\n<span style=\"color: green;\">\n                    Tak\n                </span>\n                , to jest funkcja.\n            </strong>\n</p>\n<p>\n            Zwróć uwagę, że dwóm argumentom może byc przyporządkowana ta sama wartość (punkt zaznaczony ciemnozielonym okręgiem).\n        </p>\n<p>\n            Zwróć też uwagę, że nie wszystkie elementy przeciwdziedziny muszą być przyporządkowane jakimś argumentom (punkt zaznaczony jasnozielonym okręgiem).\n        </p>\n<p>\n            Spełniony jest warunek, że\n            <strong>\n                każdy\n            </strong>\n            argument ma przyporządkowaną\n            <strong>\n                dokładnie jedną\n            </strong>\n            wartość.\n        </p>\n"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "07012c464b0710b535204e49d19f2bd5257b05b6fa726651ec35451373134f15"
+  "fully_mapped": true,
+  "seed_hash": "7be331ba8ccd450c35ff2ebcf7d029a7621de594c1e8cdc2c5ddcdbe7bfa7a48"
 }

@@ -14,65 +14,39 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Większość z wymienionych niżej działań jest dozwolona, ale niektóre (nieliczne!) nie są.\n        </p>\n<p>\n            Pomyśl o każdym działaniu i odpowiedz na pytanie \"czy wolno ... ?\"\n        </p>\n"
+      "body": "<p>\n            Większość z wymienionych niżej działań jest dozwolona, ale niektóre (nieliczne!) nie są.\n        </p>"
     },
     {
       "type": "text",
-      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                dzielić przez \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                mnożyć przez \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                podnosić \\(0\\) do potęgi\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                podnosić liczby do potęgi \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                podnosić liczby do potęgi ujemnej\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                podnosić liczby do potęgi ułamkowej\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                obliczać pierwiastek nieparzystego stopnia z liczby ujemnej\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                obliczać pierwiastek parzystego stopnia z liczby ujemnej\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                obliczać pierwiastek nieparzystego stopnia z \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                obliczać pierwiastek parzystego stopnia z \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n</ul>"
+      "body": "<p>\n            Pomyśl o każdym działaniu i odpowiedz na pytanie \"czy wolno ... ?\"\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
+      "type": "html",
+      "flagged": true,
+      "raw": "<ul>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                dzielić przez \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                mnożyć przez \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                podnosić \\(0\\) do potęgi\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                podnosić liczby do potęgi \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                podnosić liczby do potęgi ujemnej\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                podnosić liczby do potęgi ułamkowej\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                obliczać pierwiastek nieparzystego stopnia z liczby ujemnej\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                obliczać pierwiastek parzystego stopnia z liczby ujemnej\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                obliczać pierwiastek nieparzystego stopnia z \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                obliczać pierwiastek parzystego stopnia z \\(0\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                tak\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                nie\n            </div>\n</li>\n</ul>\n<div class=\"confirm_choice ks_button\">\n        potwierdź\n    </div>",
+      "reason": "interactive_widget (Group B): confirm_choice,one_choice"
     },
     {
-      "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi:\n    "
-    },
-    {
-      "type": "text",
-      "body": "<p>Szukając dziedziny funkcji o danym równaniu,</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    możemy uznać, że jest nią cały zbiór \\(\\mathbb{R}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    musimy upewnić się, że nie dzielimy przez \\(0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    musimy upewnić się, że nie liczymy pierwiastka parzystego stopnia z liczby ujemnej\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    musimy upewnić się, że nie dzielimy przez \\(0\\) i nie liczymy pierwiastka parzystego stopnia z liczby ujemnej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Szukając dziedziny funkcji o danym równaniu,\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "możemy uznać, że jest nią cały zbiór \\(\\mathbb{R}\\)",
+        "musimy upewnić się, że nie dzielimy przez \\(0\\)",
+        "musimy upewnić się, że nie liczymy pierwiastka parzystego stopnia z liczby ujemnej",
+        "musimy upewnić się, że nie dzielimy przez \\(0\\) i nie liczymy pierwiastka parzystego stopnia z liczby ujemnej"
+      ],
+      "answer": 4
     },
     {
       "type": "text",
       "body": "<p>\n                Przejdźmy dalej, by zobaczyć, jak to zrobić w praktyce.\n            </p>"
     }
   ],
-  "fully_mapped": true,
-  "seed_hash": "47d38344f34b8aa1cd0c32626e7b530889385970e2c098b15d555b39edb2db2c"
+  "fully_mapped": false,
+  "seed_hash": "069e5741b0edf04645705b9e51989c01dafdfe6ffb41cb8abfcf2b61b1fdffaf"
 }

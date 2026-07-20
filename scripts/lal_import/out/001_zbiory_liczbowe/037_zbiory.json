@@ -17,12 +17,108 @@
       "body": "<p>\n            Pamiętaj, że symbol \"\\(\\emptyset\\)\" oznacza\n            <strong>\n                zbiór pusty\n            </strong>\n            .\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\cap\\emptyset=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\cup\\emptyset=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\setminus\\emptyset=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(\\emptyset\\cap A=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(\\emptyset\\setminus A=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\cup A=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\cap A=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\setminus A=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=\"switch_confirm ks_button\">\n            zatwierdź\n        </div>\n\n</div>",
-      "reason": "interactive_widget (Group B): switch_around,switch_confirm,switch_line,switch_options,switch_value"
+      "type": "switch_grid",
+      "prompt": "",
+      "lines": [
+        {
+          "stem": "\n\n                \\(A\\cap\\emptyset=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 0
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(A\\cup\\emptyset=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(A\\setminus\\emptyset=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(\\emptyset\\cap A=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 0
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(\\emptyset\\setminus A=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 0
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(A\\cup A=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(A\\cap A=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(A\\setminus A=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 0
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "1c82ed9a8b7d6068bc393ae17ed2d80fa348331a783e8513ccebd66f0659c0a1"
+  "fully_mapped": true,
+  "seed_hash": "505807a075c717692cdf1c7121d01046b61b12ee838ecf96598ce15f7de81c1b"
 }

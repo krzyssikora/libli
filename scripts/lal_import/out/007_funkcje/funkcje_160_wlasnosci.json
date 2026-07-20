@@ -138,7 +138,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -153,24 +153,14 @@
       "latex": "\n            x_1-x_2\\lt 0\\quad\\quad\\quad\\quad\\quad\\quad (*)\n            "
     },
     {
-      "type": "text",
-      "body": "<p>Zgodnie z obserwacją spod tabeli, rozważmy teraz różnicę \\(f(x_1)-f(x_2)=(-5x_1+7)-(-5x_2+7)=-5x_1+7+5x_2\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(+7\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(-7\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Zgodnie z obserwacją spod tabeli, rozważmy teraz różnicę \\(f(x_1)-f(x_2)=(-5x_1+7)-(-5x_2+7)=-5x_1+7+5x_2\\)\n                \n\n\n\n￿0￿",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "\\(+7\\)",
+        "\\(-7\\)"
+      ],
+      "answer": 2
     },
     {
       "type": "text",
@@ -185,92 +175,38 @@
       "body": "<p>\\(=-5(x_1-x_2)\\)</p>"
     },
     {
-      "type": "text",
-      "body": "<p>Z założenia (oznaczonego wyżej \\((*)\\)) widzimy, że liczba w nawiasie jest</p>"
+      "type": "switch_gate",
+      "stem": "\n                Z założenia (oznaczonego wyżej \\((*)\\)) widzimy, że liczba w nawiasie jest\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "dodatnia",
+        "ujemna",
+        "równa zero"
+      ],
+      "answer": 2
     },
     {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+      "type": "switch_gate",
+      "stem": "\n                Tak więc wynikiem \\(f(x_1)-f(x_2)\\) jest iloczyn ujemnej liczby \\(-5\\) oraz ujemnej liczby \\(x_1-x_2\\), czyli wynik jest\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "dodatni",
+        "ujemny"
+      ],
+      "answer": 1
     },
     {
-      "type": "text",
-      "body": "\n                    dodatnia\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    ujemna\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    równa zero\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Tak więc wynikiem \\(f(x_1)-f(x_2)\\) jest iloczyn ujemnej liczby \\(-5\\) oraz ujemnej liczby \\(x_1-x_2\\), czyli wynik jest</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    dodatni\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    ujemny\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Otrzymaliśmy \\(f(x_1)-f(x_2)\\gt 0\\) co oznacza, że funkcja \\(f\\) jest</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    rosnąca\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    malejąca\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    stała\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    niemalejąca\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    nierosnąca\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>(jeśli nie masz pewności, sprawdź w tabeli powyżej).</p>"
+      "type": "switch_gate",
+      "stem": "\n                Otrzymaliśmy \\(f(x_1)-f(x_2)\\gt 0\\) co oznacza, że funkcja \\(f\\) jest\n                \n\n\n\n\n\n￿0￿\n                (jeśli nie masz pewności, sprawdź w tabeli powyżej).\n            ",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "rosnąca",
+        "malejąca",
+        "stała",
+        "niemalejąca",
+        "nierosnąca"
+      ],
+      "answer": 2
     },
     {
       "type": "math",
@@ -282,7 +218,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -297,28 +233,14 @@
       "latex": "\n            x_1-x_2\\lt 0\\quad\\quad\\quad\\quad\\quad\\quad (*)\n            "
     },
     {
-      "type": "text",
-      "body": "<p>Rrozważmy różnicę \\(f(x_1)-f(x_2)=\\frac{5}{2-x_1}-\\frac{5}{2-x_2}\\). Aby tę różnicę obliczyć, musimy</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    odjąć liczniki i mianowniki\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    znaleźć wspólny mianownik\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Rrozważmy różnicę \\(f(x_1)-f(x_2)=\\frac{5}{2-x_1}-\\frac{5}{2-x_2}\\). Aby tę różnicę obliczyć, musimy\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "odjąć liczniki i mianowniki",
+        "znaleźć wspólny mianownik"
+      ],
+      "answer": 2
     },
     {
       "type": "text",
@@ -329,144 +251,66 @@
       "latex": "\n            f(x_1)-f(x_2)=\\frac{5}{2-x_1}-\\frac{5}{2-x_2}=\\frac{5(2-x_2)}{(2-x_1)(2-x_2)}-\\frac{5(2-x_1)}{(2-x_2)(2-x_1)}=\\frac{5(2-x_2)-5(2-x_1)}{(2-x_1)(2-x_2)}\n            \\]\n            Uprośćmy licznik, czyli górę tego ułamka:\n            \\[\n            5(2-x_2)-5(2-x_1)=10-5x_2-10+5x_1=-5x_2+5x_1=5(x_1-x_2)\n            "
     },
     {
-      "type": "text",
-      "body": "<p>Ze względu na założenie \\((*)\\), wyrażenie to jest</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    dodatnie\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    ujemne\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    równe zero\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Ze względu na założenie \\((*)\\), wyrażenie to jest\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "dodatnie",
+        "ujemne",
+        "równe zero"
+      ],
+      "answer": 2
     },
     {
       "type": "text",
       "body": "<p>\n                Teraz przyjrzyjmy się mianownikowi, czyli najpierw wyrażeniu \\(2-x_1\\), a potem \\(2-x_2\\).\n            </p>"
     },
     {
-      "type": "text",
-      "body": "<p>Skoro \\(x_1\\in(2,+\\infty)\\), czyli \\(x_1\\gt 2\\), więc odejmując od \\(2\\) liczbę większą niż \\(2\\) otrzymujemy wynik \\(2-x_1\\) będący liczbą</p>"
+      "type": "switch_gate",
+      "stem": "\n                Skoro \\(x_1\\in(2,+\\infty)\\), czyli \\(x_1\\gt 2\\), więc odejmując od \\(2\\) liczbę większą niż \\(2\\) otrzymujemy wynik \\(2-x_1\\) będący liczbą\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "dodatnią",
+        "ujemną"
+      ],
+      "answer": 2
     },
     {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+      "type": "switch_gate",
+      "stem": "\n                Analogicznie \\(2-x_2\\) jest też ujemne, więc cały mianownik jest\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "dodatni",
+        "ujemny"
+      ],
+      "answer": 1
     },
     {
-      "type": "text",
-      "body": "\n                    dodatnią\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    ujemną\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Analogicznie \\(2-x_2\\) jest też ujemne, więc cały mianownik jest</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    dodatni\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    ujemny\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Z powyższego wynika, że licznik jest ujemny, a mianownik dodatni, czyli całe wyrażenie \\(f(x_1)-f(x_2)=\\frac{5(x_1-x_2)}{(2-x_1)(2-x_2)}\\) jest</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    dodatnie\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    ujemne\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Z powyższego wynika, że licznik jest ujemny, a mianownik dodatni, czyli całe wyrażenie \\(f(x_1)-f(x_2)=\\frac{5(x_1-x_2)}{(2-x_1)(2-x_2)}\\) jest\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "dodatnie",
+        "ujemne"
+      ],
+      "answer": 2
     },
     {
       "type": "text",
       "body": "<p>Otrzymaliśmy \\(f(x_1)-f(x_2)\\lt 0\\) co oznacza, że funkcja \\(f\\) jest</p>"
     },
     {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    rosnąca\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    malejąca\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    stała\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    niemalejąca\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    nierosnąca\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>(jeśli nie masz pewności, sprawdź w tabeli powyżej).</p>"
+      "type": "switch_gate",
+      "stem": "\n\n\n\n\n\n\n￿0￿\n                (jeśli nie masz pewności, sprawdź w tabeli powyżej).\n            ",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "rosnąca",
+        "malejąca",
+        "stała",
+        "niemalejąca",
+        "nierosnąca"
+      ],
+      "answer": 1
     },
     {
       "type": "math",
@@ -478,5 +322,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "2483409548c59f9d2d723ec38d0a249caad997f34577c9669df71b574c1d06fc"
+  "seed_hash": "24ed612026fc506e7b92a4c16dd17234222212aedf5b17ad6190fa15e2096580"
 }

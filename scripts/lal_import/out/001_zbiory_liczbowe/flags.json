@@ -1,18 +1,6 @@
 [
   {
     "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): switch_around,switch_confirm,switch_line,switch_options,switch_value",
-    "raw_excerpt": "<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cup\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\cap\\)\n            </div>\n<div class=\"switch_value\">\n       ",
-    "unit_json": "035_zbiory.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): switch_around,switch_confirm,switch_line,switch_options,switch_value",
-    "raw_excerpt": "<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\(A\\cap\\emptyset=\\)\n            </div>\n<div class=\"switch_value\">\n                \\(\\emptyset\\)\n            </div>\n<div class=\"switch_value\">\n                \\(A\\)\n            </div>\n</div>\n<div class=",
-    "unit_json": "037_zbiory.json"
-  },
-  {
-    "kind": "unmapped_pattern",
     "reason": "interactive_widget (Group B): confirm_multiple,multi_many_ans,multi_many_option",
     "raw_excerpt": "<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\((2,3)\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            otwarty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            domknięty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n       ",
     "unit_json": "080_liczby_r_przedzialy.json"
@@ -22,12 +10,6 @@
     "reason": "interactive_widget (Group B): mark_done",
     "raw_excerpt": "<div>\n<div class=\"mark_done statement\" data-width=\"200px\">\n                \\(\\langle 3, 5)\\)\n            </div>\n<input type=\"checkbox\"/>\n</div>",
     "unit_json": "100_liczby_r_przedzialy.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "interactive_widget (Group B): switch_around,switch_confirm,switch_line,switch_options,switch_value",
-    "raw_excerpt": "<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                \\((-5,2)\\cup \\langle-1,5\\rangle\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,5)\\)\n            </div>\n<div class=\"switch_value\">\n                \\((-5,5\\rangle\\)\n            </d",
-    "unit_json": "110_liczby_r_przedzialy.json"
   },
   {
     "kind": "unmapped_pattern",

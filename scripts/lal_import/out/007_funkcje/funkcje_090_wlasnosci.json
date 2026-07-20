@@ -2,127 +2,90 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dana jest funkcja\n        </p>\n        \\[\n        f:\\{-2, 1, 4, 5, 8\\}\\longrightarrow\\mathbb{N}\n        \\]\n        <p>\n            zdefiniowana równaniem\n        </p>\n        \\[\n        f(x)=\\frac{1}{2}x\n        \\]\n        <p>\n            Dziedzina funkcji jest wskazana precyzyjnie - to zbiór składający się z pięciu liczb. Jednak przeciwdziedzina to duży, nieskończony zbiór \\(\\mathbb{N}\\). Prawdziwych wartości funkcji \\(f\\) jest znacznie mniej. Znajdź je i uzupełnij tabelę.\n        </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                            \\(x\\)\n                        </td>\n<td>\n                            \\(-2\\)\n                        </td>\n<td>\n                            \\(1\\)\n                        </td>\n<td>\n                            \\(4\\)\n                        </td>\n<td>\n                            \\(5\\)\n                        </td>\n<td>\n                            \\(8\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(y\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            \\(\\tfrac{5}{2}\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>\n"
+      "body": "<p>\n            Dana jest funkcja\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        f:\\{-2, 1, 4, 5, 8\\}\\longrightarrow\\mathbb{N}\n        "
     },
     {
       "type": "text",
-      "body": "<p>\n        Świetnie!\n    </p>"
+      "body": "<p>\n            zdefiniowana równaniem\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        f(x)=\\frac{1}{2}x\n        "
     },
     {
       "type": "text",
-      "body": "<p>\n        Otrzymaliśmy w ten sposób wszystkie możliwe wartości funkcji \\(f\\), czyli tak zwany\n        <strong>\n            zbiór wartości\n        </strong>\n        .\n    </p>"
+      "body": "<p>\n            Dziedzina funkcji jest wskazana precyzyjnie - to zbiór składający się z pięciu liczb. Jednak przeciwdziedzina to duży, nieskończony zbiór \\(\\mathbb{N}\\). Prawdziwych wartości funkcji \\(f\\) jest znacznie mniej. Znajdź je i uzupełnij tabelę.\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                            \\(x\\)\n                        </td>\n<td>\n                            \\(-2\\)\n                        </td>\n<td>\n                            \\(1\\)\n                        </td>\n<td>\n                            \\(4\\)\n                        </td>\n<td>\n                            \\(5\\)\n                        </td>\n<td>\n                            \\(8\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(y\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            \\(\\tfrac{5}{2}\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>",
+      "reason": "interactive_widget (Group B): table_input"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Rozpatrzmy wszystkie możliwe wartości funkcji\n        </p>\n        \\[\n        f:\\{-2, 1, 4, 5, 8\\}\\longrightarrow\\mathbb{N}\n        \\]\n        <p>\n            zdefiniowanej równaniem\n        </p>\n        \\[\n        f(x)=\\frac{1}{2}x\n        \\]\n    "
+      "body": "<p>\n            Rozpatrzmy wszystkie możliwe wartości funkcji\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        f:\\{-2, 1, 4, 5, 8\\}\\longrightarrow\\mathbb{N}\n        "
     },
     {
       "type": "text",
-      "body": "<p>Zbiorem wartości funkcji \\(f\\) jest zbiór</p>"
+      "body": "<p>\n            zdefiniowanej równaniem\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+      "type": "math",
+      "latex": "\n        f(x)=\\frac{1}{2}x\n        "
     },
     {
-      "type": "text",
-      "body": "\n                    \\(\\mathbb{N}\\)\n                "
+      "type": "switch_gate",
+      "stem": "\n                Zbiorem wartości funkcji \\(f\\) jest zbiór\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "\\(\\mathbb{N}\\)",
+        "\\(\\{-2, 1, 4, 5, 8\\}\\)",
+        "\\(\\{-1, \\tfrac{1}{2}, 2, \\tfrac{5}{2}, 4\\}\\)"
+      ],
+      "answer": 3
     },
     {
-      "type": "text",
-      "body": "\n                    \\(\\{-2, 1, 4, 5, 8\\}\\)\n                "
+      "type": "switch_gate",
+      "stem": "\n                Największą liczbą w zbiorze wartości jest\n                \n\n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "\\(-1\\)",
+        "\\(\\tfrac{1}{2}\\)",
+        "\\(2\\)",
+        "\\(\\tfrac{5}{2}\\)",
+        "\\(4\\)"
+      ],
+      "answer": 5
     },
     {
-      "type": "text",
-      "body": "\n                    \\(\\{-1, \\tfrac{1}{2}, 2, \\tfrac{5}{2}, 4\\}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Największą liczbą w zbiorze wartości jest</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(-1\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\tfrac{1}{2}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\tfrac{5}{2}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(4\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Najmniejszą liczbą w zbiorze wartości jest</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(-1\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\tfrac{1}{2}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\tfrac{5}{2}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(4\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Najmniejszą liczbą w zbiorze wartości jest\n                \n\n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "\\(-1\\)",
+        "\\(\\tfrac{1}{2}\\)",
+        "\\(2\\)",
+        "\\(\\tfrac{5}{2}\\)",
+        "\\(4\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
@@ -133,6 +96,6 @@
       "body": "<ul class=\"nolist\">\n<li>\n                    Zbiór wartości funkcji \\(f\\): \\(\\{-1, \\tfrac{1}{2}, 2, \\tfrac{5}{2}, 4\\}\\)\n                </li>\n<li>\n                    Największa wartośc funkcji \\(f\\): \\(4\\)\n                </li>\n<li>\n                    Najmniejsza wartośc funkcji \\(f\\): \\(-1\\)\n                </li>\n</ul>"
     }
   ],
-  "fully_mapped": true,
-  "seed_hash": "bd8323ac53c4daefb16ed593bf7aef086ef58983c95931eb6c91330f0fe31b43"
+  "fully_mapped": false,
+  "seed_hash": "ac8d42dd197aebaed806ea39ebcb43cd3bfa685115162970e293330229c714a5"
 }

@@ -2,11 +2,15 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Rysunek poniżej przedstawia wykres funkcji \\(g\\).\n        </p>\n<div class=\"centered\">\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_11.png\" width=\"600\"/>\n</div>\n"
+      "body": "<p>\n            Rysunek poniżej przedstawia wykres funkcji \\(g\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_11.png\" width=\"600\"/>\n"
     },
     {
       "type": "text",
@@ -17,32 +21,15 @@
       "body": "<p>\n                Zwróć uwagę, że jakkolwiek wykres funkcji przerywa się w \\(x=-1\\), tak nie ma tam przerwy w dziedzinie. Lewy, niższy fragment wykresu odpowiada argumentom \\(x\\lt-1\\), a prawy, wyższy - argumentowm \\(x\\gt -1\\).\n            </p>"
     },
     {
-      "type": "text",
-      "body": "<p>Dziedziną funkcji \\(g\\) jest więc spójny przedział</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\langle-5,2\\rangle\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((-5,2)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((-5,2\\rangle\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Dziedziną funkcji \\(g\\) jest więc spójny przedział\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "\\(\\langle-5,2\\rangle\\)",
+        "\\((-5,2)\\)",
+        "\\((-5,2\\rangle\\)"
+      ],
+      "answer": 3
     },
     {
       "type": "text",
@@ -73,40 +60,15 @@
       "body": "<p>\n                Zwróć uwagę, że zbiór wartości funkcji \\(g\\) to tym razem nie jest przedział między tymi wartościami, czyli \\((-1,5\\rangle\\). Żółta, przerywana, pozioma linia wskazuje na jedną z wartości, które nie są wartościami funkcji, bo nie odpowiadają żadnemu punktowi na wykresie.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "<p>Z tego powodu zbiór wartości funkcji \\(g\\) jest sumą dwóch przedziałów, a dokładniej.</p>"
-    },
-    {
-      "type": "text",
-      "body": "<strong>\n                    najmniejsza wartość\n                </strong>"
-    },
-    {
-      "type": "text",
-      "body": "<p>funkcji \\(f\\) to</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((-1,1)\\cup\\langle 2, 5\\rangle\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((-1,1\\rangle\\cup(2, 5\\rangle\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((-1,-1)\\cup\\langle -1, 5\\rangle\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Z tego powodu zbiór wartości funkcji \\(g\\) jest sumą dwóch przedziałów, a dokładniej.\n                \n                    najmniejsza wartość\n                \n                funkcji \\(f\\) to\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "\\((-1,1)\\cup\\langle 2, 5\\rangle\\)",
+        "\\((-1,1\\rangle\\cup(2, 5\\rangle\\)",
+        "\\((-1,-1)\\cup\\langle -1, 5\\rangle\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
@@ -126,5 +88,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "f1e70e1c4312d714e0f7b94bd6f3c067c79c1615eb07a20c4e6512a816874138"
+  "seed_hash": "d4af6c2a50e666213e05b5d086a88cb5d5017195c30c8a2739ba68d818781c3d"
 }

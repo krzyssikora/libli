@@ -14,6 +14,7 @@ from bs4 import Tag
 
 from scripts.lal_import.answers import extract_int_map
 from scripts.lal_import.mathsafe import escape_math_delimited
+from scripts.lal_import.switch import strip_lead_prompt
 from scripts.lal_import.switch import switch_line_stem_cyclers
 
 # Tags whose inner HTML is valid TextElement body content (survive nh3). h2 is
@@ -503,7 +504,8 @@ def _emit_switch_gate_chain(container, elements, flags, consumed, state):
                 content = []
                 stem, cyclers = switch_line_stem_cyclers(child)
                 options = cyclers[0]["options"] if cyclers else []
-                answer = answers[gate_idx] if gate_idx < len(answers) else 0
+                raw = answers[gate_idx] if gate_idx < len(answers) else 0
+                options, answer = strip_lead_prompt(options, raw)
                 elements.append(
                     {
                         "type": "switch_gate",
@@ -527,9 +529,9 @@ def _emit_switch_grid(container, elements, state):
     lines = []
     for i, line in enumerate(container.find_all(class_="switch_line")):
         stem, cyclers = switch_line_stem_cyclers(line)
-        ans = answers[i] if i < len(answers) else 0
-        for cyc in cyclers:
-            cyc["answer"] = ans  # one cycler per line
+        raw = answers[i] if i < len(answers) else 0
+        for cyc in cyclers:  # one cycler per line
+            cyc["options"], cyc["answer"] = strip_lead_prompt(cyc["options"], raw)
         lines.append({"stem": stem, "cyclers": cyclers})
     elements.append({"type": "switch_grid", "prompt": "", "lines": lines})
 

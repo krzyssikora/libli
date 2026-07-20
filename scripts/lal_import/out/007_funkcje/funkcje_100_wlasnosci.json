@@ -2,47 +2,29 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Rysunek poniżej przedstawia wykres funkcji \\(f\\).\n        </p>\n<div class=\"centered\">\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_1.png\" width=\"600\"/>\n</div>\n"
+      "body": "<p>\n            Rysunek poniżej przedstawia wykres funkcji \\(f\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_1.png\" width=\"600\"/>\n"
     },
     {
       "type": "text",
       "body": "<p>\n                Z wykresu możemy odczytać dziedzinę funkcji \\(f\\), szukając wszystkich \\(x\\)-ów, dla których istnieją punkty na wykresie.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "<p>Dziedzina funkcji \\(f\\) to zbiór</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\langle-6,2\\rangle\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((-6,2)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\langle-6,2)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Dziedzina funkcji \\(f\\) to zbiór\n                \n\n￿0￿\n                .\n                ￿1￿\n                .\n                \n",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "\\(\\langle-6,2\\rangle\\)",
+        "\\((-6,2)\\)"
+      ],
+      "answer": 3
     },
     {
       "type": "text",
@@ -53,36 +35,15 @@
       "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_2.png\" width=\"600\"/>\n"
     },
     {
-      "type": "text",
-      "body": "<p>Teraz spójrzmy na najniższy punkt wykresu. Z niego odczytujemy, że</p>"
-    },
-    {
-      "type": "text",
-      "body": "<strong>\n                    najmniejsza wartość\n                </strong>"
-    },
-    {
-      "type": "text",
-      "body": "<p>funkcji \\(f\\) to</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(y=-6\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(y=-2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x=-6\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Teraz spójrzmy na najniższy punkt wykresu. Z niego odczytujemy, że\n                \n                    najmniejsza wartość\n                \n                funkcji \\(f\\) to\n                \n\n\n\n\n￿0￿",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "\\(y=-6\\)",
+        "\\(y=-2\\)",
+        "\\(x=-6\\)"
+      ],
+      "answer": 2
     },
     {
       "type": "text",
@@ -93,40 +54,16 @@
       "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_3.png\" width=\"600\"/>\n"
     },
     {
-      "type": "text",
-      "body": "<p>Zauważ, że funkcja</p>"
-    },
-    {
-      "type": "text",
-      "body": "<strong>\n                    nie ma największej wartości\n                </strong>"
-    },
-    {
-      "type": "text",
-      "body": "<p>. Jest tak dlatego, że najwyższy punkt, \\((2,5)\\), nie należy do wykresu (jest niezamalowany). Gdyby ten punkt należał do wykresu, wówczas największą wartością byłaby</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(y=5\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(y=2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x=2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(y=4\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Zauważ, że funkcja\n                \n                    nie ma największej wartości\n                \n                . Jest tak dlatego, że najwyższy punkt, \\((2,5)\\), nie należy do wykresu (jest niezamalowany). Gdyby ten punkt należał do wykresu, wówczas największą wartością byłaby\n                \n\n\n\n\n\n￿0￿",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "\\(y=5\\)",
+        "\\(y=2\\)",
+        "\\(x=2\\)",
+        "\\(y=4\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
@@ -137,28 +74,15 @@
       "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_4.png\" width=\"600\"/>\n"
     },
     {
-      "type": "text",
-      "body": "<p>Skoro najmniejszą wartością jest \\(y=-2\\), a największej nie ma, lecz wartości prawie osiągają \\(y=5\\), to znaczy, że zbiorem wartości funkcji \\(f\\) jest zbiór</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((-2,5)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\langle -2, 5)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\langle -2, 5\\rangle\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Skoro najmniejszą wartością jest \\(y=-2\\), a największej nie ma, lecz wartości prawie osiągają \\(y=5\\), to znaczy, że zbiorem wartości funkcji \\(f\\) jest zbiór\n                \n\n\n\n\n￿0￿",
+      "options": [
+        "&gt;&gt; wybierz &gt;&gt;",
+        "\\((-2,5)\\)",
+        "\\(\\langle -2, 5)\\)",
+        "\\(\\langle -2, 5\\rangle\\)"
+      ],
+      "answer": 2
     },
     {
       "type": "text",
@@ -178,5 +102,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "38d9239e3593cf64b46d8136035b2feade77e9b4e53388df120385bb16fde559"
+  "seed_hash": "98e8cf1d1a5d0942a569a8cfe2b3e6542a91cdbb739b2f59219be8eaccf39a3a"
 }

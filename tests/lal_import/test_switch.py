@@ -2,7 +2,20 @@ from bs4 import BeautifulSoup
 
 from scripts.lal_import.mathsafe import escape_math_delimited
 from scripts.lal_import.switch import SENTINEL
+from scripts.lal_import.switch import strip_lead_prompt
 from scripts.lal_import.switch import switch_line_stem_cyclers
+
+
+def test_strip_lead_prompt_removes_wybierz_and_shifts_answer():
+    opts = ["&gt;&gt; wybierz &gt;&gt;", r"\(-1\)", r"\(0\)", r"\(1\)"]
+    new_opts, new_answer = strip_lead_prompt(opts, 2)
+    assert new_opts == [r"\(-1\)", r"\(0\)", r"\(1\)"]
+    assert new_answer == 1  # LAL index 2 ("0") -> libli index 1 after drop
+
+
+def test_strip_lead_prompt_noop_when_no_prompt():
+    opts = [r"\(\cup\)", r"\(\cap\)", r"\(\setminus\)"]
+    assert strip_lead_prompt(opts, 2) == (opts, 2)
 
 
 def _line(html):
