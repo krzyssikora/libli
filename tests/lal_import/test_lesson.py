@@ -467,7 +467,8 @@ DETAILS_WRAPPING_TABS = r"""
   <summary>Zobacz rozwiązanie</summary>
   <p>Wstęp do zadania.</p>
   <div class="ks_tabs">
-    <ul><li><a href="#tabcontent-1-1">A</a></li><li><a href="#tabcontent-1-2">B</a></li></ul>
+    <ul><li><a href="#tabcontent-1-1">A</a></li>
+        <li><a href="#tabcontent-1-2">B</a></li></ul>
     <div id="tabcontent-1-1"><p>Panel A.</p></div>
     <div id="tabcontent-1-2"><p>Panel B.</p></div>
   </div>
