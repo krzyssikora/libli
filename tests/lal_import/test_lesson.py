@@ -473,6 +473,85 @@ def test_mult_choice_multiple_questions_each_become_own_choice():
     assert choices[1]["choices"][0]["is_correct"] is False
 
 
+# --- Group B #11: multi_ans -> ChoiceQuestion(multiple) with per-option feedback -
+# 140_ciagi shape: a group question wraps math prompts + leaf sub-question MCQs
+# that carry no own question_text (the preceding \[..\] math is the prompt).
+MULTI_ANS_GROUP = r"""
+<div id="question330">
+  <div class="question_text"><p>Wskaż monotoniczność ciągów.</p></div>
+  \[ a_1=12 \]
+  <div id="question335">
+    <div>
+      <div class="multi_ans ks_button">rosnący</div>
+      <div class="multi_ans ks_button">malejący</div>
+    </div>
+    <div class="multi_feedback_ans ans_warning hidden"></div>
+    <div class="confirm_button_feedback ks_button">potwierdź</div>
+    <div class="multi_summary_ans success hidden">Brawo!</div>
+  </div>
+</div>
+<script>
+localStorage.setItem('multiple_correct_answers', JSON.stringify({335: [[0, 1]]}));
+localStorage.setItem('multiple_feedback',
+  JSON.stringify({335: [['nie rośnie', 'maleje, dobrze']]}));
+</script>
+"""
+
+
+def test_multi_ans_leaf_becomes_choice_with_feedback():
+    elements, flags = parse_lesson(MULTI_ANS_GROUP, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    choices = [e for e in elements if e["type"] == "choice"]
+    assert len(choices) == 1
+    q = choices[0]
+    assert q["multiple"] is True
+    opts = q["choices"]
+    assert [c["text"] for c in opts] == ["rosnący", "malejący"]
+    assert [c["is_correct"] for c in opts] == [False, True]
+    assert opts[0]["feedback"] == "nie rośnie"
+    assert opts[1]["feedback"] == "maleje, dobrze"  # comma inside feedback kept
+    # the group prompt still renders (as its own text block); math prompt kept
+    joined = " ".join(str(e) for e in elements)
+    assert "Wskaż monotoniczność" in joined
+    assert "a_1=12" in joined
+    # confirm + success chrome dropped
+    assert "potwierdź" not in joined and "Brawo" not in joined
+
+
+# geometria_043 shape: a leaf question with its OWN question_text and 2 correct.
+MULTI_ANS_OWN_STEM = r"""
+<div id="question20">
+  <div class="question_text">Które zasady przystawania?</div>
+  <div>
+    <div class="multi_ans ks_button">KBK</div>
+    <div class="multi_ans ks_button">BKB</div>
+    <div class="multi_ans ks_button">KKK</div>
+  </div>
+  <div class="multi_feedback_ans ans_warning hidden"></div>
+  <div class="confirm_button_feedback ks_button">potwierdź</div>
+</div>
+<script>
+localStorage.setItem('multiple_correct_answers', JSON.stringify({20: [[1, 1, 0]]}));
+localStorage.setItem('multiple_feedback',
+  JSON.stringify({20: [['tak', 'tak', 'nie']]}));
+</script>
+"""
+
+
+def test_multi_ans_with_own_stem_multi_correct():
+    elements, flags = parse_lesson(MULTI_ANS_OWN_STEM, "x.html")
+    choices = [e for e in elements if e["type"] == "choice"]
+    assert len(choices) == 1
+    q = choices[0]
+    assert q["multiple"] is True
+    assert "Które zasady przystawania" in q["stem"]
+    assert [c["is_correct"] for c in q["choices"]] == [True, True, False]
+    # stem is on the element, not duplicated as a separate text block
+    assert not any(
+        e["type"] == "text" and "Które zasady" in e.get("body", "") for e in elements
+    )
+
+
 def test_plain_lesson_has_no_widget_placeholder():
     # A non-interactive lesson must not trip the widget detector.
     html = "<h2>T</h2><p>Zwykły tekst.</p><figure><img src='a.png' alt='x'/></figure>"

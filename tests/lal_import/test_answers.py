@@ -1,5 +1,6 @@
 from scripts.lal_import.answers import extract_int_map
 from scripts.lal_import.answers import extract_nested_int_map
+from scripts.lal_import.answers import extract_nested_str_map
 from scripts.lal_import.answers import extract_str_map
 
 
@@ -79,6 +80,24 @@ def test_extract_nested_int_map_handles_multiple_qids_and_absent_key():
         120: [[0, 1], [1, 0]],
     }
     assert extract_nested_int_map("<script>x</script>", "missing_key") == {}
+
+
+def test_extract_nested_str_map_reads_per_option_feedback():
+    # multiple_feedback: one row of per-option feedback strings per qid; a comma
+    # INSIDE a string must not split it, and the key may be absent.
+    html = """
+    <script>
+      localStorage.setItem('multiple_feedback', JSON.stringify({
+        20: [['nie jest rosnący, bo maleje', 'to jest dobre', 'źle']],
+        30: [['tylko jedna']]
+      }));
+    </script>
+    """
+    assert extract_nested_str_map(html, "multiple_feedback") == {
+        20: [["nie jest rosnący, bo maleje", "to jest dobre", "źle"]],
+        30: [["tylko jedna"]],
+    }
+    assert extract_nested_str_map("<script>x</script>", "multiple_feedback") == {}
 
 
 def test_missing_key_returns_empty():

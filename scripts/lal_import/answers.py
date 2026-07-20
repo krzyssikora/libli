@@ -19,6 +19,9 @@ _QID_NESTED_LIST = re.compile(
 )
 _ROW_LIST = re.compile(r"\[([^\[\]]*)\]")
 _INT = re.compile(r"-?\d+")
+# a single- or double-quoted JS string (with backslash escapes), captured without
+# its delimiters — so a comma INSIDE a string is not mistaken for a separator.
+_QUOTED = re.compile(r"'((?:[^'\\]|\\.)*)'|\"((?:[^\"\\]|\\.)*)\"", re.DOTALL)
 
 
 def _setitem_re(key):
@@ -59,6 +62,28 @@ def extract_nested_int_map(html, key):
     for qm in _QID_NESTED_LIST.finditer(body):
         rows = [
             [int(v) for v in _INT.findall(rm.group(1))]
+            for rm in _ROW_LIST.finditer(qm.group(2))
+        ]
+        out[int(qm.group(1))] = rows
+    return out
+
+
+def extract_nested_str_map(html, key):
+    """Return {qid: [[str, ...], ...]} for a localStorage key whose value is a
+    list of string-list rows (multiple_feedback: one row of per-option feedback
+    strings per qid); {} if the key is absent. A comma inside a quoted string is
+    preserved (strings are matched by quote, not split on commas)."""
+    m = _setitem_re(key).search(html)
+    if not m:
+        return {}
+    body = _strip_js_comments(m.group(1))
+    out = {}
+    for qm in _QID_NESTED_LIST.finditer(body):
+        rows = [
+            [
+                sm.group(1) if sm.group(1) is not None else sm.group(2)
+                for sm in _QUOTED.finditer(rm.group(1))
+            ]
             for rm in _ROW_LIST.finditer(qm.group(2))
         ]
         out[int(qm.group(1))] = rows

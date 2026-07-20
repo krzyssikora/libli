@@ -14,6 +14,7 @@ from bs4 import Tag
 
 from scripts.lal_import.answers import extract_int_map
 from scripts.lal_import.answers import extract_nested_int_map
+from scripts.lal_import.answers import extract_nested_str_map
 from scripts.lal_import.answers import extract_str_map
 from scripts.lal_import.mathsafe import escape_math_delimited
 from scripts.lal_import.switch import strip_lead_prompt
@@ -97,11 +98,10 @@ _INTERACTIVE_MARKERS = {
     # NB: mult_choice/mult_option/mult_feedback_incorrect are NOT markers — a
     # checkbox MCQ with per-option feedback maps to a native ChoiceQuestion
     # (Group B #10); confirm_feedback_multiple is dropped as chrome.
-    # MCQ many lines with feedback
-    "multi_ans",
-    "confirm_button_feedback",
-    "multi_feedback_ans",
-    "multi_summary_ans",
+    # NB: multi_ans/confirm_button_feedback/multi_feedback_ans/multi_summary_ans
+    # are NOT markers — a multi-select button MCQ with per-option feedback maps
+    # to a native ChoiceQuestion (Group B #11); the whole leaf question div is
+    # intercepted so its confirm/summary chrome is dropped.
     # true/false toggles
     "truth",
     "false",
@@ -271,6 +271,10 @@ def parse_lesson(html, source_html):
         "multiple_many_correct_answers": extract_nested_int_map(
             html, "multiple_many_correct_answers"
         ),
+        "multiple_correct_answers": extract_nested_int_map(
+            html, "multiple_correct_answers"
+        ),
+        "multiple_feedback": extract_nested_str_map(html, "multiple_feedback"),
     }
     # Precompute each fill input's accepted answer BEFORE the walk mutates the tree
     # (a block's inputs are replace_with()'d by tokens; a later block's positional
@@ -373,6 +377,17 @@ def _walk(nodes, elements, flags, consumed, state):
             # children) so the confirm button + success/failure chrome inside are
             # dropped, not descended.
             _emit_mult_choice(node, elements, state)
+            continue
+        if (
+            (node.get("id") or "").startswith("question")
+            and node.find(class_="multi_ans") is not None
+            and node.find("div", id=lambda x: x and x.startswith("question")) is None
+        ):
+            # Group B #11: a multi-select button MCQ with per-option feedback ->
+            # one ChoiceQuestion(multiple=True). Only the LEAF question div (no
+            # nested question) is intercepted; a parent group div still descends
+            # so its prompt text + interleaved \[..\] math render before each MCQ.
+            _emit_multi_ans(node, elements, state)
             continue
         if "ks_tabs" in classes_here:
             # Group B #6: a tabbed container -> TabsElement with nested children.
@@ -808,6 +823,41 @@ def _emit_mult_choice(question, elements, state):
         {
             "type": "choice",
             "stem": f"<p>{escape_math_delimited(stem_text)}</p>",
+            "multiple": True,
+            "choices": choices,
+        }
+    )
+
+
+def _emit_multi_ans(question, elements, state):
+    """Group B #11: a multi-select button MCQ with per-option feedback -> one
+    ChoiceQuestion(multiple=True). `question` is the leaf div[id^=question]; its
+    .multi_ans buttons are the options. is_correct comes from
+    multiple_correct_answers[qid][0] and each option's feedback from
+    multiple_feedback[qid][0] (both a single row). The stem is this question's own
+    .question_text if present (a sanitized field, so re-escape math), else empty —
+    a preceding \\[..\\] math block or the group prompt is the context."""
+    m = re.search(r"\d+", question.get("id", ""))
+    qid = int(m.group()) if m else None
+    qt = question.find(class_="question_text")
+    stem_text = qt.get_text(" ", strip=True) if qt is not None else ""
+    correct = state.get("multiple_correct_answers", {}).get(qid, [])
+    mask = correct[0] if correct else []
+    fb_rows = state.get("multiple_feedback", {}).get(qid, [])
+    fbs = fb_rows[0] if fb_rows else []
+    choices = []
+    for i, opt in enumerate(question.find_all(class_="multi_ans")):
+        choices.append(
+            {
+                "text": opt.get_text(" ", strip=True),
+                "is_correct": bool(mask[i]) if i < len(mask) else False,
+                "feedback": fbs[i] if i < len(fbs) else "",
+            }
+        )
+    elements.append(
+        {
+            "type": "choice",
+            "stem": f"<p>{escape_math_delimited(stem_text)}</p>" if stem_text else "",
             "multiple": True,
             "choices": choices,
         }
