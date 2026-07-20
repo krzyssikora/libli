@@ -396,8 +396,13 @@ class TextElement(ElementBase):
 
 class SpoilerElement(ElementBase):
     """A self-contained show/hide disclosure: an author-labelled button that
-    expands/collapses a block of rich text + math. Rendered as a native
-    <details>; two-way, repeatable, ungraded. See the spoiler-element design doc."""
+    expands/collapses either legacy rich-text `body` OR (nestable-spoiler) an
+    ordered list of native child elements. Rendered as a native <details>;
+    two-way, repeatable, ungraded. Single-slot container: its children live in
+    Element rows whose `parent` is this element's join row and whose `tab_id` is
+    the one fixed slot id SLOT_ID. Mirrors the TabsElement join-row substrate."""
+
+    SLOT_ID = "only"  # the single implicit child slot; child Element.tab_id value
 
     label = models.CharField(max_length=120, blank=True)
     body = models.TextField(blank=True)
@@ -406,6 +411,37 @@ class SpoilerElement(ElementBase):
     def save(self, *args, **kwargs):
         self.body = sanitize_html(self.body)
         super().save(*args, **kwargs)
+
+    def join_row(self):
+        """This concrete's single Element join row (the GFK is effectively 1:1)."""
+        return self.elements.order_by("pk").first()
+
+    def resolved_children(self):
+        """Ordered child Element join rows (order_by('order','pk')); [] when the
+        join row is transient/mid-create. Grouped by `parent` alone — the single
+        slot means tab_id is not needed to disambiguate."""
+        join = self.join_row()
+        if join is None:
+            return []
+        return list(
+            join.children.order_by("order", "pk")
+            .select_related("content_type")
+            .prefetch_related("content_object")
+        )
+
+    def render(self, *, element=None, state=None, slug=None, node_pk=None):
+        from django.template.loader import render_to_string
+
+        return render_to_string(
+            "courses/elements/spoilerelement.html",
+            {
+                "el": self,
+                "children": self.resolved_children(),
+                "element_state": state,
+                "slug": slug,
+                "node_pk": node_pk,
+            },
+        )
 
 
 class CalloutElement(ElementBase):
