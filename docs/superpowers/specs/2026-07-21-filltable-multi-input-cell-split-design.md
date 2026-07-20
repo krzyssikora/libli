@@ -147,10 +147,15 @@ must be captured BEFORE mutation:** the split calls `inp.replace_with(<sentinel>
 on the live tree, so by the time width is known `str(table)` would serialise the
 U+FFFF tokens (garbage, inputs lost). Capture `raw = str(table)` (or the
 `_flag_html(table, …)` result) ONCE at the top of `fill_table_element` before any
-`replace_with`, and use that pristine raw for the MAX_COLS fallback — OR perform
-each split on a copy of the `<td>` so the original tree stays intact. Do NOT
-re-serialise the mutated table. Unreachable for the current corpus (widest split
-= 6-col vector vs MAX_COLS 20), but bounded and non-corrupting.
+`replace_with`, and use that pristine raw for the MAX_COLS fallback. Do NOT
+re-serialise the mutated table. **Do NOT "split on a copy of the `<td>`" instead:**
+`answer_by_input` is keyed by `id(inp)` of the ORIGINAL input nodes (built once in
+`lesson.py:_table_answer_map` over the live tree), so a `copy.copy`'d `<td>` has
+new node objects with new `id()` — every `answer_by_input.get(id(inp))` would miss
+and every split answer cell would resolve to `""` (silently blank answers, worse
+than the original bug). The split must run on the original nodes; capturing `raw`
+first is the only correct protection. Unreachable for the current corpus (widest
+split = 6-col vector vs MAX_COLS 20), but bounded and non-corrupting.
 
 **Correctness is per-cell, not per-column:** each answer cell is checked
 independently against its own stored accepted answer by grid position
