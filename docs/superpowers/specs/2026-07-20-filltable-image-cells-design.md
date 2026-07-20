@@ -93,19 +93,40 @@ fallback:
   never render a broken image). `alt` coerced to `""` if not a str.
 - Existing answer/static branches unchanged.
 
-`_sanitized_data`: image cells have no `html` to sanitise; trim `alt` to a string
-(defensive). Leave `media` untouched. Answer/static handling unchanged.
+`_sanitized_data` (`save()`) mutates `self.data` **in place** and does **not** call
+`normalize_data`; its current `else` branch unconditionally runs
+`cell["html"] = sanitize_cell(cell.get("html",""))` for every non-answer cell.
+**Add an explicit `elif cell.get("kind") == "image"` branch before that `else`**
+(matching `_cell`'s ordering): trim `alt` to a string, leave `media` untouched, do
+**not** write an `html` key. Without this guard a saved image cell gains a spurious
+`html` key (it survives, since `_cell` dispatches on `kind` first, but the mutator
+would otherwise mischaracterise the cell). Answer/static handling unchanged.
 
-`canonical_cells` (restore path): image cells pass through unchanged (they hold no
-answer). Only answer cells are rewritten.
+`canonical_cells` (restore / `mine.done` path): answer cells are rewritten to their
+first alternative as today. **Image cells must be resolved here too** — see the
+render composition below — so a done-state render carries a real `MediaAsset`, not a
+raw int pk.
 
 New method **`resolved_cells()`** (the Gallery `resolved_images()` analog): return
 the normalised grid with every image cell's `media` **pk replaced by its
 `MediaAsset`** (resolved in one `MediaAsset.objects.in_bulk(all_image_pks)` pass).
 An image cell whose pk does not resolve degrades to an empty static cell for
-rendering (never 500s). Static/answer cells pass through. `render()` uses
-`resolved_cells()` in place of `normalize_data(self.data)["cells"]` for the ctx
-`data.cells`, keeping the `mine.done` canonical swap for answer cells.
+rendering (never 500s). Static/answer cells pass through.
+
+**Render composition (both `mine.done` and not).** The two transforms — resolve
+image pks → `MediaAsset`, and swap answer cells → canonical value — must **compose**,
+because `render()` (models.py ~1015-1029) uses `canonical_cells` when
+`ctx["mine"].done` and the plain grid otherwise, and BOTH must carry resolved image
+cells or the template's `cell.media.file.url` yields an empty `src` (an int has no
+`.file`). Concretely:
+- **not done:** `ctx["data"]["cells"] = resolved_cells()`.
+- **done:** build the grid by applying the canonical answer swap **on top of**
+  `resolved_cells()` (i.e. resolve images first, then rewrite answer cells) — do
+  **not** use the current `canonical_cells` (which reads unresolved
+  `normalize_data(self.data)["cells"]`). Either refactor `canonical_cells` to start
+  from `resolved_cells()`, or add a `resolved_canonical_cells()` used on the done
+  path. Pick one in planning; the invariant is: **every image cell is a resolved
+  `MediaAsset` in both render states.**
 
 Rationale for resolving in the model, not the template: the template must never
 run a query per cell, and an unresolved pk must be handled once, centrally — same
@@ -186,25 +207,45 @@ inventing a new one.
     alt). Extend `dataCells`/counting to include `td[data-image]` (as `dataCells`
     already must see answer cells, so an image column is not skipped on resize).
   - "Image cell" toggle on the focused static/answer cell → open the media picker
-    in a **new cell-target mode**. Add a hook analogous to `libliGalleryAdd`: the
-    editor registers the target cell, the picker calls back with `(id, name, url)`,
-    the editor renders a thumbnail into the cell, stashes the media id, and
-    serialises. (In `media_picker.js`, generalise the append-mode branch to also
-    support this cell callback, or add a parallel `window.libliFillTableSetImage`
-    hook — decide in planning; prefer the smallest change that doesn't disturb
-    gallery append.)
+    targeting that cell. **Both halves of the picker integration must be specified —
+    `media_picker.js` today has NO public open API and resolves its target only from
+    a `[data-pick-media]` click → `pick.closest(".el-editor")` →
+    `select[name='media']` (lines ~82-98), neither of which the fill-table editor
+    has, so `targetSelect` and `appendTarget` are both null and `selectAsset`
+    early-returns.** Specify:
+    - **(a) Open + target resolution.** The "Image cell" toggle carries
+      `data-pick-media="image"` and a new mode marker (e.g. `data-pick-mode="cell"`).
+      Extend the click handler's target-resolution (the `appendTarget` branch,
+      ~89-92) with a `cell` branch, and extend `selectAsset`'s early dispatch (the
+      `appendTarget && window.libliGalleryAdd` branch, ~37) to route to a
+      fill-table cell callback. Prefer a parallel `window.libliFillTableSetImage`
+      hook over overloading gallery's `libliGalleryAdd`, to avoid disturbing the
+      working gallery-append path.
+    - **(b) Focused-cell registration.** `filltable_editor.js` already tracks
+      `focusedCell`; on picker-open it registers that cell (e.g. on the editor root
+      or a module-level ref) so the cross-module callback knows which `td` to fill.
+      The callback renders a thumbnail `<img>` into the cell, stashes the media id,
+      and serialises.
   - The **stash** mechanism (reversible static↔answer toggle) extends to image:
     toggling a cell's kind remembers the other kinds' content so a round-trip does
     not lose the author's work. First-time → image seeds empty; image → static/
     answer restores stashed html/answer.
   - `serialize()` emits `{kind:"image", media: <int id>, alt: <input value>,
     halign, valign}` for image cells. `media` must serialise as a **number**
-    (JSON int), matching `_cell`'s int check.
+    (JSON int), matching `_cell`'s int check. **Note: the picker hands the asset id
+    back as a string** (`data-asset-id`, media_picker.js ~117) — the editor must
+    `parseInt` it before stashing/serialising, or `_cell`'s `isinstance(media, int)`
+    check rejects it.
   - **Deserialize / edit path**: the server renders an existing image cell into the
     editor DOM as a `td[data-image]` with its thumbnail + hidden id + alt, so
-    re-editing a saved grid round-trips. (`_edit_filltable.html` renders the
-    existing grid server-side; add an image branch there mirroring the answer/static
-    branches, using `resolved_cells()` so the thumbnail URL is available.)
+    re-editing a saved grid round-trips. `_edit_filltable.html` drives its whole grid
+    from `form.instance.normalized_data` (`d.cells`, plus `d.header_row`/`d.border`/
+    `d.prompt`), where image cells' `media` is an **unresolved int pk** — so
+    `cell.media...url` is unavailable. Do **not** replace `d` wholesale (`resolved_cells()`
+    returns only the cells list, not `header_row`/`border`/`prompt`): pass a separate
+    resolved-cells grid into the template context (or a `d` copy whose `cells` are
+    replaced by `resolved_cells()`), keeping the non-cell fields reading from
+    `normalized_data`. Add the image branch mirroring the answer/static branches.
   - **Submit guard** (`onSubmit`): image cells are **not** answer cells, so the
     "at least one answer cell / no blank answers" checks ignore them. A grid whose
     only fillable cells are answers still validates as today; a grid with image
@@ -219,12 +260,25 @@ inventing a new one.
 
 ## Wiring & flags
 
-- `has_math` detection (`courses/views.py` ~139): a `FillTableElement` has math
-  if any **static** cell contains math. Image cells hold no html → contribute no
-  math. Confirm the math-detection helper still only scans static-cell html (it
-  does today; the image branch must not break it).
+- `has_math` detection (`_fill_table_has_math`, `courses/views.py` ~145): matches
+  every cell with `kind != "answer"` (i.e. static **and** image cells) and scans its
+  `html`. Image cells carry no `html` (empty) → they contribute no math, so the
+  predicate is already correct as-is; the image branch must simply not add an `html`
+  key (see `_sanitized_data` above). No change needed here beyond a confirming test.
+- **Two `media` representations — keep them distinct.** At the **model / editor JSON
+  layer** (`data.cells[..].media`, what `_cell` validates and the editor serialises)
+  `media` is an **int** pk. At the **transfer payload layer** (what
+  `_ser_fill_table` emits and `_build_fill_table` / the validator consume) `media` is
+  a **string** bundle-local id returned by `ids.register(asset)` — exactly like
+  gallery. Every instruction below is at the transfer layer, so "int" never appears
+  there.
 - No `FORMAT_VERSION` bump: the transfer format already round-trips
-  `FillTableElement.data`; an extra cell kind rides along.
+  `FillTableElement.data`; an extra cell kind rides along. **Forward-compat note
+  (accepted):** a bundle containing an image cell, imported by an older pre-image
+  build, passes that build's lenient `_val_fill_table` but its `_cell` (no image
+  branch) sees a non-int `media` and **silently degrades the cell to empty static**
+  — the image is dropped with no error. This is accepted (no version marker); it is
+  a graceful degrade, not a crash.
 - **Transfer media registration is a REQUIRED component, not a rider** (verified in
   `courses/transfer/`). Today `_ser_fill_table` returns `dict(el.data)` **raw**,
   and `_build_fill_table` calls `normalize_data(data)` **without touching media** —
@@ -236,14 +290,30 @@ inventing a new one.
     degrading that cell to empty static (same "unresolved ids cannot be exported"
     rule `_gallery_assets` uses). Static/answer cells pass through.
   - **Import** `_build_fill_table` (`importer.py` ~589): walk `cells`; for each
-    `kind=="image"` cell, remap `media` via `assets[<local id>].pk` (mirroring
-    `_build_gallery`'s `assets[img["media"]].pk`), then `normalize_data` + save.
-  - **Validator** `courses/transfer/payloads.py`: extend the fill_table cell
-    validator to accept an `image` cell shape (an int `media` + optional `alt`),
-    alongside the existing static/answer shapes. Keep the three registries
-    (`SERIALIZERS`, `VALIDATORS`, `BUILDERS`) in lockstep.
+    `kind=="image"` cell, remap `media` (a **string** local id) via
+    `assets[<local id>].pk` (mirroring `_build_gallery`'s `assets[img["media"]].pk`),
+    then `normalize_data` + save.
+  - **Validator** `_val_fill_table` (`courses/transfer/payloads.py` ~618): this
+    validator is **deliberately lenient** — today it rejects only gross structural
+    corruption (non-dict data/row/cell) and returns `set()`, leaving all key/enum
+    repair to `normalize_data`; there are **no** existing per-shape static/answer
+    checks to sit "alongside". The image cell forces one targeted addition: for each
+    cell with `kind == "image"`, call
+    `_require_media(cell["media"], elid, media_kinds, "image")` and **return the
+    accumulated media-ref set** (mirroring `_val_gallery`, payloads.py ~564-571),
+    **not** `set()`. This is REQUIRED, not optional: `courses/transfer/schema.py`
+    (~302-315) does `referenced_media |= validate_element_data(...)` and then
+    **rejects the whole bundle** ("Media entry is not referenced by any element") for
+    any registered asset not in that ref set — so an exported-and-registered image
+    asset whose validator returns no ref fails every import. `_require_media` also
+    enforces `media` is a **string** present in `media_kinds` with the right kind, so
+    a malformed local id raises a clean `TransferError` instead of the importer's
+    `assets[<id>]` `KeyError`. Static/answer cells remain unchecked by design. Keep
+    the three registries (`SERIALIZERS`, `VALIDATORS`, `BUILDERS`) in lockstep.
   - Round-trip test: export→import a fill-table with an image cell across a
-    fresh asset namespace preserves the image (bundled asset, remapped pk).
+    fresh asset namespace preserves the image (bundled asset, remapped pk); and a
+    bundle that registers the image asset but whose validator omits the ref is
+    rejected (falsifies the "return the ref set" requirement).
 
 ## Testing
 
