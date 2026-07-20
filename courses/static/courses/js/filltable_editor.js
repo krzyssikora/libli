@@ -181,6 +181,7 @@
     var borderSel = editor.querySelector("[data-border]");
     var caseSensitive = editor.querySelector("[data-case-sensitive]");
     var promptField = editor.querySelector("[data-prompt]");
+    var imageAlt = editor.querySelector("[data-image-alt]");
     if (!hidden || !grid) return; // defensive: markup changed
 
     // Per-node stash of the content the OTHER kind held, so an accidental
@@ -194,7 +195,15 @@
       dataRows(grid).forEach(function (tr) {
         var row = [];
         Array.prototype.forEach.call(dataCells(tr), function (td) {
-          if (td.hasAttribute("data-answer")) {
+          if (td.hasAttribute("data-image")) {
+            row.push({
+              kind: "image",
+              media: parseInt(td.dataset.media, 10),
+              alt: td.dataset.alt || "",
+              halign: td.dataset.halign || "left",
+              valign: td.dataset.valign || "top",
+            });
+          } else if (td.hasAttribute("data-answer")) {
             var input = td.querySelector(".filltable-editor__answer");
             row.push({
               kind: "answer",
@@ -262,11 +271,13 @@
     function refreshToolbarState() {
       if (!toolbar || !focusedCell) return;
       var isAnswer = focusedCell.hasAttribute("data-answer");
+      var isImage = focusedCell.hasAttribute("data-image");
       Array.prototype.forEach.call(toolbar.querySelectorAll("[data-cmd]"), function (btn) {
-        btn.disabled = isAnswer;
+        btn.disabled = isAnswer || isImage;
       });
       var answerBtn = toolbar.querySelector("[data-answer-toggle]");
       if (answerBtn) answerBtn.classList.toggle("is-on", isAnswer);
+      if (imageAlt && !isImage) imageAlt.hidden = true;
     }
 
     // Per-node stash holding BOTH kinds' last-known content, so a toggle
@@ -282,12 +293,69 @@
       return s;
     }
 
+    // Convert `td` to an image cell holding the picked asset. Stashes the
+    // prior kind's content (reusing stashFor, so the toggle back to static
+    // via toggleAnswerCell restores it) and immediately reveals + populates
+    // the alt input — a later focusin is NOT relied upon, since the caller
+    // (the picker callback) already knows which cell it targeted.
+    function setImageCell(td, mediaInt, url, alt) {
+      var s = stashFor(td);
+      if (td.hasAttribute("data-answer")) {
+        var input = td.querySelector(".filltable-editor__answer");
+        s.answer = input ? input.value : "";
+      } else {
+        s.html = td.innerHTML;
+      }
+      td.setAttribute("data-image", "");
+      td.dataset.media = String(mediaInt);
+      td.dataset.alt = alt || "";
+      td.setAttribute("tabindex", "0");
+      td.innerHTML = "";
+      // DOM property assignment (not innerHTML string concat) so a `"` or `<`
+      // in a free-typed alt cannot break out of the attribute/markup.
+      var img = document.createElement("img");
+      img.className = "filltable-editor__img";
+      img.src = url;
+      img.alt = alt || "";
+      td.appendChild(img);
+      td.removeAttribute("contenteditable");
+      td.removeAttribute("data-answer");
+      if (imageAlt) {
+        imageAlt.hidden = false;
+        imageAlt.value = td.dataset.alt || "";
+      }
+    }
+
+    // Single global; assumes one fill-table editor per page (like libliGalleryAdd).
+    window.libliFillTablePickImage = function (_pick) {
+      var target = focusedCell;          // the cell the toggle was clicked on
+      return function (id, _name, url) { // picker callback: id is a STRING
+        setImageCell(target, parseInt(id, 10), url, target.dataset.alt || "");
+        focusedCell = target;            // keep focus on the converted cell
+        serialize();
+      };
+    };
+
     // Toggle the tracked active cell between static (contenteditable HTML)
     // and answer (plain <input>). Reversible: the content being replaced is
     // remembered in the node's stash so toggling back restores it (rather than
     // silently discarding whatever the author had typed on either side).
     function toggleAnswerCell(td) {
       if (!td) return;
+      if (td.hasAttribute("data-image")) {          // image -> static (one step)
+        var stashed = stashFor(td);
+        td.removeAttribute("data-image");
+        delete td.dataset.media;
+        delete td.dataset.alt;
+        td.removeAttribute("tabindex");
+        td.innerHTML = stashed.html != null ? stashed.html : "";
+        td.setAttribute("contenteditable", "true");
+        if (imageAlt) imageAlt.hidden = true;
+        focusedCell = td;
+        refreshToolbarState();
+        serialize();
+        return;
+      }
       var s = stashFor(td);
       if (td.hasAttribute("data-answer")) {
         // answer -> static: remember the typed answer, restore stashed html
@@ -316,12 +384,16 @@
     }
 
     grid.addEventListener("focusin", function (e) {
-      var td = e.target.closest("td[contenteditable], td[data-answer]");
+      var td = e.target.closest("td[contenteditable], td[data-answer], td[data-image]");
       if (!td) return;
       focusedCell = td;
       if (toolbar) toolbar.hidden = false;
       refreshAlignButtons();
       refreshToolbarState();
+      if (td.hasAttribute("data-image") && imageAlt) {
+        imageAlt.hidden = false;
+        imageAlt.value = td.dataset.alt || "";
+      }
     });
 
     // Enter inserts a <br> instead of a new block element, so a cell's only
@@ -463,6 +535,16 @@
           serialize();
           return;
         }
+      });
+    }
+
+    if (imageAlt) {
+      imageAlt.addEventListener("input", function () {
+        if (!focusedCell || !focusedCell.hasAttribute("data-image")) return;
+        focusedCell.dataset.alt = imageAlt.value;
+        var img = focusedCell.querySelector(".filltable-editor__img");
+        if (img) img.setAttribute("alt", imageAlt.value);
+        serialize();
       });
     }
 

@@ -321,6 +321,165 @@ def test_filltable_stored_done_typesets_math_on_load(page, live_server):
     assert "\\(" not in page.locator(".filltable").inner_text()
 
 
+# ---------------------------------------------------------------------------
+# Editor half (Task 10): author image cells via the media picker, per-cell alt
+# ---------------------------------------------------------------------------
+
+
+def _make_pa_user(username):
+    """Mirrors tests/test_e2e_gallery.py's helper: a Platform Admin, who can
+    reach /manage/courses/.../build/unit/.../edit/."""
+    from django.contrib.auth.models import Group
+
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import seed_roles
+    from tests.factories import make_verified_user
+
+    seed_roles()
+    user = make_verified_user(
+        username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
+    )
+    user.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    return user
+
+
+def _editor_context(page, live_server, username, slug):
+    """Course + lesson unit + two course-scoped image assets, owned by a fresh
+    Platform Admin. Does NOT navigate yet -- callers seed elements via the ORM
+    first, then call _goto_editor, so the seeded element is present on first
+    paint (no reload needed)."""
+    from django.contrib.auth import get_user_model
+
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import make_image_asset
+
+    _make_pa_user(username)
+    owner = get_user_model().objects.get(username=username)
+    course = CourseFactory(slug=slug, owner=owner)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="U"
+    )
+    asset_a = make_image_asset(course, filename="a.png")
+    asset_b = make_image_asset(course, filename="b.png")
+    return unit, asset_a, asset_b
+
+
+def _goto_editor(page, live_server, username, unit):
+    _login(page, live_server, username)
+    page.goto(
+        f"{live_server.url}/manage/courses/{unit.course.slug}/build/unit/{unit.pk}/edit/"
+    )
+    page.wait_for_selector('[data-scope="editor"]')
+
+
+def _seed_filltable_for_images(unit):
+    """A 1x3 grid: two static cells (to be converted to image cells by the
+    test) plus one pre-existing, non-blank answer cell, so the submit guard
+    (>=1 answer cell, none blank) is satisfied without the test having to
+    drive that gesture too."""
+    from courses.models import FillTableElement
+
+    el = FillTableElement(
+        data={
+            "cells": [
+                [
+                    {"kind": "static", "html": "one"},
+                    {"kind": "static", "html": "two"},
+                    {"kind": "answer", "answer": "4"},
+                ]
+            ]
+        }
+    )
+    el.save()
+    return add_element(unit, el)
+
+
+def _open_edit(page, element_pk):
+    page.locator(f'.el-act-edit[data-element-id="{element_pk}"]').click()
+    page.wait_for_selector("[data-edit-slot] [data-filltable-editor]")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_author_two_image_cells_with_distinct_alts(page, live_server):
+    """Convert two static cells to image cells via the REAL toggle -> pick ->
+    alt gesture, with DISTINCT alts, save, reopen, and assert BOTH alts
+    survive round-trip. A single shared-toolbar-alt bug would fail this (both
+    cells would end up with the same, last-typed alt); a single-image test
+    would pass vacuously."""
+    unit, asset_a, asset_b = _editor_context(page, live_server, "ftbl_img", "ftbl-img")
+    element = _seed_filltable_for_images(unit)
+    _goto_editor(page, live_server, "ftbl_img", unit)
+    _open_edit(page, element.pk)
+
+    editor = page.locator("[data-filltable-editor]")
+    grid = editor.locator("[data-table-grid]")
+    cells = grid.locator("td:not([data-control])")
+
+    def make_image_cell(cell, alt, asset_pk):
+        cell.click()
+        editor.locator("[data-image-toggle]").click()
+        page.wait_for_selector(".picker-overlay", timeout=5000)
+        page.locator(f".picker-overlay .asset-pick[data-asset-id='{asset_pk}']").click()
+        editor.locator("[data-image-alt]").fill(alt)
+
+    make_image_cell(cells.nth(0), "first graph", asset_a.pk)
+    make_image_cell(cells.nth(1), "second graph", asset_b.pk)
+
+    # Both converted cells now render as images with distinct alts, in-page,
+    # before the save round-trip -- proves the JS side, not just the server.
+    imgs = grid.locator("td[data-image]")
+    assert imgs.count() == 2
+    assert imgs.nth(0).get_attribute("data-alt") == "first graph"
+    assert imgs.nth(1).get_attribute("data-alt") == "second graph"
+
+    page.locator("[data-edit-slot] .editor-form__actions button[type='submit']").click()
+    page.wait_for_selector("[data-edit-slot] [data-filltable-editor]", state="detached")
+
+    _open_edit(page, element.pk)
+    imgs = page.locator("[data-table-grid] td[data-image]")
+    assert imgs.count() == 2
+    assert imgs.nth(0).get_attribute("data-alt") == "first graph"
+    assert imgs.nth(1).get_attribute("data-alt") == "second graph"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_image_cell_toggles_back_to_static_then_answer(page, live_server):
+    """toggleAnswerCell's image-cell guard: one click on 'Answer cell' turns a
+    freshly-converted image cell back to static (not straight to a corrupt
+    answer cell carrying stale data-media/data-alt); a second click then goes
+    static -> answer as normal."""
+    unit, asset_a, _asset_b = _editor_context(
+        page, live_server, "ftbl_img2", "ftbl-img2"
+    )
+    element = _seed_filltable_for_images(unit)
+    _goto_editor(page, live_server, "ftbl_img2", unit)
+    _open_edit(page, element.pk)
+
+    editor = page.locator("[data-filltable-editor]")
+    grid = editor.locator("[data-table-grid]")
+    cell = grid.locator("td:not([data-control])").nth(0)
+
+    cell.click()
+    editor.locator("[data-image-toggle]").click()
+    page.wait_for_selector(".picker-overlay", timeout=5000)
+    page.locator(f".picker-overlay .asset-pick[data-asset-id='{asset_a.pk}']").click()
+    editor.locator("[data-image-alt]").fill("graph")
+    assert grid.locator("td[data-image]").count() == 1
+
+    answer_toggle = editor.locator("[data-answer-toggle]")
+    first_cell = grid.locator("td:not([data-control])").nth(0)
+
+    answer_toggle.click()  # image -> static (one step)
+    assert grid.locator("td[data-image]").count() == 0
+    assert first_cell.get_attribute("data-media") is None
+
+    answer_toggle.click()  # static -> answer
+    assert first_cell.get_attribute("data-answer") is not None
+    assert first_cell.get_attribute("data-media") is None
+    assert first_cell.get_attribute("data-alt") is None
+
+
 @pytest.mark.django_db(transaction=True)
 def test_filltable_nested_in_tab_restores_after_reload(page, live_server):
     """Fill-in table is in NESTABLE_TYPE_KEYS -- nested inside a Tabs panel. The
