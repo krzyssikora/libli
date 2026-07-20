@@ -51,11 +51,16 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
     </span>
     <span class="rte-sep"></span>
     <button type="button" class="rte-btn" data-answer-toggle title="{% trans 'Answer cell' %}" aria-label="{% trans 'Answer cell' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-answer"/></svg></button>
+    <button type="button" class="rte-btn" data-image-toggle
+            title="{% trans 'Image cell' %}" aria-label="{% trans 'Image cell' %}"
+            data-pick-media="image" data-pick-mode="cell"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-answer"/></svg></button>
+    <input type="text" class="filltable-editor__alt input" data-image-alt hidden
+           placeholder="{% trans 'Image description (alt)' %}">
   </div>
 
   <div class="table-editor__grid filltable-editor__grid" data-table-grid>
     <table>
-      {% for row in d.cells %}
+      {% for row in form.instance.resolved_cells %}
       <tr>
         {% for cell in row %}
         {% if cell.kind == "answer" %}
@@ -63,6 +68,12 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
             data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}">
           <input type="text" class="filltable-editor__answer" value="{{ cell.answer }}"
                  placeholder="{% trans 'Accepted answer' %}">
+        </td>
+        {% elif cell.kind == "image" %}
+        <td data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}" tabindex="0"
+            class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}">
+          <img class="filltable-editor__img" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
         </td>
         {% else %}
         <td contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"

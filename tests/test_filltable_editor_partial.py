@@ -6,6 +6,8 @@ from django.template.loader import render_to_string
 
 from courses.element_forms import FORM_FOR_TYPE
 from courses.models import FillTableElement
+from tests.factories import make_course
+from tests.factories import make_image_asset
 
 pytestmark = pytest.mark.django_db
 
@@ -70,6 +72,33 @@ def test_partial_has_js_i18n_message_attrs():
     assert "data-msg-answer-placeholder" in html
     assert "data-msg-answer-blank" in html
     assert "data-msg-no-answer" in html
+
+
+def test_editor_renders_existing_image_cell():
+    course = make_course()
+    asset = make_image_asset(course, "g.png")
+    el = FillTableElement(
+        data={
+            "cells": [
+                [
+                    {"kind": "image", "media": asset.pk, "alt": "graph"},
+                    {"kind": "answer", "answer": "1"},
+                ]
+            ]
+        }
+    )
+    el.save()
+    html = _render(el)
+    assert "data-image" in html
+    assert asset.file.url in html  # thumbnail
+    assert f'data-media="{asset.pk}"' in html  # hidden pk (NOT the asset __str__)
+    assert 'data-alt="graph"' in html  # per-cell alt stored on the <td>, no <input>
+
+
+def test_editor_toolbar_has_image_toggle_and_alt_input():
+    html = _render(FillTableElement())
+    assert "data-image-toggle" in html
+    assert "data-image-alt" in html
 
 
 def _sprite_symbols():
