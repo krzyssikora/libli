@@ -627,6 +627,15 @@ def _emit_solution_region(label, content_nodes, elements, flags, consumed, state
         )
 ```
 
+> **Note (relative-href flags, intentional):** the emitters below keep their
+> pre-walk `_flag_relative_hrefs(sol/details, flags)` call even though
+> `_emit_solution_region` then sub-walks the same nodes (whose text/inline branch
+> also flags descendant `<a>` hrefs). This double-flags a relative href inside a
+> spoiler. Keep it: dropping the pre-walk call risks *under*-flagging a href in a
+> node type the sub-walk doesn't route through text/inline, whereas double-flagging
+> only inflates a diagnostic warning count. It does NOT affect the Task 10 image
+> re-measure (`measure_lost_imgs.py` counts `<img>`, not href flags).
+
 **(b)** Change `_emit_details` (`scripts/lal_import/lesson.py:1130-1143`) to delegate to it:
 
 ```python
@@ -1153,13 +1162,18 @@ def _editor_html(client, course, unit):
 
 
 def _spoiler_menu_block(html, join_pk):
-    """The single addwrap whose data-parent is this spoiler's join pk (the in_spoiler
-    add-menu), sliced from its `data-parent="<pk>"` to the next `</div>` boundary far
-    enough to include all typecards — good enough to assert card presence/absence."""
+    """The spoiler's OWN in_spoiler add-menu, bounded to its addwrap. The editor
+    renders an unconditional top-level `_add_menu` after the element list, so a
+    fixed-size window would overrun into it and defeat the assertions. Slice from
+    this spoiler's `data-parent="<pk>"` marker to the START of the NEXT addwrap
+    (the token `addwrap` appears only in an add-menu wrapper's class, and the two
+    occurrences in THIS wrapper's `class="addwrap addwrap--nested"` are before the
+    marker), so the window contains exactly this spoiler's menu."""
     marker = f'data-parent="{join_pk}"'
     start = html.index(marker)
-    # the enclosing addwrap opens just before the marker; grab a generous window
-    return html[start : start + 4000]
+    rest = html[start + len(marker):]
+    nxt = rest.find("addwrap")  # start of the next add-menu wrapper, if any
+    return rest if nxt == -1 else rest[:nxt]
 
 
 def test_top_level_spoiler_renders_child_list_and_add_menu(client):
@@ -1220,6 +1234,7 @@ def test_reorder_and_delete_spoiler_child_via_generic_element_ops(client):
     remaining = sp.resolved_children()
     assert [c.pk for c in remaining] == [b_pk]
     assert remaining[0].content_object.body == "<p>B</p>"
+```
 
 - [ ] **Step 2: Run test to verify it fails**
 
