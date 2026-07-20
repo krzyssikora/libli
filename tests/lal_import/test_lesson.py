@@ -462,6 +462,37 @@ def test_ks_tabs_becomes_tabs_with_nested_children():
     assert "Pierwszy" not in top_text
 
 
+DETAILS_WRAPPING_TABS = r"""
+<details>
+  <summary>Zobacz rozwiązanie</summary>
+  <p>Wstęp do zadania.</p>
+  <div class="ks_tabs">
+    <ul><li><a href="#tabcontent-1-1">A</a></li><li><a href="#tabcontent-1-2">B</a></li></ul>
+    <div id="tabcontent-1-1"><p>Panel A.</p></div>
+    <div id="tabcontent-1-2"><p>Panel B.</p></div>
+  </div>
+</details>
+"""
+
+
+def test_details_wrapping_tabs_emits_native_tabs_no_spoiler():
+    elements, flags = parse_lesson(DETAILS_WRAPPING_TABS, "x.html")
+    # the <details> collapse is dropped -> no spoiler, a native tabs instead
+    assert not any(e["type"] == "spoiler" for e in elements)
+    tabs = [e for e in elements if e["type"] == "tabs"]
+    assert len(tabs) == 1
+    assert [t["label"] for t in tabs[0]["tabs"]] == ["A", "B"]
+    joined = " ".join(e.get("body", "") for e in elements if e["type"] == "text")
+    assert "Zobacz rozwiązanie" in joined  # summary kept as a heading
+    assert "Wstęp do zadania" in joined  # intro before the tabs kept
+
+
+def test_plain_details_still_becomes_spoiler():
+    html = r"<details><summary>obliczenia</summary><p>\(a<b\)</p></details>"
+    elements, _ = parse_lesson(html, "x.html")
+    assert any(e["type"] == "spoiler" for e in elements)
+
+
 def test_ks_tabs_with_wrong_tab_count_falls_back_to_placeholder():
     html = (
         '<div class="ks_tabs"><ul><li><a href="#tabcontent-1-1">Only</a></li></ul>'

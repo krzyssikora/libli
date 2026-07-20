@@ -425,7 +425,21 @@ def _walk(nodes, elements, flags, consumed, state):
             )
             continue
         if name == "details":
-            _emit_details(node, elements, flags)
+            if node.find(class_="ks_tabs") is not None:
+                # A <details> that wraps a tab group: drop the collapse wrapper and
+                # emit its content natively (summary -> heading, inner ks_tabs ->
+                # TabsElement). User choice: native tabs, no wrapper (Group B #6).
+                summary = node.find("summary")
+                if summary is not None:
+                    label = summary.decode_contents().strip()
+                    if label:
+                        elements.append(
+                            {"type": "text", "body": f"<h4>{label}</h4>"}
+                        )
+                    summary.extract()
+                _walk(list(node.children), elements, flags, consumed, state)
+            else:
+                _emit_details(node, elements, flags)
             continue
         if _is_show_solution_button(node):
             sol = _find_solution(nodes, i, consumed)
