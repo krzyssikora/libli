@@ -61,6 +61,7 @@ _CHROME_CLASSES = {
     # widget confirm buttons whose native element supplies its own Check button:
     "confirm_choice",  # one_choice grid (Group B #7)
     "confirm_multiple",  # multi_many grid (Group B #9)
+    "confirm_feedback_multiple",  # mult_choice MCQ (Group B #10)
 }
 _BLOCK_CHILD_TAGS = {
     "p",
@@ -93,11 +94,9 @@ _INTERACTIVE_MARKERS = {
     # ChoiceGrid / per-row MCQ (Group B #7); confirm_choice is dropped as chrome.
     # NB: multi_many_* are NOT markers — a multi-select grid maps to a native
     # MultiGrid / per-row multi-select MCQ (Group B #9); confirm_multiple is chrome.
-    # MCQ with per-option feedback
-    "mult_choice",
-    "mult_option",
-    "confirm_feedback_multiple",
-    "mult_feedback_incorrect",
+    # NB: mult_choice/mult_option/mult_feedback_incorrect are NOT markers — a
+    # checkbox MCQ with per-option feedback maps to a native ChoiceQuestion
+    # (Group B #10); confirm_feedback_multiple is dropped as chrome.
     # MCQ many lines with feedback
     "multi_ans",
     "confirm_button_feedback",
@@ -364,6 +363,16 @@ def _walk(nodes, elements, flags, consumed, state):
             # Group B #9: a multi-select grid row -> gather the run of sibling row
             # divs into one MultiGrid (shared columns) or per-row multi-select MCQ.
             _emit_multi_many(nodes, i, elements, flags, consumed, state)
+            continue
+        if (node.get("id") or "").startswith("question") and node.find(
+            class_="mult_option"
+        ) is not None:
+            # Group B #10: a checkbox MCQ with per-option feedback -> one
+            # ChoiceQuestion(multiple=True). Intercept the whole question div (its
+            # .mult_option/.mult_feedback_incorrect layout varies — wrapped or bare
+            # children) so the confirm button + success/failure chrome inside are
+            # dropped, not descended.
+            _emit_mult_choice(node, elements, state)
             continue
         if "ks_tabs" in classes_here:
             # Group B #6: a tabbed container -> TabsElement with nested children.
@@ -768,6 +777,41 @@ def _emit_multi_many(nodes, start, elements, flags, consumed, state):
                 ],
             }
         )
+
+
+def _emit_mult_choice(question, elements, state):
+    """Group B #10: a checkbox MCQ with per-option feedback -> one
+    ChoiceQuestion(multiple=True). `question` is the whole div[id^=question]; its
+    .mult_option (option text) and .mult_feedback_incorrect (its hint) blocks are
+    paired in document order. is_correct comes from
+    multiple_many_correct_answers[qid][0] (a single 0/1 mask row). The stem is the
+    .question_text (a sanitized field, so re-escape math)."""
+    m = re.search(r"\d+", question.get("id", ""))
+    qid = int(m.group()) if m else None
+    qt = question.find(class_="question_text")
+    stem_text = qt.get_text(" ", strip=True) if qt is not None else ""
+    mask = state.get("multiple_many_correct_answers", {}).get(qid, [])
+    mask = mask[0] if mask else []
+    options = question.find_all(class_="mult_option")
+    feedbacks = question.find_all(class_="mult_feedback_incorrect")
+    choices = []
+    for i, opt in enumerate(options):
+        fb = feedbacks[i] if i < len(feedbacks) else None
+        choices.append(
+            {
+                "text": opt.get_text(" ", strip=True),
+                "is_correct": bool(mask[i]) if i < len(mask) else False,
+                "feedback": fb.get_text(" ", strip=True) if fb is not None else "",
+            }
+        )
+    elements.append(
+        {
+            "type": "choice",
+            "stem": f"<p>{escape_math_delimited(stem_text)}</p>",
+            "multiple": True,
+            "choices": choices,
+        }
+    )
 
 
 def _emit_tabs(ks_tabs, flags, consumed, state):

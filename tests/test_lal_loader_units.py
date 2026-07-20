@@ -387,6 +387,8 @@ def test_build_choice_with_choices(tmp_path):
     assert obj.multiple is True
     assert obj.choices.count() == 2
     assert obj.choices.filter(is_correct=True).count() == 1
+    # per-option feedback round-trips (the mult_choice widget relies on this)
+    assert obj.choices.get(text="b").feedback == "no"
 
 
 def test_build_numeric(tmp_path):

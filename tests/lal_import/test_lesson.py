@@ -390,6 +390,89 @@ def test_multi_many_varying_falls_back_to_per_row_multiselect():
     assert [c["is_correct"] for c in mcqs[1]["choices"]] == [True, False]
 
 
+# --- Group B #10: mult_choice -> ChoiceQuestion(multiple) with per-option feedback -
+MULT_CHOICE_QUESTION = r"""
+<div id="question60">
+  <p class="question"></p>
+  <p class="question_text">Wskaż równania paraboli.</p>
+  <div class="multiple_answers">
+    <div class="multiple_option">
+      <div class="mult_option inline">\(y=\frac{5}{2}(x+1)^2-2\)</div>
+      <div class="inline"><input class="mult_choice" type="checkbox"/></div>
+    </div>
+    <div class="multiple_option">
+      <div class="mult_feedback_incorrect">Ramiona są do góry.</div>
+    </div>
+    <div class="multiple_option">
+      <div class="mult_option inline">\(y=-3(x+2)^2-1\)</div>
+      <div class="inline"><input class="mult_choice" type="checkbox"/></div>
+    </div>
+    <div class="multiple_option">
+      <div class="mult_feedback_incorrect"><strong>pod</strong> osią</div>
+    </div>
+  </div>
+  <div class="confirm_feedback_multiple ks_button">potwierdź</div>
+  <div class="success hidden">Brawo!</div>
+</div>
+<script>localStorage.setItem("multiple_many_correct_answers",
+JSON.stringify({60: [[1, 0]]}));</script>
+"""
+
+
+def test_mult_choice_becomes_choice_with_per_option_feedback():
+    elements, flags = parse_lesson(MULT_CHOICE_QUESTION, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    choices = [e for e in elements if e["type"] == "choice"]
+    assert len(choices) == 1
+    q = choices[0]
+    assert q["multiple"] is True  # checkbox widget -> multi-select
+    # stem lives on the element (question_text), not a duplicated prompt block
+    assert "Wskaż równania paraboli" in q["stem"]
+    assert not any(
+        e["type"] == "text" and "Wskaż równania paraboli" in e.get("body", "")
+        for e in elements
+    )
+    opts = q["choices"]
+    assert [c["is_correct"] for c in opts] == [True, False]
+    assert opts[0]["text"] == r"\(y=\frac{5}{2}(x+1)^2-2\)"
+    # per-option feedback preserved (formatting flattened to plain text + KaTeX)
+    assert "Ramiona są do góry" in opts[0]["feedback"]
+    assert "pod osią" in opts[1]["feedback"] and "<strong>" not in opts[1]["feedback"]
+    # confirm button + success chrome dropped, no leaks
+    joined = " ".join(str(e) for e in elements)
+    assert "potwierdź" not in joined and "Brawo" not in joined
+
+
+MULT_CHOICE_MULTI_Q = r"""
+<div id="question10">
+  <p class="question_text">Pytanie A?</p>
+  <div><div class="multiple_option"><div class="mult_option">tak</div>
+    <input class="mult_choice" type="checkbox"/></div>
+    <div class="multiple_option"><div class="mult_feedback_incorrect">źle A</div></div>
+  </div>
+</div>
+<div id="question20">
+  <p class="question_text">Pytanie B?</p>
+  <div><div class="multiple_option"><div class="mult_option">nie</div>
+    <input class="mult_choice" type="checkbox"/></div>
+    <div class="multiple_option"><div class="mult_feedback_incorrect">źle B</div></div>
+  </div>
+</div>
+<script>localStorage.setItem("multiple_many_correct_answers",
+JSON.stringify({10: [[1]], 20: [[0]]}));</script>
+"""
+
+
+def test_mult_choice_multiple_questions_each_become_own_choice():
+    elements, flags = parse_lesson(MULT_CHOICE_MULTI_Q, "x.html")
+    choices = [e for e in elements if e["type"] == "choice"]
+    assert len(choices) == 2
+    assert "Pytanie A" in choices[0]["stem"]
+    assert "Pytanie B" in choices[1]["stem"]
+    assert choices[0]["choices"][0]["is_correct"] is True
+    assert choices[1]["choices"][0]["is_correct"] is False
+
+
 def test_plain_lesson_has_no_widget_placeholder():
     # A non-interactive lesson must not trip the widget detector.
     html = "<h2>T</h2><p>Zwykły tekst.</p><figure><img src='a.png' alt='x'/></figure>"
