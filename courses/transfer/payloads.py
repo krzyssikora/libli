@@ -703,6 +703,7 @@ def validate_nesting(elements):
     parent chain deeper than one level -- that depth bound is what lets the editor's
     recursive row template terminate without a guard."""
     from courses.builder import NESTABLE_TYPE_KEYS
+    from courses.builder import SPOILER_CHILD_TYPES
     from courses.models import SpoilerElement
 
     # Step 4a applies the v2 shim before _exact_keys, so both keys are present.
@@ -719,6 +720,16 @@ def validate_nesting(elements):
         # container reads its slot list from `data` via _CONTAINER_SLOT_KEY.
         if parent["type"] == "spoiler":
             valid_slot_ids = {SpoilerElement.SLOT_ID}
+            # Defence-in-depth: match resolve_scope()'s static-leaf allowlist so an
+            # interactive/question child (reveal_gate, fillblank, ...) that slips
+            # past a hostile/older-loader archive is rejected here too, not just
+            # via the general NESTABLE_TYPE_KEYS check below (which is broader —
+            # it also permits e.g. reveal_gate as a tabs child).
+            if el["type"] not in SPOILER_CHILD_TYPES:
+                _err(
+                    _("Element '%(el)s' may not be nested inside a spoiler."),
+                    el=el["id"],
+                )
         else:
             slot_key = _CONTAINER_SLOT_KEY.get(parent["type"])
             if slot_key is None:

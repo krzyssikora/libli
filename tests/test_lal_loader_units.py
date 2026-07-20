@@ -713,3 +713,31 @@ def test_build_spoiler_rejects_container_child():
     }
     with pytest.raises(LoaderError):
         build_element(course, unit, el, source_root="", source_dir="", allow_html=False)
+
+
+def test_build_spoiler_rejects_reveal_gate_child():
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    el = {
+        "type": "spoiler",
+        "label": "L",
+        "elements": [{"type": "reveal_gate", "label": "x"}],  # interactive -> refuse
+    }
+    with pytest.raises(LoaderError):
+        build_element(course, unit, el, source_root="", source_dir="", allow_html=False)
+
+
+def test_build_spoiler_rejects_fillblank_child():
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    el = {
+        "type": "spoiler",
+        "label": "L",
+        "elements": [
+            {"type": "fillblank", "stem": "x", "blanks": []}
+        ],  # question -> refuse
+    }
+    with pytest.raises(LoaderError):
+        build_element(course, unit, el, source_root="", source_dir="", allow_html=False)

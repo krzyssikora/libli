@@ -92,3 +92,17 @@ def test_validate_nesting_accepts_spoiler_slot_and_rejects_depth2():
     ]
     with pytest.raises(TransferError):  # depth-2 child still rejected
         validate_nesting(depth2)
+
+
+def test_validate_nesting_rejects_reveal_gate_spoiler_child():
+    from courses.transfer.payloads import validate_nesting
+    from courses.transfer.schema import TransferError
+    from courses.models import SpoilerElement
+
+    slot = SpoilerElement.SLOT_ID
+    bad = [
+        {"id": "sp", "type": "spoiler", "parent": None, "tab": None, "data": {"label": "L", "body": ""}},
+        {"id": "c1", "type": "reveal_gate", "parent": "sp", "tab": slot, "data": {}},
+    ]
+    with pytest.raises(TransferError):
+        validate_nesting(bad)

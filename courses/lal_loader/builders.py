@@ -67,16 +67,20 @@ def build_element(
             join = Element.objects.create(
                 unit=unit, parent=parent, tab_id=tab_id, content_object=obj
             )
+            from courses.builder import SPOILER_CHILD_TYPES
+
             for child in el["elements"]:
                 ctype = child.get("type")
-                # Defence-in-depth: the parser's no-nest-container mode never emits
-                # a container child of a spoiler, so one here is malformed JSON.
-                if ctype in ("tabs", "two_column") or (
-                    ctype == "spoiler" and "elements" in child
-                ):
+                # Enforce the same static-leaf allowlist resolve_scope() (the editor
+                # path) enforces: rejects containers (tabs/two_column/nested spoiler)
+                # AND interactive/question types (reveal_gate, fillblank, etc.) that
+                # the parser's no-nest-container mode never emits but malformed JSON
+                # could still carry.
+                if ctype not in SPOILER_CHILD_TYPES:
                     raise LoaderError(
-                        f"container element ({ctype}) nested inside a spoiler "
-                        f"in unit {unit.pk}"
+                        f"non-leaf child ({ctype}) nested inside a spoiler in unit "
+                        f"{unit.pk}; spoilers hold only static content "
+                        f"({', '.join(sorted(SPOILER_CHILD_TYPES))})"
                     )
                 build_element(
                     course,
