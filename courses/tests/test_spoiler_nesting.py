@@ -175,3 +175,101 @@ def test_spoiler_form_drops_body_when_instance_has_children():
     form = SpoilerElementForm(instance=sp)
     assert "body" not in form.fields
     assert "label" in form.fields
+
+
+from django.urls import reverse
+
+from tests.factories import CourseFactory
+from tests.factories import ContentNodeFactory
+from tests.factories import make_pa
+
+
+def _lesson_unit(course):
+    return ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+
+
+def _editor_html(client, course, unit):
+    resp = client.get(
+        reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
+    )
+    assert resp.status_code == 200
+    return resp.content.decode()
+
+
+def _spoiler_menu_block(html, join_pk):
+    """The spoiler's OWN in_spoiler add-menu, bounded to its addwrap. The editor
+    renders an unconditional top-level `_add_menu` after the element list, so a
+    fixed-size window would overrun into it and defeat the assertions. Slice from
+    this spoiler's `data-parent="<pk>"` marker to the START of the NEXT addwrap
+    (the token `addwrap` appears only in an add-menu wrapper's class, and the two
+    occurrences in THIS wrapper's `class="addwrap addwrap--nested"` are before the
+    marker), so the window contains exactly this spoiler's menu."""
+    marker = f'data-parent="{join_pk}"'
+    start = html.index(marker)
+    rest = html[start + len(marker):]
+    nxt = rest.find("addwrap")  # start of the next add-menu wrapper, if any
+    return rest if nxt == -1 else rest[:nxt]
+
+
+def test_top_level_spoiler_renders_child_list_and_add_menu(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    sp, join = _nested_spoiler(unit, ("<p>c</p>",))
+    html = _editor_html(client, course, unit)
+    assert f'data-parent="{join.pk}"' in html          # add-menu scope present
+    assert f'data-tab="{SpoilerElement.SLOT_ID}"' in html
+
+
+def test_spoiler_add_menu_hides_disallowed_cards(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    _sp, join = _nested_spoiler(unit, ("<p>c</p>",))
+    block = _spoiler_menu_block(_editor_html(client, course, unit), join.pk)
+    # allowlisted leaves ARE offered inside the spoiler menu
+    for allowed in ("text", "image", "table", "math", "video", "iframe", "gallery", "callout"):
+        assert f'data-add-type="{allowed}"' in block, allowed
+    # disallowed cards are NOT offered inside the spoiler menu
+    for banned in ("html", "spoiler", "revealgate", "fillgate", "switchgate", "stepper"):
+        assert f'data-add-type="{banned}"' not in block, banned
+
+
+def test_tabs_nested_menu_still_offers_spoiler(client):
+    # PR #126 no-regression: the Tabs nested add-menu (nested=True, NOT in_spoiler)
+    # must still offer the spoiler + interactive cards.
+    from courses.models import TabsElement
+
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    Element.objects.create(unit=unit, content_object=tabs)
+    html = _editor_html(client, course, unit)
+    assert 'data-add-type="spoiler"' in html  # still present via the tabs nested menu
+
+
+def test_reorder_and_delete_spoiler_child_via_generic_element_ops(client):
+    # add/edit are covered by resolve_scope (Task 7) + the form (Task 8); reorder/
+    # delete are generic Element ops (shared with Tabs). Prove they work for the
+    # spoiler slot: reorder swaps child order; delete removes one child cleanly.
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    sp, join = _nested_spoiler(unit, ("<p>A</p>", "<p>B</p>"))
+    a, b = sp.resolved_children()
+    a_pk, b_pk = a.pk, b.pk
+    # reorder: push the first child's order past the second's -> it now sorts last.
+    # (`order` is a PositiveIntegerField with a DB CHECK order >= 0, so bump `a`
+    # upward rather than driving `b` negative.)
+    a.order = 2
+    a.save(update_fields=["order"])
+    assert [c.pk for c in sp.resolved_children()] == [b_pk, a_pk]
+    # delete the first child's concrete -> its Element join row cascades away
+    # (TextElement.elements is a GenericRelation), leaving exactly one child.
+    a.content_object.delete()
+    remaining = sp.resolved_children()
+    assert [c.pk for c in remaining] == [b_pk]
+    assert remaining[0].content_object.body == "<p>B</p>"
