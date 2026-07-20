@@ -251,11 +251,34 @@ The `spoiler` branch of `build_element` becomes dual-path:
   recognize the spoiler as a container **solely** via a new single-slot branch.
 - **`resolve_scope` single-slot branch is mandatory (I3).** Add a branch **before**
   the `_CONTAINER_REGISTRY.get(...)`/`normalizer(parent_obj.data)` lookup that, for
-  a `SpoilerElement` parent, validates `tab == SpoilerElement.SLOT_ID` and returns
-  `(join, SLOT_ID)` **without evaluating `parent_obj.data`** (`SpoilerElement` has
-  no such attribute; touching it raises `AttributeError`). The contract: a nested
-  add/save resolves to "this spoiler's one child list," with the sole valid slot
-  id being `SLOT_ID`.
+  a `SpoilerElement` parent, validates `tab == SpoilerElement.SLOT_ID`
+  **without evaluating `parent_obj.data`** (`SpoilerElement` has no such attribute;
+  touching it raises `AttributeError`). The contract: a nested add/save resolves to
+  "this spoiler's one child list," with the sole valid slot id being `SLOT_ID`.
+- **The spoiler branch must NOT return early past the child-type checks (C1).**
+  The generic child-type validation (`nestable_key not in NESTABLE_TYPE_KEYS`,
+  `builder.py:113-115`) runs *after* the container/slot resolution. If the spoiler
+  branch `return (join, SLOT_ID)`s before those lines, **no** server-side
+  child-type check runs, so a crafted POST (`parent=<spoiler>, tab=only,
+  type=tabs|choicequestion|…`) would build and persist an illegal spoiler child —
+  violating the documented invariant (`editor/_add_menu.html:2-7`: "the server
+  still enforces … on every add/save"). The branch must fall through to (or
+  re-run) the child-type validation before returning.
+- **Server-enforced spoiler-child allowlist (I1).** `NESTABLE_TYPE_KEYS`
+  membership alone is too permissive: `spoiler` itself and the interactive/stateful
+  types (`reveal_gate`, `fill_gate`, `switch_gate`, `switch_grid`, `fill_table`,
+  `stepper`, `mark_done`, `guess_number`) are all in it, so the standard check
+  would still allow a nested spoiler leaf or an interactive child — neither of
+  which the M1 add-menu shows and both of which are out of scope (C5 leaf-only;
+  practice-state restore in spoilers is Out of scope). Pin a **server-side
+  allowlist** of spoiler child types — the static content leaves
+  `{text, math, image, video, iframe, table, gallery, callout}` — enforced inside
+  the `resolve_scope` spoiler branch (reject anything else with `NestingError`),
+  so the "cannot add a spoiler/interactive child" guarantee is *enforced*, not just
+  hidden by the courtesy add-menu. (The loader path is governed separately by its
+  own C2 depth guard; the parser emits only these static leaves, plus — under
+  `--allow-html` — an occasional flagged `HtmlElement`, which the loader builds but
+  the editor allowlist does not offer.)
 - **Editor depth guard (C2).** `resolve_scope` (`builder.py:78-116`) does **no**
   depth check — it validates only parent-is-container, valid tab, and child in
   `NESTABLE_TYPE_KEYS`. Because `spoiler` stays in `NESTABLE_TYPE_KEYS` and is now
@@ -270,31 +293,41 @@ The `spoiler` branch of `build_element` becomes dual-path:
 - Recursive editor modeled on the Tabs editor: render each child with the
   existing recursive editor partial, and support **add child / edit child /
   reorder children / delete child** inside a spoiler, plus the container's own
-  label field. **Template (I6):** `templates/courses/manage/_element_row.html`
+  label field. **Template (I6):** `templates/courses/manage/editor/_element_row.html`
   routes `tabselement`/`twocolumnelement` to nested branches and drops everything
   else (spoiler included) into the generic leaf `{% else %}`. Add a
-  `{% elif el.content_type.model == "spoilerelement" %}` branch that iterates
-  `obj.resolved_children` as the single slot and includes `_add_menu.html with
-  nested=True parent=el.pk tab=obj.SLOT_ID`. Expose `SLOT_ID` as a
-  `SpoilerElement` **class attribute** so `{{ obj.SLOT_ID }}` resolves in the
-  template (the add-menu needs the slot id, but `resolved_children()` is a flat
-  list with no slot dict to read it from — unlike `resolved_tabs`).
-- **Gate the child-list + add-menu on top-level (I1).** `_element_row.html` is
-  included recursively for every child, so the spoiler branch also fires for a
-  spoiler that is itself nested (a legacy body-only spoiler leaf inside a Tab). It
-  must render the child list and `_add_menu` **only when `el.parent_id is None`**
-  — otherwise an "Add element" affordance appears whose POST `resolve_scope`
-  rejects (the C2 top-level guard), a dead control. A nested spoiler renders
-  through the generic leaf `{% else %}` branch (its `body`). This exactly matches
-  where children can be added. Mirror the tabs/two-column recursion-termination
-  comment; termination is guaranteed by the C1/C2 depth-1 enforcement.
-- **Nested add-menu hides the `spoiler` card (M1).** The top-level spoiler's
-  `_add_menu.html with nested=True` still shows the `spoiler` typecard
-  (`_add_menu.html:35`, hidden only by `unit_is_quiz`). Extend the `nested` hiding
-  to also drop the `spoiler` card (and the stateful/interactive cards whose
-  in-spoiler restore is out of scope), so an author cannot add a spoiler leaf
-  inside a spoiler — consistent with how the tabs add-menu already hides
-  tabs/columns/questions.
+  `{% elif el.content_type.model == "spoilerelement" and el.parent_id is None %}`
+  branch (see the top-level gating below) that iterates `obj.resolved_children` as
+  the single slot and includes
+  `editor/_add_menu.html with nested=True in_spoiler=True parent=el.pk tab=obj.SLOT_ID`
+  (see the distinct-flag note below). Expose `SLOT_ID` as a `SpoilerElement`
+  **class attribute** so `{{ obj.SLOT_ID }}` resolves in the template (the add-menu
+  needs the slot id, but `resolved_children()` is a flat list with no slot dict to
+  read it from — unlike `resolved_tabs`).
+- **Gate the whole branch on top-level (I1 / M2).** `_element_row.html` is
+  included recursively for every child, so a `spoilerelement`-only condition would
+  also match a spoiler that is itself nested (a legacy body-only spoiler leaf
+  inside a Tab), rendering a dead "Add element" affordance whose POST
+  `resolve_scope` rejects (the C2 top-level guard). Put `el.parent_id is None`
+  **into the `elif` condition itself** (as above) so a nested spoiler does not
+  match the branch and falls through to the generic leaf `{% else %}` row — which
+  renders `{{ obj|element_summary }}` (`_element_row.html:155`), the same leaf
+  presentation every non-container child gets. Mirror the tabs/two-column
+  recursion-termination comment; termination is guaranteed by the C1/C2 depth-1
+  enforcement.
+- **Distinct add-menu flag — do NOT overload `nested` (C2).** `editor/_add_menu.html`
+  is included with `nested=True` by the Tabs branch, the TwoColumn branch, and the
+  new spoiler branch; the three share one flag. Extending the existing
+  `{% if not nested %}` hiding to drop the `spoiler` card (`editor/_add_menu.html:35`)
+  and the Interactive group would ALSO strip them from the Tabs/TwoColumn nested
+  menus — regressing PR #126 ("Nest self-checks in tabs": Spoiler/Switch grid/
+  Fill-in table nestable in tabs) and contradicting this spec's own "legacy
+  body-only spoiler nestable as a leaf child of Tabs is still supported." Instead
+  pass a **separate `in_spoiler=True`** parameter only from the spoiler branch, and
+  gate the extra card-hiding (drop `spoiler` + the interactive/stateful cards, per
+  the I1 allowlist) on `in_spoiler`, leaving the Tabs/TwoColumn `nested` menus
+  unchanged. This is defence-in-depth over the server allowlist (I1), not a
+  substitute for it.
 - **Nesting depth — DECIDED (C5): keep the existing one-level depth invariant
   unchanged.** `validate_nesting` (`payloads.py:722`) hard-rejects any element
   whose parent itself has a parent, and that bound is load-bearing for the
@@ -454,8 +487,16 @@ under the join row → same render path.
   top-level spoiler; a legacy body spoiler still edits via the body path;
   `SpoilerElementForm` drops the `body` field when the instance has children (I2);
   `resolve_scope` refuses adding a child to a spoiler whose join is itself nested
-  (C2); the nested `_add_menu` omits the `spoiler` card (M1); the `_element_row`
-  spoiler branch renders the add-menu only for a top-level spoiler (I1).
+  (C2 top-level guard). **Server enforcement (C1/I1):** a crafted add/save POST
+  with `parent=<spoiler>, tab=SLOT_ID` and a disallowed `type` — `tabs`,
+  `choicequestion`, `spoiler`, or an interactive type (`reveal_gate`/`fill_gate`/…)
+  — is rejected with `NestingError` by the `resolve_scope` spoiler-child allowlist,
+  while an allowed leaf (`text`/`image`/`table`/`math`/`video`/`iframe`/`gallery`/
+  `callout`) succeeds. **Add-menu (C2/M1):** the spoiler branch's `_add_menu`
+  (passed `in_spoiler=True`) omits the `spoiler` + interactive cards; a Tabs nested
+  `_add_menu` (only `nested=True`) still shows the `spoiler`/self-check cards
+  (no PR #126 regression); the `_element_row` spoiler branch renders the child
+  list + add-menu only for a top-level spoiler (nested spoiler → leaf `{% else %}`).
 - **Transfer** (required, C2/C3): a nested spoiler (e.g. `[text, image]`
   children) round-trips through export→import and through duplicate-unit with its
   children intact and in order; `walk_unit_joins` yields the spoiler's children;
