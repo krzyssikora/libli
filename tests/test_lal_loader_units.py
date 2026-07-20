@@ -715,6 +715,51 @@ def test_build_spoiler_rejects_container_child():
         build_element(course, unit, el, source_root="", source_dir="", allow_html=False)
 
 
+def test_build_spoiler_flagged_child_builds_html_under_allow_html():
+    # A FLAGGED child (parser could not map some block inside the spoiler) is NOT
+    # blocked by the static-leaf allowlist: it follows build_element's flagged
+    # branch, which under --allow-html builds an HtmlElement child — mirroring the
+    # top-level flagged-element escape, not a new hard block.
+    from courses.models import HtmlElement
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    el = {
+        "type": "spoiler",
+        "label": "L",
+        "elements": [
+            {"type": "text", "body": "<p>a</p>"},
+            {"flagged": True, "type": "html", "raw": "<div>x</div>", "reason": "unmapped"},
+        ],
+    }
+    obj = build_element(
+        course, unit, el, source_root="", source_dir="", allow_html=True
+    )
+    kids = list(obj.join_row().children.order_by("order", "pk"))
+    assert [type(k.content_object).__name__ for k in kids] == [
+        "TextElement",
+        "HtmlElement",
+    ]
+    assert isinstance(kids[1].content_object, HtmlElement)
+
+
+def test_build_spoiler_flagged_child_still_errors_without_allow_html():
+    # Without --allow-html, a flagged child raises via build_element's flagged
+    # branch (the "pass --allow-html" path), same as a top-level flagged element.
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    el = {
+        "type": "spoiler",
+        "label": "L",
+        "elements": [
+            {"flagged": True, "type": "html", "raw": "<div>x</div>", "reason": "unmapped"}
+        ],
+    }
+    with pytest.raises(LoaderError):
+        build_element(course, unit, el, source_root="", source_dir="", allow_html=False)
+
+
 def test_build_spoiler_rejects_reveal_gate_child():
     from tests.factories import make_course_with_unit
 

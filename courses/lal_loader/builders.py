@@ -72,11 +72,15 @@ def build_element(
             for child in el["elements"]:
                 ctype = child.get("type")
                 # Enforce the same static-leaf allowlist resolve_scope() (the editor
-                # path) enforces: rejects containers (tabs/two_column/nested spoiler)
-                # AND interactive/question types (reveal_gate, fillblank, etc.) that
-                # the parser's no-nest-container mode never emits but malformed JSON
-                # could still carry.
-                if ctype not in SPOILER_CHILD_TYPES:
+                # path) enforces: rejects NATIVE containers (tabs/two_column/nested
+                # spoiler) AND interactive/question types (reveal_gate, fillblank,
+                # etc.) that the parser's no-nest-container mode never emits but
+                # malformed JSON could carry. A FLAGGED child is exempt: it follows
+                # build_element's own flagged branch below, which honours --allow-html
+                # (HtmlElement under the flag, LoaderError without) exactly as a
+                # top-level flagged element does — so an unmappable block inside a
+                # spoiler isn't newly hard-blocked relative to the top level.
+                if not child.get("flagged") and ctype not in SPOILER_CHILD_TYPES:
                     raise LoaderError(
                         f"non-leaf child ({ctype}) nested inside a spoiler in unit "
                         f"{unit.pk}; spoilers hold only static content "
