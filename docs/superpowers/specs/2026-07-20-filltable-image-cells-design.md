@@ -187,8 +187,13 @@ Then `FillTableElement.objects.create(data=FillTableElement.normalize_data(<rewr
   reused across cells/files uploads once.
 - Idempotency: reloading a part re-resolves the same file → same content hash →
   same asset (no duplicate uploads), and the element is delete-and-rebuilt as today.
-- A missing source file surfaces the loader's existing missing-media behaviour
-  (unchanged; note the pre-existing "bare FileNotFoundError" deferred-Minor).
+- A missing source file surfaces the loader's existing missing-media behaviour, but
+  with a **larger blast radius** than a standalone image: `resolve_source` runs mid
+  cell-walk, so one unresolved image `raise`s and aborts building the **entire
+  fill-table element** (its answer cells included), not just that one cell. The
+  corpus is verified image-present, so deferring is defensible — but a planner may
+  choose to degrade a missing image cell to empty static instead of aborting.
+  (Also the pre-existing "bare FileNotFoundError" deferred-Minor still applies.)
 
 ## Editor
 
@@ -239,13 +244,20 @@ inventing a new one.
   - **Deserialize / edit path**: the server renders an existing image cell into the
     editor DOM as a `td[data-image]` with its thumbnail + hidden id + alt, so
     re-editing a saved grid round-trips. `_edit_filltable.html` drives its whole grid
-    from `form.instance.normalized_data` (`d.cells`, plus `d.header_row`/`d.border`/
-    `d.prompt`), where image cells' `media` is an **unresolved int pk** — so
-    `cell.media...url` is unavailable. Do **not** replace `d` wholesale (`resolved_cells()`
-    returns only the cells list, not `header_row`/`border`/`prompt`): pass a separate
-    resolved-cells grid into the template context (or a `d` copy whose `cells` are
-    replaced by `resolved_cells()`), keeping the non-cell fields reading from
-    `normalized_data`. Add the image branch mirroring the answer/static branches.
+    from `{% with d=form.instance.normalized_data %}` (`d.cells`, plus
+    `d.header_row`/`d.border`/`d.prompt`), where image cells' `media` is an
+    **unresolved int pk** — so `cell.media...url` is unavailable. A Django template
+    cannot construct a merged dict, so **pin the resolved cells to a model-level
+    property** (parallel to `normalized_data`, e.g. `form.instance.resolved_cells`)
+    and iterate **that** for the grid while still reading `d.header_row`/`d.border`/
+    `d.prompt` from `normalized_data`. Do **not** attempt a "`d` copy" — it is not
+    template-constructible. Add the image branch mirroring the answer/static
+    branches, and note the two field sources explicitly:
+    - **thumbnail** `src` → `cell.media.file.url` (`cell.media` is a resolved
+      `MediaAsset` on the `resolved_cells` grid).
+    - **hidden media id** → `cell.media.pk` — **not** `{{ cell.media }}`, which
+      would serialise the asset's `__str__`; the JS `parseInt` of that yields `NaN`
+      and silently corrupts the cell on the next save.
   - **Submit guard** (`onSubmit`): image cells are **not** answer cells, so the
     "at least one answer cell / no blank answers" checks ignore them. A grid whose
     only fillable cells are answers still validates as today; a grid with image
@@ -286,34 +298,40 @@ inventing a new one.
   a raw local pk and import dangling. Fix, mirroring the gallery path exactly:
   - **Export** `_ser_fill_table` (`export.py` ~170): walk `cells`; for each
     `kind=="image"` cell, resolve its pk and replace `media` with
-    `ids.register(asset)` (the bundle-local id), **skipping unresolved** pks by
-    degrading that cell to empty static (same "unresolved ids cannot be exported"
-    rule `_gallery_assets` uses). Static/answer cells pass through.
+    `ids.register(asset)` (the bundle-local id), carrying `alt` (and `halign`/
+    `valign`) through unchanged, **skipping unresolved** pks by degrading that cell
+    to empty static (same "unresolved ids cannot be exported" rule `_gallery_assets`
+    uses). Static/answer cells pass through.
   - **Import** `_build_fill_table` (`importer.py` ~589): walk `cells`; for each
     `kind=="image"` cell, remap `media` (a **string** local id) via
     `assets[<local id>].pk` (mirroring `_build_gallery`'s `assets[img["media"]].pk`),
-    then `normalize_data` + save.
+    carrying `alt` through unchanged, then `normalize_data` + save.
   - **Validator** `_val_fill_table` (`courses/transfer/payloads.py` ~618): this
     validator is **deliberately lenient** — today it rejects only gross structural
     corruption (non-dict data/row/cell) and returns `set()`, leaving all key/enum
     repair to `normalize_data`; there are **no** existing per-shape static/answer
     checks to sit "alongside". The image cell forces one targeted addition: for each
     cell with `kind == "image"`, call
-    `_require_media(cell["media"], elid, media_kinds, "image")` and **return the
+    `_require_media(cell.get("media"), elid, media_kinds, "image")` and **return the
     accumulated media-ref set** (mirroring `_val_gallery`, payloads.py ~564-571),
-    **not** `set()`. This is REQUIRED, not optional: `courses/transfer/schema.py`
-    (~302-315) does `referenced_media |= validate_element_data(...)` and then
-    **rejects the whole bundle** ("Media entry is not referenced by any element") for
-    any registered asset not in that ref set — so an exported-and-registered image
-    asset whose validator returns no ref fails every import. `_require_media` also
-    enforces `media` is a **string** present in `media_kinds` with the right kind, so
-    a malformed local id raises a clean `TransferError` instead of the importer's
+    **not** `set()`. Use `cell.get("media")`, **not** `cell["media"]`: the validator
+    stays deliberately lenient (it does **not** `_exact_keys`-check image cells), so a
+    `{kind:"image"}` cell missing its `media` key must not `KeyError` — `.get`
+    yields `None`, which `_require_media`'s `isinstance(str)` guard rejects as a clean
+    `TransferError`. This ref-return is REQUIRED, not optional:
+    `courses/transfer/schema.py` (~302-315) does
+    `referenced_media |= validate_element_data(...)` and then **rejects the whole
+    bundle** ("Media entry is not referenced by any element") for any registered
+    asset not in that ref set — so an exported-and-registered image asset whose
+    validator returns no ref fails every import. `_require_media` also enforces
+    `media` is a **string** present in `media_kinds` with the right kind, so a
+    malformed local id raises a clean `TransferError` instead of the importer's
     `assets[<id>]` `KeyError`. Static/answer cells remain unchecked by design. Keep
     the three registries (`SERIALIZERS`, `VALIDATORS`, `BUILDERS`) in lockstep.
   - Round-trip test: export→import a fill-table with an image cell across a
-    fresh asset namespace preserves the image (bundled asset, remapped pk); and a
-    bundle that registers the image asset but whose validator omits the ref is
-    rejected (falsifies the "return the ref set" requirement).
+    fresh asset namespace preserves the image (bundled asset, remapped pk) **and its
+    `alt`**; and a bundle that registers the image asset but whose validator omits
+    the ref is rejected (falsifies the "return the ref set" requirement).
 
 ## Testing
 
