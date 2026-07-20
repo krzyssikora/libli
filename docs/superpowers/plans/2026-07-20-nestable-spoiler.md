@@ -558,6 +558,40 @@ def test_details_inside_solution_is_inlined_not_nested_spoiler():
     assert "spoiler" not in child_types  # inner disclosure inlined
     # inner content is present (heading + deep text among the inlined children)
     assert any(c["type"] == "text" for c in sp["elements"])
+
+
+def test_show_solution_inside_solution_is_inlined_not_nested_spoiler():
+    # A show_solution button + its solution INSIDE a question_solution cell must
+    # NOT emit a depth-2 spoiler dict (which the loader guard would abort on).
+    html = (
+        "<body>"
+        "<div class='show_solution'>outer</div>"
+        "<div class='question_solution'>"
+        "<p>lead</p>"
+        "<div class='show_solution'>inner</div>"
+        "<div class='question_solution'><p>deep</p></div>"
+        "</div></body>"
+    )
+    elements, _flags = parse_lesson(html, html)
+    sp = _only_spoiler(elements)  # exactly ONE spoiler (the inner one inlined)
+    assert "spoiler" not in [c["type"] for c in sp["elements"]]
+    assert any(c["type"] == "text" for c in sp["elements"])
+
+
+def test_reveal_table_inside_solution_is_inlined_not_nested_spoiler():
+    # A reveal-<table> INSIDE a question_solution cell must inline its rows, not
+    # emit nested spoiler dicts.
+    html = (
+        "<body>"
+        "<div class='show_solution'>outer</div>"
+        "<div class='question_solution'>"
+        "<table><tr><td>row</td>"
+        "<td class='question_solution'><p>ans</p></td></tr></table>"
+        "</div></body>"
+    )
+    elements, _flags = parse_lesson(html, html)
+    sp = _only_spoiler(elements)  # exactly ONE spoiler total
+    assert "spoiler" not in [c["type"] for c in sp["elements"]]
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -567,29 +601,52 @@ Expected: FAIL — emitters currently produce `{"type":"spoiler","label","body"}
 
 - [ ] **Step 3: Write minimal implementation**
 
-**(a)** Change `_emit_details` (`scripts/lal_import/lesson.py:1130-1143`) to:
+**(a)** Add a shared `_emit_solution_region` helper (place near `_walk`, after `parse_lesson`). This is the single place that decides nested-spoiler vs. inline, so **all three** spoiler sources get no-nest-container behavior uniformly:
+
+```python
+def _emit_solution_region(label, content_nodes, elements, flags, consumed, state):
+    """A labelled disclosure region (from <details>, show_solution, or a reveal-
+    table row). At TOP LEVEL -> a nested SpoilerElement dict whose children are the
+    walked content (images/tables/math survive as their own children). INSIDE a
+    spoiler (no-nest-container mode) -> inlined in place (label -> heading child,
+    content walked inline), never a nested container dict, keeping depth at 1."""
+    if state.get("in_spoiler"):
+        if label:
+            elements.append({"type": "text", "body": f"<h4>{label}</h4>"})
+        _walk(content_nodes, elements, flags, consumed, state)
+    else:
+        child_elements = []
+        prev = state.get("in_spoiler", False)  # always False here, but be explicit
+        state["in_spoiler"] = True
+        try:
+            _walk(content_nodes, child_elements, flags, consumed, state)
+        finally:
+            state["in_spoiler"] = prev
+        elements.append(
+            {"type": "spoiler", "label": label, "elements": child_elements}
+        )
+```
+
+**(b)** Change `_emit_details` (`scripts/lal_import/lesson.py:1130-1143`) to delegate to it:
 
 ```python
 def _emit_details(details, elements, flags, consumed, state):
-    """<details><summary>LABEL</summary>BODY</details> -> nested SpoilerElement.
-    BODY is walked into child element dicts (images/tables/math survive as their
-    own children). Runs the walk in no-nest-container mode so an inner disclosure/
-    ks_tabs is flattened, never emitted as a nested container dict (depth-1)."""
+    """<details><summary>LABEL</summary>BODY</details> -> nested SpoilerElement
+    (or inlined, inside a spoiler). BODY is walked into child element dicts."""
     summary = details.find("summary")
     label = summary.get_text(strip=True) if summary is not None else ""
     if summary is not None:
         summary.extract()
     _flag_relative_hrefs(details, flags)  # spoiler children are nh3-sanitized too
-    child_elements = _walk_in_spoiler(list(details.children), flags, consumed, state)
-    elements.append({"type": "spoiler", "label": label, "elements": child_elements})
+    _emit_solution_region(label, list(details.children), elements, flags, consumed, state)
 ```
 
-**(b)** Change `_reveal_table_spoilers` (`scripts/lal_import/lesson.py:235-254`) to:
+**(c)** Change `_reveal_table_spoilers` (`scripts/lal_import/lesson.py:235-254`) to delegate per row:
 
 ```python
 def _reveal_table_spoilers(table, consumed, state):
-    """One nested Spoiler per <tr> with a .question_solution cell. label = the
-    row's first <td> text; the solution cell content is walked into children."""
+    """One nested Spoiler per <tr> with a .question_solution cell (or inlined rows,
+    inside a spoiler). label = the row's first <td> text."""
     elements, flags = [], []
     for tr in table.find_all("tr"):
         sol = tr.find(class_="question_solution")
@@ -598,18 +655,15 @@ def _reveal_table_spoilers(table, consumed, state):
         first_td = tr.find("td")
         label = first_td.get_text(strip=True) if first_td is not None else ""
         _flag_relative_hrefs(sol, flags)
-        child_elements = _walk_in_spoiler(list(sol.children), flags, consumed, state)
-        elements.append(
-            {"type": "spoiler", "label": label, "elements": child_elements}
-        )
+        _emit_solution_region(label, list(sol.children), elements, flags, consumed, state)
     return elements, flags
 ```
 
 Update its caller (`scripts/lal_import/lesson.py:516`) from
 `sp_elements, sp_flags = _reveal_table_spoilers(node)` to
-`sp_elements, sp_flags = _reveal_table_spoilers(node, consumed, state)`.
+`sp_elements, sp_flags = _reveal_table_spoilers(node, consumed, state)`. (The `table`-branch call site is reached in BOTH modes — when `state["in_spoiler"]` is set, `_emit_solution_region` inlines each row, so no `in_spoiler` check is needed at the call site.)
 
-**(c)** Change the `show_solution` handler (`scripts/lal_import/lesson.py:490-503`) to:
+**(d)** Change the `show_solution` handler (`scripts/lal_import/lesson.py:490-503`) to delegate:
 
 ```python
         if _is_show_solution_button(node):
@@ -617,40 +671,20 @@ Update its caller (`scripts/lal_import/lesson.py:516`) from
             if sol is not None:
                 consumed.add(id(sol))  # so the loop does not re-flag it (I2)
                 _flag_relative_hrefs(sol, flags)
-                child_elements = _walk_in_spoiler(
-                    list(sol.children), flags, consumed, state
-                )
-                elements.append(
-                    {
-                        "type": "spoiler",
-                        "label": node.get_text(strip=True) or "zobacz",
-                        "elements": child_elements,
-                    }
+                _emit_solution_region(
+                    node.get_text(strip=True) or "zobacz",
+                    list(sol.children),
+                    elements,
+                    flags,
+                    consumed,
+                    state,
                 )
                 continue
             _unmapped("show_solution button without solution", node, elements, flags)
             continue
 ```
 
-**(d)** Add a `_walk_in_spoiler` helper (place near `_walk`, e.g. after `parse_lesson`):
-
-```python
-def _walk_in_spoiler(nodes, flags, consumed, state):
-    """Walk `nodes` into a FRESH child-element list under no-nest-container mode
-    (shared `consumed`/`state`). In this mode inner <details>/reveal/show_solution
-    and ks_tabs are flattened inline, so the returned list never contains a nested
-    container dict -- keeping a spoiler's realized nesting depth at 1."""
-    child_elements = []
-    prev = state.get("in_spoiler", False)
-    state["in_spoiler"] = True
-    try:
-        _walk(nodes, child_elements, flags, consumed, state)
-    finally:
-        state["in_spoiler"] = prev
-    return child_elements
-```
-
-**(e)** In `_walk`, change the `details` branch (`scripts/lal_import/lesson.py:475-489`) to:
+**(e)** In `_walk`, change the `details` branch (`scripts/lal_import/lesson.py:475-489`) — the plain-`<details>` case just calls `_emit_details` (which now handles both modes via `_emit_solution_region`); the `<details>`-wrapping-`ks_tabs` case keeps its existing drop-wrapper behavior:
 
 ```python
         if name == "details":
@@ -662,16 +696,6 @@ def _walk_in_spoiler(nodes, flags, consumed, state):
                 summary = node.find("summary")
                 if summary is not None:
                     label = summary.decode_contents().strip()
-                    if label:
-                        elements.append({"type": "text", "body": f"<h4>{label}</h4>"})
-                    summary.extract()
-                _walk(list(node.children), elements, flags, consumed, state)
-            elif state.get("in_spoiler"):
-                # No-nest-container mode: inline the inner disclosure in place
-                # (summary -> heading, content walked inline) — never a nested spoiler.
-                summary = node.find("summary")
-                if summary is not None:
-                    label = summary.get_text(strip=True)
                     if label:
                         elements.append({"type": "text", "body": f"<h4>{label}</h4>"})
                     summary.extract()
@@ -724,10 +748,22 @@ def _flatten_tabs_inline(node, elements, flags, consumed, state):
         elements.extend(tab.get("elements", []))
 ```
 
-- [ ] **Step 4: Run the new tests + the full parser suite (guard against regressions)**
+- [ ] **Step 4: Migrate the pre-existing spoiler-`body` tests, then run the full parser suite**
 
 Run: `DATABASE_URL=postgres://libli:libli@localhost:5432/libli_mat uv run pytest tests/lal_import/test_lesson.py -v`
-Expected: the 4 new tests PASS. Any pre-existing test asserting a spoiler `body` now fails — **update those to the nested shape** (assert `sp["elements"]` and the inlined child types) since all spoiler sources now emit `elements`. Re-run until green.
+Expected: the new tests PASS. Four pre-existing tests assert `sp["body"]` and now fail because all spoiler sources emit `elements` (no `body` key). Migrate EXACTLY these, preserving each test's original invariant — do NOT weaken a negative/exclusion assertion into a presence check:
+
+1. `test_spoiler_from_show_solution` (`test_lesson.py:53`): replace `assert "emptyset" in sp["body"]` with
+   `assert any("emptyset" in c.get("body", "") for c in sp["elements"])`.
+2. `test_spoiler_body_preserves_escaped_math` (`test_lesson.py:121`): replace `assert r"\(a&lt;b\)" in sp["body"]` with
+   `assert any(r"\(a&lt;b\)" in c.get("body", "") for c in sp["elements"])`  (entity `&lt;` preserved in the child body, not literal `<`).
+3. `test_r4_details_becomes_spoiler` (`test_lesson.py:169-170`): keep `assert sp["label"] == "obliczenia"`; replace the body-escaping line with
+   `assert any(r"\(a&lt;b\)" in c.get("body", "") for c in sp["elements"])`; and re-express the **exclusion** invariant `assert "obliczenia" not in sp["body"]` as
+   `assert not any("obliczenia" in c.get("body", "") for c in sp["elements"])`  (the summary label must not leak into any child body).
+4. `test_reverse_order_show_solution_finds_preceding_solution` (`test_lesson.py:307`): replace `assert "x=2" in sp["body"]` with
+   `assert any("x=2" in c.get("body", "") for c in sp["elements"])`. Line 310's top-level "must not leak as a standalone text element" assertion still holds (the solution content is now a CHILD of the spoiler, not a top-level element) — leave it.
+
+Do NOT touch these (their assertions survive unchanged): `test_r3_reveal_table_becomes_spoilers_per_row` (labels only), `test_plain_details_still_becomes_spoiler` (asserts a spoiler exists), `test_details_wrapping_tabs_emits_native_tabs_no_spoiler` (no spoiler; text bodies), `test_relative_href_inside_spoiler_is_flagged` (flags only). Re-run until the whole file is green.
 
 - [ ] **Step 5: Commit**
 
@@ -1093,12 +1129,22 @@ Render the recursive child list + add-menu for a *top-level* spoiler; pass a dis
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `courses/tests/test_spoiler_nesting.py`:
+Append to `courses/tests/test_spoiler_nesting.py`. These use the Django `client` fixture and `make_pa` exactly like `courses/tests/test_switchgrid_authoring.py:19-37,66-89` (do NOT use an inline `Client()` shim). A `_spoiler_menu_block(html)` helper isolates the spoiler's own `addwrap` so the card assertions are not satisfied by the top-level menu:
 
 ```python
-def _editor_html(client, course, unit):
-    from django.urls import reverse
+from django.urls import reverse
+from tests.factories import CourseFactory
+from tests.factories import ContentNodeFactory
+from tests.factories import make_pa
 
+
+def _lesson_unit(course):
+    return ContentNodeFactory(
+        course=course, parent=None, kind="unit", unit_type="lesson"
+    )
+
+
+def _editor_html(client, course, unit):
     resp = client.get(
         reverse("courses:manage_editor", kwargs={"slug": course.slug, "pk": unit.pk})
     )
@@ -1106,41 +1152,79 @@ def _editor_html(client, course, unit):
     return resp.content.decode()
 
 
-def test_top_level_spoiler_renders_child_list_and_add_menu():
-    from tests.factories import make_pa, CourseFactory, ContentNodeFactory
+def _spoiler_menu_block(html, join_pk):
+    """The single addwrap whose data-parent is this spoiler's join pk (the in_spoiler
+    add-menu), sliced from its `data-parent="<pk>"` to the next `</div>` boundary far
+    enough to include all typecards — good enough to assert card presence/absence."""
+    marker = f'data-parent="{join_pk}"'
+    start = html.index(marker)
+    # the enclosing addwrap opens just before the marker; grab a generous window
+    return html[start : start + 4000]
 
-    pa = make_pa(client_pa := __import__("django.test").test.Client(), "pa")
+
+def test_top_level_spoiler_renders_child_list_and_add_menu(client):
+    pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa)
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
-    sp, _join = _nested_spoiler(unit, ("<p>c</p>",))
-    html = _editor_html(client_pa, course, unit)
-    assert f'data-parent="{sp.join_row().pk}"' in html      # add-menu scope present
+    unit = _lesson_unit(course)
+    sp, join = _nested_spoiler(unit, ("<p>c</p>",))
+    html = _editor_html(client, course, unit)
+    assert f'data-parent="{join.pk}"' in html          # add-menu scope present
     assert f'data-tab="{SpoilerElement.SLOT_ID}"' in html
 
 
-def test_spoiler_add_menu_hides_disallowed_cards():
-    from tests.factories import make_pa, CourseFactory, ContentNodeFactory
-
-    client_pa = __import__("django.test").test.Client()
-    pa = make_pa(client_pa, "pa")
+def test_spoiler_add_menu_hides_disallowed_cards(client):
+    pa = make_pa(client, "pa")
     course = CourseFactory(owner=pa)
-    unit = ContentNodeFactory(course=course, parent=None, kind="unit", unit_type="lesson")
-    _sp, _join = _nested_spoiler(unit, ("<p>c</p>",))
-    html = _editor_html(client_pa, course, unit)
-    # Inside the spoiler menu, disallowed cards must NOT be offered. Assert the
-    # allowlisted leaves ARE present and the excluded ones are gated: the simplest
-    # robust check is that the spoiler menu block contains data-add-type="text"
-    # but not data-add-type="html"/"spoiler"/"revealgate" within its addwrap.
-    assert 'data-add-type="text"' in html
-    # (Refine with an HTML-scoped assertion on the in_spoiler addwrap during impl.)
-```
+    unit = _lesson_unit(course)
+    _sp, join = _nested_spoiler(unit, ("<p>c</p>",))
+    block = _spoiler_menu_block(_editor_html(client, course, unit), join.pk)
+    # allowlisted leaves ARE offered inside the spoiler menu
+    for allowed in ("text", "image", "table", "math", "video", "iframe", "gallery", "callout"):
+        assert f'data-add-type="{allowed}"' in block, allowed
+    # disallowed cards are NOT offered inside the spoiler menu
+    for banned in ("html", "spoiler", "revealgate", "fillgate", "switchgate", "stepper"):
+        assert f'data-add-type="{banned}"' not in block, banned
 
-> **Note for the implementer:** the two client tests above sketch the intent; during implementation, use the project's standard `client`/`make_pa` fixtures (see `courses/tests/test_switchgrid_authoring.py:19-37`, `:66-89`) rather than the inline `__import__` shim, and scope the "hides disallowed cards" assertion to the spoiler's `addwrap` block (e.g. split on `addwrap--nested` or parse with the same approach the tabs add-menu test uses). Keep the behavioral contract: allowlisted leaf cards present, `html`/`spoiler`/interactive cards absent in the spoiler menu; the Tabs nested menu still shows `spoiler` (no PR #126 regression).
+
+def test_tabs_nested_menu_still_offers_spoiler(client):
+    # PR #126 no-regression: the Tabs nested add-menu (nested=True, NOT in_spoiler)
+    # must still offer the spoiler + interactive cards.
+    from courses.models import TabsElement
+
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    Element.objects.create(unit=unit, content_object=tabs)
+    html = _editor_html(client, course, unit)
+    assert 'data-add-type="spoiler"' in html  # still present via the tabs nested menu
+
+
+def test_reorder_and_delete_spoiler_child_via_generic_element_ops(client):
+    # add/edit are covered by resolve_scope (Task 7) + the form (Task 8); reorder/
+    # delete are generic Element ops (shared with Tabs). Prove they work for the
+    # spoiler slot: reorder swaps child order; delete removes one child cleanly.
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    sp, join = _nested_spoiler(unit, ("<p>A</p>", "<p>B</p>"))
+    a, b = sp.resolved_children()
+    b_pk = b.pk
+    # reorder: give the second child a lower order -> it comes first
+    b.order = -1
+    b.save(update_fields=["order"])
+    assert [c.pk for c in sp.resolved_children()] == [b_pk, a.pk]
+    # delete the first child's concrete -> its Element join row cascades away
+    # (TextElement.elements is a GenericRelation), leaving exactly one child.
+    a.content_object.delete()
+    remaining = sp.resolved_children()
+    assert [c.pk for c in remaining] == [b_pk]
+    assert remaining[0].content_object.body == "<p>B</p>"
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `DATABASE_URL=postgres://libli:libli@localhost:5432/libli_mat uv run pytest courses/tests/test_spoiler_nesting.py -k "add_menu or child_list" -v`
-Expected: FAIL — a nested spoiler currently renders through the generic `{% else %}` leaf row (no child list, no add-menu), so `data-parent="<join pk>"` for the spoiler is absent.
+Run: `DATABASE_URL=postgres://libli:libli@localhost:5432/libli_mat uv run pytest courses/tests/test_spoiler_nesting.py -k "spoiler and (menu or child_list or renders)" -v`
+Expected: FAIL — `test_top_level_spoiler_renders_child_list_and_add_menu` and `test_spoiler_add_menu_hides_disallowed_cards` fail because a spoiler currently renders through the generic `{% else %}` leaf row (no child list, no `data-parent` add-menu). `test_tabs_nested_menu_still_offers_spoiler` and the reorder/delete test already pass (they exercise existing behavior — that's fine, they guard against regressions introduced by this task).
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -1181,7 +1265,11 @@ Expected: FAIL — a nested spoiler currently renders through the generic `{% el
       {% for child in obj.resolved_children %}
         {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk %}
       {% empty %}
-        <li class="empty-state">{% trans "This spoiler is empty." %}</li>
+        {% if obj.body %}
+          <li class="empty-state">{% trans "This spoiler shows saved text (edit it with the pencil). Add an element below to start nesting content." %}</li>
+        {% else %}
+          <li class="empty-state">{% trans "This spoiler is empty." %}</li>
+        {% endif %}
       {% endfor %}
     </ol>
     {% include "courses/manage/editor/_add_menu.html" with nested=True in_spoiler=True parent=el.pk tab=obj.SLOT_ID %}
@@ -1271,4 +1359,4 @@ Update `matematyka-content-import-status.md`: mark nestable-spoiler SHIPPED with
 
 **2. Placeholder scan:** every code step shows the actual code; test steps show real assertions. The Task 9 client tests carry an explicit implementer note to swap the inline `__import__` shim for the project's `client`/`make_pa` fixtures and to scope the card-hiding assertion — the behavioral contract is fully pinned.
 
-**3. Type consistency:** `SpoilerElement.SLOT_ID` (`"only"`), `resolved_children()`, `join_row()`, `render(*, element, state, slug, node_pk)`, `SPOILER_CHILD_TYPES`, `_spoiler_has_math`, `_walk_in_spoiler`, `_flatten_tabs_inline`, and the `{type:"spoiler", label, elements}` dict shape are used identically across Tasks 1–9.
+**3. Type consistency:** `SpoilerElement.SLOT_ID` (`"only"`), `resolved_children()`, `join_row()`, `render(*, element, state, slug, node_pk)`, `SPOILER_CHILD_TYPES`, `_spoiler_has_math`, `_emit_solution_region`, `_flatten_tabs_inline`, and the `{type:"spoiler", label, elements}` dict shape are used identically across Tasks 1–9.
