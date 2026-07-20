@@ -21,6 +21,7 @@ from courses.models import ChoiceQuestionElement
 from courses.models import ContentNode
 from courses.models import Element
 from courses.models import FillBlankQuestionElement
+from courses.models import FillGateElement
 from courses.models import FillTableElement
 from courses.models import MediaAsset
 from courses.models import RevealGateElement
@@ -193,6 +194,29 @@ def test_build_tabs_nests_children_under_join_with_tab_id(tmp_path):
     assert kids.count() == 3
     assert set(kids.values_list("tab_id", flat=True)) == {"t000000", "t000001"}
     assert kids.filter(tab_id="t000001").count() == 2
+
+
+def test_build_fill_gate(tmp_path):
+    from courses.fillblank import SENTINEL
+
+    course = CourseFactory()
+    unit = _unit(course)
+    obj = build_element(
+        course,
+        unit,
+        {
+            "type": "fill_gate",
+            "stem": "Krok: " + SENTINEL + "0" + SENTINEL,
+            "answers": [["8"]],
+        },
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert isinstance(obj, FillGateElement)
+    assert obj.answers == [["8"]]
+    assert SENTINEL + "0" + SENTINEL in obj.stem
+    assert Element.objects.filter(unit=unit).count() == 1
 
 
 def test_build_fillblank(tmp_path):

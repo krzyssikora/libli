@@ -11,6 +11,7 @@ from courses.models import ChoiceGridQuestionElement
 from courses.models import ChoiceQuestionElement
 from courses.models import Element
 from courses.models import FillBlankQuestionElement
+from courses.models import FillGateElement
 from courses.models import FillTableElement
 from courses.models import GridColumn
 from courses.models import GridRow
@@ -106,6 +107,18 @@ def build_element(
                     tab_id=t["id"],
                 )
         return obj
+    if etype == "fill_gate":
+        # Group B #8: "Fill in & confirm" gate. Stem keeps its sentinel blank
+        # token(s); a correct answer reveals the following sibling elements.
+        from courses.switchgrid import sanitize_stem_segments
+
+        return _attach(
+            unit,
+            FillGateElement.objects.create(
+                stem=sanitize_stem_segments(el.get("stem", "")),
+                answers=el.get("answers", []),
+            ),
+        )
     if etype == "fillblank":
         # Group B #5: an inline fill-in-the-blank self-check. The stem keeps its
         # sentinel blank tokens; non-token segments are sanitized here.

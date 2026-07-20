@@ -642,15 +642,17 @@ JSON.stringify({10: [8, 0]}));</script>
 """
 
 
-def test_fill_show_next_becomes_reveal_gate_chain_with_fillblanks():
+def test_fill_show_next_becomes_fill_gate_chain():
+    # "Fill in & confirm": each step's blank IS the gate — answering reveals the
+    # next step. No plain reveal_gate/fillblank; the fill_show_next buttons drop.
     elements, flags = parse_lesson(FILL_SHOW_NEXT, "x.html")
     assert not any(e.get("flagged") for e in elements)
-    types = [e["type"] for e in elements]
-    assert types.count("reveal_gate") == 2
-    fbs = [e for e in elements if e["type"] == "fillblank"]
-    assert len(fbs) == 2
-    assert fbs[0]["blanks"] == [["8"]]
-    assert fbs[1]["blanks"] == [["0"]]
+    gates = [e for e in elements if e["type"] == "fill_gate"]
+    assert len(gates) == 2
+    assert gates[0]["answers"] == [["8"]]
+    assert gates[1]["answers"] == [["0"]]
+    assert "￿" in gates[0]["stem"]  # a sentinel blank token in the gate prompt
+    assert not any(e["type"] in ("reveal_gate", "fillblank") for e in elements)
     assert any("Wstęp" in e.get("body", "") for e in elements if e["type"] == "text")
 
 

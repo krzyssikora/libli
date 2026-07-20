@@ -306,10 +306,9 @@ def _walk(nodes, elements, flags, consumed, state):
         if any(c in _CHROME_CLASSES for c in classes_here):
             continue  # Rule 2: JS-only feedback/iframe chrome -> drop silently
 
-        if "show_next" in classes_here or "fill_show_next" in classes_here:
-            # Group B #1/#8: a "pokaż dalej" progressive-reveal trigger -> RevealGate.
-            # The following .show_step / .fill_step content becomes the revealed
-            # siblings (a fill_step's fill_answer becomes an inline FillBlank).
+        if "show_next" in classes_here:
+            # Group B #1: a "pokaż dalej" progressive-reveal trigger -> RevealGate.
+            # The following .show_step content becomes the revealed siblings.
             elements.append(
                 {
                     "type": "reveal_gate",
@@ -321,10 +320,23 @@ def _walk(nodes, elements, flags, consumed, state):
                 consumed.add(id(step))
                 _walk(list(step.children), elements, flags, consumed, state)
             continue
-        if "show_step" in classes_here or "fill_step" in classes_here:
+        if "show_step" in classes_here:
             # Consumed by its gate above (skipped via `consumed`); an orphan one
             # with no preceding gate still descends its content in place.
             _walk(list(node.children), elements, flags, consumed, state)
+            continue
+        if "fill_show_next" in classes_here:
+            continue  # Group B #8: the fill_step's FillGate supplies the reveal
+        if "fill_step" in classes_here:
+            # Group B #8: "Fill in & confirm" — the step's blank IS the gate;
+            # a correct answer reveals the following siblings (the next step).
+            d = _fillblank_from_block(node, state)
+            if d["blanks"]:
+                elements.append(
+                    {"type": "fill_gate", "stem": d["stem"], "answers": d["blanks"]}
+                )
+            else:  # a fill_step with no input -> just reveal-only content
+                _walk(list(node.children), elements, flags, consumed, state)
             continue
         if "switch_steps" in classes_here:
             # Group B #2: cycler-gated progressive reveal -> SwitchGate chain.
@@ -744,9 +756,9 @@ def _next_show_step(nodes, start, consumed):
         if not isinstance(n, Tag):
             continue
         cls = n.get("class") or []
-        if ("show_step" in cls or "fill_step" in cls) and id(n) not in consumed:
+        if "show_step" in cls and id(n) not in consumed:
             return n
-        if "show_next" in cls or "fill_show_next" in cls:
+        if "show_next" in cls:
             return None  # the next gate begins before any step
     return None
 
