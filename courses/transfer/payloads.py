@@ -703,6 +703,7 @@ def validate_nesting(elements):
     parent chain deeper than one level -- that depth bound is what lets the editor's
     recursive row template terminate without a guard."""
     from courses.builder import NESTABLE_TYPE_KEYS
+    from courses.models import SpoilerElement
 
     # Step 4a applies the v2 shim before _exact_keys, so both keys are present.
     by_id = {el["id"]: el for el in elements}
@@ -713,15 +714,23 @@ def validate_nesting(elements):
         parent = by_id.get(parent_ref)
         if parent is None:
             _err(_("Element '%(el)s' references an unknown parent."), el=el["id"])
-        slot_key = _CONTAINER_SLOT_KEY.get(parent["type"])
-        if slot_key is None:
-            _err(
-                _("Element '%(el)s' has a parent that is not a container element."),
-                el=el["id"],
-            )
+        # Slot-membership: spoiler is a single-slot container with no `data` slot
+        # list, so its sole valid slot id is SpoilerElement.SLOT_ID; every other
+        # container reads its slot list from `data` via _CONTAINER_SLOT_KEY.
+        if parent["type"] == "spoiler":
+            valid_slot_ids = {SpoilerElement.SLOT_ID}
+        else:
+            slot_key = _CONTAINER_SLOT_KEY.get(parent["type"])
+            if slot_key is None:
+                _err(
+                    _("Element '%(el)s' has a parent that is not a container element."),
+                    el=el["id"],
+                )
+            valid_slot_ids = {s["id"] for s in parent["data"][slot_key]}
+        # Depth check runs for EVERY container (must NOT be skipped for spoiler).
         if parent["parent"] is not None:
             _err(_("Element '%(el)s' is nested more than one level deep."), el=el["id"])
-        if el["tab"] not in {s["id"] for s in parent["data"][slot_key]}:
+        if el["tab"] not in valid_slot_ids:
             _err(
                 _("Element '%(el)s' references a slot its parent does not have."),
                 el=el["id"],

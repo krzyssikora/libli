@@ -438,6 +438,9 @@ def walk_unit_joins(unit_pk, joins_by_unit):
             for col, children in obj.resolved_columns():
                 for child in children:
                     yield child, join, col["id"]
+        elif isinstance(obj, SpoilerElement):
+            for child in obj.resolved_children():
+                yield child, join, SpoilerElement.SLOT_ID
 
 
 def build_export(course, node=None, source_host="", *, drop_missing_media=True):
