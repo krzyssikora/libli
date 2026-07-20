@@ -122,3 +122,54 @@ def test_canonical_cells_shape_matches_normalize_data():
     normalized = FillTableElement.normalize_data(el.data)
     assert len(el.canonical_cells) == len(normalized["cells"])
     assert [len(r) for r in el.canonical_cells] == [len(r) for r in normalized["cells"]]
+
+
+def test_cell_image_kind_valid_media_preserved():
+    nd = FillTableElement.normalize_data(
+        {"cells": [[{"kind": "image", "media": 7, "alt": "graph", "halign": "center"}]]}
+    )
+    c = nd["cells"][0][0]
+    assert c == {"kind": "image", "media": 7, "alt": "graph",
+                 "halign": "center", "valign": "top"}
+
+
+@pytest.mark.parametrize("bad_media", [None, "7", 7.0, True, {"x": 1}])
+def test_cell_image_invalid_media_degrades_to_empty_static(bad_media):
+    # missing/non-int/bool media -> a safe empty static cell, never a broken image
+    nd = FillTableElement.normalize_data(
+        {"cells": [[{"kind": "image", "media": bad_media, "alt": "x"}]]}
+    )
+    c = nd["cells"][0][0]
+    assert c["kind"] == "static" and c["html"] == ""
+
+
+def test_cell_image_missing_media_key_degrades():
+    nd = FillTableElement.normalize_data({"cells": [[{"kind": "image", "alt": "x"}]]})
+    assert nd["cells"][0][0]["kind"] == "static"
+
+
+def test_cell_image_non_string_alt_coerced():
+    nd = FillTableElement.normalize_data({"cells": [[{"kind": "image", "media": 3, "alt": 9}]]})
+    assert nd["cells"][0][0]["alt"] == ""
+
+
+def test_sanitized_data_image_cell_keeps_media_trims_alt_no_html():
+    el = FillTableElement(
+        data={"cells": [[{"kind": "image", "media": 5, "alt": "  a graph  "}]]}
+    )
+    el.save()
+    cell = el.data["cells"][0][0]
+    assert cell["kind"] == "image" and cell["media"] == 5
+    assert cell["alt"] == "a graph"
+    assert "html" not in cell  # the else-branch's sanitize_cell must NOT run on image cells
+
+
+def test_image_only_fill_table_has_no_math():
+    # spec's has_math confirming test: _fill_table_has_math scans non-answer cells'
+    # html; an image cell has no html key, so it contributes no math.
+    from courses.views import _fill_table_has_math
+
+    el = FillTableElement(data={"cells": [[{"kind": "image", "media": 5, "alt": "x"},
+                                           {"kind": "answer", "answer": "1"}]]})
+    el.save()
+    assert _fill_table_has_math(el) is False

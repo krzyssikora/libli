@@ -929,6 +929,24 @@ class FillTableElement(ElementBase):
                 "halign": halign,
                 "valign": valign,
             }
+        if raw.get("kind") == "image":
+            media = raw.get("media")
+            if isinstance(media, int) and not isinstance(media, bool):
+                alt = raw.get("alt")
+                return {
+                    "kind": "image",
+                    "media": media,
+                    "alt": alt if isinstance(alt, str) else "",
+                    "halign": halign,
+                    "valign": valign,
+                }
+            # invalid/missing media -> safe empty static (never a broken <img>)
+            return {
+                "kind": FillTableElement.STATIC,
+                "html": "",
+                "halign": halign,
+                "valign": valign,
+            }
         return {
             "kind": FillTableElement.STATIC,
             "html": raw.get("html") or "",
@@ -1004,6 +1022,10 @@ class FillTableElement(ElementBase):
                     if cell.get("kind") == FillTableElement.ANSWER:
                         a = cell.get("answer")
                         cell["answer"] = a.strip() if isinstance(a, str) else ""
+                    elif cell.get("kind") == "image":
+                        alt = cell.get("alt")
+                        cell["alt"] = alt.strip() if isinstance(alt, str) else ""
+                        # leave `media` untouched; write NO html key
                     else:
                         cell["html"] = sanitize_cell(cell.get("html", ""))
         return data
