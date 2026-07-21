@@ -156,7 +156,8 @@ Change `has_questions` to a flat unit-wide query, matching the gate flags:
 `has_questions = node.elements.filter(content_type_id__in=question_ct_ids).exists()`
 (`question_ct_ids` is already computed at `views.py:334`). This detects a question
 anywhere in the unit. No other question type is nestable today, so this only newly
-fires for a spoiler-nested `fillblank`; top-level behaviour is unchanged.
+fires for a `fillblank` nested in a spoiler (or, per Layer 1.2, a tab/column);
+top-level behaviour is unchanged.
 
 ### Layer 3 — Reveal-cascade spoiler scope (the one real engineering item)
 
