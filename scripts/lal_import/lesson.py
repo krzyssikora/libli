@@ -698,27 +698,38 @@ def _emit_switch_gate_chain(container, elements, flags, consumed, state):
     answers = state.get("switch_answers", {}).get(_enclosing_qid(container), [])
     gate_idx = 0
     for step in container.find_all(class_="switch_step", recursive=False):
-        content = []
-        for child in step.children:
-            if _is_switch_gate_line(child):
-                _walk(content, elements, flags, consumed, state)
-                content = []
-                stem, cyclers = switch_line_stem_cyclers(child)
-                options = cyclers[0]["options"] if cyclers else []
-                raw = answers[gate_idx] if gate_idx < len(answers) else 0
-                options, answer = strip_lead_prompt(options, raw)
-                elements.append(
-                    {
-                        "type": "switch_gate",
-                        "stem": stem,
-                        "options": options,
-                        "answer": answer,
-                    }
-                )
-                gate_idx += 1
-            else:
-                content.append(child)
-        _walk(content, elements, flags, consumed, state)
+        gate_idx = _emit_switch_step(
+            step, elements, flags, consumed, state, answers, gate_idx
+        )
+
+
+def _emit_switch_step(step, elements, flags, consumed, state, answers, gate_idx):
+    """Emit one .switch_step's content, splitting on its gate line(s): content
+    before a gate line -> native siblings; the gate line -> a switch_gate dict
+    (answer looked up positionally in `answers` by `gate_idx`). Returns the
+    updated gate_idx so the caller threads it across steps."""
+    content = []
+    for child in step.children:
+        if _is_switch_gate_line(child):
+            _walk(content, elements, flags, consumed, state)
+            content = []
+            stem, cyclers = switch_line_stem_cyclers(child)
+            options = cyclers[0]["options"] if cyclers else []
+            raw = answers[gate_idx] if gate_idx < len(answers) else 0
+            options, answer = strip_lead_prompt(options, raw)
+            elements.append(
+                {
+                    "type": "switch_gate",
+                    "stem": stem,
+                    "options": options,
+                    "answer": answer,
+                }
+            )
+            gate_idx += 1
+        else:
+            content.append(child)
+    _walk(content, elements, flags, consumed, state)
+    return gate_idx
 
 
 def _one_choice_rows(node):
