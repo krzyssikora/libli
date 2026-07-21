@@ -118,9 +118,8 @@ _INTERACTIVE_MARKERS = {
     # children (Group B #6), so the container is handled, not placeholdered.
     # NB: mark_done is NOT a marker — a self-tracking checklist maps to a native
     # MarkDoneElement (Group B #13); the run of .mark_done rows is gathered.
-    # slideshow
-    "show_slides",
-    "slide_show",
+    # NB: show_slides/slide_show are NOT markers — a slideshow maps to a Spoiler
+    # holding its slide steps + image (Group B #15); the arrow nav is chrome.
     "user_input_enter",
 }
 _BINARY_ATTRS = ("data-binary-choose", "data-binary-choices-id")
@@ -362,6 +361,16 @@ def _walk(nodes, elements, flags, consumed, state):
             # with no preceding gate still descends its content in place.
             _walk(list(node.children), elements, flags, consumed, state)
             continue
+        if "show_slides" in classes_here:
+            # Group B #15: a "pokaż rozwiązanie" slideshow -> a Spoiler holding the
+            # slide steps (text/math) + any slide image; arrow navigation is chrome.
+            ss = _next_slide_show(nodes, i, consumed)
+            if ss is not None:
+                consumed.add(id(ss))
+                _emit_slideshow(node, ss, elements, flags, consumed, state)
+            continue
+        if "slide_show" in classes_here:
+            continue  # consumed by its show_slides button (or an orphan -> skip)
         if "fill_show_next" in classes_here:
             continue  # Group B #8: the fill_step's FillGate supplies the reveal
         if "fill_step" in classes_here:
@@ -859,6 +868,32 @@ def _emit_truth_false(node, state):
         correct = 0 if (i < len(answers) and answers[i] == 1) else 1
         rows.append({"statement": statement, "correct": correct})
     return [{"type": "choice_grid", "columns": [col_true, col_false], "rows": rows}]
+
+
+def _next_slide_show(nodes, i, consumed):
+    """The nearest following unconsumed .slide_show sibling of a show_slides button."""
+    for j in range(i + 1, len(nodes)):
+        n = nodes[j]
+        if (
+            isinstance(n, Tag)
+            and "slide_show" in (n.get("class") or [])
+            and id(n) not in consumed
+        ):
+            return n
+    return None
+
+
+def _emit_slideshow(button, slide_show, elements, flags, consumed, state):
+    """Group B #15: a slideshow -> a Spoiler ("pokaż rozwiązanie") holding the slide
+    steps and image. The slides are `.slide_title` text blocks; the `.slide_container`
+    carries the figure. The left/right arrow navigation (`.arrows` imgs) is chrome and
+    dropped by taking only these meaningful parts."""
+    label = button.get_text(strip=True) or "pokaż"
+    parts = list(slide_show.find_all(class_="slide_title"))
+    img_container = slide_show.find(class_="slide_container")
+    if img_container is not None:
+        parts.append(img_container)
+    _emit_solution_region(label, parts, elements, flags, consumed, state)
 
 
 def _emit_more_less(node, state):

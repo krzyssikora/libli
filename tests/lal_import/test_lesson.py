@@ -881,6 +881,42 @@ def test_input_show_solution_button_becomes_spoiler():
     assert "rozwiazanie" in joined  # solution content preserved (inside the spoiler)
 
 
+# --- slideshow (show_slides + slide_show) -> Spoiler with steps + image ---
+SLIDESHOW = r"""
+<div class="show_slides">pokaz rozwiazanie</div>
+<div class="slide_show hidden">
+  <div class="arrows">
+    <div class="container_arrow container_arrow_left">
+      <img class="arrow_left" src="static/left_arrow.png"/>
+    </div>
+    <div class="container_slide_title">
+      <div class="slide_title">Krok pierwszy \(x=1\).</div>
+      <div class="slide_title">Krok drugi.</div>
+    </div>
+    <div class="container_arrow container_arrow_right">
+      <img class="arrow_right" src="static/right_arrow.png"/>
+    </div>
+  </div>
+  <div class="slide_container"><img src="static/graph.png"/></div>
+</div>
+"""
+
+
+def test_slideshow_becomes_spoiler_with_steps_and_image():
+    elements, flags = parse_lesson(SLIDESHOW, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    spoilers = [e for e in elements if e["type"] == "spoiler"]
+    assert len(spoilers) == 1
+    assert "rozwiazanie" in spoilers[0]["label"]
+    kids = spoilers[0]["elements"]
+    assert any(k["type"] == "text" and "Krok pierwszy" in k["body"] for k in kids)
+    imgs = [k for k in kids if k["type"] == "image"]
+    assert any(k["media_src"] == "static/graph.png" for k in imgs)
+    # the arrow navigation images are dropped (chrome)
+    joined = " ".join(str(k) for k in kids)
+    assert "left_arrow" not in joined and "right_arrow" not in joined
+
+
 # --- Group B #6: ks_tabs -> TabsElement (nested children) ---
 KS_TABS = r"""
 <div class="ks_tabs">
