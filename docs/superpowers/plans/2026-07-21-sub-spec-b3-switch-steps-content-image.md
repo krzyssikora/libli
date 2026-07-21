@@ -269,6 +269,7 @@ def test_switch_gate_continuity_with_nonstep_between():
     assert gates[0]["answer"] == 1
     assert gates[1]["answer"] == 0
     # the mid figure renders between the two gates
+    assert any(e["type"] == "image" for e in elements)  # clear RED msg under master
     order = [e["type"] for e in elements]
     img_i = next(i for i, e in enumerate(elements) if e["type"] == "image")
     assert order.index("switch_gate") < img_i < len(order) - 1
@@ -326,9 +327,12 @@ def test_switch_nonstep_bare_div_with_cycler_recovers_image():
 Run:
 ```bash
 DATABASE_URL=postgres://libli:libli@localhost:5432/libli_mat DJANGO_SETTINGS_MODULE=config.settings.local \
-  uv run pytest tests/lal_import/test_lesson.py -k "nonstep or gate_continuity" -v
+  uv run pytest tests/lal_import/test_lesson.py -k nonstep -v
 ```
-Expected: FAIL. `test_switch_nonstep_figure_before_steps_emitted`, `_image_table_unpacked`, `_bare_img_emitted`, `_bare_div_with_cycler_recovers_image` fail on the empty `imgs` list (images dropped today). `test_switch_gate_continuity_with_nonstep_between` fails because the `image` for `mid.png` is absent. `test_switch_nonstep_sibling_coupled_pairs_into_one_region` fails because today the non-step button+solution are dropped entirely (0 spoilers) — it is a regression guard for the buffer-and-flush choice, not a master-vs-design RED; to observe its per-child RED, temporarily flush each non-step child individually (see Step 4 note).
+Expected: FAIL (every new test is non-passing under master):
+- `test_switch_nonstep_figure_before_steps_emitted`, `_image_table_unpacked`, `_bare_img_emitted`, `_bare_div_with_cycler_recovers_image` — assertion failure on the empty `imgs` list (images dropped today).
+- `test_switch_gate_continuity_with_nonstep_between` — assertion failure on `assert any(e["type"] == "image" …)` (the `mid.png` image is absent under master; that guard is placed first so the message is clear rather than a `StopIteration` from the later `next(...)`).
+- `test_switch_nonstep_sibling_coupled_pairs_into_one_region` — fails because under master the non-step button + solution are dropped **entirely** (0 spoilers ≠ 1). Note this test guards TWO things: (a) content recovery (RED vs master, as here), and (b) the *buffer-and-flush* choice specifically — which master's total-drop does not exercise. To see (b)'s RED (per-child mis-pairing → 2 flagged elements), use the temporary per-child mutation in Step 4's note.
 
 - [ ] **Step 3: Implement — iterate all direct children with buffer-and-flush**
 
@@ -365,7 +369,7 @@ def _emit_switch_gate_chain(container, elements, flags, consumed, state):
 Run:
 ```bash
 DATABASE_URL=postgres://libli:libli@localhost:5432/libli_mat DJANGO_SETTINGS_MODULE=config.settings.local \
-  uv run pytest tests/lal_import/test_lesson.py -k "nonstep or gate_continuity" -v
+  uv run pytest tests/lal_import/test_lesson.py -k nonstep -v
 ```
 Expected: PASS (all six new tests).
 
@@ -415,11 +419,13 @@ Not a unit test — the corpus measure and live render confirm the slice end-to-
 
 Run the classifier (session scratchpad; parses source HTML live, so no reseed needed). Concrete path this session:
 ```bash
+# THIS-SESSION-ONLY literal path (the UUID is this session's scratchpad dir).
+# In any other session this path won't exist — use that session's own scratchpad
+# dir, or reconstruct the script per the spec's "Integration / count" algorithm.
 SCRATCH="C:/Users/krzys/AppData/Local/Temp/claude/C--Users-krzys-Documents-Python-own-libli--claude-worktrees-matematyka-content-import/3d978e0d-998a-49aa-ba37-f4912685068b/scratchpad"
 PYTHONPATH="$PWD" DATABASE_URL=postgres://libli:libli@localhost:5432/libli_mat DJANGO_SETTINGS_MODULE=config.settings.local \
   uv run python "$SCRATCH/classify_lost_imgs.py"
 ```
-(If a fresh session lacks the script, reconstruct per the spec's "Integration / count" reconstruction algorithm.)
 Expected: `TOTAL lost = 23 across 12 files` (was 40 / 21). The nine B3 files (330, 080, 290, 280, 090_wstep, 020_wstep, 180_trapezy, 620_podobne, 300_odleglosci) drop out of the losing set; no NEW file appears. If any B3 file still shows a lost image, investigate before proceeding.
 
 - [ ] **Step 2: 007/funkcje_030 gate cross-check (optional manual)**
