@@ -103,6 +103,27 @@ def _unit(course):
     )
 
 
+def test_build_mark_done(tmp_path):
+    from courses.models import MarkDoneElement
+
+    course = CourseFactory()
+    unit = _unit(course)
+    obj = build_element(
+        course,
+        unit,
+        {"type": "mark_done", "items": ["pierwsze", r"\(y=3x-1\)", "trzecie"]},
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert isinstance(obj, MarkDoneElement)
+    assert [it.content for it in obj.items.all()] == [
+        "pierwsze",
+        r"\(y=3x-1\)",
+        "trzecie",
+    ]
+
+
 def test_build_text_element(tmp_path):
     course = CourseFactory()
     unit = _unit(course)

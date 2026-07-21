@@ -791,6 +791,29 @@ def test_truth_false_becomes_choice_grid():
     assert "Brawo" not in joined and "potwierdź" not in joined
 
 
+# --- Group B #13: mark_done -> MarkDoneElement self-tracking checklist ---
+MARK_DONE = r"""
+<div id="question90">
+  <div class="question"></div>
+  <div class="question_text">Zaznacz, kiedy zrobisz.</div>
+  <div><div class="mark_done statement">pierwsze</div><input type="checkbox"/></div>
+  <div><div class="mark_done statement">\(y=3x-1\)</div><input type="checkbox"/></div>
+  <div><div class="mark_done statement">trzecie</div><input type="checkbox"/></div>
+</div>
+"""
+
+
+def test_mark_done_becomes_markdone_checklist():
+    elements, flags = parse_lesson(MARK_DONE, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    md = [e for e in elements if e["type"] == "mark_done"]
+    assert len(md) == 1
+    # each .mark_done.statement -> one item (get_text keeps literal \(..\) math)
+    assert md[0]["items"] == ["pierwsze", r"\(y=3x-1\)", "trzecie"]
+    joined = " ".join(str(e) for e in elements)
+    assert "Zaznacz" in joined  # the prompt (question_text) is kept as preceding text
+
+
 # --- Group B #6: ks_tabs -> TabsElement (nested children) ---
 KS_TABS = r"""
 <div class="ks_tabs">

@@ -19,6 +19,8 @@ from courses.models import GridRow
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
+from courses.models import MarkDoneElement
+from courses.models import MarkDoneItem
 from courses.models import MathElement
 from courses.models import MultiGridColumn
 from courses.models import MultiGridQuestionElement
@@ -283,6 +285,13 @@ def build_element(
             unit,
             SwitchGridElement.objects.create(prompt=el.get("prompt", ""), lines=lines),
         )
+    if etype == "mark_done":
+        # Group B #13: a self-tracking checklist. Each item is plain text + KaTeX
+        # (MarkDoneItem.content, varchar(500)); no marks, lesson-only.
+        md = MarkDoneElement.objects.create(prompt=el.get("prompt", "")[:500])
+        for i, item in enumerate(el.get("items", [])):
+            MarkDoneItem.objects.create(element=md, content=item[:500], order=i)
+        return _attach(unit, md)
     if etype == "iframe":
         url = canonicalize_geogebra_url(el["url"])
         return _attach(

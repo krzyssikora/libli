@@ -118,8 +118,9 @@ _INTERACTIVE_MARKERS = {
     "more_less_equal",
     # NB: ks_tabs is NOT a marker — it maps to a native TabsElement with nested
     # children (Group B #6), so the container is handled, not placeholdered.
-    # mark-done, slideshow
-    "mark_done",
+    # NB: mark_done is NOT a marker — a self-tracking checklist maps to a native
+    # MarkDoneElement (Group B #13); the run of .mark_done rows is gathered.
+    # slideshow
     "show_slides",
     "slide_show",
     "user_input_enter",
@@ -393,6 +394,14 @@ def _walk(nodes, elements, flags, consumed, state):
             # (the .truth/.false button labels, e.g. tak/nie). correct_choices[qid]
             # holds 1 (truth) / 0 (false) per row.
             elements.extend(_emit_truth_false(node, state))
+            continue
+        if (
+            not _is_structural_container(node)
+            and node.find(class_="mark_done") is not None
+        ):
+            # Group B #13: a self-tracking checklist -> MarkDoneElement (gather the
+            # run of consecutive sibling .mark_done rows; no correct answer/chrome).
+            _emit_mark_done(nodes, i, elements, consumed)
             continue
         if (
             not _is_structural_container(node)
@@ -826,6 +835,34 @@ def _emit_truth_false(node, state):
         correct = 0 if (i < len(answers) and answers[i] == 1) else 1
         rows.append({"statement": statement, "correct": correct})
     return [{"type": "choice_grid", "columns": [col_true, col_false], "rows": rows}]
+
+
+def _emit_mark_done(nodes, start, elements, consumed):
+    """Group B #13: consecutive sibling `.mark_done` rows (each a `.mark_done`
+    statement beside a checkbox) -> one self-tracking MarkDoneElement checklist.
+    Item text uses get_text (literal <) — MarkDoneItem.content is plain text +
+    KaTeX (autoescaped), like Choice.text / ChoiceGrid labels."""
+    run = []
+    for j in range(start, len(nodes)):
+        n = nodes[j]
+        if isinstance(n, NavigableString):
+            if n.strip():
+                break
+            continue  # whitespace between rows
+        if not isinstance(n, Tag):
+            break
+        if id(n) in consumed or n.find(class_="mark_done") is None:
+            break
+        run.append(n)
+    for n in run[1:]:  # nodes[start] is the current node; the rest are consumed
+        consumed.add(id(n))
+    items = []
+    for row in run:
+        stmt = row.find(class_="mark_done")
+        if stmt is not None:
+            items.append(stmt.get_text(" ", strip=True))
+    if items:
+        elements.append({"type": "mark_done", "items": items})
 
 
 def _emit_multi_many(nodes, start, elements, flags, consumed, state):
