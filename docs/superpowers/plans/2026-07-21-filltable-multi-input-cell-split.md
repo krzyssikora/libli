@@ -40,13 +40,19 @@
 
 Append to `tests/lal_import/test_tables.py`. Uses the existing `_t` / `_fill_table` soup helper (single-`<table>`); build `answer_by_input` from the input nodes.
 
+Note: `fill_table_element` is ALREADY imported at the top of this test file — do NOT re-import it in the appended block (a second module-level import trips ruff `E402`/`F811` and fails the Step 6 gate). Add only the helpers/tests below.
+
 ```python
-from scripts.lal_import.tables import fill_table_element
-
-
 def _ft(html):
+    # Mirror parse_lesson: escape math <,> on the RAW string BEFORE parsing, so a
+    # cell like \(a<b\) reaches fill_table_element as \(a&lt;b\) exactly as in
+    # production (html.parser would otherwise mis-read `<b\)` as a tag and swallow
+    # the following <input>).
     from bs4 import BeautifulSoup
-    return BeautifulSoup(html, "html.parser").find("table")
+
+    from scripts.lal_import.mathsafe import escape_math_delimited
+
+    return BeautifulSoup(escape_math_delimited(html), "html.parser").find("table")
 
 
 def _answers(table, values):
@@ -70,7 +76,13 @@ def test_vector_cell_splits_into_bracket_answer_comma_answer_bracket():
 
 
 def test_wrapped_inputs_still_split_two_answers():
-    # inputs inside a <span> — recursive find_all + whole-td decode_contents must descend
+    # inputs inside a <span> — recursive find_all + whole-td decode_contents must
+    # descend. NOTE (spec-documented limitation): the token split cuts the <span>
+    # open, so the static segments are unbalanced fragments ("<span>\([\)" …
+    # "\(]\)</span>"). This is accepted: `span` is not in sanitize_cell's CELL_TAGS,
+    # so both fragments strip to clean math at load. This test only asserts the
+    # ANSWER cells (the correctness-bearing part); static-fragment balancing is the
+    # loader's sanitize_cell/nh3 job, not the parser's.
     t = _ft(
         '<table><tr><td><span>\\([\\) <input class="table_input"> \\(,\\) '
         '<input class="table_input"> \\(]\\)</span></td></tr></table>'
@@ -161,8 +173,8 @@ def test_single_input_table_regression_unchanged():
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `DATABASE_URL=postgres://libli:libli@localhost:5432/libli_mat DJANGO_SETTINGS_MODULE=config.settings.local uv run pytest tests/lal_import/test_tables.py -v -k "vector or wrapped or reescaped or adjacent or interleaved or padded"`
-Expected: FAIL — today a ≥2-input `<td>` collapses to ONE answer cell (first input only), so the split/kinds assertions fail.
+Run: `DATABASE_URL=postgres://libli:libli@localhost:5432/libli_mat DJANGO_SETTINGS_MODULE=config.settings.local uv run pytest tests/lal_import/test_tables.py -v -k "vector or wrapped or reescaped or adjacent or interleaved or padded or real_content or single_input"`
+Expected: the ≥2-input tests FAIL — today such a `<td>` collapses to ONE answer cell (first input only), so the split/kinds assertions fail. (`test_single_input_cell_unchanged` and `test_single_input_table_regression_unchanged` may already PASS pre-implementation — they assert the unchanged single-input path; that's fine, they guard against over-splitting once the ≥2 branch exists.)
 
 - [ ] **Step 3: Add the helpers**
 
@@ -288,7 +300,7 @@ git commit -m "feat(lal-parser): split multi-input fill-table cells into columns
 Not a task — the SDD driver runs this and reports to the user.
 
 1. Reseed: `uv run python -m scripts.lal_import.parser 110_przeksztalcanie_wykresow_funkcji --source-root "C:/Users/krzys/Documents/teaching/LAL/html" --force`.
-2. Assert the count recovered: re-parsing `wykresy_20` now yields **10** answer cells (was 5) — one per source input — and the `[ , ]` brackets are static cells. (A quick shell/`parse_lesson` check, or add an integration test.)
+2. Assert the count recovered: re-parsing `wykresy_20` now yields **one answer cell per source `table_input`** (previously collapsed to one answer per multi-input cell), and the `[ , ]` brackets are static cells. Derive the expected number from the actual input count at run time (count `find_all(class_="table_input")` in the source table) rather than hardcoding — for `wykresy_20` this is 10 (was 5).
 3. Reload part 110 into `libli_mat` (`import_lal_content … --allow-html`).
 4. Server-side render `u/286`: each vector row is `[img] [ [x] , [y] ]` — two input boxes + bracket notation. Hand the user `/courses/matematyka/u/286/` (DEBUG server) to confirm the vector answer format matches the original.
 5. Confirm the image-loss measure is unchanged (this is answer fidelity, not image recovery).
