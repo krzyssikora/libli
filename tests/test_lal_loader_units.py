@@ -103,6 +103,33 @@ def _unit(course):
     )
 
 
+def test_upsert_node_preserves_manual_title_on_reload():
+    # A manual rename in the editor (chapters seed as "__PLACEHOLDER chapter N__")
+    # must survive an idempotent reload -- the loader re-seeds titles only on CREATE.
+    course = CourseFactory()
+    created = upsert_node(course, None, 0, "chapter", "__PLACEHOLDER chapter 1__")
+    created.title = "Liczby rzeczywiste"  # user renames in the editor
+    created.save(update_fields=["title"])
+    # reload the part: the manifest still carries the placeholder title
+    again = upsert_node(course, None, 0, "chapter", "__PLACEHOLDER chapter 1__")
+    assert again.pk == created.pk
+    again.refresh_from_db()
+    assert again.title == "Liczby rzeczywiste"  # preserved, NOT reverted
+
+
+def test_upsert_node_still_syncs_unit_type_on_reload():
+    # unit_type is structural (lesson/quiz), not user-edited: keep it in sync with
+    # the source even while the (possibly renamed) title is preserved.
+    course = CourseFactory()
+    created = upsert_node(course, None, 0, "unit", "Wektory", unit_type="lesson")
+    created.title = "Wektory (moje)"  # user rename
+    created.save(update_fields=["title"])
+    again = upsert_node(course, None, 0, "unit", "Wektory", unit_type="quiz")
+    again.refresh_from_db()
+    assert again.title == "Wektory (moje)"  # title preserved
+    assert again.unit_type == "quiz"  # structural change synced
+
+
 def test_build_mark_done(tmp_path):
     from courses.models import MarkDoneElement
 
@@ -727,13 +754,15 @@ def test_iframe_host_not_allowlisted_raises():
         )
 
 
-def test_upsert_is_idempotent_and_renames_in_place():
+def test_upsert_is_idempotent_and_keeps_existing_title():
     course = CourseFactory()
     n1 = upsert_node(course, None, 0, "part", "orig")
-    n2 = upsert_node(course, None, 0, "part", "renamed")
+    n2 = upsert_node(course, None, 0, "part", "manifest-title")
     assert n1.pk == n2.pk  # same node, matched by (course, order)
     n2.refresh_from_db()
-    assert n2.title == "renamed"
+    # the manifest title only seeds a node on create; an existing node keeps its
+    # (possibly user-renamed) title across reloads -- see the preserve tests above.
+    assert n2.title == "orig"
     assert ContentNode.objects.filter(course=course, parent=None).count() == 1
 
 

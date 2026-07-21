@@ -19,9 +19,13 @@ def upsert_node(course, parent, order, kind, title, unit_type=None):
             title=title,
             unit_type=unit_type,
         )
-    node.title = title
-    node.unit_type = unit_type
-    node.save(update_fields=["title", "unit_type"])
+    # An existing node KEEPS its title: a manual rename in the editor (chapters
+    # seed as "__PLACEHOLDER chapter N__") is user-owned and must survive an
+    # idempotent reload. The manifest title only seeds a node on first create.
+    # unit_type is structural (lesson/quiz), not user-edited, so keep it in sync.
+    if node.unit_type != unit_type:
+        node.unit_type = unit_type
+        node.save(update_fields=["unit_type"])
     return node
 
 
