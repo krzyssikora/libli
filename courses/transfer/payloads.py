@@ -723,11 +723,12 @@ def validate_nesting(elements):
         # container reads its slot list from `data` via _CONTAINER_SLOT_KEY.
         if parent["type"] == "spoiler":
             valid_slot_ids = {SpoilerElement.SLOT_ID}
-            # Defence-in-depth: match resolve_scope()'s static-leaf allowlist so an
-            # interactive/question child (reveal_gate, fillblank, ...) that slips
-            # past a hostile/older-loader archive is rejected here too, not just
-            # via the general NESTABLE_TYPE_KEYS check below (which is broader —
-            # it also permits e.g. reveal_gate as a tabs child).
+            # Defence-in-depth: match resolve_scope()'s spoiler allowlist
+            # (SPOILER_CHILD_TYPES = static + interactive leaves) so a still-disallowed
+            # child — a container like tabs, or a non-fillblank question — that slips
+            # past a hostile/older-loader archive is rejected here too, not just via
+            # the general NESTABLE_TYPE_KEYS check below (which is broader — it also
+            # permits e.g. a container type as a tabs child).
             if el["type"] not in SPOILER_CHILD_TYPES:
                 _err(
                     _("Element '%(el)s' may not be nested inside a spoiler."),
