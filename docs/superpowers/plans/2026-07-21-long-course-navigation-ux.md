@@ -18,6 +18,9 @@
 - **RED first:** every new test must be observed failing before its implementation lands. A passing test proves nothing until you've seen it fail.
 - **i18n:** new user-visible strings go in both `locale/en/LC_MESSAGES/django.po` and `locale/pl/LC_MESSAGES/django.po`. Never leave `#~` obsolete entries.
 - **CSS:** token-driven, no hardcoded colours. Monochrome `currentColor` line SVGs for icons.
+- **Formatting:** the test snippets in this plan are illustrative, not formatter output. Run
+  `uv run ruff format tests/` **before** the `ruff format --check` gate in each task's final
+  step, or the check fails on code this plan supplied verbatim.
 - **Commits:** one per task, scoped to that task's files. Verify `git branch --show-current` is `pipeline/long-course-navigation-ux` before every commit — parallel sessions share this repo directory.
 - **Branch/worktree:** all work happens in `C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/long-course-navigation-ux`.
 
@@ -264,11 +267,15 @@ request the fixture today and the snippet would otherwise `NameError`. At 1280×
 element-heavy unit selected, capture **light and dark**:
 
 ```python
+# Set data-theme directly — do NOT use page.emulate_media() here. This app themes via a
+# pre-paint script in base.html:14-29 that stamps data-theme on <html> ONCE at load; there
+# is no matchMedia change listener, so emulate_media() after goto() changes nothing and
+# BOTH screenshots would come out light. The same convention is already documented in this
+# file at test_builder_tree_layout (see its comment near :99-103).
 # tmp_path, not /tmp — this repo runs on Windows, where "/tmp/..." lands in C:	mp\.
-page.emulate_media(color_scheme="light")
-page.screenshot(path=str(tmp_path / "builder-panel-light.png"), full_page=False)
-page.emulate_media(color_scheme="dark")
-page.screenshot(path=str(tmp_path / "builder-panel-dark.png"), full_page=False)
+for scheme in ("light", "dark"):
+    page.evaluate(f"document.documentElement.setAttribute('data-theme', '{scheme}')")
+    page.screenshot(path=str(tmp_path / f"builder-panel-{scheme}.png"), full_page=False)
 print(f"screenshots in {tmp_path}")   # run with -s to see the path
 ```
 
@@ -405,9 +412,11 @@ These are authored after Step 3, so they cannot be observed failing the natural 
 
 - for `test_panel_scroll_resets_between_units`: temporarily delete `panel.scrollTop = 0;` from
   `setPanel`, run, confirm FAIL, restore;
-- for `test_notice_bar_is_visible_and_opaque_while_panel_scrolled`: temporarily delete the
-  `.builder__panel > .op-error` block from `builder.css`, run, confirm FAIL (on the background
-  assertion), restore.
+- for `test_notice_bar_is_visible_and_opaque_while_panel_scrolled`: delete only
+  `background: var(--danger-subtle);` from the `.builder__panel > .op-error` block, run, confirm
+  FAIL on the **background** assertion, restore. (Deleting the whole block would take
+  `position: sticky` with it, so the test would fail earlier on the viewport-position assertion
+  or time out waiting for visibility — a red that does not exercise the legibility half.)
 
 Append to `tests/test_e2e_builder_tree_layout.py`:
 

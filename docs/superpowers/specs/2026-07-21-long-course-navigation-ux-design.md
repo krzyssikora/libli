@@ -735,10 +735,13 @@ here is exactly what an eyeball misses:
 - `font-weight` on the active row resolves to 700.
 - A row carrying **both** `.is-done` and `.is-active` resolves `color` to the `--primary` value,
   not `--text-tertiary` — the source-order precedence requirement.
-- Focus the active row with a real `Tab` and assert `outline-width` resolves non-zero and
-  `outline-color` differs from the accent-bar colour. ("Does not double up into a muddy ring" is
-  a judgement, not a computed value — it belongs on the screenshot-review checklist, and is
-  listed there rather than faked as an assertion.)
+- Focus the active row with a real `Tab` and assert `outline-width` **and** `outline-offset`
+  both resolve non-zero. The ring deliberately shares `--primary` with the accent bar — one ring
+  colour for the whole rail, since summaries use it too — so what keeps them tellable apart is
+  the offset (a flush inset bar on the left edge versus an outline standing off the whole row),
+  not a second hue. ("Does not double up into a muddy ring" is a judgement, not a computed
+  value — it belongs on the screenshot-review checklist, and is listed there rather than faked
+  as an assertion.)
 
 Builder e2e — home file **`tests/test_e2e_builder_tree_layout.py`**, which already owns the
 `.builder__panel` rule Part 1 edits (it guards the 2:1 ratio and `min-width: 0`). Its existing
