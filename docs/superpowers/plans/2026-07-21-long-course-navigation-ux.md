@@ -74,19 +74,23 @@ def _seed_tall_course(slug):
     from courses.models import TextElement
 
     course = Course.objects.create(slug=slug, title="Tall Demo")
-    first = None
-    for i in range(40):
-        unit = ContentNode.objects.create(
+    units = [
+        ContentNode.objects.create(
             course=course, kind="unit", unit_type="lesson", title=f"Unit {i + 1}"
         )
-        if first is None:
-            first = unit
-    for _ in range(TALL_ELEMENT_COUNT):
-        Element.objects.create(
-            unit=first,
-            content_object=TextElement.objects.create(body=LONG_BODY),
-        )
-    return course, first
+        for i in range(40)
+    ]
+    # BOTH of the first two units get a tall element list. Unit 2 needs it because the
+    # scroll-reset test swaps from Unit 1 to Unit 2: if Unit 2's panel were short, the
+    # browser would clamp scrollTop to 0 on its own the moment the content shrank, and the
+    # test would pass with or without setPanel() — unable to go red for the right reason.
+    for unit in units[:2]:
+        for _ in range(TALL_ELEMENT_COUNT):
+            Element.objects.create(
+                unit=unit,
+                content_object=TextElement.objects.create(body=LONG_BODY),
+            )
+    return course, units[0]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -129,7 +133,9 @@ def test_tall_panel_keeps_actions_on_screen(page, live_server):
     overflow = page.locator(".builder__panel").evaluate(
         "el => el.scrollHeight - el.clientHeight"
     )
-    assert overflow > 0, "panel is not overflowing; seed more elements"
+    assert overflow > 0, (
+        "panel is not a scroll container — is the .builder__panel max-height/overflow rule applied?"
+    )
 
     vh = page.evaluate("() => window.innerHeight")
     box = page.locator(".builder__panel").get_by_text("Open editor").first.bounding_box()
@@ -170,7 +176,15 @@ def test_panel_not_sticky_when_stacked(page, live_server):
 uv run pytest tests/test_e2e_builder_tree_layout.py -m e2e -k "sticky or tall_panel or stacked" -v
 ```
 
-Expected: all three FAIL. `test_panel_stays_reachable_on_a_long_tree` and `test_tall_panel_keeps_actions_on_screen` fail on the viewport assertion (the buttons are above/below the fold); `test_panel_not_sticky_when_stacked` fails on `max-height` (currently `none` — it passes today, so **confirm it goes red after Step 3 is written wrong**; see Step 5).
+Expected, per test:
+- `test_panel_stays_reachable_on_a_long_tree` — FAIL on the viewport assertion: the buttons are
+  above the fold once you scroll down and select a late unit.
+- `test_tall_panel_keeps_actions_on_screen` — FAIL on the **precondition**, not the viewport
+  assertion: with no `max-height`/`overflow` yet, `scrollHeight - clientHeight == 0`. That is the
+  correct red for this state; the message says "panel is not a scroll container", so it points at
+  the missing CSS rather than at the seed.
+- `test_panel_not_sticky_when_stacked` — PASSES today (nothing is sticky yet). It is regression
+  cover, and Step 6 is where you prove it can go red.
 
 - [ ] **Step 3: Apply the CSS**
 
@@ -363,7 +377,16 @@ uv run pytest tests/test_builder_js_invariants.py -v
 
 Expected: PASS (2 passed).
 
-- [ ] **Step 5: Write the failing behavioural e2e**
+- [ ] **Step 5: Write the behavioural e2e — and falsify it explicitly**
+
+These are authored after Step 3, so they cannot be observed failing the natural way. That does
+**not** exempt them from the RED rule. After writing them, falsify each one before moving on:
+
+- for `test_panel_scroll_resets_between_units`: temporarily delete `panel.scrollTop = 0;` from
+  `setPanel`, run, confirm FAIL, restore;
+- for `test_notice_bar_is_visible_and_opaque_while_panel_scrolled`: temporarily delete the
+  `.builder__panel > .op-error` block from `builder.css`, run, confirm FAIL (on the background
+  assertion), restore.
 
 Append to `tests/test_e2e_builder_tree_layout.py`:
 
@@ -390,6 +413,11 @@ def test_panel_scroll_resets_between_units(page, live_server):
     page.locator(".tree__title", has_text="Unit 2").first.click()
     page.wait_for_function(
         "() => document.querySelector('.builder__panel').textContent.includes('Unit 2')"
+    )
+    # The NEW panel must also be able to hold a non-zero scrollTop, or the browser clamps
+    # it to 0 by itself and this assertion proves nothing.
+    assert panel.evaluate("el => el.scrollHeight - el.clientHeight") > 0, (
+        "Unit 2's panel does not overflow; it cannot demonstrate the reset"
     )
     assert panel.evaluate("el => el.scrollTop") == 0, (
         "new panel opened mid-scroll — every swap must go through setPanel()"
@@ -431,7 +459,12 @@ def test_notice_bar_is_visible_and_opaque_while_panel_scrolled(page, live_server
 
     page.route("**/manage/courses/**", _abort_posts)
     # A tree reorder form — the panel has none. Its .catch calls notice(network).
-    page.locator(".builder__tree form[data-op] button[type='submit']").first.click()
+    # `:not([disabled])` is REQUIRED: _move_buttons.html renders "up" first and disables it
+    # on the first node, so the naive .first selector picks a disabled button and
+    # Playwright's actionability check hangs for 30s on a failure unrelated to the notice.
+    page.locator(
+        ".builder__tree form[data-op] button[type='submit']:not([disabled])"
+    ).first.click()
 
     bar = page.locator(".builder__panel > .op-error")
     bar.wait_for(state="visible")
@@ -450,7 +483,8 @@ def test_notice_bar_is_visible_and_opaque_while_panel_scrolled(page, live_server
 uv run pytest tests/test_e2e_builder_tree_layout.py -m e2e -v
 ```
 
-Expected: PASS. If `test_panel_scroll_resets_between_units` passes before Step 3, your seed is not overflowing — increase the element count until it fails first.
+Expected: PASS — and each of the two new tests has been seen FAIL under the Step 5
+falsifications. A green run you never saw go red is not evidence.
 
 - [ ] **Step 7: Lint and commit**
 
@@ -525,7 +559,10 @@ def test_stamp_current_chain_marks_only_the_ancestor_chain():
     )
     ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=sibling_chap)
     part_b = ContentNodeFactory(course=course, kind="part", parent=None, unit_type=None)
-    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=part_b)
+    # A deeper GROUP in an unrelated branch — a sibling root alone would not prove the pass
+    # stops descending outside the chain.
+    chap_b = ContentNodeFactory(course=course, kind="chapter", parent=part_b, unit_type=None)
+    ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=chap_b)
 
     tree = build_outline(course, student)
     _stamp_current_chain(tree, target.pk)
@@ -543,7 +580,8 @@ def test_stamp_current_chain_marks_only_the_ancestor_chain():
     assert flags[chap_a.pk] is True, "the parent chapter must be stamped"
     assert flags[part_a.pk] is True, "the grandparent part must be stamped"
     assert flags[sibling_chap.pk] is False, "a sibling group must NOT be stamped"
-    assert flags[part_b.pk] is False, "an unrelated branch must NOT be stamped"
+    assert flags[part_b.pk] is False, "an unrelated root must NOT be stamped"
+    assert flags[chap_b.pk] is False, "a deeper group in an unrelated branch must NOT be stamped"
     assert all(pk in flags for pk in (target.pk, chap_a.pk, part_a.pk)), "key must be present"
 
 
@@ -663,15 +701,19 @@ below with a deliberately wrong expectation of `0`, run it, and read the real co
 pytest's failure message (`django_assert_num_queries` reports "Expected to perform 0 queries
 but 3 were done"). Then substitute that number.
 
-Measure against **`origin/master`'s** behaviour: run this step *before* Step 3's changes are on
-disk, or `git stash` them for the measurement. Measuring after the change and hard-coding the
-result would make the assertion incapable of detecting the regression it exists to catch.
+Measure against **`origin/master`'s** behaviour. A bare `git stash` would remove the test file's
+new helper, imports, and this very test — so stash **only the production file**:
 
-```
-uv run pytest tests/test_unit_nav_render.py -k adds_no_queries -v
+```bash
+git stash push -- courses/rollups.py     # test file stays on disk
+uv run pytest tests/test_unit_nav_render.py -k adds_no_queries -v   # read the real count
+git stash pop
 ```
 
-Add to `tests/test_unit_nav_render.py`:
+Measuring after the change and hard-coding the result would make the assertion incapable of
+detecting the regression it exists to catch.
+
+First add the test to `tests/test_unit_nav_render.py`, then run the commands above:
 
 ```python
 @pytest.mark.django_db
@@ -762,9 +804,17 @@ def test_group_counter_renders_actual_numerals(client):
     client.force_login(student)
     html = client.get(f"/courses/{course.slug}/u/{units[0].pk}/").content.decode()
 
-    assert "1/3" in html, "counter must render real numerals from the rollup fields"
-    assert "of 3 required units completed" in html, "a11y sentence missing"
-    assert 'class="unit-tree__count" aria-hidden="true"' in html, (
+    import re
+    summaries = re.findall(r"<summary.*?</summary>", html, re.S)
+    assert summaries, "expected a group summary"
+    # Scoped to the summary: a document-wide "1/3" is ALSO satisfied by the footer's part
+    # chip (_unit_footer.html:38 renders "Part 1/3"), which would defeat the whole point of
+    # this assertion — catching a template-scoping slip that renders a bare "/".
+    assert any("unit-tree__count" in s and "1/3" in s for s in summaries), (
+        "counter must render real numerals from the rollup fields, inside the summary"
+    )
+    assert any("of 3 required units completed" in s for s in summaries), "a11y sentence missing"
+    assert any('class="unit-tree__count" aria-hidden="true"' in s for s in summaries), (
         "visible ratio must be aria-hidden so it is not double-announced"
     )
 
@@ -856,7 +906,13 @@ def test_childless_group_keeps_the_plain_head_shape(client):
 uv run pytest tests/test_unit_nav_render.py -k "group or details or counter or quiz or flat or childless" -v
 ```
 
-Expected: FAIL — no `<details>` in the output.
+Expected, per test — four go RED, two are green in both states:
+- RED: `test_group_renders_as_details_open_only_on_the_current_chain` (no `<details>` yet),
+  `test_group_counter_renders_actual_numerals`, `test_completed_group_renders_the_group_check`,
+  `test_all_quiz_group_renders_no_counter_and_no_check` (its positive anchor `summaries` is empty).
+- GREEN already, and correctly so: `test_flat_course_renders_no_details` (nothing renders
+  `unit-tree__group` today) and `test_childless_group_keeps_the_plain_head_shape` (the plain
+  `<div class="unit-tree__head">` is today's shape). They are regression cover — do not "fix" them.
 
 - [ ] **Step 3: Rewrite the group branch of the template**
 
@@ -938,6 +994,15 @@ git branch --show-current
 git add templates/courses/_unit_tree_node.html locale/en/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.po tests/test_unit_nav_render.py
 git commit -m "feat(unit-tree): fold groups into <details>, current chain open, with progress counters"
 ```
+
+> **This commit is knowingly incomplete — never deploy or bisect to it alone.** Between it and
+> Task 5's commit the tree is visibly degraded: the interposed `<details>` has broken
+> `.unit-tree__node--chapter > .unit-tree__head`, so chapters and sections lose their uppercase
+> micro-type; the summary has no flex layout; the native disclosure triangle still shows next to
+> the new chevron; and the chevron never rotates. Tasks 4 and 5 are one logical change split for
+> reviewability, and only their combination is a shippable state. (The spec's "no regression at
+> any point in the sequence" argument is about the 2A→2B boundary, which still holds; this
+> intra-2A split is the deliberate exception, recorded here so a bisect is not misread.)
 
 ---
 
@@ -1242,7 +1307,11 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
 .unit-tree__grouptitle { flex: 1; min-width: 0; overflow: hidden;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
-.unit-tree__chevron { flex: none; width: .75rem; height: .75rem;
+/* Scoped past .icon: app.css:108 sets `.icon { width: 1em; height: 1em }` at the SAME
+   (0,1,0) specificity, so an unscoped .unit-tree__chevron rule would win only by stylesheet
+   order — which a future extra_css reshuffle could silently flip. */
+summary.unit-tree__head > .unit-tree__chevron,
+.unit-tree__head > .unit-tree__chevron { flex: none; width: .75rem; height: .75rem;
   transition: transform 120ms ease; }
 .unit-tree__chevron--spacer { visibility: hidden; }   /* keeps childless titles aligned */
 /* Direct-child chain, NOT `details[open] .unit-tree__chevron`: the tree is recursive, so
@@ -1297,7 +1366,7 @@ The worst-case row needs a seed of its own — `_seed_grouped_course` produces d
 titles and `0/n` counters, none of the three ingredients. Add:
 
 ```python
-WORST_CASE_TITLE = "Wprowadzenie do funkcji trygonometrycznych i ich zastosowan"  # 58 chars
+WORST_CASE_TITLE = "Wprowadzenie do funkcji trygonometrycznych i ich zastosowania"  # 60 chars
 
 
 def _seed_worst_case_row(username, slug):
@@ -1332,9 +1401,35 @@ def _seed_worst_case_row(username, slug):
     return course, units[0]
 ```
 
-Then capture Playwright screenshots in **light and dark**, for the **rail and the drawer**, on
-a page seeded by that helper — the depth-3 section row will read `12/12 ✓` with the childless
-chapter directly below it. Confirm the worst-case title is still readable at 14rem; if it is
+The helper needs a harness, or it is dead code that no test calls. Add a temporary e2e that
+drives it:
+
+```python
+@pytest.mark.django_db(transaction=True)
+def test_capture_worst_case_row(browser, live_server, tmp_path):
+    """Screenshot harness for the worst-case summary row. Not an assertion test — it exists
+    to produce the review artifact. DELETE before opening the PR."""
+    _make_student("e2e_worst")
+    course, first_unit = _seed_worst_case_row("e2e_worst", "e2e-worst")
+
+    for scheme in ("light", "dark"):
+        ctx = browser.new_context(reduced_motion="reduce", color_scheme=scheme)
+        page = ctx.new_page()
+        _login(page, live_server, "e2e_worst")
+        page.goto(f"{live_server.url}/courses/{course.slug}/u/{first_unit.pk}/")
+        page.locator("[data-unit-tree]").screenshot(path=str(tmp_path / f"rail-{scheme}.png"))
+
+        page.set_viewport_size({"width": 480, "height": 800})
+        page.locator("[data-unit-drawer-open]").click()
+        page.locator("[data-unit-drawer]").screenshot(path=str(tmp_path / f"drawer-{scheme}.png"))
+        ctx.close()
+    print(f"screenshots in {tmp_path}")
+```
+
+Run it with `-s` so the `tmp_path` is printed, then open the four PNGs — the depth-3 section row
+will read `12/12 ✓` with the childless chapter directly below it. **Delete this test and
+`_seed_worst_case_row` before the PR** (they are a review artifact, not coverage); say so in the
+commit message if you keep them instead. Confirm the worst-case title is still readable at 14rem; if it is
 not, widening the rail is the sanctioned fallback — make that call explicitly rather than
 shipping an ellipsised landmark.
 
@@ -1344,7 +1439,7 @@ shipping an ellipsised landmark.
 uv run pytest tests/test_e2e_unit_nav.py -m e2e -v
 ```
 
-Expected: PASS, including all five pre-existing tests (their scroll arithmetic and locators now see the extra summary row — any breakage there is a real signal, not a fixture to paper over).
+Expected: PASS, including all six pre-existing tests (their scroll arithmetic and locators now see the extra summary row — any breakage there is a real signal, not a fixture to paper over).
 
 - [ ] **Step 7: Commit**
 
@@ -1386,20 +1481,41 @@ def test_expanding_the_rail_recentres_the_active_unit(browser, live_server):
     # the poll below succeeds with OR without centerActive(). The test could never go red.
     # (The pre-existing test_active_unit_scrolled_into_view needed 35 VISIBLE units for the
     # same reason.) Only the open chapter's units are visible, so they must carry the count.
-    course, _chapters, _units, middle, _sec = _seed_grouped_course(
+    course, _chapters, units, middle, _sec = _seed_grouped_course(
         "e2e_recentre", "e2e-recentre", num_chapters=3, units_per_chapter=40
     )
+    # The LAST unit of the current chapter, not the middle one. Overflowing the rail is not
+    # sufficient: the active row must start OUTSIDE the visible band, or the poll below
+    # succeeds at scrollTop=0 with or without centerActive(). (The pre-existing
+    # test_active_unit_scrolled_into_view targets the last of 35 for the same reason.)
+    target = [u for u in units if u.parent == middle.parent][-1]
 
     ctx = browser.new_context(reduced_motion="reduce")
     page = ctx.new_page()
     _login(page, live_server, "e2e_recentre")
-    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{target.pk}/")
 
-    # Precondition: the rail must actually overflow, or nothing below proves anything.
+    # Precondition: the rail overflows AND the active row would be out of view at the top.
     overflow = page.locator("[data-unit-tree]").evaluate(
         "el => el.scrollHeight - el.clientHeight"
     )
     assert overflow > 0, f"rail does not scroll (overflow={overflow}); seed more units"
+    out_of_band_at_top = page.evaluate(
+        """() => {
+             const rail = document.querySelector('[data-unit-tree]');
+             const act = rail.querySelector('.unit-tree__unit.is-active');
+             const prev = rail.scrollTop;
+             rail.scrollTop = 0;
+             const r = act.getBoundingClientRect(), t = rail.getBoundingClientRect();
+             const out = r.bottom > t.bottom || r.top < t.top;
+             rail.scrollTop = prev;
+             return out;
+           }"""
+    )
+    assert out_of_band_at_top, (
+        "the active row is visible at scrollTop=0, so this test cannot detect a missing "
+        "re-centre — target a unit further down the current chapter"
+    )
 
     toggle = page.locator("[data-unit-tree-toggle]")
     toggle.click()                                   # collapse (real gesture)
@@ -1508,7 +1624,7 @@ def test_done_and_active_row_keeps_the_active_colour(browser, live_server):
     done_only = rail.locator(".unit-tree__unit.is-done:not(.is-active)").first
     # No `if count()` guard: an absent comparison row is a seeding failure and must fail
     # the test, not silently skip its only meaningful assertion.
-    assert done_only.count() == 1 or done_only.count() > 0, "seed must include a done-only row"
+    assert done_only.count() == 1, "seed must include a done-only row"
     assert active_colour != done_only.evaluate("el => getComputedStyle(el).color"), (
         "done+active resolves to the faint --text-tertiary — .is-active must win "
         "(check it comes AFTER .is-done in source order)"
@@ -1558,9 +1674,19 @@ In `courses/static/courses/js/unit_nav.js`, replace the block at `:35-46` with a
     var target = tree.scrollTop + delta - tree.clientTop - (tree.clientHeight - active.offsetHeight) / 2;
     tree.scrollTo({ top: target, behavior: reduce ? "auto" : "smooth" });
   }
+```
 
+and, separately, the single invocation line that replaces the old block's body — left where
+that block was, after the toggle wiring:
+
+```js
   centerActive();   // on load
 ```
+
+**Delete the old comment at `:29-34`** along with the block it describes — its content
+("only when expanded", "scope the active lookup to the rail", "don't use scrollIntoView") has
+moved into the function body's comments, so leaving it stranded above a one-line call would
+duplicate it. A bare `// on load` marker is all the call site needs.
 
 **Placement, stated once:** put the `function centerActive() { … }` **declaration** near the top
 of the IIFE, just below `isCollapsed()` — it is a hoisted function declaration, so the toggle
@@ -1569,7 +1695,56 @@ reads better. Leave the `centerActive();` **invocation** where the old block was
 toggle wiring, around the old `:35`), preserving the ordering the original comment describes:
 the pre-paint collapse restore on `<html>` must already have run before the first centring.
 
-**On the `offsetParent` guard's test:** the spec forbids the obvious e2e for it — "fold the active group, collapse → expand, assert `scrollTop` unchanged" is **vacuous**, because collapsing applies `html.unit-tree-collapsed .unit-tree__list { display: none }` (`courses.css:642`), which clamps `scrollTop` to 0 in *both* implementations. It can never go red. Ship the guard as documented defensive code (the comment above is that documentation) unless you can spy `tree.scrollTo` from a JS-level test; do not write a green-but-meaningless e2e for it. In the toggle's click handler (`:21-25`), add the expand-branch call:
+**On the `offsetParent` guard's test — spy first, demote only if the spy genuinely fails.** The
+obvious e2e ("fold the active group, collapse → expand, assert `scrollTop` unchanged") is
+**vacuous**: collapsing applies `html.unit-tree-collapsed .unit-tree__list { display: none }`
+(`courses.css:642`), which clamps `scrollTop` to 0 in *both* implementations, so it is 0 → 0
+either way and can never go red. Do not write it.
+
+Write the **spy** instead. Note the repo's e2e rule forbids `page.evaluate` as a *substitute for
+a gesture* — every gesture below is a real click; `evaluate` only installs and reads the spy:
+
+```python
+@pytest.mark.django_db(transaction=True)
+def test_centering_is_skipped_when_the_active_group_is_folded(browser, live_server):
+    _make_student("e2e_guard")
+    course, _chapters, units, middle, _sec = _seed_grouped_course(
+        "e2e_guard", "e2e-guard", num_chapters=3, units_per_chapter=40
+    )
+    ctx = browser.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_guard")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    # Real click: fold the chapter that contains the active unit.
+    page.locator("[data-unit-tree] details[open] > summary").first.click()
+    page.wait_for_function(
+        "() => !document.querySelector('[data-unit-tree] .unit-tree__unit.is-active')"
+        "        .offsetParent"
+    )
+
+    page.evaluate(
+        """() => {
+             const rail = document.querySelector('[data-unit-tree]');
+             window.__scrollToCalls = 0;
+             const real = rail.scrollTo.bind(rail);
+             rail.scrollTo = function () { window.__scrollToCalls++; return real.apply(this, arguments); };
+           }"""
+    )
+
+    toggle = page.locator("[data-unit-tree-toggle]")
+    toggle.click()   # collapse (real gesture)
+    toggle.click()   # expand   (real gesture) -> centerActive() runs
+    assert page.evaluate("() => window.__scrollToCalls") == 0, (
+        "centerActive() scrolled the rail for an element with no layout box — the "
+        "offsetParent guard is missing, and the rail will jump to the top"
+    )
+    ctx.close()
+```
+
+Only if that spy concretely fails in this harness may the guard be demoted to documented
+defensive code (the comment in the function body being that documentation) — and say so in the
+commit message if you take that route. In the toggle's click handler (`:21-25`), add the expand-branch call:
 
 ```js
     toggle.addEventListener("click", function () {
