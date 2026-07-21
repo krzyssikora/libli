@@ -40,13 +40,30 @@ def test_math_in_cell_preserved_from_escaped_input():
     assert el["data"]["cells"][0][0]["html"] == r"\(a&lt;b\)"
 
 
-def test_colspan_is_flagged_not_dropped():
+def test_spanning_table_becomes_native_with_colspan_ragged():
+    # A colspan/rowspan table -> a native TableElement with ragged rows preserved
+    # (each row's real cells) and the span emitted on the cell; not flagged.
     html = (
-        '<table><tr><td colspan="2">wide</td></tr><tr><td>a</td><td>b</td></tr></table>'
+        '<table><tr><td colspan="2">wide</td></tr>'
+        "<tr><td>a</td><td>b</td></tr></table>"
     )
     el, flags = table_element(_t(html))
-    assert el["type"] == "html" and el["flagged"] is True
-    assert any(f["kind"] == "table_span" for f in flags)
+    assert el["type"] == "table" and not flags
+    cells = el["data"]["cells"]
+    assert len(cells[0]) == 1 and cells[0][0]["colspan"] == 2  # ragged first row
+    assert cells[0][0]["html"] == "wide"
+    assert len(cells[1]) == 2  # second row keeps its two cells
+
+
+def test_spanning_table_preserves_th_and_rowspan():
+    html = (
+        '<table><tr><th rowspan="2">h</th><td>a</td></tr>'
+        "<tr><td>b</td></tr></table>"
+    )
+    el, _ = table_element(_t(html))
+    assert el["data"]["header_row"] is False  # per-cell header instead of the toggle
+    hcell = el["data"]["cells"][0][0]
+    assert hcell["header"] is True and hcell["rowspan"] == 2
 
 
 def test_ragged_rows_flagged():

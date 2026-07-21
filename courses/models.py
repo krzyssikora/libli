@@ -828,34 +828,70 @@ class TableElement(ElementBase):
     elements = GenericRelation(Element)
 
     @staticmethod
+    def _span(raw, key):
+        """A colspan/rowspan value: a positive int > 1 (clamped to MAX_COLS),
+        else absent. Kept out of the cell dict when 1 so non-spanning tables and
+        the WYSIWYG editor are unaffected."""
+        n = raw.get(key)
+        if isinstance(n, bool) or not isinstance(n, int):
+            return None
+        return min(n, TableElement.MAX_COLS) if n > 1 else None
+
+    @staticmethod
     def _cell(raw):
         raw = raw if isinstance(raw, dict) else {}
         h = raw.get("halign")
         v = raw.get("valign")
-        return {
+        cell = {
             "html": raw.get("html") or "",
             "halign": h if h in TableElement.HALIGN else "left",
             "valign": v if v in TableElement.VALIGN else "top",
         }
+        # Optional fields, present only when set (imported spanning tables): a
+        # header (<th>) cell and colspan/rowspan. The rectangular WYSIWYG editor
+        # ignores them; the render template emits them.
+        if raw.get("header"):
+            cell["header"] = True
+        for key in ("colspan", "rowspan"):
+            span = TableElement._span(raw, key)
+            if span is not None:
+                cell[key] = span
+        return cell
 
     @staticmethod
     def normalize_data(data):
         """Return a well-formed dict for arbitrary stored data: defaults for
         missing top-level keys; ragged rows rectangularised (padded, never
         truncated); non-list rows / non-dict cells coerced; and a
-        degenerate-collapse guard to the default 2x2 when height or width is 0."""
+        degenerate-collapse guard to the default 2x2 when height or width is 0.
+
+        A SPANNING table (any cell carries colspan/rowspan) keeps its ragged rows
+        verbatim — the browser lays it out from the spans, so rectangularising
+        would inject phantom cells and break the layout."""
         data = data if isinstance(data, dict) else {}
         rows = data.get("cells")
         rows = rows if isinstance(rows, list) else []
         rows = [r if isinstance(r, list) else [] for r in rows]
-        width = max((len(r) for r in rows), default=0)
-        if not rows or width == 0:
-            rows = [[{}, {}], [{}, {}]]  # default 2x2
-            width = 2
-        cells = [
-            [TableElement._cell(r[i] if i < len(r) else {}) for i in range(width)]
+        spanning = any(
+            isinstance(c, dict)
+            and (
+                TableElement._span(c, "colspan") is not None
+                or TableElement._span(c, "rowspan") is not None
+            )
             for r in rows
-        ]
+            for c in r
+        )
+        if spanning:
+            cells = [[TableElement._cell(c) for c in r] for r in rows]
+        else:
+            width = max((len(r) for r in rows), default=0)
+            if not rows or width == 0:
+                rows = [[{}, {}], [{}, {}]]  # default 2x2
+                width = 2
+            cells = [
+                [TableElement._cell(r[i] if i < len(r) else {}) for i in range(width)]
+                for r in rows
+            ]
         border = data.get("border")
         return {
             "header_row": bool(data.get("header_row")),

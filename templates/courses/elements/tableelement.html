@@ -9,15 +9,22 @@ raw \(...\) text — typeset client-side by math.js over .el--table.{% endcommen
       {% for row in data.cells %}
       <tr>
         {% for cell in row %}
-          {% if forloop.parentloop.first and data.header_row and forloop.first and data.header_col %}
+          {% spaceless %}
+          {% comment %}Imported spanning tables carry a per-cell `header` flag and
+          colspan/rowspan; simple tables use the header_row/header_col toggles and
+          never carry spans.{% endcomment %}
+          {% if cell.header %}
+            <th class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
+          {% elif forloop.parentloop.first and data.header_row and forloop.first and data.header_col %}
             <th class="ta-{{ cell.halign }} va-{{ cell.valign }}">{{ cell.html|safe }}</th>
           {% elif forloop.parentloop.first and data.header_row %}
             <th scope="col" class="ta-{{ cell.halign }} va-{{ cell.valign }}">{{ cell.html|safe }}</th>
           {% elif forloop.first and data.header_col %}
             <th scope="row" class="ta-{{ cell.halign }} va-{{ cell.valign }}">{{ cell.html|safe }}</th>
           {% else %}
-            <td class="ta-{{ cell.halign }} va-{{ cell.valign }}">{{ cell.html|safe }}</td>
+            <td class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</td>
           {% endif %}
+          {% endspaceless %}
         {% endfor %}
       </tr>
       {% endfor %}

@@ -214,6 +214,23 @@ def fill_table_element(table, answer_by_input):
     return {"type": "fill_table", "data": data}, []
 
 
+def _span_cell(c):
+    """A cell dict preserving the source's <th>-ness and any colspan/rowspan > 1
+    (TableElement.normalize_data keeps a spanning table's rows ragged verbatim)."""
+    cell = {
+        "html": c.decode_contents().strip(),  # already escaped
+        "halign": "left",
+        "valign": "top",
+    }
+    if c.name == "th":
+        cell["header"] = True
+    for key in ("colspan", "rowspan"):
+        v = str(c.get(key) or "").strip()
+        if v.isdigit() and int(v) > 1:
+            cell[key] = int(v)
+    return cell
+
+
 def table_element(table):
     rows = _rows(table)
     if not rows:
@@ -221,15 +238,33 @@ def table_element(table):
 
     grid = [_cells(tr) for tr in rows]
 
-    # Reject spans.
-    for tr in rows:
-        for c in tr.find_all(["td", "th"]):
-            if c.get("colspan") or c.get("rowspan"):
-                return _flag_html(table, "table_span", "table uses rowspan/colspan")
-    # Nested table?
+    # A nested table can't be flattened to a cell grid -> stays HtmlElement.
     if any(c.find("table") for tr in rows for c in tr.find_all(["td", "th"])):
         return _flag_html(table, "table_nested", "table nests another table")
-    # Ragged?
+
+    def _has_real_span(c):
+        return any(
+            str(c.get(k) or "").strip().isdigit() and int(c.get(k)) > 1
+            for k in ("colspan", "rowspan")
+        )
+
+    spanning = any(
+        _has_real_span(c) for tr in rows for c in tr.find_all(["td", "th"])
+    )
+    if spanning:
+        # A colspan/rowspan table keeps RAGGED rows: each row's actual cells with
+        # their span + <th>-ness preserved (the browser lays it out from the spans).
+        # The header_row/header_col toggles are off; th cells carry `header` instead.
+        cells = [[_span_cell(c) for c in r] for r in grid]
+        data = {
+            "header_row": False,
+            "header_col": False,
+            "border": "grid",
+            "cells": cells,
+        }
+        return {"type": "table", "data": data}, []
+
+    # A non-spanning ragged table is genuinely malformed -> HtmlElement.
     width = len(grid[0])
     if any(len(r) != width for r in grid):
         return _flag_html(table, "table_ragged", "rows have differing cell counts")
