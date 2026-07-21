@@ -1167,10 +1167,21 @@ def _emit_tabs(ks_tabs, flags, consumed, state):
     links = ks_tabs.select("ul li a")
     if not (2 <= len(links) <= 10):
         return None
+    # Positional fallback: some source tabs have hrefs that don't match their panel
+    # ids (kwadratowa_161/162 point at #tabcontent-2-3/-4 but the panels are
+    # #tabcontent-2-1/-2), which would drop the whole panel. Fall back to the i-th
+    # direct-child tabcontent panel when the href lookup fails.
+    ordered_panels = [
+        c
+        for c in ks_tabs.children
+        if isinstance(c, Tag) and (c.get("id") or "").startswith("tabcontent")
+    ]
     tabs = []
     for i, a in enumerate(links):
         href = a.get("href", "")
         panel = ks_tabs.find(id=href[1:]) if href.startswith("#") else None
+        if panel is None and i < len(ordered_panels):
+            panel = ordered_panels[i]
         child_elements = []
         if panel is not None:
             _walk(list(panel.children), child_elements, flags, consumed, state)

@@ -1707,6 +1707,36 @@ def test_fill_step_diagram_image_recovered_before_gate():
     assert sum(1 for e in allels if e.get("type") == "fill_gate") == 1
 
 
+KS_TABS_MISMATCHED_PANEL_IDS = r"""
+<div class="ks_tabs" id="tabs-2">
+  <ul>
+    <li><a class="chosen" href="#tabcontent-2-3" id="tab-2-1">nagranie</a></li>
+    <li><a href="#tabcontent-2-4" id="tab-2-2">opis</a></li>
+  </ul>
+  <div class="visible" id="tabcontent-2-1"><p>film</p></div>
+  <div id="tabcontent-2-2">
+    <div class="centered"><img src="static/pilka.png" alt="p"></div>
+  </div>
+</div>
+"""
+
+
+def test_ks_tabs_positional_fallback_when_panel_ids_mismatch_hrefs():
+    # kwadratowa_161/162: the tab hrefs (#tabcontent-2-3/-4) don't match the panel
+    # ids (#tabcontent-2-1/-2). Without a positional fallback the whole panels
+    # (and their images) are dropped.
+    elements, _ = parse_lesson(KS_TABS_MISMATCHED_PANEL_IDS, "x.html")
+    tabs = next(e for e in elements if e["type"] == "tabs")
+    assert any(
+        c.get("type") == "text" and "film" in c.get("body", "")
+        for c in tabs["tabs"][0]["elements"]
+    )
+    imgs = [
+        c["media_src"] for c in tabs["tabs"][1]["elements"] if c.get("type") == "image"
+    ]
+    assert imgs == ["static/pilka.png"]
+
+
 def test_whitespace_only_block_is_dropped():
     # a whitespace-only <p> (e.g. <p>\n</p>) must NOT become an empty TextElement
     elements, _ = parse_lesson("<p>\n</p><p>Treść.</p>", "x.html")
