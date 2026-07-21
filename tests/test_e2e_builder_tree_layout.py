@@ -267,3 +267,93 @@ def test_panel_not_sticky_when_stacked(page, live_server):
     assert style["ov"] == "visible", (
         f"overflow must be reset when stacked, got {style['ov']}"
     )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_panel_scroll_resets_between_units(page, live_server):
+    """Selecting another unit opens its panel at the top, not mid-scroll."""
+    _make_pa_user("pa_reset")
+    course, _first = _seed_tall_course("reset-demo")
+
+    page.set_viewport_size({"width": 1280, "height": 700})
+    _login(page, live_server, "pa_reset")
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/build/")
+
+    # Open the element-heavy unit and scroll its panel down (real wheel over the panel).
+    page.locator(".tree__title", has_text="Unit 1").first.click()
+    page.locator(".panel__seam").wait_for(state="visible")
+    panel = page.locator(".builder__panel")
+    panel.hover()
+    page.mouse.wheel(0, 2000)
+    assert panel.evaluate("el => el.scrollTop") > 0, (
+        "panel did not scroll; seed more elements"
+    )
+
+    # Select a different unit through the real tree control.
+    page.locator(".tree__title", has_text="Unit 2").first.click()
+    page.wait_for_function(
+        "() => document.querySelector('.builder__panel').textContent.includes('Unit 2')"
+    )
+    # The NEW panel must also be able to hold a non-zero scrollTop, or the browser
+    # clamps it to 0 by itself and this assertion proves nothing.
+    assert panel.evaluate("el => el.scrollHeight - el.clientHeight") > 0, (
+        "Unit 2's panel does not overflow; it cannot demonstrate the reset"
+    )
+    assert panel.evaluate("el => el.scrollTop") == 0, (
+        "new panel opened mid-scroll — every swap must go through setPanel()"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_notice_bar_is_visible_and_opaque_while_panel_scrolled(page, live_server):
+    """A network notice raised while the panel is scrolled down stays on screen.
+
+    Trigger: abort a TREE form's POST (the reorder arrows). notice() prepends into the
+    panel regardless of which form fired, and a tree form has inPanel == False so no
+    refreshPanel() runs — the bar survives.
+
+    NOT the panel's own form: _unit_panel.html contains no form at all (unit settings
+    moved to the editor page). NOT the 409 path either: it calls refreshPanel(), which
+    now routes through setPanel(), resetting scroll and replacing the innerHTML the bar
+    was prepended into.
+    """
+    _make_pa_user("pa_notice")
+    course, _first = _seed_tall_course("notice-demo")
+
+    page.set_viewport_size({"width": 1280, "height": 700})
+    _login(page, live_server, "pa_notice")
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/build/")
+    page.locator(".tree__title", has_text="Unit 1").first.click()
+    page.locator(".panel__seam").wait_for(state="visible")
+
+    panel = page.locator(".builder__panel")
+    panel.hover()
+    page.mouse.wheel(0, 2000)
+
+    def _abort_posts(route):
+        # Named handler, not a multi-line lambda: `ruff format --check` runs on tests/.
+        if route.request.method == "POST":
+            route.abort()
+        else:
+            route.continue_()
+
+    page.route("**/manage/courses/**", _abort_posts)
+    # A tree reorder form — the panel has none. Its .catch calls notice(network).
+    # `:not([disabled])` is REQUIRED: _move_buttons.html renders "up" first and disables
+    # it on the first node, so the naive .first selector picks a disabled button and
+    # Playwright's actionability check hangs for 30s on a failure unrelated to the
+    # notice.
+    page.locator(
+        ".builder__tree form[data-op] button[type='submit']:not([disabled])"
+    ).first.click()
+
+    bar = page.locator(".builder__panel > .op-error")
+    bar.wait_for(state="visible")
+    box = bar.bounding_box()
+    vh = page.evaluate("() => window.innerHeight")
+    assert 0 <= box["y"] <= vh, "notice bar is off screen while the panel is scrolled"
+    bg = bar.evaluate("el => getComputedStyle(el).backgroundColor")
+    assert bg not in ("rgba(0, 0, 0, 0)", "transparent"), (
+        f"notice bar has no painted background ({bg}) — "
+        "content will scroll under its text"
+    )
