@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from courses import builder
@@ -290,16 +292,105 @@ def test_spoiler_add_menu_hides_disallowed_cards(client):
         "callout",
     ):
         assert f'data-add-type="{allowed}"' in block, allowed
-    # disallowed cards are NOT offered inside the spoiler menu
+    # disallowed cards are NOT offered inside the spoiler menu (the 5 non-allowed
+    # Interactive cards -- gates/switchgrid/fillblank are now ALLOWED, see
+    # test_spoiler_add_menu_shows_allowed_interactive_cards below)
     for banned in (
         "html",
         "spoiler",
+        "filltable",
+        "stepper",
+        "markdone",
+        "guessnumber",
+    ):
+        assert f'data-add-type="{banned}"' not in block, banned
+    # non-fillblank question cards stay hidden in-spoiler
+    for banned_question in (
+        "choice-single",
+        "choice-multi",
+        "shorttextquestion",
+        "shortnumericquestion",
+        "dragfillblankquestion",
+        "matchpairquestion",
+        "choicegridquestion",
+        "multigridquestion",
+        "dragtoimagequestion",
+        "extendedresponsequestion",
+    ):
+        assert f'data-add-type="{banned_question}"' not in block, banned_question
+
+
+def test_spoiler_add_menu_shows_allowed_interactive_cards(client):
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    _sp, join = _nested_spoiler(unit, ("<p>c</p>",))
+    block = _spoiler_menu_block(_editor_html(client, course, unit), join.pk)
+    present = {m.group(1) for m in re.finditer(r'data-add-type="([^"]+)"', block)}
+    assert {
         "revealgate",
         "fillgate",
         "switchgate",
-        "stepper",
+        "switchgrid",
+        "fillblankquestion",
+    } <= present
+    # C1 guard -- the 5 non-allowed interactive/structure cards are ABSENT in-spoiler
+    assert present.isdisjoint(
+        {"filltable", "spoiler", "stepper", "markdone", "guessnumber"}
+    )
+    # no other question card leaks in-spoiler
+    assert present.isdisjoint(
+        {"choice-single", "shorttextquestion", "dragfillblankquestion"}
+    )
+
+
+def test_author_switchgate_into_spoiler_succeeds(client):
+    from courses.models import SwitchGateElement
+
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    _sp, join = _spoiler_join(unit)
+    resp = client.post(
+        reverse("courses:manage_element_save", kwargs={"slug": course.slug}),
+        {
+            "type": "switchgate",
+            "element": "new",
+            "unit": unit.pk,
+            "unit_token": unit.updated.isoformat(),
+            "parent": str(join.pk),
+            "tab": SpoilerElement.SLOT_ID,
+            "stem": "pick {{choice}}",
+            "option": ["a", "b"],
+            "answer": "0",
+        },
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    child = Element.objects.get(parent=join)
+    assert isinstance(child.content_object, SwitchGateElement)
+    assert child.tab_id == SpoilerElement.SLOT_ID
+
+
+def test_tabs_add_menu_unaffected(client):
+    # PR#126 no-regression: the tabs nested add-menu (nested=True, NOT in_spoiler)
+    # still shows the 4 gates and hides questions.
+    from courses.models import TabsElement
+
+    pa = make_pa(client, "pa")
+    course = CourseFactory(owner=pa)
+    unit = _lesson_unit(course)
+    tabs = TabsElement.objects.create(data=TabsElement.default_data())
+    tjoin = Element.objects.create(unit=unit, content_object=tabs)
+    block = _spoiler_menu_block(_editor_html(client, course, unit), tjoin.pk)
+    for allowed in ("revealgate", "fillgate", "switchgate", "switchgrid", "spoiler"):
+        assert f'data-add-type="{allowed}"' in block, allowed
+    for banned_question in (
+        "choice-single",
+        "shorttextquestion",
+        "fillblankquestion",
     ):
-        assert f'data-add-type="{banned}"' not in block, banned
+        assert f'data-add-type="{banned_question}"' not in block, banned_question
 
 
 def test_tabs_nested_menu_still_offers_spoiler(client):
