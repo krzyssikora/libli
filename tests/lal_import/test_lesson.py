@@ -1625,6 +1625,40 @@ def test_one_choice_layout_table_image_cells_recovered():
     assert sum(1 for e in elements if e["type"] == "choice") == 2  # both MCQs kept
 
 
+MULT_CHOICE_PROMPT_IMAGE = r"""
+<div id="question120">
+  <div class="question_text">Wskaż równanie linii.</div>
+  <div>
+    <img src="static/prosta.png" alt="p"/>
+    <div class="multiple_option">
+      <div class="mult_option inline">\(y=1\)</div>
+      <div class="inline"><input class="mult_choice" type="checkbox"/></div>
+    </div>
+    <div class="multiple_option">
+      <div class="mult_option inline">\(y=2\)</div>
+      <div class="inline"><input class="mult_choice" type="checkbox"/></div>
+    </div>
+  </div>
+  <div class="confirm_feedback_multiple ks_button">potwierdź</div>
+</div>
+<script>
+localStorage.setItem('multiple_many_correct_answers', JSON.stringify({120:[[1,0]]}));
+</script>
+"""
+
+
+def test_mult_choice_prompt_image_outside_question_text_recovered():
+    # 110_geo_an: the diagram floats in the options wrapper, NOT in question_text,
+    # so _mcq_stem's question_text-only descend missed it. It must survive as an
+    # ImageElement while the MCQ keeps its text stem + options.
+    elements, _ = parse_lesson(MULT_CHOICE_PROMPT_IMAGE, "x.html")
+    imgs = [e["media_src"] for e in elements if e["type"] == "image"]
+    assert imgs == ["static/prosta.png"]
+    ch = next(e for e in elements if e["type"] == "choice")
+    assert ch["multiple"] is True
+    assert [c["text"] for c in ch["choices"]] == [r"\(y=1\)", r"\(y=2\)"]
+
+
 def test_whitespace_only_block_is_dropped():
     # a whitespace-only <p> (e.g. <p>\n</p>) must NOT become an empty TextElement
     elements, _ = parse_lesson("<p>\n</p><p>Treść.</p>", "x.html")

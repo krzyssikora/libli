@@ -1064,15 +1064,37 @@ def _mcq_stem(question, elements, flags, consumed, state):
     """The stem for an intercepted MCQ. If .question_text carries media (a
     diagram / figure), descend it so images render as native ImageElements and
     return "" (an empty stem); otherwise flatten the prompt text into the stem (a
-    sanitized field, so re-escape math)."""
+    sanitized field, so re-escape math). A prompt diagram sitting OUTSIDE
+    question_text — floated beside the options (110_geo_an) — is also recovered as
+    an ImageElement."""
     qt = question.find(class_="question_text")
-    if qt is None:
-        return ""
-    if qt.find(_MEDIA_TAGS) is not None:
-        _walk(list(qt.children), elements, flags, consumed, state)
-        return ""
-    text = qt.get_text(" ", strip=True)
-    return f"<p>{escape_math_delimited(text)}</p>" if text else ""
+    stem = ""
+    if qt is not None:
+        if qt.find(_MEDIA_TAGS) is not None:
+            _walk(list(qt.children), elements, flags, consumed, state)
+        else:
+            text = qt.get_text(" ", strip=True)
+            stem = f"<p>{escape_math_delimited(text)}</p>" if text else ""
+    # Diagrams outside question_text (skip it — handled above — and the option /
+    # feedback cells, whose text is folded into the choices).
+    _emit_media_in(
+        question,
+        elements,
+        flags,
+        skip=lambda m: (
+            m.find_parent(
+                class_=[
+                    "question_text",
+                    "mult_option",
+                    "mult_feedback_incorrect",
+                    "multi_ans",
+                    "multi_feedback_ans",
+                ]
+            )
+            is not None
+        ),
+    )
+    return stem
 
 
 def _emit_mult_choice(question, elements, flags, consumed, state):
