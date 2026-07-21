@@ -38,10 +38,10 @@
   }
 
   // The nearest ancestor that defines a reveal cascade's boundary: a slide in
-  // a slideshow lesson, or a tab panel inside a tabs element. The cascade
-  // never crosses out of this scope.
+  // a slideshow lesson, a tab panel inside a tabs element, or a spoiler body.
+  // The cascade never crosses out of this scope.
   function scopeOf(btn) {
-    return btn.closest("[data-tab-panel], .slide");
+    return btn.closest("[data-tab-panel], .slide, .spoiler");
   }
 
   // The direct child of `scope` that contains `el` -- i.e. the wrapper node
@@ -56,12 +56,15 @@
   // Does this wrapper contain a reveal-gate button of its own? Mirrors the
   // pre-hide CSS selectors in lesson_unit.html exactly, since the JS cascade
   // and the CSS hide-guard must agree on where one gate's territory ends and
-  // the next gate's begins.
+  // the next gate's begins. Three scopes exist: a slide's `.lesson-block`
+  // wraps its gate one level deeper (`.lesson-block__body`), while a tab
+  // panel's `.tabs__child` and a spoiler's `.spoiler__child` both wrap the
+  // gate directly -- so those two scopes share the same direct-child form.
   function isGateWrapper(wrapper, scope) {
     if (!wrapper) return false;
-    var sel = scope.matches("[data-tab-panel]")
-      ? ":scope > [data-reveal-gate]"
-      : ":scope > .lesson-block__body > [data-reveal-gate]";
+    var sel = scope.matches(".slide")
+      ? ":scope > .lesson-block__body > [data-reveal-gate]"
+      : ":scope > [data-reveal-gate]";
     return !!wrapper.querySelector(sel);
   }
 
