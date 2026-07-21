@@ -107,12 +107,14 @@ def fill_table_element(table, answer_by_input):
     header_row = all(c.name == "th" for c in grid[0])
     header_col = all(r[0].name == "th" for r in grid)
     pristine_raw = str(table)  # BEFORE any replace_with (MAX_COLS fallback uses this)
+    did_split = False
     cells = []
     for r in grid:
         row = []
         for c in r:
             inputs = c.find_all(class_="table_input")
             if len(inputs) >= 2:
+                did_split = True
                 row.extend(_split_multi_input_cell(c, answer_by_input))
             elif len(inputs) == 1:
                 raw = answer_by_input.get(id(inputs[0]), "")
@@ -154,7 +156,10 @@ def fill_table_element(table, answer_by_input):
     data = {
         "header_row": header_row,
         "header_col": header_col,
-        "border": "grid",
+        # A split (multi-input) grid uses horizontal-only borders so a vector
+        # cell reads as a continuous "[ x , y ]" instead of the "grid" border
+        # fragmenting the brackets/comma into separate boxed columns.
+        "border": "rows" if did_split else "grid",
         "cells": cells,
     }
     return {"type": "fill_table", "data": data}, []

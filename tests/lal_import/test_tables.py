@@ -231,3 +231,22 @@ def test_single_input_table_regression_unchanged():
         {"kind": "static", "html": "a"},
         {"kind": "answer", "answer": "9"},
     ]
+
+
+def test_split_table_uses_rows_border():
+    # a multi-input (split) grid switches to horizontal-only borders so the
+    # bracket/comma cells don't fragment into boxed columns
+    t = _ft(
+        r"<table><tr>"
+        r'<td>\([\) <input class="table_input"> \(,\) '
+        r'<input class="table_input"> \(]\)</td>'
+        r"</tr></table>"
+    )
+    result, _ = fill_table_element(t, _answers(t, ["4", "2"]))
+    assert result["data"]["border"] == "rows"
+
+
+def test_non_split_table_keeps_grid_border():
+    t = _ft('<table><tr><td>a</td><td><input class="table_input"></td></tr></table>')
+    result, _ = fill_table_element(t, _answers(t, ["1"]))
+    assert result["data"]["border"] == "grid"
