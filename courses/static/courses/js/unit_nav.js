@@ -8,6 +8,16 @@
   }
   function isCollapsed() { return html.classList.contains("unit-tree-collapsed"); }
 
+  // checkVisibility() is Chromium 105 / Firefox 125 / Safari 17.4. On anything older the
+  // method is undefined and calling it throws — and because centerActive() runs at module
+  // scope, that throw would abort the rest of this file and leave the mobile drawer
+  // unwired (its FAB ships [hidden] and is only revealed by the JS below). Fall back to
+  // the historical offsetParent test: imperfect for content-visibility (it keeps a folded
+  // group's hidden links in the focus trap, i.e. today's behaviour) but never fatal.
+  function isVisible(el) {
+    return el.checkVisibility ? el.checkVisibility() : el.offsetParent !== null;
+  }
+
   // Centre the active unit within the rail. Self-contained: re-queries at CALL time
   // (never a stale module-eval reference) and owns its own guards, so both call sites
   // are unconditional one-liners. Scroll the rail CONTAINER directly rather than
@@ -25,7 +35,7 @@
     // offsetParent stays truthy and the element keeps a STALE non-zero rect — which the
     // arithmetic below turns into a positive, meaningless scroll target (measured: 383px).
     // checkVisibility() is false for both display:none and content-visibility-skipped.
-    if (!active.checkVisibility()) return;
+    if (!isVisible(active)) return;
 
     var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     // getBoundingClientRect().top is the border-box outer edge; clientTop reconciles it
@@ -79,7 +89,7 @@
         // content-visibility (Chromium 131+), which leaves offsetParent truthy. offsetParent
         // would keep hidden unit links in the list, so items[last] would be unfocusable and
         // the wrap would never fire — the trap would still leak.
-      ).filter(function (el) { return el.checkVisibility(); });
+      ).filter(function (el) { return isVisible(el); });
     }
     function onKeydown(e) {
       if (e.key === "Escape") { closeDrawer(); return; }
