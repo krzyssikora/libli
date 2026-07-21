@@ -27,7 +27,7 @@
 - `courses/static/courses/js/reveal.js` — `scopeOf` (l.44), `isGateWrapper` (l.60). [Task 3]
 - `templates/courses/lesson_unit.html` — pre-hide `<style>` (l.39). [Task 3]
 - `templates/courses/manage/editor/_add_menu.html` — Interactive group guard + per-card guards + fillblank card (l.27-48). [Task 4]
-- Tests: `courses/tests/test_spoiler_nesting.py` (resolve_scope + add-menu), `courses/tests/test_spoiler_transfer.py` (round-trip), the LAL loader tests (`courses/tests/test_lal_loader_units.py`), a views/`build_lesson_context` test module, and the reveal e2e test module.
+- Tests: `courses/tests/test_spoiler_nesting.py` (resolve_scope + add-menu), `courses/tests/test_spoiler_transfer.py` (round-trip), the LAL loader tests (`tests/test_lal_loader_units.py`), a views/`build_lesson_context` test module, and the reveal e2e test module.
 
 ---
 
@@ -36,7 +36,7 @@
 **Files:**
 - Modify: `courses/builder.py:34,60,65,118`
 - Modify: `courses/lal_loader/builders.py` (add `_PARSER_TO_CANONICAL`; l.83 check)
-- Test: `courses/tests/test_spoiler_nesting.py`, `courses/tests/test_spoiler_transfer.py`, `courses/tests/test_lal_loader_units.py`
+- Test: `courses/tests/test_spoiler_nesting.py`, `courses/tests/test_spoiler_transfer.py`, `tests/test_lal_loader_units.py`
 
 **Interfaces:**
 - Consumes: existing `_attach`, `build_element`, `resolve_scope`, `validate_nesting`.
@@ -46,13 +46,9 @@
 
 Add to `courses/tests/test_spoiler_nesting.py`, reusing that file's existing helpers `make_course_with_unit()` and `_spoiler_join(unit, parent=None, tab_id="")` (l.103-107, returns `(sp, join)`) and `NestingError` imported from `courses.builder` (NOT `courses.exceptions`):
 
+`test_spoiler_nesting.py` already imports `pytest` and `SpoilerElement` at module scope — add ONLY the genuinely new imports (`from courses.builder import SPOILER_CHILD_TYPES, NESTABLE_TYPE_KEYS, NestingError` and `from courses import builder`; `make_course_with_unit`/`_spoiler_join` are already in the module).
+
 ```python
-import pytest
-from courses.builder import SPOILER_CHILD_TYPES, NESTABLE_TYPE_KEYS, NestingError
-from courses.models import SpoilerElement
-from courses import builder
-
-
 INTERACTIVE_SPOILER_FORM_KEYS = [
     "revealgate", "fillgate", "switchgate", "switchgrid", "fillblankquestion",
 ]
@@ -93,34 +89,65 @@ def test_resolve_scope_still_rejects_children_of_nested_spoiler():
 
 **Update the EXISTING `test_resolve_scope_rejects_disallowed_child_type_in_spoiler` (l.122-131):** its bad set is currently `("tabs", "spoiler", "revealgate", "choicequestion")`, but `revealgate` is now ALLOWED. Change the loop to `for bad in ("tabs", "spoiler", "choicequestion"):` — `tabs`/`spoiler` (containers) and `choicequestion` (a non-fillblank question form key) stay rejected; this doubles as the "non-fillblank question still rejected" regression assertion.
 
-Add a LAL-loader test in `courses/tests/test_lal_loader_units.py` (follow that file's `build_element`/spoiler fixtures) — a spoiler JSON dict whose `elements` include one interactive child each; assert each loads with `parent=<spoiler join>`, `tab_id=SLOT_ID`, no `LoaderError`. Include the `fillblank` case explicitly (exercises `_PARSER_TO_CANONICAL`):
+**Update the EXISTING loader rejection tests in `tests/test_lal_loader_units.py`:**
+`test_build_spoiler_rejects_reveal_gate_child` (l.838) and
+`test_build_spoiler_rejects_fillblank_child` (l.851) currently assert a
+`reveal_gate`/`fillblank` spoiler child RAISES `LoaderError`. After Task 1 they no
+longer raise — **invert both** to assert the child now loads under the spoiler join
+(the new positive test below covers this; you may delete these two and rely on it, OR
+retarget each to assert `parent=<join>, tab_id=SLOT_ID`). Keep
+`test_build_spoiler_rejects_container_child` (l.770) unchanged — a container child
+stays rejected.
+
+Add a positive LAL-loader test in `tests/test_lal_loader_units.py`, building
+`course`/`unit` inline via the file's existing convention (`CourseFactory` + `_unit()`,
+or `make_course_with_unit()` — match the surrounding tests) and importing `SENTINEL`
+the way the file's fillblank tests do (`from courses.fillblank import SENTINEL`), NOT a
+pasted glyph. Query children via `spoiler.resolved_children()` (a `SpoilerElement`
+method) or `spoiler.join_row().children.order_by("order", "pk")` — NOT
+`join_row().resolved_children()` (`join_row()` returns an `Element`, which has
+`.children`, not `resolved_children`):
 
 ```python
+from courses.fillblank import SENTINEL  # if not already imported in the file
+
 @pytest.mark.django_db
 @pytest.mark.parametrize("child", [
     {"type": "reveal_gate", "label": "pokaż"},
     {"type": "switch_gate", "stem": "s", "options": ["a", "b"], "answer": 0},
     {"type": "fill_gate", "stem": "s", "answers": [["1"]]},
     {"type": "switch_grid", "prompt": "", "lines": [{"stem": "s", "cyclers": [{"options": ["a", "b"], "answer": 0}]}]},
-    {"type": "fillblank", "stem": "x = ￼0￼", "blanks": [["0"]]},
+    {"type": "fillblank", "stem": f"x = {SENTINEL}0{SENTINEL}", "blanks": [["0"]]},
 ])
-def test_loader_accepts_interactive_spoiler_child(child, course, unit):
+def test_loader_accepts_interactive_spoiler_child(child):
+    course, unit = make_course_with_unit()  # or CourseFactory()/_unit(course) per the file
     from courses.lal_loader.builders import build_element
     el = {"type": "spoiler", "label": "rozwiązanie", "elements": [child]}
     spoiler = build_element(course, unit, el, source_root="", source_dir="", allow_html=False)
-    kids = spoiler.join_row().resolved_children()  # or query Element by parent
+    kids = spoiler.resolved_children()
     assert len(kids) == 1
 ```
-(Match the real `build_element` signature + child-query helper in that test file; the `fillblank` stem token uses the sentinel `￼` per `scripts/lal_import/fillblank`.)
+(Confirm the real `build_element` signature in the file before running — match its exact keyword args.)
 
-Add a transfer round-trip test in `courses/tests/test_spoiler_transfer.py` (follow that file's export→import helpers): export a unit with a spoiler containing a `switch_gate` child and a `fill_blank` child, import into a fresh course, assert both survive as spoiler children with their data; and assert `validate_nesting` still rejects a `tabs`-in-spoiler archive.
+**Update the EXISTING transfer rejection test:**
+`courses/tests/test_spoiler_transfer.py:97`
+`test_validate_nesting_rejects_reveal_gate_spoiler_child` asserts `validate_nesting`
+raises for a `reveal_gate` spoiler child. After widening it no longer raises —
+**retarget it to a still-rejected container** (`tabs`), or delete it and rely on the
+new round-trip test's "tabs-in-spoiler still rejected" assertion.
+
+Add a transfer round-trip test in `courses/tests/test_spoiler_transfer.py` (follow
+that file's export→import helpers): export a unit with a spoiler containing a
+`switch_gate` child and a `fill_blank` child, import into a fresh course, assert both
+survive as spoiler children with their data; and assert `validate_nesting` still
+rejects a `tabs`-in-spoiler archive.
 
 - [ ] **Step 2: Run the tests to verify they fail (RED)**
 
 Run:
 ```bash
 DATABASE_URL=postgres://libli:libli@localhost:5432/libli_mat DJANGO_SETTINGS_MODULE=config.settings.local \
-  uv run pytest courses/tests/test_spoiler_nesting.py courses/tests/test_spoiler_transfer.py courses/tests/test_lal_loader_units.py -k "interactive or fill_blank or nestable_type_keys or spoiler_child_types or container" -v
+  uv run pytest courses/tests/test_spoiler_nesting.py courses/tests/test_spoiler_transfer.py tests/test_lal_loader_units.py -k "interactive or fill_blank or nestable_type_keys or spoiler_child_types or container" -v
 ```
 Expected: FAIL — `SPOILER_CHILD_TYPES` lacks the 5 keys; `resolve_scope` raises `NestingError` for the form keys; the loader raises `LoaderError`; transfer rejects.
 
@@ -200,16 +227,16 @@ Run the same command as Step 2. Expected: PASS (all new + updated tests).
 Run:
 ```bash
 DATABASE_URL=postgres://libli:libli@localhost:5432/libli_mat DJANGO_SETTINGS_MODULE=config.settings.local \
-  uv run pytest courses/tests/test_spoiler_nesting.py courses/tests/test_spoiler_transfer.py courses/tests/test_lal_loader_units.py courses/tests/test_callout_transfer.py courses/tests/test_fillgate_transfer.py -q
+  uv run pytest courses/tests/test_spoiler_nesting.py courses/tests/test_spoiler_transfer.py tests/test_lal_loader_units.py courses/tests/test_callout_transfer.py courses/tests/test_fillgate_transfer.py -q
 ```
 Expected: PASS (the `NESTABLE_TYPE_KEYS <= set(SERIALIZERS)` invariant test still holds — `fill_blank` ∈ `SERIALIZERS`).
 
 - [ ] **Step 8: Lint + commit**
 
 ```bash
-uv run ruff check courses/builder.py courses/lal_loader/builders.py courses/tests/test_spoiler_nesting.py courses/tests/test_spoiler_transfer.py courses/tests/test_lal_loader_units.py
+uv run ruff check courses/builder.py courses/lal_loader/builders.py courses/tests/test_spoiler_nesting.py courses/tests/test_spoiler_transfer.py tests/test_lal_loader_units.py
 uv run ruff format --check courses/builder.py courses/lal_loader/builders.py courses/tests/
-git add courses/builder.py courses/lal_loader/builders.py courses/tests/test_spoiler_nesting.py courses/tests/test_spoiler_transfer.py courses/tests/test_lal_loader_units.py
+git add courses/builder.py courses/lal_loader/builders.py courses/tests/test_spoiler_nesting.py courses/tests/test_spoiler_transfer.py tests/test_lal_loader_units.py
 git commit -m "feat(spoiler): allow interactive leaves as spoiler children (allowlist)
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
@@ -230,20 +257,31 @@ Claude-Session: https://claude.ai/code/session_01DAtycPcTv4NLRZctpoTA1u"
 
 - [ ] **Step 1: Write the failing test**
 
+No `unit_with_fillblank_in_spoiler`/`some_user`/`unit_text_only` fixtures exist — build
+state INLINE using `test_spoiler_context.py`'s existing helpers (`lesson_unit_node`,
+`student_user`) and construct the nested fillblank via the Task-1 loader `build_element`
+(a `{"type":"spoiler","elements":[{"type":"fillblank",…}]}` dict) or directly via ORM
+(`FillBlankQuestionElement.objects.create(...)` + `Element.objects.create(unit=…,
+content_object=…, parent=<spoiler join>, tab_id=SpoilerElement.SLOT_ID)`). Follow how
+`test_switchgate_context.py`/`test_fillgate_context.py` build a unit + call
+`build_lesson_context` and assert the `has_*` key. Sketch:
+
 ```python
 @pytest.mark.django_db
-def test_has_questions_true_for_spoiler_nested_fillblank(unit_with_fillblank_in_spoiler, some_user):
-    # unit_with_fillblank_in_spoiler: a unit whose ONLY question is a FillBlankQuestionElement
-    # nested as a spoiler child (build via the loader from Task 1, or directly via ORM).
+def test_has_questions_true_for_spoiler_nested_fillblank():
+    # a unit whose ONLY question is a FillBlankQuestionElement nested as a spoiler child
+    unit = <build via loader/ORM per above>
+    user = <student_user per the file's helper>
     from courses.views import build_lesson_context
-    ctx = build_lesson_context(unit_with_fillblank_in_spoiler, some_user)
-    assert ctx["has_questions"] is True
+    assert build_lesson_context(unit, user)["has_questions"] is True
 
 
 @pytest.mark.django_db
-def test_has_questions_false_when_no_questions(unit_text_only, some_user):
+def test_has_questions_false_when_no_questions():
+    unit = <a unit with only a TextElement>
+    user = <student_user>
     from courses.views import build_lesson_context
-    assert build_lesson_context(unit_text_only, some_user)["has_questions"] is False
+    assert build_lesson_context(unit, user)["has_questions"] is False
 ```
 
 - [ ] **Step 2: Run the test to verify it fails (RED)**
@@ -303,12 +341,20 @@ Teach the cascade + pre-hide that a spoiler body is a cascade scope, so a spoile
 
 - [ ] **Step 1: DOM verification (Task-0 spike) — assert the gate is a direct child of `.spoiler__child`**
 
-Write a Django render test that builds a top-level spoiler with a `reveal_gate`, a `switch_gate`, and a `fill_gate` child (via the Task-1 loader or ORM), renders the lesson unit, and asserts each gate's `[data-reveal-gate]` element is a DIRECT child of a `.spoiler__child` div:
+Write a Django render test in `courses/tests/test_reveal_gate_render.py` that builds a
+top-level spoiler with a `reveal_gate`, a `switch_gate`, and a `fill_gate` child (via
+the Task-1 loader or ORM), renders the lesson unit, and asserts each gate's
+`[data-reveal-gate]` element is a DIRECT child of a `.spoiler__child` div. **Fetch the
+page via that file's existing `lesson_url()` helper (l.32,
+`reverse("courses:lesson_unit", kwargs={"slug": unit.course.slug, "node_pk": unit.pk})`)
+— NOT `get_absolute_url()`, which `ContentNode` does not define.** Build the unit inline
+(no `unit_with_gates_in_spoiler` fixture exists):
 
 ```python
 @pytest.mark.django_db
-def test_spoiler_gate_child_is_direct_child_of_spoiler_child(client, unit_with_gates_in_spoiler):
-    html = client.get(unit_with_gates_in_spoiler.get_absolute_url()).content.decode()
+def test_spoiler_gate_child_is_direct_child_of_spoiler_child(client):
+    unit = <build a top-level spoiler with reveal_gate + switch_gate + fill_gate children>
+    html = client.get(lesson_url(unit)).content.decode()
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(html, "html.parser")
     for wrap in soup.select(".spoiler .spoiler__child"):
@@ -320,11 +366,12 @@ Run it. **If it fails** (a wrapper intervenes for any of the 3 families), STOP a
 
 - [ ] **Step 2: Write the failing tests**
 
-(a) Pre-hide CSS presence — a render test asserting the lesson `<style>` contains the spoiler pre-hide selector when the unit has a reveal-family gate:
+(a) Pre-hide CSS presence — a render test asserting the lesson `<style>` contains the spoiler pre-hide selector when the unit has a reveal-family gate (same inline unit + `lesson_url(unit)`):
 ```python
 @pytest.mark.django_db
-def test_lesson_prehide_css_covers_spoiler(client, unit_with_gates_in_spoiler):
-    html = client.get(unit_with_gates_in_spoiler.get_absolute_url()).content.decode()
+def test_lesson_prehide_css_covers_spoiler(client):
+    unit = <build a top-level spoiler with a reveal_gate child>
+    html = client.get(lesson_url(unit)).content.decode()
     assert ".spoiler > .spoiler__child:has(> [data-reveal-gate])" in html
 ```
 (b) e2e (Playwright) in the reveal e2e module, mirroring the existing reveal-gate e2e: a lesson with a top-level spoiler containing `[reveal_gate][text A][text B]` and a text element AFTER the spoiler. Open the spoiler, assert text A/B are hidden; click the gate; assert text A (and B, up to any next gate) become visible WITHIN the spoiler, and the text AFTER the spoiler stays unaffected; reload and assert the revealed state is restored (`restoreGates`).
@@ -413,38 +460,48 @@ Show the 4 gate cards + a `fillblankquestion` card in a spoiler's add-menu; guar
 
 - [ ] **Step 1: Write the failing tests**
 
-Extend `courses/tests/test_spoiler_nesting.py`:
+Extend `courses/tests/test_spoiler_nesting.py`. **No `client_pa`/`top_level_spoiler_unit`/
+`top_level_spoiler_join`/`unit_with_tabs` fixtures exist** — reuse this file's existing
+editor-page pattern: the current `test_spoiler_add_menu_hides_disallowed_cards` (l.226)
+and `test_top_level_spoiler_renders_child_list_and_add_menu` (l.216) already build a
+PA-authenticated client (via `make_pa`), a course/unit (`CourseFactory`/`_lesson_unit`),
+a top-level spoiler (`_nested_spoiler`/`_spoiler_join`), and GET the editor page. Copy
+that setup; do NOT invent fixtures. For the authoring POST, use the same
+`manage_element_save` URL + form the file's other save tests use (grep the file for the
+editor-save reverse()).
+
 ```python
 @pytest.mark.django_db
-def test_spoiler_add_menu_shows_allowed_interactive_cards(client_pa, top_level_spoiler_unit):
-    html = client_pa.get(<editor url for top_level_spoiler_unit>).content.decode()
-    # the in-spoiler add-menu (addwrap--nested under the spoiler) shows exactly these:
-    for t in ("revealgate", "fillgate", "switchgate", "switchgrid", "fillblankquestion"):
-        assert f'data-add-type="{t}"' in html
-    # and NOT the non-allowed interactive/structure cards (C1 guard):
-    for t in ("filltable", "spoiler", "stepper", "markdone", "guessnumber"):
-        # assert absent within the spoiler's add-menu specifically (scope the assertion
-        # to the spoiler addwrap, since a top-level add-menu on the same page DOES show them)
-        ...
+def test_spoiler_add_menu_shows_allowed_interactive_cards():
+    # build PA client + top-level spoiler + GET editor page exactly as
+    # test_spoiler_add_menu_hides_disallowed_cards does; parse with BeautifulSoup and
+    # select the spoiler's OWN addwrap (the `data-add-menu` whose data-parent == the
+    # spoiler join pk) — NOT the page's top-level add-menu, which legitimately shows all.
+    addwrap = <the spoiler's addwrap--nested element>
+    present = {b["data-add-type"] for b in addwrap.select("[data-add-type]")}
+    assert {"revealgate", "fillgate", "switchgate", "switchgrid", "fillblankquestion"} <= present
+    # C1 guard — the 5 non-allowed interactive/structure cards are ABSENT in-spoiler:
+    assert present.isdisjoint({"filltable", "spoiler", "stepper", "markdone", "guessnumber"})
     # no other question card leaks in-spoiler:
-    for t in ("choice-single", "shorttextquestion", "dragfillblankquestion"):
-        ... # absent in the spoiler addwrap
+    assert present.isdisjoint({"choice-single", "shorttextquestion", "dragfillblankquestion"})
 
 
 @pytest.mark.django_db
-def test_author_switchgate_into_spoiler_succeeds(client_pa, top_level_spoiler_join):
-    # POST manage_element_save with parent=<spoiler join pk>, tab=SLOT_ID, type=switchgate
-    resp = client_pa.post(<manage_element_save url>, data={...})
+def test_author_switchgate_into_spoiler_succeeds():
+    # POST the editor save (same reverse()/form the file's other save tests use) with
+    # parent=<spoiler join pk>, tab=SpoilerElement.SLOT_ID, type=switchgate.
+    resp = <client>.post(<editor-save url>, data=<switchgate add payload>)
     assert resp.status_code == 200
-    # a SwitchGateElement child now exists under the spoiler join
+    # a SwitchGateElement child now exists under the spoiler join (query Element by parent)
 
 
 @pytest.mark.django_db
-def test_tabs_add_menu_unaffected(client_pa, unit_with_tabs):
-    # PR#126 no-regression: the tab nested add-menu still shows the 4 gates and hides questions
+def test_tabs_add_menu_unaffected():
+    # PR#126 no-regression: the tab nested add-menu still shows the 4 gates and hides
+    # questions — reuse the existing tabs add-menu test's setup (grep for it).
     ...
 ```
-Scope the "absent" assertions to the spoiler's own `addwrap--nested` block (parse with BeautifulSoup and select the addwrap whose `data-parent` is the spoiler join pk), because the page's TOP-LEVEL add-menu legitimately shows filltable/stepper/etc. Update the existing `test_spoiler_add_menu_hides_disallowed_cards` to reflect the new allowed set (gates + fillblank now shown; only filltable/spoiler/stepper/markdone/guessnumber + non-fillblank questions hidden).
+Update the existing `test_spoiler_add_menu_hides_disallowed_cards` (l.226) to reflect the new allowed set: gates + `fillblankquestion` are now SHOWN in-spoiler; only `filltable`/`spoiler`/`stepper`/`markdone`/`guessnumber` + the non-fillblank question cards stay hidden.
 
 - [ ] **Step 2: Run to verify RED**
 
