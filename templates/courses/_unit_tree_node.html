@@ -11,11 +11,38 @@
       <span class="unit-tree__label">{{ item.node.title }}</span>
     </a>
   {% else %}
-    <div class="unit-tree__head" lang="{{ course.language }}">{{ item.node.title }}</div>
     {% if item.children %}
-      <ul class="unit-tree__children">
-        {% for child in item.children %}{% include "courses/_unit_tree_node.html" with item=child course=course current_pk=current_pk %}{% endfor %}
-      </ul>
+      {% comment %}Native <details>: folding works with JS off, and keyboard + AT semantics
+         come free. Server-set `open` on the current chain so the correct groups are open in
+         the first painted frame (a JS pass would flash the folded tree).{% endcomment %}
+      <details class="unit-tree__group"{% if item.contains_current %} open{% endif %}>
+        <summary class="unit-tree__head">
+          <svg class="icon unit-tree__chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
+          <span class="unit-tree__grouptitle" lang="{{ course.language }}">{{ item.node.title }}</span>
+          {% if item.required_total %}
+            <span class="unit-tree__count" aria-hidden="true">{{ item.required_done }}/{{ item.required_total }}</span>
+            {% if item.required_done == item.required_total %}
+              <span class="unit-tree__groupcheck badge badge--done" aria-hidden="true">✓</span>
+            {% endif %}
+            {% comment %}The visible ratio is aria-hidden; this sentence is what gets
+               announced. Count-neutral on purpose: PL has three plural forms, so a
+               count-bearing noun would need a plural branch, which would also turn the
+               msgid into a msgid/msgid_plural pair.{% endcomment %}
+            <span class="visually-hidden">{% blocktrans with done=item.required_done total=item.required_total %}{{ done }} of {{ total }} required units completed{% endblocktrans %}</span>
+          {% endif %}
+        </summary>
+        <ul class="unit-tree__children">
+          {% for child in item.children %}{% include "courses/_unit_tree_node.html" with item=child course=course current_pk=current_pk %}{% endfor %}
+        </ul>
+      </details>
+    {% else %}
+      {% comment %}No children: an empty disclosure would be a dead control. The
+         chevron-width spacer keeps this title's left edge aligned with the <details>
+         shape's.{% endcomment %}
+      <div class="unit-tree__head">
+        <span class="unit-tree__chevron unit-tree__chevron--spacer" aria-hidden="true"></span>
+        <span class="unit-tree__grouptitle" lang="{{ course.language }}">{{ item.node.title }}</span>
+      </div>
     {% endif %}
   {% endif %}
 </li>
