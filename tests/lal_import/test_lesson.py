@@ -1659,6 +1659,54 @@ def test_mult_choice_prompt_image_outside_question_text_recovered():
     assert [c["text"] for c in ch["choices"]] == [r"\(y=1\)", r"\(y=2\)"]
 
 
+FILL_STEP_IMAGE = r"""
+<div id="question40">
+  <div class="question_text">Znajdź wartości.</div>
+  <div class="ks_tabs" id="tabs-4">
+    <ul><li><a href="#tc1" id="t1">krok</a></li>
+        <li><a href="#tc2" id="t2">opis</a></li></ul>
+    <div id="tc1"><p>nagranie</p></div>
+    <div id="tc2">
+      <div class="fill_steps">
+        <div class="fill_show_next">pokaż dalej</div>
+        <div class="fill_step">
+          <p>Rysunek: <img src="static/zad1.png" alt="z1"></p>
+          <span class="myequation">\(a=\)<span>
+            <input class="fill_answer" type="text"></span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>localStorage.setItem('answers_fill_next', JSON.stringify({40:["5"]}));</script>
+"""
+
+
+def _flatten_all(els):
+    out = []
+    for e in els:
+        if not isinstance(e, dict):
+            continue
+        out.append(e)
+        if isinstance(e.get("tabs"), list):
+            for t in e["tabs"]:
+                out += _flatten_all(t.get("elements", []))
+        if isinstance(e.get("elements"), list):
+            out += _flatten_all(e["elements"])
+    return out
+
+
+def test_fill_step_diagram_image_recovered_before_gate():
+    # 040/044_tryg: a diagram inside a fill_step becomes part of the sanitized
+    # fill_gate stem (nh3 strips <img>). It must survive as an ImageElement while
+    # the input still produces a fill_gate.
+    elements, _ = parse_lesson(FILL_STEP_IMAGE, "x.html")
+    allels = _flatten_all(elements)
+    imgs = [e["media_src"] for e in allels if e.get("type") == "image"]
+    assert "static/zad1.png" in imgs
+    assert sum(1 for e in allels if e.get("type") == "fill_gate") == 1
+
+
 def test_whitespace_only_block_is_dropped():
     # a whitespace-only <p> (e.g. <p>\n</p>) must NOT become an empty TextElement
     elements, _ = parse_lesson("<p>\n</p><p>Treść.</p>", "x.html")

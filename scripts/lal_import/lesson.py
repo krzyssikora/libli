@@ -394,6 +394,10 @@ def _walk(nodes, elements, flags, consumed, state):
             # a correct answer reveals the following siblings (the next step).
             d = _fillblank_from_block(node, state)
             if d["blanks"]:
+                # A diagram in the step is folded into the sanitized fill_gate stem
+                # (nh3 strips <img>); emit it as an ImageElement before the gate so
+                # it survives (040/044_tryg). No-op when the step has no image.
+                _emit_media_in(node, elements, flags)
                 elements.append(
                     {"type": "fill_gate", "stem": d["stem"], "answers": d["blanks"]}
                 )
