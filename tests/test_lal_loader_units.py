@@ -124,6 +124,31 @@ def test_build_mark_done(tmp_path):
     ]
 
 
+def test_build_guess_number(tmp_path):
+    from courses.fillblank import SENTINEL
+    from courses.models import GuessNumberElement
+
+    course = CourseFactory()
+    unit = _unit(course)
+    obj = build_element(
+        course,
+        unit,
+        {
+            "type": "guess_number",
+            "stem": rf"\(201^2=\){SENTINEL}0{SENTINEL}",
+            "target": "40401",
+            "success_message": "Świetnie!",
+        },
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+    )
+    assert isinstance(obj, GuessNumberElement)
+    assert obj.target == Decimal("40401")
+    assert SENTINEL in obj.stem  # the input token survives sanitization
+    assert obj.success_message == "Świetnie!"
+
+
 def test_build_text_element(tmp_path):
     course = CourseFactory()
     unit = _unit(course)

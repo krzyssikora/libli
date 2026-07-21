@@ -50,6 +50,20 @@ def extract_int_map(html, key):
     }
 
 
+_QID_NUM_SCALAR = re.compile(r"(\d+)\s*:\s*(-?\d+(?:\.\d+)?)")
+
+
+def extract_scalar_num_map(html, key):
+    """Return {qid: "<number>"} for a localStorage key whose value is a single
+    number per qid (more_less_answers: the guess-the-number target). Values stay
+    strings so a Decimal target keeps full precision; {} if the key is absent."""
+    m = _setitem_re(key).search(html)
+    if not m:
+        return {}
+    body = _strip_js_comments(m.group(1))
+    return {int(qm.group(1)): qm.group(2) for qm in _QID_NUM_SCALAR.finditer(body)}
+
+
 def extract_nested_int_map(html, key):
     """Return {qid: [[int, ...], ...]} for a localStorage key whose value is a
     list of integer-list rows (multiple_many_correct_answers: one 0/1 mask row

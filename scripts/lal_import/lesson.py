@@ -15,6 +15,7 @@ from bs4 import Tag
 from scripts.lal_import.answers import extract_int_map
 from scripts.lal_import.answers import extract_nested_int_map
 from scripts.lal_import.answers import extract_nested_str_map
+from scripts.lal_import.answers import extract_scalar_num_map
 from scripts.lal_import.answers import extract_str_map
 from scripts.lal_import.mathsafe import escape_math_delimited
 from scripts.lal_import.switch import strip_lead_prompt
@@ -111,11 +112,8 @@ _INTERACTIVE_MARKERS = {
     # RevealGate chain with an inline FillBlank per step (Group B #8).
     # NB: show_next/show_step are NOT markers — they map natively to a RevealGate
     # chain (Group B #1), so their container must descend, not be placeholdered.
-    # guess higher/lower
-    "more_less_input",
-    "more_less_big",
-    "more_less_small",
-    "more_less_equal",
+    # NB: more_less_* are NOT markers — a guess-with-hint widget maps to a native
+    # GuessNumberElement (Group B #14); the big/small hints are its own feedback.
     # NB: ks_tabs is NOT a marker — it maps to a native TabsElement with nested
     # children (Group B #6), so the container is handled, not placeholdered.
     # NB: mark_done is NOT a marker — a self-tracking checklist maps to a native
@@ -272,6 +270,7 @@ def parse_lesson(html, source_html):
         "table_answers": extract_str_map(html, "table_answers"),
         "answers_fill_next": extract_str_map(html, "answers_fill_next"),
         "correct_choices": extract_int_map(html, "correct_choices"),
+        "more_less_answers": extract_scalar_num_map(html, "more_less_answers"),
         "multiple_many_correct_answers": extract_nested_int_map(
             html, "multiple_many_correct_answers"
         ),
@@ -402,6 +401,16 @@ def _walk(nodes, elements, flags, consumed, state):
             # Group B #13: a self-tracking checklist -> MarkDoneElement (gather the
             # run of consecutive sibling .mark_done rows; no correct answer/chrome).
             _emit_mark_done(nodes, i, elements, consumed)
+            continue
+        if "more_less_guess" in classes_here:
+            # Group B #14: a guess-with-hint widget -> GuessNumberElement. Keyed on
+            # the .more_less_guess block itself (NOT a descendant more_less_input
+            # search, which would also match an enclosing wrapper div whose qid is
+            # None -> the block would be dropped). Its too-big/too-small hints are
+            # the element's own directional feedback, so they're not emitted.
+            d = _emit_more_less(node, state)
+            if d is not None:
+                elements.append(d)
             continue
         if (
             not _is_structural_container(node)
@@ -835,6 +844,36 @@ def _emit_truth_false(node, state):
         correct = 0 if (i < len(answers) and answers[i] == 1) else 1
         rows.append({"statement": statement, "correct": correct})
     return [{"type": "choice_grid", "columns": [col_true, col_false], "rows": rows}]
+
+
+def _emit_more_less(node, state):
+    """Group B #14: a `.more_less_guess` block -> a GuessNumberElement dict. The
+    input's position becomes the single sentinel token in the stem (any math prefix
+    before it is kept); the target is more_less_answers[qid]; `.more_less_equal` is
+    the success message. Returns None if there's no input or no stored answer."""
+    qid = _enclosing_qid(node)
+    target = state.get("more_less_answers", {}).get(qid)
+    inp = node.find(class_="more_less_input")
+    if inp is None or target is None:
+        return None
+    equal = node.find(class_="more_less_equal")
+    success = equal.get_text(" ", strip=True) if equal else ""
+    # The carrier = the direct child of .more_less_guess that holds the input; its
+    # sibling divs are the big/small/equal feedback, which we don't include.
+    carrier = inp
+    while carrier.parent is not None and carrier.parent is not node:
+        carrier = carrier.parent
+    # Replace the input (or its sole-child <span> wrapper) with the sentinel token.
+    slot = inp
+    if inp.parent is not None and inp.parent.name == "span" and inp.parent is not node:
+        slot = inp.parent
+    slot.replace_with(NavigableString(_blank_token(0)))
+    return {
+        "type": "guess_number",
+        "stem": carrier.decode_contents(),
+        "target": str(target),
+        "success_message": success,
+    }
 
 
 def _emit_mark_done(nodes, start, elements, consumed):

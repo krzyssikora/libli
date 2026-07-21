@@ -1,7 +1,28 @@
 from scripts.lal_import.answers import extract_int_map
 from scripts.lal_import.answers import extract_nested_int_map
 from scripts.lal_import.answers import extract_nested_str_map
+from scripts.lal_import.answers import extract_scalar_num_map
 from scripts.lal_import.answers import extract_str_map
+
+
+def test_extract_scalar_num_map_reads_single_value_per_qid():
+    # more_less_answers: one target number per qid (NOT a list), kept as strings
+    # so a Decimal target retains full precision.
+    html = """
+    <script>
+      localStorage.setItem("more_less_answers", JSON.stringify({
+        10: 100,
+        150: 40401,
+        20: -3.5
+      }));
+    </script>
+    """
+    assert extract_scalar_num_map(html, "more_less_answers") == {
+        10: "100",
+        150: "40401",
+        20: "-3.5",
+    }
+    assert extract_scalar_num_map("<script>x</script>", "more_less_answers") == {}
 
 
 def test_extract_str_map_keeps_decimals_fractions_and_strings():

@@ -16,6 +16,7 @@ from courses.models import FillGateElement
 from courses.models import FillTableElement
 from courses.models import GridColumn
 from courses.models import GridRow
+from courses.models import GuessNumberElement
 from courses.models import HtmlElement
 from courses.models import IframeElement
 from courses.models import ImageElement
@@ -292,6 +293,19 @@ def build_element(
         for i, item in enumerate(el.get("items", [])):
             MarkDoneItem.objects.create(element=md, content=item[:500], order=i)
         return _attach(unit, md)
+    if etype == "guess_number":
+        # Group B #14: a numeric guess-with-hint self-check. The stem keeps its
+        # single sentinel token (input position); target lifts out into its field.
+        from courses.switchgrid import sanitize_stem_segments
+
+        return _attach(
+            unit,
+            GuessNumberElement.objects.create(
+                stem=sanitize_stem_segments(el.get("stem", "")),
+                target=Decimal(el["target"]),
+                success_message=el.get("success_message", ""),
+            ),
+        )
     if etype == "iframe":
         url = canonicalize_geogebra_url(el["url"])
         return _attach(

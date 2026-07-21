@@ -814,6 +814,39 @@ def test_mark_done_becomes_markdone_checklist():
     assert "Zaznacz" in joined  # the prompt (question_text) is kept as preceding text
 
 
+# --- Group B #14: more_less -> GuessNumberElement (guess-with-hint) ---
+MORE_LESS = r"""
+<div id="question10">
+  <div class="question_text"><p>Ile to?</p></div>
+  <div class="more_less_guess">
+    <div>\(201^2=\)<span><input class="more_less_input" type="text"/></span></div>
+    <div class="more_less_big hidden ans_warning">za dużo</div>
+    <div class="more_less_small hidden ans_warning">za mało</div>
+    <div class="more_less_equal hidden success">Brawo, to \(40401\)!</div>
+  </div>
+</div>
+<script>localStorage.setItem("more_less_answers",
+JSON.stringify({10: 40401}));</script>
+"""
+
+
+def test_more_less_becomes_guess_number():
+    from scripts.lal_import.switch import token as _tok
+
+    elements, flags = parse_lesson(MORE_LESS, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    gn = [e for e in elements if e["type"] == "guess_number"]
+    assert len(gn) == 1
+    assert gn[0]["target"] == "40401"
+    assert _tok(0) in gn[0]["stem"]  # the single sentinel input token
+    assert "201^2" in gn[0]["stem"]  # the math prefix before the input is kept
+    assert "Brawo" in gn[0]["success_message"]  # .more_less_equal -> success message
+    joined = " ".join(str(e) for e in elements)
+    assert "Ile to" in joined  # prompt kept
+    # the too-big/too-small hints are the element's own feedback -> dropped
+    assert "za dużo" not in joined and "za mało" not in joined
+
+
 # --- Group B #6: ks_tabs -> TabsElement (nested children) ---
 KS_TABS = r"""
 <div class="ks_tabs">
