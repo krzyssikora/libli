@@ -81,10 +81,26 @@ that existing rule**; `min-width: 0` and its comment must not be dropped:
 - **`100vh` is safe here** precisely because sticky only applies above 720px — the mobile
   visual-viewport discrepancy never comes into play. `top: var(--space-4)` needs no
   header-height offset because `.app-header` is `position: relative`, not sticky.
-- **Panel scroll reset.** Once the panel is a scroll container, `builder.js` replacing its
-  `innerHTML` on node select leaves any non-zero `scrollTop` in place, so the next unit's
-  panel would appear scrolled part-way down. Every place `builder.js` swaps panel content must
-  set `panel.scrollTop = 0` after the swap.
+- **Panel scroll reset — via one helper, not by hand.** Once the panel is a scroll container,
+  `builder.js` replacing its `innerHTML` on node select leaves any non-zero `scrollTop` in
+  place, so the next unit's panel would appear scrolled part-way down. There are **nine**
+  `panel.innerHTML = …` assignments in `builder.js` — in `refreshPanel`'s `.then` *and*
+  `.catch`, the submit handler's `neutralPanel` restore, the node-selection fetch's `.then`
+  and `.catch`, a second fetch path, and the drag handler's `panel.innerHTML = ""`. A
+  requirement phrased as "every place" would miss an async branch and reintroduce the bug with
+  no test to catch it. Instead: a single `setPanel(html)` helper that assigns and then sets
+  `scrollTop = 0`, with **every** site routed through it. **No direct `panel.innerHTML =`
+  assignment may remain** — a grep-checkable invariant.
+- **The `notice()` bar must stay visible.** `builder.js`'s `notice(text)` builds an `.op-error`
+  bar and calls `panel.prepend(bar)`, auto-removing it after 6s. Today the panel is short and
+  top-anchored, so the bar is always seen. Once the panel scrolls internally, a notice
+  prepended while the author is scrolled part-way down renders *above* the visible band and
+  vanishes unseen — and these are precisely the conflict / illegal-move / network messages
+  (`data-msg-conflict`, `data-msg-illegal`, `data-msg-network`) whose entire purpose is to be
+  noticed. The bar is therefore made `position: sticky; top: 0` within the scroll container
+  (preferred, since it survives any scroll position), or `notice()` scrolls the panel to top
+  before prepending. This is a degradation Part 1 must not introduce, and it is listed under
+  Error handling for that reason.
 
 ### Part 2A — Student tree: collapsible groups, current chain auto-open
 
@@ -99,14 +115,20 @@ Files: `courses/rollups.py`, `templates/courses/_unit_tree_node.html`,
 <li class="unit-tree__node unit-tree__node--{{ item.node.kind }}">
   <details class="unit-tree__group" {% if item.contains_current %}open{% endif %}>
     <summary class="unit-tree__head">
-      <span class="unit-tree__chevron" aria-hidden="true">…</span>
+      <svg class="icon unit-tree__chevron" aria-hidden="true"><use href="#icon-chevron-…"></use></svg>
       <span class="unit-tree__grouptitle" lang="{{ course.language }}">{{ item.node.title }}</span>
-      <span class="unit-tree__count">…</span>   {# only when a counter applies #}
+      {# counter block, only when required_total > 0 — see "Folded row content" #}
+      <span class="unit-tree__count" aria-hidden="true">{{ done }}/{{ total }}</span>
+      <span class="unit-tree__groupcheck badge badge--done" aria-hidden="true">✓</span>  {# only at n/n #}
+      <span class="visually-hidden">…translated sentence…</span>
     </summary>
     <ul class="unit-tree__children">…</ul>
   </details>
 </li>
 ```
+
+**Child order is fixed** as chevron / title / counter / ✓ — the ✓ is *additive* at `n/n`, it does
+not replace the counter, so a completed group reads `12/12 ✓`.
 
 `lang="{{ course.language }}"` moves onto the **title span**, not the whole summary: the title
 is author content, the counter is UI chrome in the interface language, and the current markup
@@ -129,10 +151,26 @@ The key is therefore always present, never merely absent-when-false, so a test c
 `{% if item.contains_current %}` has one unambiguous meaning.
 
 `courses/rollups.py` already has this recursion inside `_top_level_part` — a local `contains(d)`
-that tests `d["node"].pk == current_pk` or any child. That recursion is generalised into the
-stamping pass, and **`_top_level_part` is re-expressed in terms of the stamped flag** rather
-than keeping a second copy of the walk: it returns the first root dict whose `contains_current`
-is `True`. Because the pass stamps unit dicts too, this preserves the existing contract that
+that tests `d["node"].pk == current_pk` or any child. That recursion is generalised into a
+**named, module-level helper in `courses/rollups.py`**:
+
+```python
+def _stamp_current_chain(tree, current_pk) -> None:
+    """Set contains_current on every dict: True for current_pk and its ancestors, else False.
+
+    Mutates in place. _top_level_part requires an already-stamped tree.
+    """
+```
+
+`build_unit_nav` calls it immediately **before** `_top_level_part`, and
+**`_top_level_part` is re-expressed in terms of the stamped flag** rather than keeping a second
+copy of the walk. Its post-refactor signature drops the now-redundant `current_pk` parameter —
+`_top_level_part(tree)` — and it reads `d["contains_current"]` **directly, not via `.get()`**: on
+an unstamped tree that raises `KeyError` loudly rather than silently returning `None` and blanking
+`part_progress`. Its docstring states the stamped-tree precondition. It is private with exactly
+one call site, so the signature change is contained.
+
+Because the pass stamps unit dicts too, this preserves the existing contract that
 `_top_level_part` can return a root that **is itself the current unit** — `build_unit_nav`
 reads `top["is_unit"]` to suppress the part chip for a depth-1 unit, and
 `tests/test_unit_nav_render.py::test_unit_shell_part_chip_hidden_for_root_unit` guards exactly
@@ -152,37 +190,90 @@ threshold would be arbitrary; one click reopens a group. The accepted costs, sta
 short courses fold too, and a student who opens three chapters to browse loses those opens on
 the next navigation.
 
+**Find-in-page is the third accepted cost, and the least obvious one.** Ctrl+F is today the
+cheapest way to locate a unit in a 300-row tree, and content inside a closed `<details>` is not
+matched by find-in-page in most browsers (Chrome's auto-expanding search only reaches content
+marked `hidden="until-found"`). Folding therefore removes the one scanning mechanism that
+already scaled. This is accepted rather than compensated: `hidden="until-found"` was considered
+and rejected because it means hiding the children with an attribute *instead of* relying on
+`<details>`' own open state, which reintroduces the state machine and the JS-off breakage that
+choosing native `<details>` exists to avoid, in exchange for a Chromium-only benefit. An
+"expand all" control is likewise **out of scope** — the current chain being open on every load
+is the intended answer to "where am I", and browsing a fully-expanded tree is what the course
+outline page is for. If find-in-page loss proves painful in practice, revisit with a real search
+box rather than an expand-all toggle.
+
 **Folded row content.** A `<summary>` shows the group title plus its required-work progress as
 `done/total`, read from `required_done` / `required_total`, which `build_outline` already places
 on every group dict (`build_unit_nav` consumes exactly these fields today for `part_progress`
-and `course_progress`). A group at `n/n` additionally gets the ✓ badge that completed units
-already use (`.unit-tree__check.badge.badge--done`), so "finished" reads identically at unit and
-group level.
+and `course_progress`). A group at `n/n` additionally gets a ✓ badge, so "finished" reads
+identically at unit and group level.
 
-The counter is **suppressed entirely** — no counter, no ✓ — in either of these cases:
+**The group ✓ needs its own class**, `.unit-tree__groupcheck`, not the unit row's
+`.unit-tree__check`. That class exists specifically to cancel `.badge--done`'s
+`margin-left: auto` because in a *unit* row the ✓ is a **leading** icon (see the comment at
+`courses.css:544-546`). In the summary the ✓ is a **trailing** chip, so reusing the class would
+apply a reset written for the opposite case. `.unit-tree__groupcheck` composes with
+`badge badge--done` for colour but keeps the trailing behaviour.
 
-- `required_total == 0`: no required work to count. Neither `0/0` nor a bare suffix.
-- `user.is_authenticated` is `False`: `build_outline` sets `completed = set()` for anonymous
-  viewers, so every group would otherwise render a misleading `0/12` on a surface that shows no
-  completion state today. Anonymous and preview viewers see titles only.
+The counter is **suppressed entirely** — no counter, no ✓ — when `required_total == 0`: there is
+no required work to count, so neither `0/0` nor a bare suffix is rendered.
+
+There is **no anonymous-viewer case to handle.** Both consumers, `lesson_unit`
+(`courses/views.py:561`) and `quiz_unit` (`courses/views.py:1100`), are `@login_required` and
+additionally gate on `can_access_course`, and `_unit_tree_node.html` is reachable only through
+`build_unit_nav` from those two views. There is no anonymous render path and no preview-viewer
+role, so a `user.is_authenticated` branch would be dead code and a test for it could not be
+driven through the client at all (an anonymous GET redirects to `/accounts/login/`).
 
 **Summary row layout.** `.unit-tree__head` is a plain block today, and the rail is
 `flex: 0 0 14rem` — adding a chevron and a counter to that row without pinning the layout would
 wrap long chapter titles or push the counter out of view. The summary is a **flex row**:
-chevron (fixed, non-shrinking) / title (`flex: 1; min-width: 0` with `overflow: hidden;
-text-overflow: ellipsis; white-space: nowrap`, mirroring `.unit-tree__label`) / counter
-(non-shrinking trailing chip). 
+chevron (`flex: none`) / title (`flex: 1; min-width: 0` with `overflow: hidden;
+text-overflow: ellipsis`, mirroring `.unit-tree__label`) / counter (`flex: none`) / ✓
+(`flex: none`).
 
-**Accessible naming.** A bare `3/7` announces as "three slash seven" with no context. The
-counter carries a translatable accessible label — a visually-hidden span or `aria-label` with
-msgid `"%(done)s of %(total)s required units completed"` — added to **both** the `en` and `pl`
-catalogs, using `gettext_lazy` if it is ever referenced at module level. The decorative chevron
-is `aria-hidden="true"`. `<details>`/`<summary>` supply the expanded/collapsed state natively;
-no `aria-expanded` is added by hand.
+**Title legibility, not just overflow.** Pinning the flex layout stops the row breaking, but it
+does not guarantee the group titles this feature exists to make scannable stay readable. 14rem
+is 224px; `.unit-tree__list` takes `.35rem` side padding, `.unit-tree__head` another `.35rem`
+margin, and `.unit-tree__children` adds `.55rem` per nesting level — so a depth-3 section with a
+chevron and a `12/12 ✓` chip has roughly 100–120px left for a `.64rem` uppercase title, i.e. a
+few words before the ellipsis. Two requirements follow:
 
-**Both surfaces from one change.** `_unit_tree_node.html` is included by both
-`_unit_tree.html` (desktop rail) and `_unit_shell.html`'s mobile drawer, so the desktop rail
-and the drawer both gain folding from this single edit.
+- The group title **may wrap to two lines** (unlike unit rows, which stay single-line): a
+  chapter title is a landmark, and truncating it to "Introduction to…" defeats the point. Beyond
+  two lines it ellipsises.
+- The **worst case must be verified in the required screenshots**: deepest supported level +
+  the longest real chapter title in a production course + an `nn/nn ✓` chip. If that case is
+  still unreadable, widening the rail beyond 14rem is the fallback — an explicit decision to
+  make at screenshot review, not silently.
+
+**Accessible naming.** A bare `3/7` announces as "three slash seven" with no context. Exactly one
+technique is used, not a choice of two: the visible ratio and the ✓ are both
+`aria-hidden="true"`, and a sibling `<span class="visually-hidden">` (the class already ships at
+`core/static/core/css/app.css:1167`) carries the translated sentence, msgid
+`"%(done)s of %(total)s required units completed"`, added to **both** the `en` and `pl` catalogs
+and using `gettext_lazy` if ever referenced at module level. `aria-label` on the counter span is
+**rejected**, not offered as an alternative: a bare `<span>` maps to role `generic`, on which
+ARIA prohibits naming, so most screen readers ignore it. Marking the visible text
+`aria-hidden` is what prevents the row announcing "three slash seven, three of seven required
+units completed". The decorative chevron is `aria-hidden="true"`. `<details>`/`<summary>` supply
+the expanded/collapsed state natively; no `aria-expanded` is added by hand.
+
+**Both surfaces from one change — but they are not identical.** `_unit_tree_node.html` is
+included by both `_unit_tree.html` (desktop rail) and `_unit_shell.html`'s mobile drawer, so
+both gain folding from this single edit. The drawer nonetheless has its own container
+(`.unit-drawer__panel`, `max-height: 80vh; overflow-y: auto`), its own list padding
+(`.unit-drawer__list`), and its **own centring path**: `openDrawer()` calls
+`act.scrollIntoView({block: "center"})`, which `centerActive()` does **not** replace.
+
+That asymmetry is deliberate and stays: the drawer is a fixed-position modal whose panel is the
+only scrollable thing on screen, so `scrollIntoView`'s ancestor-walking — the reason the rail
+avoids it — is harmless there. The folded-active case is also benign in the drawer:
+`scrollIntoView` on a `display: none` element is a no-op, leaving the panel at its natural top,
+rather than the rail's negative-target-clamped jump. The drawer therefore needs no `offsetParent`
+guard. Because the two surfaces diverge, the drawer gets its **own** e2e coverage rather than
+inheriting the rail's (see Testing).
 
 **Flat courses.** A course on the Flat depth preset has no group nodes at all, so its tree
 renders byte-identically to today. Part 2B is what helps those courses.
@@ -192,17 +283,41 @@ renders byte-identically to today. Part 2B is what helps those courses.
 `.unit-tree__node--section > .unit-tree__head` and `.unit-tree__node--chapter > .unit-tree__head`
 (`courses.css:540-542`) match a *direct child* of the `<li>`. With `<details class="unit-tree__group">`
 interposed, both selectors stop matching and chapters/sections silently lose their uppercase
-micro-type — destroying the exact scanability this feature exists to improve. Those selectors
-must be rewritten (drop the `>`, or add `.unit-tree__group > .unit-tree__head` variants) and
-**must keep matching the childless-group shape**, which still has `.unit-tree__head` as a direct
-child of the `<li>`. `.unit-tree__head`'s margins likewise have to survive the move.
+micro-type — destroying the exact scanability this feature exists to improve.
+
+The fix is the **explicit `.unit-tree__group > .unit-tree__head` variant paired with the existing
+direct-child selector**, i.e. each rule lists both shapes:
+
+```css
+.unit-tree__node--chapter > .unit-tree__head,                     /* childless group  */
+.unit-tree__node--chapter > .unit-tree__group > .unit-tree__head  /* <details> group  */
+```
+
+**Simply dropping the `>` is rejected.** `.unit-tree__node--chapter .unit-tree__head` is a
+descendant selector that would also match a *section*'s head nested inside a chapter — harmless
+only because the chapter and section rules happen to carry identical declarations today, and it
+would silently remove the ability to ever differentiate them (and match any future head added
+deeper). Both shapes really do exist: a childless group keeps `.unit-tree__head` as a direct
+child of the `<li>`. `.unit-tree__head`'s margins likewise have to survive the move. Because this
+is the highest-risk part of 2A, it gets an explicit computed-style assertion in Testing rather
+than relying on a screenshot glance.
 
 The remaining `<summary>` declarations are pinned rather than left to interpretation:
 `display: flex` (which also removes the default `list-item` box), `list-style: none`,
 `::-webkit-details-marker { display: none }` for older WebKit, and `cursor: pointer` — the row
 is now interactive. It also gets a `:focus-visible` treatment consistent with the rest of the
-rail, and a hover treatment matching `.unit-tree__unit:hover`. The chevron rotates off
-`details[open]`.
+rail, and a hover treatment matching `.unit-tree__unit:hover`.
+
+**The chevron follows the repo's icon convention:** a monochrome `currentColor` line SVG
+`<use>` from the existing sprite with the shared `.icon` class, **not** a text glyph — the
+`‹` on `.unit-tree__toggle` predates that convention and is not a precedent to copy. It rotates
+90° off `details[open] .unit-tree__chevron`, with a short transition that is suppressed under
+`prefers-reduced-motion: reduce`.
+
+**Values for the new classes** (`.unit-tree__chevron`, `.unit-tree__count`,
+`.unit-tree__groupcheck`) — size, colour token, gap, and the two-line title treatment — are
+settled by the `frontend-design` skill under the constraints stated above, the same deferral
+Part 2B(2) makes. The constraints are binding; the numbers are not pre-committed here.
 
 ### Part 2B — Reliable "you are here"
 
@@ -234,6 +349,15 @@ would be a **new bug shipped by the fix**, so `centerActive()` returns early whe
 element has no layout box (`active.offsetParent === null`), leaving `scrollTop` untouched.
 `centerActive()` never opens groups; folding is the student's explicit choice and is respected.
 
+**Folding a group *above* the active unit shifts the rail, and that is accepted.** Toggling a
+group higher up changes the rail's content height, so rows below it — possibly including the one
+the student is reading — move under the cursor. This is native `<details>` behaviour inside a
+scroll container (scroll anchoring is not reliably applied there across engines), it is the
+direct and legible consequence of a click the student just made, and every alternative (forcing
+`overflow-anchor`, or compensating `scrollTop` by the measured height delta) adds JS to the
+zero-JS half of the feature to smooth over an interaction the student initiated. No
+compensation is specified.
+
 **(2) Louder active marker.** The current treatment is **not** the bare subtle-primary the first
 draft of this spec claimed. `courses.css:548-549` already ships:
 
@@ -250,7 +374,14 @@ and one weight step. The concrete requirements are:
 
 - **Strengthen the bar** to 3–4px so it is not near-identical to every sibling row's 1px border,
   and make it read as a full-height marker against the row's rounded corners rather than a
-  slightly thicker sibling.
+  slightly thicker sibling. **The widening must be width-neutral.** `.unit-tree__unit` is a flex
+  row with `border-left: 1px` and `margin-left: .35rem`, and `.is-active` overrides only the
+  border colour/width — so 1px → 4px adds 3px to the active row's border box, jogging its text
+  right relative to every neighbour and making the row wider than its siblings in an already
+  tight 14rem rail. Either compensate with reduced `padding-left` on `.is-active`, or replace
+  the border with an inset `box-shadow` / `::before` bar so no layout box changes at all
+  (preferred). The active row's left text edge must align with inactive siblings — assert this,
+  don't eyeball it.
 - **Raise weight** from 600 to 700.
 - **Survive `.is-done`.** A completed *and* current unit gets `.is-done`'s `--text-tertiary`
   applied alongside `.is-active`'s `--primary`; source order currently decides. The active
@@ -285,7 +416,8 @@ lesson_unit / quiz_unit view (courses/views.py)
                            │                    <summary> chevron + title + counter? </summary>
                            └─ group, no kids→ <div class="unit-tree__head"> (unchanged shape)
 
-counter shown only when required_total > 0 AND user.is_authenticated
+counter shown only when required_total > 0   (both views are @login_required,
+so there is no anonymous branch)
 
 browser
   └─ unit_nav.js
@@ -316,8 +448,11 @@ new user input. What it has is a set of degradation paths that must each stay be
   without touching scroll.
 - **Active unit inside a user-folded group:** `centerActive()` returns early on
   `offsetParent === null` rather than clamping the rail to scroll-top.
-- **`required_total == 0` / anonymous viewer.** No counter is rendered; no ratio is computed, so
-  there is no divide-by-zero path.
+- **`required_total == 0`.** No counter is rendered; no ratio is computed, so there is no
+  divide-by-zero path.
+- **Builder error notices.** Making the panel a scroll container would otherwise hide
+  `notice()`'s prepended `.op-error` bar from a scrolled-down author — the one degradation Part 1
+  could introduce, closed by the sticky-bar requirement in Part 1.
 - **Tall builder panel.** Handled structurally by `max-height` + overflow, not by an error path.
 - **Sticky unsupported / stacked layout.** The panel falls back to its current in-flow
   behaviour — today's UX, not a broken one.
@@ -333,10 +468,11 @@ new user input. What it has is a set of degradation paths that must each stay be
 - **Depth-1 unit regression:** a course whose current unit is a root node still suppresses the
   part chip — `_top_level_part` returns that root unit dict after the refactor. (Extends the
   existing `test_unit_shell_part_chip_hidden_for_root_unit`.)
-- The counter renders `done/total` from the group's rollup fields, with its accessible label.
-- A group with `required_total == 0` renders no counter.
-- An **anonymous** viewer sees no counter and no ✓ on any group.
-- A group at `n/n` renders the done badge.
+- The counter renders `done/total` from the group's rollup fields, is `aria-hidden`, and is
+  accompanied by the `.visually-hidden` translated sentence.
+- A group with `required_total == 0` renders no counter and no ✓.
+- A group at `n/n` renders the ✓ **in addition to** the counter, using `.unit-tree__groupcheck`
+  (not `.unit-tree__check`).
 - A group with **no children** renders no `<details>` and keeps the plain `.unit-tree__head`.
 - A Flat-preset course renders no `<details>` at all.
 - `build_unit_nav` issues no more queries than before. The baseline must be **captured on
@@ -364,14 +500,33 @@ shut" and "a later sibling is shut" are observable.
   not merely that `scrollTop != 0`.
 - **Folded-active guard:** fold the active unit's own group, then collapse → expand the rail, and
   assert the rail's `scrollTop` is unchanged (no jump to top).
+- **Chapter micro-type survives the `<details>` nesting** — the highest-risk change in 2A, and
+  invisible to every other assertion. Computed-style assertion that a chapter `<summary>`
+  resolves the same `text-transform: uppercase` and font-size as today, in **both** shapes: the
+  `<details>` group and the childless group.
+- **Mobile drawer:** open the drawer at a mobile viewport and assert the current unit's chapter
+  is open while a sibling chapter is shut — the drawer has its own container and centring path,
+  so it does not inherit the rail's coverage.
+
+Builder e2e — home file **`tests/test_e2e_builder_tree_layout.py`**, which already owns the
+`.builder__panel` rule Part 1 edits (it guards the 2:1 ratio and `min-width: 0`). Its existing
+assertions are part of the must-pass set, since a careless rewrite of that rule regresses them.
+Seed: a course deep and large enough that the rendered tree exceeds the viewport at the test's
+window size — reuse the file's existing builder-course fixture, extended with enough nodes to
+scroll (the tree, not the panel, is what must overflow).
+
 - **Builder, deep unit:** with the tree scrolled to the bottom, click a deep unit and assert
   *Open editor* is inside the viewport.
 - **Builder, tall panel:** on a unit whose panel exceeds the viewport, the panel's last control is
-  reachable (the panel scrolls internally rather than clipping).
+  reachable (the panel scrolls internally rather than clipping), and a `notice()` bar raised
+  while the panel is scrolled down is visible.
 - **Builder, stacked:** at a ≤720px viewport the panel is **not** sticky.
 
 **Screenshots.** Light and dark, desktop rail and mobile drawer, reviewed before shipping, plus
 one content-heavy builder panel to confirm `overflow: hidden auto` clips nothing that matters.
+The rail shots must include the **worst-case summary row** (deepest level + longest real chapter
+title + `nn/nn ✓`) so the title-legibility decision — including whether 14rem still suffices —
+is made against evidence.
 Also check whether any committed help screenshot under `core/static/core/img/help/` depicts the
 unit tree; if one does, regenerate it, since this change dates it.
 
