@@ -58,8 +58,15 @@
 
     function focusable() {
       return Array.prototype.slice.call(
-        panel.querySelectorAll('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])')
-      ).filter(function (el) { return el.offsetParent !== null; });
+        // `summary` is natively tabbable but matches none of the other selectors, so
+        // without it a trailing folded group's summary sits in the tab order yet outside
+        // the trap's items list — and Tab escapes the drawer.
+        panel.querySelectorAll('a[href], button:not([disabled]), summary, [tabindex]:not([tabindex="-1"])')
+        // checkVisibility(), NOT offsetParent: a closed <details> hides its content with
+        // content-visibility (Chromium 131+), which leaves offsetParent truthy. offsetParent
+        // would keep hidden unit links in the list, so items[last] would be unfocusable and
+        // the wrap would never fire — the trap would still leak.
+      ).filter(function (el) { return el.checkVisibility(); });
     }
     function onKeydown(e) {
       if (e.key === "Escape") { closeDrawer(); return; }

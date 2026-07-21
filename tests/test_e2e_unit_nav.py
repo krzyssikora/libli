@@ -343,8 +343,8 @@ def test_mobile_drawer_focus_trap(browser, live_server):
             " const p = document.querySelector"
             "('[data-unit-drawer] .unit-drawer__panel');"
             " const f = [...p.querySelectorAll("
-            "'a[href],button:not([disabled]),[tabindex]:not([tabindex=\"-1\"])')]"
-            ".filter(e => e.offsetParent);"
+            "'a[href],button:not([disabled]),summary,[tabindex]:not([tabindex=\"-1\"])')]"
+            ".filter(e => e.checkVisibility());"
             " return document.activeElement === f[f.length - 1];"
             "})()"
         )
@@ -393,3 +393,343 @@ def test_prev_next_traverses_lesson_and_quiz(browser, live_server):
         )
     finally:
         ctx.close()
+
+
+# ---------------------------------------------------------------------------
+# Folding groups (<details>) — seed + tests
+# ---------------------------------------------------------------------------
+
+
+def _seed_grouped_course(username, slug, num_chapters=6, units_per_chapter=8):
+    """A course with several chapters, current unit in the MIDDLE chapter so both an
+    earlier and a later sibling are observably shut."""
+    from django.contrib.auth import get_user_model
+
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+
+    User = get_user_model()
+    student = User.objects.get(username=username)
+    course = CourseFactory(slug=slug, owner=student)
+    EnrollmentFactory(student=student, course=course)
+
+    chapters, units = [], []
+    for c in range(num_chapters):
+        chapter = ContentNodeFactory(
+            course=course,
+            kind="chapter",
+            parent=None,
+            unit_type=None,
+            title=f"Chapter {c + 1}",
+        )
+        chapters.append(chapter)
+        for u in range(units_per_chapter):
+            units.append(
+                ContentNodeFactory(
+                    course=course,
+                    kind="unit",
+                    unit_type="lesson",
+                    parent=chapter,
+                    title=f"C{c + 1} Unit {u + 1}",
+                )
+            )
+    middle = units[len(units) // 2]
+    middle_chapter = middle.parent
+
+    # A SECTION nested inside the current (open) chapter. Without this the seed is a
+    # flat set of sibling chapters, and the chevron test's negative half cannot detect
+    # the bug it exists to catch: the hazard is `details[open] .unit-tree__chevron`
+    # matching a CLOSED group that is a DESCENDANT of an open one. Sibling chapters are
+    # not descendants, so a buggy descendant selector would leave them unrotated and
+    # would pass.
+    nested_section = ContentNodeFactory(
+        course=course,
+        kind="section",
+        parent=middle_chapter,
+        unit_type=None,
+        title="Nested Section",
+    )
+    ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=nested_section,
+        title="Nested Unit 1",
+    )
+    return course, chapters, units, middle, nested_section
+
+
+@pytest.mark.django_db(transaction=True)
+def test_current_chapter_open_siblings_shut(browser, live_server):
+    _make_student("e2e_fold")
+    course, chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_fold", "e2e-fold"
+    )
+
+    ctx = browser.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_fold")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    rail = page.locator("[data-unit-tree]")
+    # all_text_contents(), NOT all_inner_texts(): .unit-tree__grouptitle inherits
+    # text-transform: uppercase from the chapter micro-type rule, and innerText reflects
+    # RENDERED text — so inner_text would yield "CHAPTER 4" and the comparison would
+    # invert the RED/GREEN cycle (passing before Step 3's selector fix, failing after).
+    open_titles = rail.locator(
+        "details[open] > summary .unit-tree__grouptitle"
+    ).all_text_contents()
+    open_titles = [t.strip() for t in open_titles]
+    # The nested section inside the current chapter is SHUT, so one group is open.
+    assert open_titles == [middle.parent.title], (
+        f"exactly the current chapter should be open, got {open_titles}"
+    )
+
+    shut = rail.locator("details:not([open])")
+    # every other chapter, plus the nested section inside the open one
+    assert shut.count() == len(chapters) - 1 + 1, "every other group should be shut"
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_clicking_a_folded_summary_reveals_its_units(browser, live_server):
+    _make_student("e2e_reveal")
+    course, _chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_reveal", "e2e-reveal"
+    )
+
+    ctx = browser.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_reveal")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    rail = page.locator("[data-unit-tree]")
+    first_unit_of_ch1 = rail.get_by_role("link", name="C1 Unit 1")
+    assert not first_unit_of_ch1.is_visible(), "Chapter 1 should start folded"
+
+    rail.locator("summary", has_text="Chapter 1").first.click()  # real click
+    first_unit_of_ch1.wait_for(state="visible")
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_chapter_microtype_survives_the_details_nesting(browser, live_server):
+    """The highest-risk change in 2A: the > child combinator stops matching once
+    <details> is interposed, and chapters silently lose their uppercase micro-type.
+    Baseline is the literal current value (courses.css:540-542), not 'same as today'."""
+    _make_student("e2e_micro")
+    course, _chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_micro", "e2e-micro"
+    )
+    from tests.factories import ContentNodeFactory
+
+    # the childless shape
+    ContentNodeFactory(
+        course=course,
+        kind="chapter",
+        parent=None,
+        unit_type=None,
+        title="Empty Chapter",
+    )
+
+    ctx = browser.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_micro")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    rail = page.locator("[data-unit-tree]")
+    for locator, shape in (
+        (rail.locator("details > summary.unit-tree__head").first, "<details> shape"),
+        (rail.locator("div.unit-tree__head").first, "childless shape"),
+    ):
+        style = locator.evaluate(
+            "el => { const s = getComputedStyle(el);"
+            " return {tt: s.textTransform, fs: s.fontSize}; }"
+        )
+        assert style["tt"] == "uppercase", f"{shape}: lost uppercase ({style['tt']})"
+        # .64rem against the 16px root = 10.24px.
+        assert abs(float(style["fs"].rstrip("px")) - 10.24) < 0.5, (
+            f"{shape}: font-size drifted ({style['fs']})"
+        )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_chevron_rotates_only_for_the_open_group(browser, live_server):
+    """Both halves in one test so they cannot drift apart: a missing rule satisfies the
+    negative assertion perfectly while shipping a chevron that never rotates."""
+    _make_student("e2e_chev")
+    course, _chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_chev", "e2e-chev"
+    )
+
+    ctx = browser.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_chev")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    rail = page.locator("[data-unit-tree]")
+    open_t = rail.locator(
+        "details[open] > summary > .unit-tree__chevron"
+    ).first.evaluate("el => getComputedStyle(el).transform")
+    # Target the NESTED section specifically — a closed group INSIDE the open chapter.
+    # A sibling closed chapter would not detect the descendant-selector bug, because it
+    # is not a descendant of the open one.
+    shut_t = rail.locator(
+        "details[open] details:not([open]) > summary > .unit-tree__chevron"
+    ).first.evaluate("el => getComputedStyle(el).transform")
+    assert open_t not in ("none", "matrix(1, 0, 0, 1, 0, 0)"), (
+        f"open group's chevron does not rotate ({open_t})"
+    )
+    assert shut_t in ("none", "matrix(1, 0, 0, 1, 0, 0)"), (
+        f"closed NESTED group's chevron is rotated ({shut_t}) — the rotation selector "
+        f"is a descendant selector; it must be the direct-child chain"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_drawer_focus_trap_holds_at_a_folded_summary(browser, live_server):
+    """<summary> is natively tabbable but matches none of focusable()'s selectors, so
+    without widening it, Tab from a trailing folded summary escapes the drawer."""
+    _make_student("e2e_trap")
+    course, _chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_trap", "e2e-trap"
+    )
+
+    ctx = browser.new_context(
+        reduced_motion="reduce", viewport={"width": 480, "height": 800}
+    )
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_trap")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    page.locator("[data-unit-drawer-open]").click()
+    page.locator("[data-unit-drawer]").wait_for(state="visible")
+
+    last_summary = page.locator("[data-unit-drawer] details:not([open]) > summary").last
+    last_summary.focus()
+    page.keyboard.press("Tab")
+
+    inside = page.evaluate(
+        "() => !!document.activeElement.closest('[data-unit-drawer]')"
+    )
+    assert inside, (
+        "Tab escaped the drawer from a folded summary — focusable() must include "
+        "summary"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_drawer_shows_the_current_chain_open(browser, live_server):
+    """The drawer has its own container and centring path, so it gets its own cover."""
+    _make_student("e2e_drawer_fold")
+    course, chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_drawer_fold", "e2e-drawer-fold"
+    )
+
+    ctx = browser.new_context(
+        reduced_motion="reduce", viewport={"width": 480, "height": 800}
+    )
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_drawer_fold")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    page.locator("[data-unit-drawer-open]").click()
+    drawer = page.locator("[data-unit-drawer]")
+    drawer.wait_for(state="visible")
+
+    open_titles = [
+        t.strip()
+        for t in drawer.locator(
+            "details[open] > summary .unit-tree__grouptitle"
+        ).all_text_contents()  # not inner_text — see the rail test's note on uppercase
+    ]
+    assert open_titles == [middle.parent.title]
+    assert drawer.locator("details:not([open])").count() == len(chapters) - 1 + 1
+    ctx.close()
+
+
+# ---------------------------------------------------------------------------
+# Worst-case summary row — screenshot harness (review artifact, not coverage)
+# ---------------------------------------------------------------------------
+
+WORST_CASE_TITLE = "Wprowadzenie do funkcji trygonometrycznych i ich zastosowania"
+
+
+def _seed_worst_case_row(username, slug):
+    """Pinned synthetic worst case for the screenshot review: the deepest nesting, a
+    long title, and a full 12/12 counter — plus a childless group whose title must line
+    up with the <details> shape's."""
+    from django.contrib.auth import get_user_model
+
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import UnitProgressFactory
+
+    student = get_user_model().objects.get(username=username)
+    course = CourseFactory(slug=slug, owner=student)
+    EnrollmentFactory(student=student, course=course)
+
+    part = ContentNodeFactory(
+        course=course, kind="part", parent=None, unit_type=None, title="Part One"
+    )
+    chapter = ContentNodeFactory(
+        course=course, kind="chapter", parent=part, unit_type=None, title="Chapter One"
+    )
+    section = ContentNodeFactory(
+        course=course,
+        kind="section",
+        parent=chapter,
+        unit_type=None,
+        title=WORST_CASE_TITLE,
+    )
+    units = [
+        ContentNodeFactory(
+            course=course,
+            kind="unit",
+            unit_type="lesson",
+            parent=section,
+            title=f"Unit {i + 1}",
+            obligatory=True,
+        )
+        for i in range(12)
+    ]
+    for unit in units:
+        UnitProgressFactory(student=student, unit=unit, completed=True)
+    ContentNodeFactory(
+        course=course,
+        kind="chapter",
+        parent=part,
+        unit_type=None,
+        title="Childless Chapter",
+    )
+    return course, units[0]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_capture_worst_case_row(browser, live_server, tmp_path):
+    """Screenshot harness for the worst-case summary row. Not an assertion test — it
+    exists to produce the review artifact. DELETE before opening the PR."""
+    _make_student("e2e_worst")
+    course, first_unit = _seed_worst_case_row("e2e_worst", "e2e-worst")
+
+    for scheme in ("light", "dark"):
+        ctx = browser.new_context(reduced_motion="reduce", color_scheme=scheme)
+        page = ctx.new_page()
+        _login(page, live_server, "e2e_worst")
+        page.goto(f"{live_server.url}/courses/{course.slug}/u/{first_unit.pk}/")
+        page.locator("[data-unit-tree]").screenshot(
+            path=str(tmp_path / f"rail-{scheme}.png")
+        )
+
+        page.set_viewport_size({"width": 480, "height": 800})
+        page.locator("[data-unit-drawer-open]").click()
+        page.locator("[data-unit-drawer]").screenshot(
+            path=str(tmp_path / f"drawer-{scheme}.png")
+        )
+        ctx.close()
+    print(f"screenshots in {tmp_path}")

@@ -536,10 +536,75 @@ select.dnd__select { display: inline-block; width: auto; margin: 0 0.15rem; vert
 .unit-tree__list, .unit-tree__children { list-style: none; margin: 0; padding: 0; }
 .unit-tree__list { padding: .4rem .35rem .8rem; }
 .unit-tree__children { padding-left: .55rem; }
-.unit-tree__head { font-weight: 700; color: var(--text-primary); margin: .5rem .35rem .15rem; }
+/* Padding lives on BOTH shapes (summary and childless div) and the margin is reduced by
+   the same amount, so the total left inset stays .35rem and the two shapes' titles line
+   up column-true. The padding is what gives the summary's hover background a body. */
+.unit-tree__head { font-weight: 700; color: var(--text-primary); margin: .5rem .1rem .15rem;
+  padding: .15rem .25rem; display: flex; align-items: flex-start; gap: .35rem; }
+/* Four selectors, all with `>`: a group node renders EITHER as a plain
+   .unit-tree__head div (childless) or as <details class="unit-tree__group"> with the
+   head as its <summary>. Dropping the child combinator to cover both would also match a
+   section's head nested inside a chapter, permanently losing the ability to tell the two
+   levels apart. */
 .unit-tree__node--section > .unit-tree__head,
-.unit-tree__node--chapter > .unit-tree__head { font-size: .64rem; font-weight: 700;
+.unit-tree__node--section > .unit-tree__group > .unit-tree__head,
+.unit-tree__node--chapter > .unit-tree__head,
+.unit-tree__node--chapter > .unit-tree__group > .unit-tree__head { font-size: .64rem; font-weight: 700;
   letter-spacing: .05em; text-transform: uppercase; color: var(--text-tertiary); }
+
+/* Group summary: flex row of chevron / title / counter / check. display:flex (above) also
+   drops the default list-item box; list-style + ::-webkit-details-marker kill the native
+   triangle in favour of our own chevron. */
+summary.unit-tree__head { cursor: pointer; list-style: none; border-radius: .4rem; }
+summary.unit-tree__head::-webkit-details-marker { display: none; }
+/* Background only — NOT color. The micro-type rule
+   `.unit-tree__node--chapter > .unit-tree__group > .unit-tree__head` has specificity (0,3,0)
+   and would beat `summary.unit-tree__head:hover` (0,2,1), so a colour here would apply to
+   part-level summaries and silently no-op on chapters and sections. The micro-type colour is
+   deliberately constant across states. */
+summary.unit-tree__head:hover { background: var(--surface-raised); }
+summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+/* Title WRAPS (unlike unit rows, which ellipsise on one line): a group title is a
+   landmark, and truncating it to "Introduction to…" defeats the purpose. The contrast —
+   headers wrap, rows clip — is itself the hierarchy signal.
+   The clamp is 5, not 2. Measured: at the deepest level a 14rem rail leaves the title
+   98px, and the pinned 60-char worst case needs 5 lines (77px). No rail width fixes that
+   at 2 lines — it would take a ~370px rail — so raising the clamp is the right lever, and
+   5 lines (~two unit rows tall) still bounds a pathological title.
+   overflow-wrap so a word longer than the column breaks instead of overflowing the rail,
+   and hyphens:auto so that break reads as a hyphen — the span carries lang=course.language
+   (set in _unit_tree_node.html), so Chromium uses the right hyphenation dictionary. */
+.unit-tree__grouptitle { flex: 1; min-width: 0; overflow: hidden;
+  overflow-wrap: break-word; hyphens: auto;
+  display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; }
+
+/* The (0,2,0) descendant chain is what outranks `.icon { width: 1em; height: 1em }`
+   (app.css:108, specificity (0,1,0)). A bare `.unit-tree__chevron` rule would tie .icon and
+   win only by stylesheet order, which a future extra_css reshuffle could silently flip. */
+/* No colour of its own: currentColor makes the chevron take each level's own weight —
+   primary at part level, tertiary micro-type at chapter/section — so the disclosure
+   never shouts louder than the title it belongs to. */
+.unit-tree__head > .unit-tree__chevron { flex: none; width: .7rem; height: .7rem;
+  transition: transform 120ms ease; }
+.unit-tree__chevron--spacer { visibility: hidden; }   /* keeps childless titles aligned */
+/* Direct-child chain, NOT `details[open] .unit-tree__chevron`: the tree is recursive, so
+   a CLOSED section sits inside an OPEN chapter and a descendant selector would paint it
+   open too. */
+.unit-tree__group[open] > .unit-tree__head > .unit-tree__chevron { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { .unit-tree__chevron { transition: none; } }
+
+/* Counter is chrome, not content. tabular-nums so the ratio does not jitter as the
+   student progresses; letter-spacing:0 because it would otherwise inherit the micro-type
+   rule's .05em tracking, which loosens "12/12" into something that reads as a label.
+   Always tertiary — at part level the title is --text-primary and the count stays quiet. */
+.unit-tree__count { flex: none; font-size: .62rem; font-weight: 600; letter-spacing: 0;
+  font-variant-numeric: tabular-nums; color: var(--text-tertiary); }
+/* Its OWN class, not .unit-tree__check: that one resets .badge--done's margin-left:auto
+   because in a unit row the tick is a LEADING icon (courses.css:550-552). Here it trails. */
+   The one coloured mark in an otherwise tertiary row, so a finished group reads at a
+   glance; .badge's default padding (var(--space-2)) is too wide for a 14rem rail. */
+.unit-tree__groupcheck { flex: none; font-size: .66rem; line-height: 1; padding: 0 .3rem; }
 .unit-tree__unit { display: flex; align-items: center; gap: .4rem; padding: .3rem .5rem;
   margin-left: .35rem; border-radius: .4rem; color: var(--text-secondary);
   border-left: 1px solid var(--border-subtle); text-decoration: none; }
