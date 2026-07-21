@@ -129,6 +129,19 @@ def test_tall_panel_keeps_actions_on_screen(page, live_server):
     page.locator(".tree__title", has_text="Unit 1").first.click()
     page.locator(".panel__seam").wait_for(state="visible")
 
+    # Scroll the page down so the panel is actually PINNED before asserting. This is not a
+    # convenience: at scrollY == 0 sticky does nothing (it never lifts an element above its
+    # flow position), and the panel's flow top is .app-header (~54px) + .app-main's
+    # padding (var(--space-8) = 32px) ≈ 86px. With max-height = 100vh - 32px = 668px, the
+    # panel's bottom would sit at ~754px against a 700px viewport — so the seam is below the
+    # fold by arithmetic, no matter how correct the CSS is. The complaint this feature fixes
+    # is precisely about the scrolled state, so that is what to assert.
+    page.mouse.wheel(0, 400)
+    page.wait_for_function(
+        "() => document.querySelector('.builder__panel').getBoundingClientRect().top"
+        "        <= 20"
+    )
+
     # The panel really is overflowing (otherwise this test proves nothing).
     overflow = page.locator(".builder__panel").evaluate(
         "el => el.scrollHeight - el.clientHeight"
@@ -173,7 +186,7 @@ def test_panel_not_sticky_when_stacked(page, live_server):
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```
-uv run pytest tests/test_e2e_builder_tree_layout.py -m e2e -k "sticky or tall_panel or stacked" -v
+uv run pytest tests/test_e2e_builder_tree_layout.py -m e2e -k "reachable or tall_panel or not_sticky_when_stacked" -v
 ```
 
 Expected, per test:
@@ -249,10 +262,12 @@ temporary `page.screenshot()` in the tall-panel test), at 1280×700, select the 
 unit and capture **light and dark**:
 
 ```python
+# tmp_path, not /tmp — this repo runs on Windows, where "/tmp/..." lands in C:	mp\.
 page.emulate_media(color_scheme="light")
-page.screenshot(path="/tmp/builder-panel-light.png", full_page=False)
+page.screenshot(path=str(tmp_path / "builder-panel-light.png"), full_page=False)
 page.emulate_media(color_scheme="dark")
-page.screenshot(path="/tmp/builder-panel-dark.png", full_page=False)
+page.screenshot(path=str(tmp_path / "builder-panel-dark.png"), full_page=False)
+print(f"screenshots in {tmp_path}")   # run with -s to see the path
 ```
 
 Look specifically for: horizontal clipping of long element summaries, the seam's background
@@ -327,8 +342,12 @@ def test_exactly_one_panel_innerhtml_assignment():
 def test_setpanel_resets_scrolltop():
     source = BUILDER_JS.read_text(encoding="utf-8")
     assert "function setPanel(" in source, "setPanel() helper is missing"
-    body = source.split("function setPanel(", 1)[1].split("\n  }", 1)[0]
-    assert "scrollTop = 0" in body, "setPanel() must reset panel.scrollTop to 0"
+    # Regex over the helper's body rather than splitting on "\n  }" — that heuristic assumes
+    # the closing brace is exactly two spaces deep and breaks silently on any reformatting,
+    # turning a real invariant into a false pass.
+    assert re.search(r"function setPanel\([^)]*\)\s*\{[^}]*scrollTop\s*=\s*0", source), (
+        "setPanel() must reset panel.scrollTop to 0"
+    )
 ```
 
 - [ ] **Step 2: Run it to verify it fails**
@@ -491,6 +510,9 @@ falsifications. A green run you never saw go red is not evidence.
 ```bash
 uv run ruff check tests/
 uv run ruff format --check tests/
+# Step 5's falsification temporarily edits builder.css, which Task 1 already committed and
+# this task's scoped `git add` would NOT surface. Confirm the restore happened:
+git diff --stat courses/static/courses/css/builder.css   # must be empty
 git branch --show-current
 git add courses/static/courses/js/builder.js tests/test_builder_js_invariants.py tests/test_e2e_builder_tree_layout.py
 git commit -m "fix(builder): funnel every panel swap through setPanel() so the scroll position resets"
@@ -1029,9 +1051,9 @@ def _seed_grouped_course(username, slug, num_chapters=6, units_per_chapter=8):
     earlier and a later sibling are observably shut."""
     from django.contrib.auth import get_user_model
 
-    from courses.models import Enrollment
     from tests.factories import ContentNodeFactory
     from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
 
     User = get_user_model()
     student = User.objects.get(username=username)
@@ -1238,7 +1260,7 @@ def test_drawer_shows_the_current_chain_open(browser, live_server):
 - [ ] **Step 2: Run to verify they fail**
 
 ```
-uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "fold or reveal or microtype or chevron or trap or drawer_shows" -v
+uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "siblings_shut or reveals_its_units or microtype or chevron_rotates or focus_trap_holds or drawer_shows" -v
 ```
 
 Expected, per test:
@@ -1307,10 +1329,9 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
 .unit-tree__grouptitle { flex: 1; min-width: 0; overflow: hidden;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 
-/* Scoped past .icon: app.css:108 sets `.icon { width: 1em; height: 1em }` at the SAME
-   (0,1,0) specificity, so an unscoped .unit-tree__chevron rule would win only by stylesheet
-   order — which a future extra_css reshuffle could silently flip. */
-summary.unit-tree__head > .unit-tree__chevron,
+/* The (0,2,0) descendant chain is what outranks `.icon { width: 1em; height: 1em }`
+   (app.css:108, specificity (0,1,0)). A bare `.unit-tree__chevron` rule would tie .icon and
+   win only by stylesheet order, which a future extra_css reshuffle could silently flip. */
 .unit-tree__head > .unit-tree__chevron { flex: none; width: .75rem; height: .75rem;
   transition: transform 120ms ease; }
 .unit-tree__chevron--spacer { visibility: hidden; }   /* keeps childless titles aligned */
@@ -1554,13 +1575,19 @@ def test_active_marker_is_strong_and_width_neutral(browser, live_server):
 
     rail = page.locator("[data-unit-tree]")
     active = rail.locator(".unit-tree__unit.is-active").first
-    inactive = rail.locator(".unit-tree__unit:not(.is-active)").first
+    # Scope the comparison row to the OPEN chapter. `.unit-tree__unit:not(.is-active)` in
+    # DOM order is the first unit of Chapter 1, which is inside a CLOSED <details> — and
+    # Playwright returns None from bounding_box() for a non-rendered element, so the
+    # subtraction below would raise TypeError and the assertion could never run.
+    inactive = rail.locator("details[open] > ul .unit-tree__unit:not(.is-active)").first
 
     assert active.evaluate("el => getComputedStyle(el).fontWeight") == "700"
 
     # Width-neutral: the active row's text starts at the same x as its siblings'.
-    ax = active.locator(".unit-tree__label").bounding_box()["x"]
-    ix = inactive.locator(".unit-tree__label").bounding_box()["x"]
+    abox = active.locator(".unit-tree__label").bounding_box()
+    ibox = inactive.locator(".unit-tree__label").bounding_box()
+    assert abox is not None and ibox is not None, "both rows must be rendered to compare"
+    ax, ix = abox["x"], ibox["x"]
     assert abs(ax - ix) < 1.0, (
         f"active row's text jogged by {ax - ix:.1f}px — widen the bar without changing "
         f"the box (inset box-shadow or ::before), or compensate padding-left"
@@ -1582,13 +1609,14 @@ def test_active_marker_is_strong_and_width_neutral(browser, live_server):
         raise AssertionError("never reached the active row by tabbing")
     ring = active.evaluate(
         "el => { const s = getComputedStyle(el);"
-        " return {w: s.outlineWidth, c: s.outlineColor}; }"
+        " return {w: s.outlineWidth, o: s.outlineOffset}; }"
     )
     assert ring["w"] not in ("0px", ""), "no focus-visible ring on the active row"
-    # Distinct from the accent bar, or the two compose into one muddy edge.
-    bar = active.evaluate("el => getComputedStyle(el).boxShadow")
-    assert ring["c"] not in bar, (
-        f"focus ring colour {ring['c']} matches the accent bar ({bar}) — use a distinct token"
+    # The ring shares --primary with the accent bar by design (one ring colour for the whole
+    # rail); what keeps them tellable apart is the OFFSET — a flush inset bar on the left
+    # edge versus an outline standing off the whole row.
+    assert ring["o"] not in ("0px", ""), (
+        f"focus ring has no offset ({ring['o']}) — it will merge into the accent bar"
     )
     ctx.close()
 
@@ -1635,7 +1663,7 @@ def test_done_and_active_row_keeps_the_active_colour(browser, live_server):
 - [ ] **Step 2: Run to verify they fail**
 
 ```
-uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "recentre or marker or doneactive" -v
+uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "recentres or width_neutral or done_and_active" -v
 ```
 
 Expected, per test:
@@ -1742,7 +1770,14 @@ def test_centering_is_skipped_when_the_active_group_is_folded(browser, live_serv
     ctx.close()
 ```
 
-Only if that spy concretely fails in this harness may the guard be demoted to documented
+**Write this test in Step 1, with the others** — not here — and record its state honestly: run
+before the JS lands it passes **vacuously** (the expand does nothing at all today, so
+`__scrollToCalls` is 0 for the wrong reason). So it needs the same explicit falsification Task 2
+Step 5 uses: once Step 3's JS is in place, temporarily delete
+`if (active.offsetParent === null) return;`, re-run, confirm it FAILS with
+`__scrollToCalls == 1`, then restore. That is the only run in which this test proves anything.
+
+Only if the spy concretely fails in this harness may the guard be demoted to documented
 defensive code (the comment in the function body being that documentation) — and say so in the
 commit message if you take that route. In the toggle's click handler (`:21-25`), add the expand-branch call:
 
@@ -1771,15 +1806,16 @@ In `courses/static/courses/css/courses.css`, replace `.unit-tree__unit.is-active
      1px-bordered inactive rows. */
   border-left-color: transparent;
   box-shadow: inset 3px 0 0 0 var(--primary); }
-/* Distinct token from the bar's --primary: the spec requires the ring and the accent bar be
-   tellable apart, and the e2e asserts outlineColor is not the bar's colour. */
-.unit-tree__unit.is-active:focus-visible { outline: 2px solid var(--focus-ring, var(--text-primary));
-  outline-offset: 1px; }
+/* Same ring as every other focusable in the rail (summaries use this too) — ONE ring colour
+   for the whole component. "Tellable apart from the accent bar" is achieved by the offset,
+   not by a second hue: the bar is a flush inset shadow on the left edge, the ring is an
+   offset outline around the whole row. */
+.unit-tree__unit.is-active:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 ```
 
-Check `core/static/core/css/tokens.css` for an existing focus-ring token and use it if one
-exists; the `var(--focus-ring, …)` fallback above is a safety net, not a licence to skip
-looking.
+There is **no `--focus-ring` token** in `tokens.css` — do not invent one. Because the ring and
+the bar now deliberately share `--primary`, the e2e's "ring colour differs from the bar" check
+would be wrong; assert the **offset** instead (see the amended test below).
 
 Verify `.is-active` appears **after** `.is-done` in source order; if not, move it.
 
