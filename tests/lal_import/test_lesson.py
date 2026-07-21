@@ -1737,6 +1737,36 @@ def test_ks_tabs_positional_fallback_when_panel_ids_mismatch_hrefs():
     assert imgs == ["static/pilka.png"]
 
 
+SWITCH_GATE_LINE_IMAGE = r"""
+<div id="question250">
+  <div class="switch_steps">
+    <div class="switch_step">
+      <p>Krok.</p>
+      <div class="switch_line">
+        Zobacz <div class="centered"><img src="static/tab.png" alt="t"></div>
+        <div class="switch_value">&gt;&gt; wybierz &gt;&gt;</div>
+        <div class="switch_value">\(A\)</div>
+        <div class="switch_value">\(B\)</div>
+        <div class="switch_show_next ks_button">zatwierdź</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>localStorage.setItem('switch_answers', JSON.stringify({250:[1]}));</script>
+"""
+
+
+def test_switch_gate_line_diagram_image_recovered():
+    # 030_twierdzenie_sinusow: a diagram inside a gate .switch_line is folded into
+    # the sanitized switch_gate stem (nh3 strips <img>). It must survive as an
+    # ImageElement while the line still becomes a switch_gate.
+    elements, _ = parse_lesson(SWITCH_GATE_LINE_IMAGE, "x.html")
+    allels = _flatten_all(elements)
+    imgs = [e["media_src"] for e in allels if e.get("type") == "image"]
+    assert "static/tab.png" in imgs
+    assert sum(1 for e in allels if e.get("type") == "switch_gate") == 1
+
+
 def test_whitespace_only_block_is_dropped():
     # a whitespace-only <p> (e.g. <p>\n</p>) must NOT become an empty TextElement
     elements, _ = parse_lesson("<p>\n</p><p>Treść.</p>", "x.html")

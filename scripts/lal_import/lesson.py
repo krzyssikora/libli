@@ -797,6 +797,10 @@ def _emit_switch_step(step, elements, flags, consumed, state, answers, gate_idx)
         if _is_switch_gate_line(child):
             _walk(content, elements, flags, consumed, state)
             content = []
+            # A diagram in the gate line is folded into the sanitized switch_gate
+            # stem (nh3 strips <img>); emit it as an ImageElement before the gate
+            # so it survives (030_twierdzenie_sinusow). No-op without an image.
+            _emit_media_in(child, elements, flags)
             stem, cyclers = switch_line_stem_cyclers(child)
             options = cyclers[0]["options"] if cyclers else []
             raw = answers[gate_idx] if gate_idx < len(answers) else 0
