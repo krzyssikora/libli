@@ -847,6 +847,16 @@ def test_more_less_becomes_guess_number():
     assert "za dużo" not in joined and "za mało" not in joined
 
 
+def test_stray_inline_fragment_becomes_text_not_flagged():
+    # A <sup> footnote marker or a mis-typed <stron> orphaned at block level should
+    # be emitted as text (content preserved), not collapsed to a flagged HtmlElement.
+    html = "<p>a</p><sup>(*)</sup><stron>wszystkie</stron>"
+    elements, flags = parse_lesson(html, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    joined = " ".join(e.get("body", "") for e in elements if e["type"] == "text")
+    assert "(*)" in joined and "wszystkie" in joined
+
+
 # --- Group B #6: ks_tabs -> TabsElement (nested children) ---
 KS_TABS = r"""
 <div class="ks_tabs">

@@ -637,6 +637,14 @@ def _walk(nodes, elements, flags, consumed, state):
                 _emit_text_or_images(node, node.decode_contents(), elements, flags)
             continue
 
+        if not _has_block_child(node) and node.get_text(strip=True):
+            # A stray inline fragment orphaned at block level — a <sup> footnote
+            # marker split off its paragraph, a mis-typed <stron>, etc. Emit it as
+            # text (content preserved) rather than a flagged HtmlElement.
+            _flag_relative_hrefs(node, flags)
+            _emit_text_or_images(node, str(node), elements, flags)  # already escaped
+            continue
+
         _unmapped(f"unmapped <{name}> in lesson body", node, elements, flags)
 
 
