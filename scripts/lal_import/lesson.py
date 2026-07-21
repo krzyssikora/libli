@@ -828,19 +828,42 @@ def _one_choice_rows(node):
         parent = groups[pid]["parent"]
         stmt = parent.find(class_="statement")
         statement = (stmt or parent).get_text(" ", strip=True)
-        rows.append({"statement": statement, "options": groups[pid]["options"]})
+        # the statement can BE a diagram (180: <div class=statement><img>...); keep
+        # the node so _emit_one_choice can emit its image before the row's MCQ.
+        rows.append(
+            {
+                "statement": statement,
+                "options": groups[pid]["options"],
+                "stmt_node": stmt or parent,
+            }
+        )
     return rows
 
 
 def _emit_one_choice(node, state):
     """Group B #7: build a ChoiceGrid when every row shares the same option set,
-    else one single-choice MCQ per row. correct_choices[qid] is 1-based (elt_id+1)."""
+    else one single-choice MCQ per row. correct_choices[qid] is 1-based (elt_id+1).
+    Diagram images in the widget survive as ImageElements: a per-row .statement
+    image leads its own MCQ (180); a layout-table image cell beside the choices
+    (kwadratowa_140, where the dispatch fires on the enclosing table_wrapper) leads
+    the whole widget."""
     answers = state.get("correct_choices", {}).get(_enclosing_qid(node), [])
     rows = _one_choice_rows(node)
     for i, r in enumerate(rows):
         r["correct"] = (answers[i] - 1) if i < len(answers) else 0
+    out = []
+    # Layout images that are neither an option nor a row statement — a diagram in a
+    # sibling cell of the choice table — lead the widget (order is best-effort).
+    _emit_media_in(
+        node,
+        out,
+        [],
+        skip=lambda m: m.find_parent(class_=["one_choice", "statement"]) is not None,
+    )
     if rows and len({tuple(r["options"]) for r in rows}) == 1:
-        return [
+        for r in rows:  # a grid can't interleave per row, so its images lead it
+            _emit_media_in(r["stmt_node"], out, [])
+        out.append(
             {
                 "type": "choice_grid",
                 "columns": rows[0]["options"],
@@ -848,20 +871,24 @@ def _emit_one_choice(node, state):
                     {"statement": r["statement"], "correct": r["correct"]} for r in rows
                 ],
             }
-        ]
-    # varying columns -> a single-choice MCQ per row (stem is a sanitized field).
-    return [
-        {
-            "type": "choice",
-            "stem": f"<p>{escape_math_delimited(r['statement'])}</p>",
-            "multiple": False,
-            "choices": [
-                {"text": o, "is_correct": (j == r["correct"])}
-                for j, o in enumerate(r["options"])
-            ],
-        }
-        for r in rows
-    ]
+        )
+        return out
+    # varying columns -> a single-choice MCQ per row (stem is a sanitized field);
+    # a statement image leads its own MCQ, preserving reading order.
+    for r in rows:
+        _emit_media_in(r["stmt_node"], out, [])
+        out.append(
+            {
+                "type": "choice",
+                "stem": f"<p>{escape_math_delimited(r['statement'])}</p>",
+                "multiple": False,
+                "choices": [
+                    {"text": o, "is_correct": (j == r["correct"])}
+                    for j, o in enumerate(r["options"])
+                ],
+            }
+        )
+    return out
 
 
 def _emit_truth_false(node, state):

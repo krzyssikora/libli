@@ -1563,6 +1563,68 @@ def test_reveal_table_label_cell_and_content_row_images_recovered():
     assert any("7,5" in c.get("body", "") for c in sp["elements"])
 
 
+ONE_CHOICE_STATEMENT_IMAGE = r"""
+<div id="question610">
+  <div class="question_text">Który wzór wskazuje pole?</div>
+  <ul>
+    <li>
+      <div class="statement"><img src="static/tri_1.png" alt="t1"></div>
+      <div class="one_choice ks_button">\(A\)</div>
+      <div class="one_choice ks_button">\(B\)</div>
+    </li>
+    <li>
+      <div class="statement"><img src="static/tri_2.png" alt="t2"></div>
+      <div class="one_choice ks_button">\(C\)</div>
+      <div class="one_choice ks_button">\(D\)</div>
+      <div class="one_choice ks_button">\(E\)</div>
+    </li>
+  </ul>
+</div>
+<script>localStorage.setItem('correct_choices', JSON.stringify({610:[1,2]}));</script>
+"""
+
+
+def test_one_choice_statement_image_emitted_before_each_mcq():
+    # 180_pole_trojkata: each per-row MCQ's .statement IS a diagram <img>.
+    # get_text() dropped it; it must lead its own MCQ (varying options -> per-row).
+    elements, _ = parse_lesson(ONE_CHOICE_STATEMENT_IMAGE, "x.html")
+    seq = [e["type"] for e in elements if e["type"] in ("image", "choice")]
+    assert seq == ["image", "choice", "image", "choice"]  # diagram before its MCQ
+    imgs = [e["media_src"] for e in elements if e["type"] == "image"]
+    assert imgs == ["static/tri_1.png", "static/tri_2.png"]
+
+
+ONE_CHOICE_LAYOUT_IMAGES = r"""
+<div id="question210">
+  <div class="question_text">Wskaż zbiór wartości.
+    <div class="table_wrapper"><table class="my_table_noborder"><tr>
+      <td><strong>1</strong><br><img src="static/w_2.png" alt="w2"></td>
+      <td><strong>2</strong><br><img src="static/w_3.png" alt="w3"></td>
+      <td><ul>
+        <li><div class="statement">Wykres 1.</div>
+          <div class="one_choice ks_button">\(A\)</div>
+          <div class="one_choice ks_button">\(B\)</div></li>
+        <li><div class="statement">Wykres 2.</div>
+          <div class="one_choice ks_button">\(C\)</div>
+          <div class="one_choice ks_button">\(D\)</div></li>
+      </ul></td>
+    </tr></table></div>
+  </div>
+</div>
+<script>localStorage.setItem('correct_choices', JSON.stringify({210:[1,1]}));</script>
+"""
+
+
+def test_one_choice_layout_table_image_cells_recovered():
+    # kwadratowa_140: a layout table mixes image cells with the one_choice widget;
+    # the one_choice dispatch fires on the table_wrapper ancestor, swallowing the
+    # image cells. They must be recovered as leading ImageElements.
+    elements, _ = parse_lesson(ONE_CHOICE_LAYOUT_IMAGES, "x.html")
+    imgs = [e["media_src"] for e in elements if e["type"] == "image"]
+    assert imgs == ["static/w_2.png", "static/w_3.png"]
+    assert sum(1 for e in elements if e["type"] == "choice") == 2  # both MCQs kept
+
+
 def test_whitespace_only_block_is_dropped():
     # a whitespace-only <p> (e.g. <p>\n</p>) must NOT become an empty TextElement
     elements, _ = parse_lesson("<p>\n</p><p>Treść.</p>", "x.html")
