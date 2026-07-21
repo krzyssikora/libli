@@ -257,9 +257,11 @@ Expected: PASS, including the pre-existing `test_builder_tree_layout` (it guards
 - [ ] **Step 5: Capture the content-heavy builder panel screenshots**
 
 The spec requires one content-heavy builder panel shot to confirm `overflow: hidden auto`
-clips nothing that matters — no other task produces it. In a scratch Playwright script (or a
-temporary `page.screenshot()` in the tall-panel test), at 1280×700, select the element-heavy
-unit and capture **light and dark**:
+clips nothing that matters — no other task produces it. Add a temporary `page.screenshot()` to
+the tall-panel test — **and add `tmp_path` to that test's signature**
+(`def test_tall_panel_keeps_actions_on_screen(page, live_server, tmp_path):`), since it does not
+request the fixture today and the snippet would otherwise `NameError`. At 1280×700, with the
+element-heavy unit selected, capture **light and dark**:
 
 ```python
 # tmp_path, not /tmp — this repo runs on Windows, where "/tmp/..." lands in C:	mp\.
@@ -803,7 +805,6 @@ def test_group_renders_as_details_open_only_on_the_current_chain(client):
     client.force_login(student)
     html = client.get(f"/courses/{course.slug}/u/{target.pk}/").content.decode()
 
-    import re
     groups = re.findall(r'<details class="unit-tree__group"([^>]*)>', html)
     # Rail + drawer render the tree twice, so each chapter appears twice.
     assert sum("open" in g for g in groups) == 2, "only the current chapter should be open"
@@ -826,7 +827,6 @@ def test_group_counter_renders_actual_numerals(client):
     client.force_login(student)
     html = client.get(f"/courses/{course.slug}/u/{units[0].pk}/").content.decode()
 
-    import re
     summaries = re.findall(r"<summary.*?</summary>", html, re.S)
     assert summaries, "expected a group summary"
     # Scoped to the summary: a document-wide "1/3" is ALSO satisfied by the footer's part
@@ -855,7 +855,6 @@ def test_all_quiz_group_renders_no_counter_and_no_check(client):
     # body is the empty redirect and both negative assertions below pass vacuously.
     html = client.get(f"/courses/{course.slug}/u/{quiz.pk}/", follow=True).content.decode()
 
-    import re
     summaries = re.findall(r"<summary.*?</summary>", html, re.S)
     # Positive anchor first: a document-wide "string absent" assertion also passes when
     # the tree failed to render at all.
@@ -876,7 +875,6 @@ def test_completed_group_renders_the_group_check(client):
     client.force_login(student)
     html = client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
 
-    import re
     summaries = re.findall(r"<summary.*?</summary>", html, re.S)
     assert summaries, "expected a group summary"
     assert any("unit-tree__groupcheck" in s for s in summaries), (
@@ -1039,7 +1037,7 @@ git commit -m "feat(unit-tree): fold groups into <details>, current chain open, 
 - Consumes: Task 4's markup.
 - Produces: styled summary rows; `focusable()` includes `summary`. Task 6 edits `centerActive()` in the same JS file.
 
-**Context you need:** `.unit-tree__node--section > .unit-tree__head` and `--chapter > .unit-tree__head` (`courses.css:540-542`) are **direct-child** selectors. The interposed `<details>` breaks them and chapters silently lose their uppercase micro-type. `focusable()` already filters `el.offsetParent !== null`, so widening it with `summary` is sufficient — hidden links inside a folded group are excluded automatically.
+**Context you need:** `.unit-tree__node--section > .unit-tree__head` and `--chapter > .unit-tree__head` (`courses.css:540-542`) are **direct-child** selectors. The interposed `<details>` breaks them and chapters silently lose their uppercase micro-type. `focusable()`'s visibility filter must change too. It currently uses `el.offsetParent !== null`, which does NOT exclude links inside a folded group: since Chromium 131 a closed `<details>` hides content with `content-visibility: hidden`, not `display: none`, so those links keep a truthy `offsetParent` (measured on this repo's Playwright Chromium 148). Left alone, the last item is a hidden unfocusable link, the wrap never fires, and Tab still escapes. Use `el.checkVisibility()`.
 
 - [ ] **Step 1: Write the failing e2e**
 
@@ -1356,10 +1354,13 @@ In `courses/static/courses/js/unit_nav.js`, change `focusable()`'s selector:
       return Array.prototype.slice.call(
         // `summary` is natively tabbable but matches none of the other selectors, so
         // without it a trailing folded group's summary sits in the tab order yet outside
-        // the trap's items list — and Tab escapes the drawer. The offsetParent filter
-        // below already excludes links hidden inside a folded group.
+        // the trap's items list — and Tab escapes the drawer.
         panel.querySelectorAll('a[href], button:not([disabled]), summary, [tabindex]:not([tabindex="-1"])')
-      ).filter(function (el) { return el.offsetParent !== null; });
+        // checkVisibility(), NOT offsetParent: a closed <details> hides its content with
+        // content-visibility (Chromium 131+), which leaves offsetParent truthy. offsetParent
+        // would keep hidden unit links in the list, so items[last] would be unfocusable and
+        // the wrap would never fire — the trap would still leak.
+      ).filter(function (el) { return el.checkVisibility(); });
     }
 ```
 
@@ -1370,7 +1371,7 @@ escaped JS string, so leaving it stale would let it keep passing while the real 
 ```python
             " const f = [...p.querySelectorAll("
             "'a[href],button:not([disabled]),summary,[tabindex]:not([tabindex=\"-1\"])')]"
-            ".filter(e => e.offsetParent);"
+            ".filter(e => e.checkVisibility());"
 ```
 
 This edit is a **consistency fix with no coverage of its own** — that test's seed
@@ -1690,10 +1691,12 @@ In `courses/static/courses/js/unit_nav.js`, replace the block at `:35-46` with a
     // Scope the lookup to the rail: the mobile drawer renders a SECOND .is-active node.
     var active = tree.querySelector(".unit-tree__unit.is-active");
     if (!active) return;
-    // No layout box => the student folded the group holding it. Bail: the arithmetic
-    // below would compute a large negative target and scrollTo would clamp it to 0,
-    // silently yanking the rail to the top.
-    if (active.offsetParent === null) return;
+    // The student folded the group holding the active unit. NOT `offsetParent === null`:
+    // a closed <details> hides content with content-visibility (Chromium 131+), so
+    // offsetParent stays truthy and the element keeps a STALE non-zero rect — which the
+    // arithmetic below turns into a positive, meaningless scroll target (measured: 383px).
+    // checkVisibility() is false for both display:none and content-visibility-skipped.
+    if (!active.checkVisibility()) return;
 
     var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     // getBoundingClientRect().top is the border-box outer edge; clientTop reconciles it
@@ -1723,7 +1726,7 @@ reads better. Leave the `centerActive();` **invocation** where the old block was
 toggle wiring, around the old `:35`), preserving the ordering the original comment describes:
 the pre-paint collapse restore on `<html>` must already have run before the first centring.
 
-**On the `offsetParent` guard's test — spy first, demote only if the spy genuinely fails.** The
+**On the folded-active guard's test — spy first, demote only if the spy genuinely fails.** The
 obvious e2e ("fold the active group, collapse → expand, assert `scrollTop` unchanged") is
 **vacuous**: collapsing applies `html.unit-tree-collapsed .unit-tree__list { display: none }`
 (`courses.css:642`), which clamps `scrollTop` to 0 in *both* implementations, so it is 0 → 0
@@ -1744,11 +1747,13 @@ def test_centering_is_skipped_when_the_active_group_is_folded(browser, live_serv
     _login(page, live_server, "e2e_guard")
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
 
-    # Real click: fold the chapter that contains the active unit.
+    # Real click: fold the chapter that contains the active unit. (Verified against this
+    # repo's Playwright Chromium: after folding, the active link keeps a truthy offsetParent
+    # and a stale non-zero rect — only checkVisibility() reports it hidden.)
     page.locator("[data-unit-tree] details[open] > summary").first.click()
     page.wait_for_function(
         "() => !document.querySelector('[data-unit-tree] .unit-tree__unit.is-active')"
-        "        .offsetParent"
+        "        .checkVisibility()"
     )
 
     page.evaluate(
@@ -1765,7 +1770,7 @@ def test_centering_is_skipped_when_the_active_group_is_folded(browser, live_serv
     toggle.click()   # expand   (real gesture) -> centerActive() runs
     assert page.evaluate("() => window.__scrollToCalls") == 0, (
         "centerActive() scrolled the rail for an element with no layout box — the "
-        "offsetParent guard is missing, and the rail will jump to the top"
+        "visibility guard is missing, and the rail will jump to a stale-rect position"
     )
     ctx.close()
 ```
@@ -1774,7 +1779,7 @@ def test_centering_is_skipped_when_the_active_group_is_folded(browser, live_serv
 before the JS lands it passes **vacuously** (the expand does nothing at all today, so
 `__scrollToCalls` is 0 for the wrong reason). So it needs the same explicit falsification Task 2
 Step 5 uses: once Step 3's JS is in place, temporarily delete
-`if (active.offsetParent === null) return;`, re-run, confirm it FAILS with
+`if (!active.checkVisibility()) return;`, re-run, confirm it FAILS with
 `__scrollToCalls == 1`, then restore. That is the only run in which this test proves anything.
 
 Only if the spy concretely fails in this harness may the guard be demoted to documented
@@ -1853,4 +1858,8 @@ git commit -m "fix(unit-tree): re-centre the active unit on expand; strengthen t
 - [ ] Screenshots reviewed: light + dark, rail + drawer, worst-case summary row, childless group, content-heavy builder panel
 - [ ] Both `.po` catalogs updated, no `#~` obsolete entries, no stray fuzzy flags
 - [ ] Any committed help screenshot under `core/static/core/img/help/` that depicts the unit tree has been regenerated
+- [ ] `test_capture_worst_case_row` and `_seed_worst_case_row` removed (they are a print-only,
+      assertion-free review artifact), or their retention justified in the commit message
+- [ ] The temporary `page.screenshot()` calls added to `test_tall_panel_keeps_actions_on_screen`
+      have been removed
 - [ ] Six commits, in order: builder CSS → setPanel → rollups → template+i18n → tree CSS+trap → centerActive+marker

@@ -389,8 +389,8 @@ That asymmetry is deliberate and stays: the drawer is a fixed-position modal who
 only scrollable thing on screen, so `scrollIntoView`'s ancestor-walking — the reason the rail
 avoids it — is harmless there. The folded-active case is also benign in the drawer:
 `scrollIntoView` on a `display: none` element is a no-op, leaving the panel at its natural top,
-rather than the rail's negative-target-clamped jump. The drawer therefore needs no `offsetParent`
-guard.
+rather than the rail's negative-target-clamped jump. The drawer therefore needs no visibility
+guard of its own.
 
 **The drawer's focus trap does need widening, and this is the one drawer change that is not
 optional.** `unit_nav.js`'s `focusable()` selects
@@ -400,11 +400,22 @@ being absent from the trap's `items` list. `onKeydown` calls `preventDefault()` 
 `activeElement` is `items[0]` or `items[last]`, so focus resting on a summary Tabs natively —
 and when a folded group's summary is the last tabbable thing in the panel (a shut chapter at the
 end of the tree, the normal case once folding exists) **Tab escapes the drawer entirely**.
-`focusable()`'s selector therefore gains `summary`. The existing
-`test_mobile_drawer_focus_trap` re-implements the same selector in its own assertion, so it
-would keep passing while the trap leaked — that in-test list must be updated to match, and an
-e2e added that Tabs from a folded trailing `<summary>` and asserts focus is still inside
-`[data-unit-drawer]`. Because the two surfaces diverge, the drawer gets its **own** e2e coverage rather than
+`focusable()`'s selector therefore gains `summary`.
+
+**Widening the selector alone is not sufficient — the visibility filter must change too.**
+`focusable()` currently filters `el.offsetParent !== null`, which was assumed to exclude the unit
+links hidden inside a folded group. It does not: per the measurement recorded in Part 2B, a
+closed `<details>` in current Chromium hides its content with `content-visibility: hidden`, so
+those links still report a truthy `offsetParent` (while `checkVisibility()` is false and Tab
+correctly skips them). Left as-is, `items[items.length - 1]` becomes a hidden, unfocusable link
+in the last shut chapter, `activeElement === last` never holds, `preventDefault()` never fires,
+and **Tab still escapes the drawer** — the fix would not fix the bug. The filter therefore
+becomes `el.checkVisibility()`.
+
+The existing `test_mobile_drawer_focus_trap` re-implements both the selector *and* the filter in
+its own assertion, so it would keep passing while the trap leaked — that in-test list must be
+updated to match, and an e2e added that Tabs from a folded trailing `<summary>` and asserts focus
+is still inside `[data-unit-drawer]`. Because the two surfaces diverge, the drawer gets its **own** e2e coverage rather than
 inheriting the rail's (see Testing).
 
 **Fold state is per-surface, and that is accepted.** The partial is included twice per page, so
@@ -504,11 +515,23 @@ Call sites:
   centred on the collapse direction (there is nothing to centre in a 2.4rem rail).
 
 **Guard for a folded active unit.** Part 2A lets a student fold the very group containing the
-active unit, and they can then collapse and expand the rail. A `display: none` element reports
-`getBoundingClientRect().top === 0` and `offsetHeight === 0`, so the existing arithmetic computes
-a large negative target and `scrollTo` clamps it to 0 — the rail silently jumps to the top. That
-would be a **new bug shipped by the fix**, so `centerActive()` returns early when the active
-element has no layout box (`active.offsetParent === null`), leaving `scrollTop` untouched.
+active unit, and they can then collapse and expand the rail. Without a guard the rail jumps
+under them, which would be a **new bug shipped by the fix**, so `centerActive()` returns early
+when the active element is not visible, leaving `scrollTop` untouched.
+
+**The guard must NOT be `offsetParent === null`, and the failure it prevents is not
+"zeroed geometry".** Both were plausible and both are wrong — measured against this repo's
+Playwright Chromium (148). Since Chromium 131, a closed `<details>` hides its content with
+`::details-content { content-visibility: hidden }`, **not** `display: none`. A unit link inside a
+folded group therefore still reports a truthy `offsetParent`, `getClientRects().length === 1`,
+and a **stale non-zero** `getBoundingClientRect()`. Feeding that stale rect through the existing
+arithmetic yields a *positive* target (383px in the measured case) — so the rail is scrolled to a
+meaningless position rather than clamped to top, and an `offsetParent` guard is simply dead code
+that never fires.
+
+The predicate is **`active.checkVisibility()`**, which is false for both `display: none` and
+content-visibility-skipped subtrees and true otherwise (`active.closest("details:not([open])")`
+is an acceptable equivalent for this specific case). Guard: `if (!active.checkVisibility()) return;`
 `centerActive()` never opens groups; folding is the student's explicit choice and is respected.
 
 **Folding a group *above* the active unit shifts the rail, and that is accepted.** Toggling a
@@ -586,7 +609,7 @@ browser
        ├─ on load                → centerActive()
        └─ on toggle → expanding  → centerActive()          ← the fix
             centerActive(): re-queries rail + .is-active, returns early if
-            collapsed, missing, or offsetParent === null (folded group)
+            collapsed, missing, or !checkVisibility() (folded group)
 ```
 
 Part 1 introduces no data flow: it is a stylesheet change to an existing grid item, plus routing
@@ -609,7 +632,7 @@ new user input. What it has is a set of degradation paths that must each stay be
   `part_progress` stays `None`), and `centerActive()` finds no `.is-active` element and returns
   without touching scroll.
 - **Active unit inside a user-folded group:** `centerActive()` returns early on
-  `offsetParent === null` rather than clamping the rail to scroll-top.
+  `!active.checkVisibility()` rather than scrolling the rail to a stale-rect position.
 - **`required_total == 0`.** No counter is rendered; no ratio is computed, so there is no
   divide-by-zero path.
 - **Builder error notices.** Making the panel a scroll container would otherwise hide
@@ -684,7 +707,7 @@ not flat. Two consequences:
   target, the fixed one via the early return — so the assertion is 0 → 0 either way and can
   never be shown RED. Instead the guard is asserted at the **JS level**: spy the rail's
   `scrollTo` and assert `centerActive()` does not call it when the active element has
-  `offsetParent === null`. If that spy is impractical in this harness, the guard is demoted to
+  `!checkVisibility()`. If that spy is impractical in this harness, the guard is demoted to
   documented defensive code with an explicit note that it is not observable through the real UI —
   never papered over with a green-but-meaningless e2e.
 - **Chapter micro-type survives the `<details>` nesting** — the highest-risk change in 2A, and
