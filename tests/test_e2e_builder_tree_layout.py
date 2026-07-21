@@ -128,3 +128,142 @@ def test_builder_tree_layout(page, live_server, tmp_path):
     page.evaluate("document.documentElement.setAttribute('data-theme', 'dark')")
     page.screenshot(path=str(tmp_path / "unit_panel_dark.png"), full_page=True)
     print(f"SCREENSHOTS: {tmp_path}")
+
+
+LONG_BODY = "<p>" + ("Filler paragraph to make this element list tall. " * 8) + "</p>"
+
+# 80, not 25. _unit_panel.html renders each element as ONE ellipsised ~24px row, and the
+# panel cap at the 700px test viewport is calc(100vh - 32px) = 668px. At 25 elements the
+# overflow is within noise of font metrics, so the `overflow > 0` and `scrollTop > 0`
+# preconditions would be flaky. 80 rows (~1900px) makes it unambiguous.
+TALL_ELEMENT_COUNT = 80
+
+
+def _seed_tall_course(slug):
+    """A course whose tree overflows the viewport and whose first unit has enough
+    elements that its panel overflows too."""
+    from courses.models import ContentNode
+    from courses.models import Course
+    from courses.models import Element
+    from courses.models import TextElement
+
+    course = Course.objects.create(slug=slug, title="Tall Demo")
+    units = [
+        ContentNode.objects.create(
+            course=course, kind="unit", unit_type="lesson", title=f"Unit {i + 1}"
+        )
+        for i in range(40)
+    ]
+    # BOTH of the first two units get a tall element list. Unit 2 needs it because
+    # the scroll-reset test swaps from Unit 1 to Unit 2: if Unit 2's panel were
+    # short, the browser would clamp scrollTop to 0 on its own the moment the
+    # content shrank, and the test would pass with or without setPanel() — unable
+    # to go red for the right reason.
+    for unit in units[:2]:
+        for _ in range(TALL_ELEMENT_COUNT):
+            Element.objects.create(
+                unit=unit,
+                content_object=TextElement.objects.create(body=LONG_BODY),
+            )
+    return course, units[0]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_panel_stays_reachable_on_a_long_tree(page, live_server):
+    """Clicking a unit at the bottom of a long tree leaves both actions on screen."""
+    _make_pa_user("pa_sticky")
+    course, _first = _seed_tall_course("sticky-demo")
+
+    page.set_viewport_size({"width": 1280, "height": 700})
+    _login(page, live_server, "pa_sticky")
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/build/")
+
+    # Scroll to the very bottom of the page, then click the LAST unit in the tree.
+    page.mouse.wheel(0, 20000)
+    page.locator(".tree__title", has_text="Unit 40").first.click()
+    page.locator(".panel__seam").wait_for(state="visible")
+
+    vh = page.evaluate("() => window.innerHeight")
+    for label in ("+ Add element", "Open editor"):
+        box = page.locator(".builder__panel").get_by_text(label).first.bounding_box()
+        assert box is not None, f"{label!r} has no box"
+        assert 0 <= box["y"] and box["y"] + box["height"] <= vh, (
+            f"{label!r} is outside the viewport "
+            f"(y={box['y']}, h={box['height']}, vh={vh})"
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_tall_panel_keeps_actions_on_screen(page, live_server):
+    """An element-heavy unit's panel scrolls internally; the seam stays pinned."""
+    _make_pa_user("pa_tall")
+    course, first = _seed_tall_course("tall-demo")
+
+    page.set_viewport_size({"width": 1280, "height": 700})
+    _login(page, live_server, "pa_tall")
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/build/")
+    page.locator(".tree__title", has_text="Unit 1").first.click()
+    page.locator(".panel__seam").wait_for(state="visible")
+
+    # Scroll the page down so the panel is actually PINNED before asserting. This is
+    # not a convenience: at scrollY == 0 sticky does nothing (it never lifts an element
+    # above its flow position), and the panel's flow top is .app-header (~54px) +
+    # .app-main's padding (var(--space-8) = 32px) ≈ 86px. With max-height =
+    # 100vh - 32px = 668px, the panel's bottom would sit at ~754px against a 700px
+    # viewport — so the seam is below the fold by arithmetic, no matter how correct
+    # the CSS is. The complaint this feature fixes is precisely about the scrolled
+    # state, so that is what to assert.
+    page.mouse.wheel(0, 400)
+    page.wait_for_function(
+        "() => document.querySelector('.builder__panel')"
+        ".getBoundingClientRect().top <= 20"
+    )
+
+    # The panel really is overflowing (otherwise this test proves nothing).
+    overflow = page.locator(".builder__panel").evaluate(
+        "el => el.scrollHeight - el.clientHeight"
+    )
+    assert overflow > 0, (
+        "panel is not a scroll container — is the .builder__panel "
+        "max-height/overflow rule applied?"
+    )
+
+    vh = page.evaluate("() => window.innerHeight")
+    box = (
+        page.locator(".builder__panel").get_by_text("Open editor").first.bounding_box()
+    )
+    assert box["y"] + box["height"] <= vh, "seam is below the fold on a tall panel"
+
+    # The seam must be OPAQUE, or panel content scrolls under the button labels — the
+    # degradation the sticky seam exists to prevent. (--surface-default does not exist
+    # in tokens.css; an invalid token here would paint transparent and still "pass" a
+    # position-only assertion.)
+    bg = page.locator(".panel__seam").evaluate(
+        "el => getComputedStyle(el).backgroundColor"
+    )
+    assert bg not in ("rgba(0, 0, 0, 0)", "transparent"), (
+        f"sticky seam has no painted background ({bg}) — check the token name is real"
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_panel_not_sticky_when_stacked(page, live_server):
+    """At <=720px the columns stack: no sticky, and no nested scroll container."""
+    _make_pa_user("pa_stack")
+    course, _first = _seed_tall_course("stack-demo")
+
+    page.set_viewport_size({"width": 600, "height": 800})
+    _login(page, live_server, "pa_stack")
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/build/")
+
+    style = page.locator(".builder__panel").evaluate(
+        "el => { const s = getComputedStyle(el);"
+        " return {pos: s.position, mh: s.maxHeight, ov: s.overflowY}; }"
+    )
+    assert style["pos"] == "static", f"expected static when stacked, got {style['pos']}"
+    assert style["mh"] == "none", (
+        f"max-height must be reset when stacked, got {style['mh']}"
+    )
+    assert style["ov"] == "visible", (
+        f"overflow must be reset when stacked, got {style['ov']}"
+    )
