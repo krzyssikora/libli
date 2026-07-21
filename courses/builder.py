@@ -128,7 +128,8 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     if isinstance(parent_obj, SpoilerElement):
         # Single-slot container: no `data` slot list to read. A spoiler may receive
         # children only when it is itself top-level (depth-1 invariant), and only
-        # allowlisted leaf child types (spoiler/containers/interactive excluded).
+        # allowlisted LEAF child types (SPOILER_CHILD_TYPES — static leaves plus the
+        # interactive leaves; native containers and nested spoilers stay excluded).
         if join.parent_id is not None:
             raise NestingError("a nested spoiler may not have children")
         if tab != SpoilerElement.SLOT_ID:

@@ -90,8 +90,8 @@ def build_element(
                 canonical = _PARSER_TO_CANONICAL.get(ctype, ctype)
                 if not child.get("flagged") and canonical not in SPOILER_CHILD_TYPES:
                     raise LoaderError(
-                        f"non-leaf child ({ctype}) nested inside a spoiler in unit "
-                        f"{unit.pk}; spoilers hold only static content "
+                        f"child ({ctype}) not allowed inside a spoiler in unit "
+                        f"{unit.pk}; spoilers hold only leaf types "
                         f"({', '.join(sorted(SPOILER_CHILD_TYPES))})"
                     )
                 build_element(
