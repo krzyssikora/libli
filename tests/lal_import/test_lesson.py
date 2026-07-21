@@ -902,6 +902,15 @@ SLIDESHOW = r"""
 """
 
 
+def test_figure_with_embed_becomes_iframe():
+    # some LAL figures wrap a YouTube URL in <embed> instead of <iframe>
+    html = '<figure><embed src="https://www.youtube.com/embed/abc123"/></figure>'
+    elements, flags = parse_lesson(html, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    ifr = [e for e in elements if e["type"] == "iframe"]
+    assert len(ifr) == 1 and "youtube.com/embed/abc123" in ifr[0]["url"]
+
+
 def test_slideshow_becomes_spoiler_with_steps_and_image():
     elements, flags = parse_lesson(SLIDESHOW, "x.html")
     assert not any(e.get("flagged") for e in elements)

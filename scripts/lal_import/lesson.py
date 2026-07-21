@@ -1341,12 +1341,13 @@ def _emit_figure(fig, elements, flags):
         d["figcaption"] = caption
         elements.append(d)
     else:
-        iframe = fig.find("iframe")
-        if iframe is not None:
-            # R7: no video/img but an iframe -> IframeElement; any
-            # .iframe_small.hidden no-JS fallback in the figure is dropped.
+        # No video/img -> an embedded player. Both <iframe> and <embed> (some LAL
+        # figures wrap a YouTube URL in <embed src=…/embed/…>) map to IframeElement;
+        # any .iframe_small.hidden no-JS fallback in the figure is dropped.
+        frame = fig.find("iframe") or fig.find("embed")
+        if frame is not None:
             elements.append(
-                {"type": "iframe", "url": iframe.get("src", ""), "title": ""}
+                {"type": "iframe", "url": frame.get("src", ""), "title": ""}
             )
         else:
             _unmapped("figure without video, img, or iframe", fig, elements, flags)
