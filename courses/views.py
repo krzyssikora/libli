@@ -337,7 +337,11 @@ def build_lesson_context(node, user):
     # was a ~12-clause inlined OR-chain duplicated between here and build_quiz_context.)
     has_math = any(_element_has_math(el.content_object) for el in elements)
     has_html = any(el.content_type_id == html_ct_id for el in elements)
-    has_questions = any(el.content_type_id in question_ct_ids for el in elements)
+    # Flat unit-wide (NOT scoped to parent__isnull=True) so a question nested in a
+    # spoiler/tab — children keep their own `unit` FK — is still detected, arming
+    # question.js/dnd.js. Only fill_blank is nestable today, so this only newly fires
+    # for a nested fillblank; top-level behaviour is unchanged.
+    has_questions = node.elements.filter(content_type_id__in=question_ct_ids).exists()
     # Flat query (NOT scoped to parent__isnull=True) so a gate nested inside a tab —
     # children keep their own `unit` FK — is still detected. Both gate types arm the
     # pre-hide + reveal.js; only fill-gates need fillgate.js.
