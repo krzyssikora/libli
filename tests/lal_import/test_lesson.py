@@ -1536,6 +1536,33 @@ def test_r3_reveal_row_prompt_image_extracted_before_spoiler():
     assert any(c["media_src"] == "static/s.png" for c in sol_imgs)
 
 
+def test_reveal_table_label_cell_and_content_row_images_recovered():
+    # A reveal-table's FIRST cell can be a diagram the solution refers to (011),
+    # and a colspan content row (no question_solution) can hold a <figure> (104):
+    # both must survive as ImageElements, not be swallowed by first_td.get_text()
+    # or skipped with the row. The solution image stays inside the spoiler.
+    html = (
+        '<table class="my_table_TL">'
+        "<tr>"
+        '<td><img src="static/rozgrzewka_2.png" alt="d"></td>'
+        '<td><div class="show_solution ks_button">zobacz</div></td>'
+        r'<td><div class="question_solution hidden">\(7,5\)</div></td>'
+        '<td><div class="question_answer"></div></td>'
+        "</tr>"
+        '<tr><td colspan="4"><figure>'
+        '<img src="static/klas.png" alt="k"></figure></td></tr>'
+        "</table>"
+    )
+    elements, _ = parse_lesson(html, "x.html")
+    imgs = [e["media_src"] for e in elements if e["type"] == "image"]
+    assert "static/rozgrzewka_2.png" in imgs  # first-cell diagram (before spoiler)
+    assert "static/klas.png" in imgs  # figure in a no-solution content row
+    types = [e["type"] for e in elements]
+    assert types.index("image") < types.index("spoiler")  # diagram before its reveal
+    sp = next(e for e in elements if e["type"] == "spoiler")
+    assert any("7,5" in c.get("body", "") for c in sp["elements"])
+
+
 def test_whitespace_only_block_is_dropped():
     # a whitespace-only <p> (e.g. <p>\n</p>) must NOT become an empty TextElement
     elements, _ = parse_lesson("<p>\n</p><p>Treść.</p>", "x.html")

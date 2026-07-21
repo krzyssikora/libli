@@ -244,6 +244,9 @@ def _reveal_table_spoilers(table, consumed, state):
     for tr in table.find_all("tr"):
         sol = tr.find(class_="question_solution")
         if sol is None:
+            # A content-only row: no solution to reveal, but a header note or a
+            # colspan <figure> row (104_wstep) can hold a diagram that must survive.
+            _emit_media_in(tr, elements, flags)
             continue
         # B1: the row's .question_answer div is the always-VISIBLE prompt (often a
         # figure/diagram <img>); emit it as visible siblings BEFORE the spoiler so
@@ -253,6 +256,19 @@ def _reveal_table_spoilers(table, consumed, state):
         ans = tr.find(class_="question_answer")
         if ans is not None:
             _walk(list(ans.children), elements, flags, consumed, state)
+        # The row's other visible cells can carry a diagram the solution refers to
+        # (011: the first <td> is the figure). Emit those images before the spoiler,
+        # skipping the hidden solution (stays inside it) and the already-walked
+        # answer cell. first_td.get_text() below then supplies a text-only label.
+        _emit_media_in(
+            tr,
+            elements,
+            flags,
+            skip=lambda m: (
+                m.find_parent(class_=["question_solution", "question_answer"])
+                is not None
+            ),
+        )
         first_td = tr.find("td")
         label = first_td.get_text(strip=True) if first_td is not None else ""
         _flag_relative_hrefs(sol, flags)
@@ -1327,6 +1343,27 @@ def _emit_image_table(table, elements, flags):
                     {"type": "text", "body": f"<p>{cell.decode_contents().strip()}</p>"}
                 )
     _flag_relative_hrefs(table, flags)
+
+
+def _emit_media_in(node, elements, flags, skip=None):
+    """Emit every <img>/<figure> inside `node` as its own native element (an
+    ImageElement, or the figure's video/iframe) in document order. Used by widget
+    handlers that intercept a subtree and would otherwise DROP diagram/figure
+    content that is not part of the widget itself — a prompt image beside a choice
+    grid, a diagram in a fill-in step, a first-cell figure in a reveal row (nh3
+    strips <img> from every sanitized field, so it can only survive as its own
+    element). An <img> nested in a <figure> is emitted once, by its figure.
+    `skip(media) -> True` excludes a media node (e.g. one inside an already-handled
+    solution cell)."""
+    for media in node.find_all(["img", "figure"]):
+        if skip is not None and skip(media):
+            continue
+        if media.name == "img" and media.find_parent("figure") is not None:
+            continue  # emitted by its enclosing <figure>
+        if media.name == "figure":
+            _emit_figure(media, elements, flags)
+        else:
+            elements.append(_image_dict(media))
 
 
 def _emit_figure(fig, elements, flags):
