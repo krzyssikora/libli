@@ -79,7 +79,7 @@ direct children of `.switch_steps` are never walked.**
 - **`_emit_switch_gate_chain(container, elements, flags, consumed, state)`
   (lesson.py ~693):**
   ```
-  answers = state["switch_answers"].get(_enclosing_qid(container), [])
+  answers = state.get("switch_answers", {}).get(_enclosing_qid(container), [])
   gate_idx = 0
   for step in container.find_all(class_="switch_step", recursive=False):
       content = []
@@ -121,14 +121,35 @@ children of `container` in document order, dispatching by whether a child is a
 def _emit_switch_gate_chain(container, elements, flags, consumed, state):
     answers = state.get("switch_answers", {}).get(_enclosing_qid(container), [])
     gate_idx = 0
+    pending = []  # consecutive non-step children, flushed as ONE sibling run
     for child in container.children:
         if isinstance(child, Tag) and "switch_step" in (child.get("class") or []):
+            if pending:
+                _walk(pending, elements, flags, consumed, state)
+                pending = []
             gate_idx = _emit_switch_step(
                 child, elements, flags, consumed, state, answers, gate_idx
             )
         else:
-            _walk([child], elements, flags, consumed, state)
+            pending.append(child)
+    if pending:
+        _walk(pending, elements, flags, consumed, state)
 ```
+
+**Non-step children are buffered and flushed as a full sibling run, NOT walked
+one-at-a-time.** Every existing `_walk` call receives a *full* list of siblings, and
+several handlers depend on that sibling context — `_emit_multi_many` /
+`_emit_widget_placeholder` coalesce consecutive siblings; the `show_next`
+(`_next_show_step`) lookahead and the `show_solution` button
+(`_find_solution` / `_followed_by_show_solution`) scans inspect neighbouring nodes
+by index. Passing each non-step child in its own one-element list would silently
+break these (e.g. a `show_solution` button and its sibling `question_solution` div,
+both non-step children, would each be walked alone → two spurious "unmapped" /
+"button without solution" flags instead of one solution region). Buffering the run
+between steps and flushing once (mirroring the step-content buffer in
+`_emit_switch_step`) preserves the invariant. None of the 9 affected files contains
+such sibling-coupled non-step content today, but the buffer-and-flush formulation
+costs nothing and removes the latent regression.
 
 The per-step body (the inner `for child in step.children` content/gate loop) moves
 verbatim into a new helper that returns the updated `gate_idx`:
@@ -159,8 +180,9 @@ content][gate?]…`; for 090_wstep: `[figure ImageElement][prose text][step
 content + gates]`.
 
 `container.children` yields `NavigableString` whitespace nodes between the block
-children; `_walk([ws])` strips empties (its `NavigableString` branch), so passing
-them through is a no-op — no need to pre-filter.
+children; they accumulate into `pending` and are stripped by `_walk`'s
+`NavigableString` branch when the run is flushed, so passing them through is a
+no-op — no need to pre-filter.
 
 ### Edge cases (pin in planning)
 
@@ -214,8 +236,12 @@ dispatch reaches `_emit_switch_gate_chain`.
   step content THEN a `switch_gate`. RED today (only the gate/step emitted; `p.png`
   dropped).
 - **Non-step image-table (330 shape):** a `switch_steps` whose first child is
-  `div.table_wrapper > table.my_table_noborder` containing N `<img>` cells emits N
-  `image` elements (via `_emit_image_table`) before the step/gate sequence. RED today.
+  `div.table_wrapper > table.my_table_noborder` with N image cells and **no label
+  rows** (so `_emit_image_table`'s caption-folding does not collapse a cell) emits N
+  `image` elements before the step/gate sequence. Assert on the set of emitted
+  `image` `media_src`s matching the N fixture srcs, not a bare element count (a label
+  cell directly above an image is folded into its `figcaption`, changing the count).
+  RED today.
 - **Bare `<img>` direct child (080 shape):** emitted as an `image`.
 - **Gate continuity regression:** a two-step, two-gate `switch_steps` with a
   non-step figure between the steps still emits exactly two `switch_gate`s with the
@@ -226,13 +252,26 @@ dispatch reaches `_emit_switch_gate_chain`.
 - **Whitespace-only children** between steps produce no spurious element.
 - **Regression:** existing SwitchGate tests (stem token, options, answer index,
   step content order) still pass unchanged.
-- **Integration / count:** re-parsing the 9 affected files, total lost drops **40 →
-  24** and every listed non-step image is emitted. **Measurement prerequisites:** the
-  external source tree (`C:/Users/krzys/Documents/teaching/LAL/html`) must be present;
-  the measure/classifier scripts live in the session scratchpad
-  (`measure_lost_imgs_recursive.py`, `classify_lost_imgs.py`), not the repo; both
-  already count fill-table image cells and parse source HTML live (no reseed needed
-  to measure). Reseed a part (`parser <part> --force`) only before *loading* it.
+- **Primary acceptance gate = repo tests, not the out-of-tree measure.** The
+  binding pass/fail criterion is the `test_lesson.py` assertions above, which live in
+  the repo and any session can run (`uv run pytest tests/lal_import/test_lesson.py`).
+  The 40→24 corpus measure is a **secondary cross-check**, not the gate, because it
+  depends on tooling outside the repo.
+- **Integration / count (secondary cross-check):** re-parsing the 9 affected files,
+  total lost drops **40 → 24** and every listed non-step image is emitted.
+  **Measurement prerequisites:** the external source tree
+  (`C:/Users/krzys/Documents/teaching/LAL/html`) must be present; the
+  measure/classifier scripts are NOT in the repo — they live in this session's
+  scratchpad (`…/3d978e0d-998a-49aa-ba37-f4912685068b/scratchpad/`, files
+  `measure_lost_imgs_recursive.py`, `classify_lost_imgs.py`, `ancestry.py`) and were
+  copied forward from the prior session; both already count fill-table image cells and
+  parse source HTML live (no reseed needed to measure). If a fresh session lacks them,
+  reconstruct from the algorithm: parse each `NNN_*/….html` under the source root with
+  `parse_lesson`, recursively collect every emitted `image` `media_src` (descending
+  `elements`/`tabs`, plus `fill_table` `data.cells` image kinds), diff against
+  `soup.find_all("img")` srcs, and count the shortfall. Run with
+  `PYTHONPATH=<worktree> DATABASE_URL=…libli_mat DJANGO_SETTINGS_MODULE=config.settings.local`.
+  Reseed a part (`parser <part> --force`) only before *loading* it.
 
 ## Verification
 
