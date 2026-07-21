@@ -750,6 +750,47 @@ def test_one_choice_varying_falls_back_to_per_row_mcq():
     assert [c["is_correct"] for c in mcqs[1]["choices"]] == [False, True]
 
 
+# --- Group B #12: truth/false toggles -> ChoiceGrid (tak/nie columns) ---
+TRUTH_FALSE = r"""
+<div id="question20">
+  <p class="question_text">Które z poniższych wielkości są wprost proporcjonalne?</p>
+  <ul style="list-style: none;">
+    <li>
+      <div class="statement">obwód koła do średnicy</div>
+      <div class="truth">tak</div>
+      <div class="false">nie</div>
+    </li>
+    <li>
+      <div class="statement">pole kwadratu do długości boku</div>
+      <div class="truth">tak</div>
+      <div class="false">nie</div>
+    </li>
+  </ul>
+  <div class="confirmTF ks_button">potwierdź</div>
+  <div class="success hidden">Brawo!</div>
+</div>
+<script>localStorage.setItem("correct_choices",
+JSON.stringify({20: [1, 0]}));</script>
+"""
+
+
+def test_truth_false_becomes_choice_grid():
+    elements, flags = parse_lesson(TRUTH_FALSE, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    grids = [e for e in elements if e["type"] == "choice_grid"]
+    assert len(grids) == 1
+    # columns come from the .truth/.false button labels (tak/nie)
+    assert grids[0]["columns"] == ["tak", "nie"]
+    rows = grids[0]["rows"]
+    # correct_choices: 1 (truth) -> column 0, 0 (false) -> column 1
+    assert [r["correct"] for r in rows] == [0, 1]
+    assert "obwód" in rows[0]["statement"]
+    joined = " ".join(str(e) for e in elements)
+    assert "wielkości" in joined  # the prompt (question_text) is kept
+    # the confirm button + success feedback are dropped as chrome
+    assert "Brawo" not in joined and "potwierdź" not in joined
+
+
 # --- Group B #6: ks_tabs -> TabsElement (nested children) ---
 KS_TABS = r"""
 <div class="ks_tabs">

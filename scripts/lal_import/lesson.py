@@ -63,6 +63,7 @@ _CHROME_CLASSES = {
     "confirm_choice",  # one_choice grid (Group B #7)
     "confirm_multiple",  # multi_many grid (Group B #9)
     "confirm_feedback_multiple",  # mult_choice MCQ (Group B #10)
+    "confirmTF",  # true/false grid (Group B #12)
 }
 _BLOCK_CHILD_TAGS = {
     "p",
@@ -102,10 +103,9 @@ _INTERACTIVE_MARKERS = {
     # are NOT markers — a multi-select button MCQ with per-option feedback maps
     # to a native ChoiceQuestion (Group B #11); the whole leaf question div is
     # intercepted so its confirm/summary chrome is dropped.
-    # true/false toggles
-    "truth",
-    "false",
-    "confirmTF",
+    # NB: truth/false/confirmTF are NOT markers — a true/false toggle grid maps to
+    # a native ChoiceGrid with 2 columns (the tak/nie button labels; Group B #12);
+    # confirmTF is dropped as chrome.
     # NB: table_input* / fill_answer / fill_show_next / fill_step are NOT markers —
     # table_input -> FillTable/FillBlank (Group B #4/#5), and fill_show_next is a
     # RevealGate chain with an inline FillBlank per step (Group B #8).
@@ -383,6 +383,16 @@ def _walk(nodes, elements, flags, consumed, state):
             # Group B #7: a pick-one-per-line one_choice widget -> ChoiceGrid
             # (shared columns) or per-row single-choice MCQ (varying columns).
             elements.extend(_emit_one_choice(node, state))
+            continue
+        if (
+            not _is_structural_container(node)
+            and node.find(class_="truth") is not None
+            and node.find(class_="false") is not None
+        ):
+            # Group B #12: a true/false toggle grid -> ChoiceGrid with 2 columns
+            # (the .truth/.false button labels, e.g. tak/nie). correct_choices[qid]
+            # holds 1 (truth) / 0 (false) per row.
+            elements.extend(_emit_truth_false(node, state))
             continue
         if (
             not _is_structural_container(node)
@@ -794,6 +804,28 @@ def _emit_one_choice(node, state):
         }
         for r in rows
     ]
+
+
+def _emit_truth_false(node, state):
+    """Group B #12: a true/false toggle grid -> a ChoiceGrid with exactly 2 columns.
+
+    Each row is a `.truth`/`.false` button pair beside a `.statement`; the JS stores
+    the correct answer in correct_choices[qid] as 1 (truth) / 0 (false) per row. The
+    two column labels come from the button text (tak/nie), so column 0 is truth ->
+    correct index 0 when the answer is 1, else 1. Statements/labels use get_text
+    (literal <) because ChoiceGrid auto-escapes via format_html."""
+    truth_btns = node.find_all(class_="truth")
+    false_btns = node.find_all(class_="false")
+    col_true = truth_btns[0].get_text(" ", strip=True) if truth_btns else "tak"
+    col_false = false_btns[0].get_text(" ", strip=True) if false_btns else "nie"
+    answers = state.get("correct_choices", {}).get(_enclosing_qid(node), [])
+    rows = []
+    for i, tb in enumerate(truth_btns):
+        stmt = tb.parent.find(class_="statement") if tb.parent else None
+        statement = (stmt or tb.parent or tb).get_text(" ", strip=True)
+        correct = 0 if (i < len(answers) and answers[i] == 1) else 1
+        rows.append({"statement": statement, "correct": correct})
+    return [{"type": "choice_grid", "columns": [col_true, col_false], "rows": rows}]
 
 
 def _emit_multi_many(nodes, start, elements, flags, consumed, state):
