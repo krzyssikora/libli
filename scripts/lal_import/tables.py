@@ -41,10 +41,13 @@ _MAX_COLS = 20
 _TOKEN_RE = re.compile("￿\\d+￿")
 
 
-def _segment_cell(seg):
+def _segment_cell(seg, halign):
     """Classify one static segment (from the token split) into a cell dict, or
     None to drop it. Image is checked BEFORE emptiness: a lone <img> has empty
-    get_text and would otherwise be dropped."""
+    get_text and would otherwise be dropped. `halign` positions the segment so an
+    opening bracket hugs the input to its right and a closing bracket the input to
+    its left (a segment cell inherits the column's width, which the header can make
+    wide, so left-aligned brackets would drift far from their input)."""
     from bs4 import BeautifulSoup
 
     soup = BeautifulSoup(seg, "html.parser")
@@ -58,7 +61,7 @@ def _segment_cell(seg):
             "alt": img.get("alt", ""),
         }
     if text:
-        return {"kind": "static", "html": seg.strip()}
+        return {"kind": "static", "html": seg.strip(), "halign": halign}
     return None  # whitespace/&nbsp;/<br>-only -> no spurious column
 
 
@@ -74,9 +77,13 @@ def _split_multi_input_cell(c, answer_by_input):
         answers.append(_answer_alternatives(answer_by_input.get(id(inp), "")))
         inp.replace_with(f"￿{i}￿")
     segments = _TOKEN_RE.split(c.decode_contents())  # len == len(inputs) + 1
+    last = len(segments) - 1
     out = []
     for i, seg in enumerate(segments):
-        cell = _segment_cell(seg)
+        # opening segment hugs the input to its right (right-align); closing hugs
+        # the input to its left (left-align); a separator between inputs is centred.
+        halign = "right" if i == 0 else "left" if i == last else "center"
+        cell = _segment_cell(seg, halign)
         if cell is not None:
             out.append(cell)
         if i < len(answers):
@@ -108,32 +115,44 @@ def fill_table_element(table, answer_by_input):
     header_col = all(r[0].name == "th" for r in grid)
     pristine_raw = str(table)  # BEFORE any replace_with (MAX_COLS fallback uses this)
     did_split = False
-    cells = []
+    # Build per-ORIGINAL-column groups for each row: a normal cell -> a 1-element
+    # group; a split (>=2-input) cell -> the run of sub-cells. Keeping the groups
+    # (instead of a flat row) lets the header label align with the column's input.
+    grid_groups = []
     for r in grid:
-        row = []
+        row_groups = []
         for c in r:
             inputs = c.find_all(class_="table_input")
             if len(inputs) >= 2:
                 did_split = True
-                row.extend(_split_multi_input_cell(c, answer_by_input))
+                row_groups.append(_split_multi_input_cell(c, answer_by_input))
             elif len(inputs) == 1:
                 raw = answer_by_input.get(id(inputs[0]), "")
-                row.append({"kind": "answer", "answer": _answer_alternatives(raw)})
+                row_groups.append(
+                    [{"kind": "answer", "answer": _answer_alternatives(raw)}]
+                )
             elif not c.get_text(strip=True) and len(c.find_all("img")) == 1:
                 # a pure image cell (only an <img>, maybe a stray <br>): keep the
                 # image as an image cell; the loader resolves media_src -> MediaAsset.
                 img = c.find("img")
-                row.append(
-                    {
-                        "kind": "image",
-                        "media_src": img.get("src", ""),
-                        "alt": img.get("alt", ""),
-                    }
+                row_groups.append(
+                    [
+                        {
+                            "kind": "image",
+                            "media_src": img.get("src", ""),
+                            "alt": img.get("alt", ""),
+                        }
+                    ]
                 )
             else:
-                row.append({"kind": "static", "html": c.decode_contents().strip()})
-        cells.append(row)
-    out_width = max(len(r) for r in cells)
+                row_groups.append(
+                    [{"kind": "static", "html": c.decode_contents().strip()}]
+                )
+        grid_groups.append(row_groups)
+
+    ncols = len(grid[0])  # original column count (grid is rectangular, checked above)
+    col_width = [max(len(gr[j]) for gr in grid_groups) for j in range(ncols)]
+    out_width = sum(col_width)
     if out_width > _MAX_COLS:
         return (
             {
@@ -150,9 +169,39 @@ def fill_table_element(table, answer_by_input):
                 }
             ],
         )
-    for r in cells:
-        while len(r) < out_width:
-            r.append({"kind": "static", "html": ""})
+
+    def _empty():
+        return {"kind": "static", "html": ""}
+
+    # For a header row, anchor each label over the FIRST answer cell of its column's
+    # data group (so "współrzędne" sits above the first input, not the leading "["),
+    # which also stops the label from widening the bracket column.
+    data_groups = grid_groups[1:] if header_row else grid_groups
+
+    def _anchor(j):
+        for gr in data_groups:
+            for k, cell in enumerate(gr[j]):
+                if cell.get("kind") == "answer":
+                    return k
+        return 0
+
+    anchor = [_anchor(j) for j in range(ncols)]
+    cells = []
+    for ri, row_groups in enumerate(grid_groups):
+        is_header = header_row and ri == 0
+        row = []
+        for j, group in enumerate(row_groups):
+            w = col_width[j]
+            if len(group) == w:
+                row.extend(group)
+            elif is_header and len(group) == 1:
+                padded = [_empty() for _ in range(w)]
+                padded[min(anchor[j], w - 1)] = group[0]
+                row.extend(padded)
+            else:  # non-uniform data group (rare): right-pad
+                row.extend(group)
+                row.extend(_empty() for _ in range(w - len(group)))
+        cells.append(row)
     data = {
         "header_row": header_row,
         "header_col": header_col,

@@ -250,3 +250,49 @@ def test_non_split_table_keeps_grid_border():
     t = _ft('<table><tr><td>a</td><td><input class="table_input"></td></tr></table>')
     result, _ = fill_table_element(t, _answers(t, ["1"]))
     assert result["data"]["border"] == "grid"
+
+
+def test_split_brackets_hug_inputs_via_halign():
+    # opening "[" right-aligns (hugs the following input), closing "]" left-aligns,
+    # separator "," centres — so the bracket-to-input spacing is symmetric even when
+    # the header widens the bracket column
+    t = _ft(
+        r"<table><tr>"
+        r'<td>\([\) <input class="table_input"> \(,\) '
+        r'<input class="table_input"> \(]\)</td>'
+        r"</tr></table>"
+    )
+    result, _ = fill_table_element(t, _answers(t, ["4", "2"]))
+    statics = [c for c in result["data"]["cells"][0] if c["kind"] == "static"]
+    assert statics[0]["halign"] == "right"  # opening [
+    assert statics[1]["halign"] == "center"  # ,
+    assert statics[2]["halign"] == "left"  # closing ]
+
+
+def test_header_label_aligns_over_first_input_column():
+    # real shape: header [wektor | współrzędne] over [image | [x,y]]. The label
+    # should sit above the FIRST INPUT (col 2), not the leading "[" (col 1), so the
+    # bracket column stays narrow.
+    t = _ft(
+        r"<table>"
+        r"<tr><th>wektor</th><th>wsp&#243;&#322;rz&#281;dne</th></tr>"
+        r'<tr><td><img src="static/v.png"></td>'
+        r'<td>\([\) <input class="table_input"> \(,\) '
+        r'<input class="table_input"> \(]\)</td></tr>'
+        r"</table>"
+    )
+    result, _ = fill_table_element(t, _answers(t, ["4", "2"]))
+    cells = result["data"]["cells"]
+    header = cells[0]
+    # header: [wektor, "", współrzędne, "", "", ""]  (współrzędne at index 2)
+    assert (header[1].get("html") or "") == ""  # nothing over the "[" column
+    assert "rz" in (header[2].get("html") or "")  # the label sits over col 2
+    # data row: image | [ | x | , | y | ]
+    assert [c["kind"] for c in cells[1]] == [
+        "image",
+        "static",
+        "answer",
+        "static",
+        "answer",
+        "static",
+    ]
