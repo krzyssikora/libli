@@ -58,6 +58,12 @@ Append to `tests/test_e2e_builder_tree_layout.py`:
 ```python
 LONG_BODY = "<p>" + ("Filler paragraph to make this element list tall. " * 8) + "</p>"
 
+# 80, not 25. _unit_panel.html renders each element as ONE ellipsised ~24px row, and the
+# panel cap at the 700px test viewport is calc(100vh - 32px) = 668px. At 25 elements the
+# overflow is within noise of font metrics, so the `overflow > 0` and `scrollTop > 0`
+# preconditions would be flaky. 80 rows (~1900px) makes it unambiguous.
+TALL_ELEMENT_COUNT = 80
+
 
 def _seed_tall_course(slug):
     """A course whose tree overflows the viewport and whose first unit has enough
@@ -75,7 +81,7 @@ def _seed_tall_course(slug):
         )
         if first is None:
             first = unit
-    for _ in range(25):
+    for _ in range(TALL_ELEMENT_COUNT):
         Element.objects.create(
             unit=first,
             content_object=TextElement.objects.create(body=LONG_BODY),
@@ -128,6 +134,15 @@ def test_tall_panel_keeps_actions_on_screen(page, live_server):
     vh = page.evaluate("() => window.innerHeight")
     box = page.locator(".builder__panel").get_by_text("Open editor").first.bounding_box()
     assert box["y"] + box["height"] <= vh, "seam is below the fold on a tall panel"
+
+    # The seam must be OPAQUE, or panel content scrolls under the button labels — the
+    # degradation the sticky seam exists to prevent. (--surface-default does not exist
+    # in tokens.css; an invalid token here would paint transparent and still "pass" a
+    # position-only assertion.)
+    bg = page.locator(".panel__seam").evaluate("el => getComputedStyle(el).backgroundColor")
+    assert bg not in ("rgba(0, 0, 0, 0)", "transparent"), (
+        f"sticky seam has no painted background ({bg}) — check the token name is real"
+    )
 
 
 @pytest.mark.django_db(transaction=True)
@@ -185,7 +200,10 @@ Extend the existing seam rule at line 88 (the seam holds *+ Add element* / *Open
   /* Pinned to the bottom of the panel's scroll range. Containing block is the injected
      .panel wrapper, which spans the full panel content. Mirrors .unit-foot (courses.css:558). */
   position: sticky; bottom: 0; z-index: 1;
-  background: var(--surface-default); padding-block: var(--space-2); }
+  /* --surface-raised: the token .unit-foot actually uses. There is NO --surface-default
+     in tokens.css (only base/raised/sunken/overlay) — an invalid token computes to
+     nothing and the seam paints transparent, letting content scroll under the labels. */
+  background: var(--surface-raised); padding-block: var(--space-2); }
 ```
 
 Add the panel-scoped error bar (`.op-error` has no styling on this page — `editor.css` is not loaded here):
@@ -209,11 +227,29 @@ uv run pytest tests/test_e2e_builder_tree_layout.py -m e2e -v
 
 Expected: PASS, including the pre-existing `test_builder_tree_layout` (it guards the 2:1 ratio and `min-width: 0` you just edited around).
 
-- [ ] **Step 5: Prove the stacked test can fail**
+- [ ] **Step 5: Capture the content-heavy builder panel screenshots**
+
+The spec requires one content-heavy builder panel shot to confirm `overflow: hidden auto`
+clips nothing that matters — no other task produces it. In a scratch Playwright script (or a
+temporary `page.screenshot()` in the tall-panel test), at 1280×700, select the element-heavy
+unit and capture **light and dark**:
+
+```python
+page.emulate_media(color_scheme="light")
+page.screenshot(path="/tmp/builder-panel-light.png", full_page=False)
+page.emulate_media(color_scheme="dark")
+page.screenshot(path="/tmp/builder-panel-dark.png", full_page=False)
+```
+
+Look specifically for: horizontal clipping of long element summaries, the seam's background
+against the scrolling content behind it, and a stray horizontal scrollbar. Do not commit the
+screenshots; they are a review artifact.
+
+- [ ] **Step 6: Prove the stacked test can fail**
 
 Temporarily delete `max-height: none;` from the media block, re-run `-k stacked`, confirm FAIL, then restore it. A test that was green before your change proves nothing until you've seen it red.
 
-- [ ] **Step 6: Lint and commit**
+- [ ] **Step 7: Lint and commit**
 
 ```bash
 uv run ruff check tests/test_e2e_builder_tree_layout.py
@@ -364,9 +400,14 @@ def test_panel_scroll_resets_between_units(page, live_server):
 def test_notice_bar_is_visible_and_opaque_while_panel_scrolled(page, live_server):
     """A network notice raised while the panel is scrolled down stays on screen and legible.
 
-    Trigger: abort the panel form's POST. NOT the 409 path — that also calls
-    refreshPanel(), which now routes through setPanel() and resets scroll, replacing the
-    innerHTML the bar was prepended into.
+    Trigger: abort a TREE form's POST (the reorder arrows). notice() prepends into the
+    panel regardless of which form fired, and a tree form has inPanel == False so no
+    refreshPanel() runs — the bar survives.
+
+    NOT the panel's own form: _unit_panel.html contains no form at all (unit settings
+    moved to the editor page). NOT the 409 path either: it calls refreshPanel(), which now
+    routes through setPanel(), resetting scroll and replacing the innerHTML the bar was
+    prepended into.
     """
     _make_pa_user("pa_notice")
     course, _first = _seed_tall_course("notice-demo")
@@ -381,9 +422,16 @@ def test_notice_bar_is_visible_and_opaque_while_panel_scrolled(page, live_server
     panel.hover()
     page.mouse.wheel(0, 2000)
 
-    page.route("**/manage/courses/**", lambda route: route.abort()
-               if route.request.method == "POST" else route.continue_())
-    panel.locator("form[data-op] button[type='submit']").first.click()
+    def _abort_posts(route):
+        # Named handler, not a multi-line lambda: `ruff format --check` runs on tests/.
+        if route.request.method == "POST":
+            route.abort()
+        else:
+            route.continue_()
+
+    page.route("**/manage/courses/**", _abort_posts)
+    # A tree reorder form — the panel has none. Its .catch calls notice(network).
+    page.locator(".builder__tree form[data-op] button[type='submit']").first.click()
 
     bar = page.locator(".builder__panel > .op-error")
     bar.wait_for(state="visible")
@@ -431,7 +479,29 @@ git commit -m "fix(builder): funnel every panel swap through setPanel() so the s
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to `tests/test_unit_nav_render.py` (match the file's existing fixture/import idioms):
+`tests/test_unit_nav_render.py` currently imports only `TEST_PASSWORD`, `ContentNodeFactory`,
+`CourseFactory`, `EnrollmentFactory`, `UnitProgressFactory`, `make_verified_user`, and defines
+only `_course_with_part()`. It does **not** import `build_outline`, `build_unit_nav`,
+`Enrollment`, or `UnitProgress`, and there is no `make_student`. Add these at the top of the
+file first, or every test below raises `NameError`:
+
+```python
+from courses.rollups import build_outline
+from courses.rollups import build_unit_nav
+
+
+def _make_student(username):
+    """A verified, enrollable user. Mirrors the file's existing factory idiom."""
+    return make_verified_user(
+        username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
+    )
+```
+
+Enrollment and progress use the **factories** the file already imports —
+`EnrollmentFactory(student=…, course=…)` and `UnitProgressFactory(student=…, unit=…,
+completed=True)` — never the model classes directly.
+
+Then append:
 
 ```python
 @pytest.mark.django_db
@@ -443,7 +513,7 @@ def test_stamp_current_chain_marks_only_the_ancestor_chain():
     """
     from courses.rollups import _stamp_current_chain
 
-    student = make_student()
+    student = _make_student("nav_render")
     course = CourseFactory(owner=student)
     part_a = ContentNodeFactory(course=course, kind="part", parent=None, unit_type=None)
     chap_a = ContentNodeFactory(course=course, kind="chapter", parent=part_a, unit_type=None)
@@ -484,7 +554,7 @@ def test_top_level_part_still_returns_a_root_unit():
     from courses.rollups import _stamp_current_chain
     from courses.rollups import _top_level_part
 
-    student = make_student()
+    student = _make_student("nav_render")
     course = CourseFactory(owner=student)
     root_unit = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=None
@@ -501,7 +571,7 @@ def test_top_level_part_still_returns_a_root_unit():
 
 @pytest.mark.django_db
 def test_build_unit_nav_stamps_the_tree_it_returns():
-    student = make_student()
+    student = _make_student("nav_render")
     course = CourseFactory(owner=student)
     part = ContentNodeFactory(course=course, kind="part", parent=None, unit_type=None)
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=part)
@@ -520,7 +590,12 @@ Note: reuse whatever student/course factory helpers `tests/test_unit_nav_render.
 uv run pytest tests/test_unit_nav_render.py -k "stamp or top_level_part" -v
 ```
 
-Expected: FAIL with `ImportError: cannot import name '_stamp_current_chain'`.
+Expected: **all three** FAIL. `test_stamp_current_chain_marks_only_the_ancestor_chain` and
+`test_top_level_part_still_returns_a_root_unit` fail with
+`ImportError: cannot import name '_stamp_current_chain' from 'courses.rollups'`;
+`test_build_unit_nav_stamps_the_tree_it_returns` fails with
+`KeyError: 'contains_current'`. If you instead see `NameError`, you skipped the imports/helper
+above.
 
 - [ ] **Step 3: Implement**
 
@@ -583,10 +658,17 @@ Expected: PASS, including the pre-existing `test_unit_shell_part_chip_hidden_for
 
 - [ ] **Step 5: Pin the query baseline**
 
-Capture the current count on master, then add the ratchet. Run on a clean checkout of `origin/master` (or reason from `build_outline`'s docstring: two queries, plus the view's own):
+There is no existing "queries" test to read a number off, so **measure it**. Write the test
+below with a deliberately wrong expectation of `0`, run it, and read the real count out of
+pytest's failure message (`django_assert_num_queries` reports "Expected to perform 0 queries
+but 3 were done"). Then substitute that number.
+
+Measure against **`origin/master`'s** behaviour: run this step *before* Step 3's changes are on
+disk, or `git stash` them for the measurement. Measuring after the change and hard-coding the
+result would make the assertion incapable of detecting the regression it exists to catch.
 
 ```
-uv run pytest tests/test_unit_nav_render.py -k queries -v
+uv run pytest tests/test_unit_nav_render.py -k adds_no_queries -v
 ```
 
 Add to `tests/test_unit_nav_render.py`:
@@ -600,7 +682,7 @@ def test_build_unit_nav_adds_no_queries(django_assert_num_queries):
     post-change and hard-coding the result would make this assertion incapable of
     detecting the regression it exists to catch.
     """
-    student = make_student()
+    student = _make_student("nav_render")
     course = CourseFactory(owner=student)
     part = ContentNodeFactory(course=course, kind="part", parent=None, unit_type=None)
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=part)
@@ -643,9 +725,9 @@ Append to `tests/test_unit_nav_render.py`:
 ```python
 @pytest.mark.django_db
 def test_group_renders_as_details_open_only_on_the_current_chain(client):
-    student = make_student()
+    student = _make_student("nav_render")
     course = CourseFactory(owner=student)
-    Enrollment.objects.get_or_create(student=student, course=course)
+    EnrollmentFactory(student=student, course=course)
     chap_a = ContentNodeFactory(course=course, kind="chapter", parent=None, unit_type=None,
                                 title="Current Chapter")
     target = ContentNodeFactory(course=course, kind="unit", unit_type="lesson",
@@ -667,15 +749,15 @@ def test_group_renders_as_details_open_only_on_the_current_chain(client):
 @pytest.mark.django_db
 def test_group_counter_renders_actual_numerals(client):
     """Assert the numerals, not just the class — a scoping slip renders a bare '/'."""
-    student = make_student()
+    student = _make_student("nav_render")
     course = CourseFactory(owner=student)
-    Enrollment.objects.get_or_create(student=student, course=course)
+    EnrollmentFactory(student=student, course=course)
     chap = ContentNodeFactory(course=course, kind="chapter", parent=None, unit_type=None)
     units = [
         ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=chap)
         for _ in range(3)
     ]
-    UnitProgress.objects.create(student=student, unit=units[0], completed=True)
+    UnitProgressFactory(student=student, unit=units[0], completed=True)
 
     client.force_login(student)
     html = client.get(f"/courses/{course.slug}/u/{units[0].pk}/").content.decode()
@@ -690,27 +772,34 @@ def test_group_counter_renders_actual_numerals(client):
 @pytest.mark.django_db
 def test_all_quiz_group_renders_no_counter_and_no_check(client):
     """required_total == 0 -> no counter, no tick (quizzes carry no required work)."""
-    student = make_student()
+    student = _make_student("nav_render")
     course = CourseFactory(owner=student)
-    Enrollment.objects.get_or_create(student=student, course=course)
+    EnrollmentFactory(student=student, course=course)
     chap = ContentNodeFactory(course=course, kind="chapter", parent=None, unit_type=None)
     quiz = ContentNodeFactory(course=course, kind="unit", unit_type="quiz", parent=chap)
 
     client.force_login(student)
-    html = client.get(f"/courses/{course.slug}/u/{quiz.pk}/").content.decode()
+    # follow=True: lesson_unit 302s a quiz node to quiz_unit (views.py:567). Without it the
+    # body is the empty redirect and both negative assertions below pass vacuously.
+    html = client.get(f"/courses/{course.slug}/u/{quiz.pk}/", follow=True).content.decode()
 
-    assert "unit-tree__count" not in html
-    assert "unit-tree__groupcheck" not in html
+    import re
+    summaries = re.findall(r"<summary.*?</summary>", html, re.S)
+    # Positive anchor first: a document-wide "string absent" assertion also passes when
+    # the tree failed to render at all.
+    assert summaries, "expected the quiz's chapter to render a group summary"
+    assert not any("unit-tree__count" in s for s in summaries), "no counter at required_total==0"
+    assert not any("unit-tree__groupcheck" in s for s in summaries), "no tick at required_total==0"
 
 
 @pytest.mark.django_db
 def test_completed_group_renders_the_group_check(client):
-    student = make_student()
+    student = _make_student("nav_render")
     course = CourseFactory(owner=student)
-    Enrollment.objects.get_or_create(student=student, course=course)
+    EnrollmentFactory(student=student, course=course)
     chap = ContentNodeFactory(course=course, kind="chapter", parent=None, unit_type=None)
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=chap)
-    UnitProgress.objects.create(student=student, unit=unit, completed=True)
+    UnitProgressFactory(student=student, unit=unit, completed=True)
 
     client.force_login(student)
     html = client.get(f"/courses/{course.slug}/u/{unit.pk}/").content.decode()
@@ -721,6 +810,10 @@ def test_completed_group_renders_the_group_check(client):
     assert any("unit-tree__groupcheck" in s for s in summaries), (
         "an n/n group gets its own trailing check class"
     )
+    # The tick is ADDITIVE, not a replacement: a completed group reads "1/1 ✓".
+    assert any("unit-tree__groupcheck" in s and "1/1" in s for s in summaries), (
+        "the counter must remain alongside the tick at n/n"
+    )
     assert not any("unit-tree__check" in s for s in summaries), (
         "the group check must NOT reuse .unit-tree__check — that class resets "
         ".badge--done's margin-left:auto for a LEADING icon (courses.css:550-552); "
@@ -730,9 +823,9 @@ def test_completed_group_renders_the_group_check(client):
 
 @pytest.mark.django_db
 def test_flat_course_renders_no_details(client):
-    student = make_student()
+    student = _make_student("nav_render")
     course = CourseFactory(owner=student)
-    Enrollment.objects.get_or_create(student=student, course=course)
+    EnrollmentFactory(student=student, course=course)
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=None)
 
     client.force_login(student)
@@ -744,9 +837,9 @@ def test_flat_course_renders_no_details(client):
 @pytest.mark.django_db
 def test_childless_group_keeps_the_plain_head_shape(client):
     """An empty disclosure would be a dead control, so childless groups don't get one."""
-    student = make_student()
+    student = _make_student("nav_render")
     course = CourseFactory(owner=student)
-    Enrollment.objects.get_or_create(student=student, course=course)
+    EnrollmentFactory(student=student, course=course)
     ContentNodeFactory(course=course, kind="chapter", parent=None, unit_type=None,
                        title="Empty Chapter")
     unit = ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=None)
@@ -772,9 +865,9 @@ In `templates/courses/_unit_tree_node.html`, replace the `{% else %}` branch (cu
 ```django
   {% else %}
     {% if item.children %}
-      {# Native <details>: folding works with JS off, and keyboard + AT semantics come
-         free. Server-set `open` on the current chain so the correct groups are open in
-         the first painted frame (a JS pass would flash the folded tree). #}
+      {% comment %}Native <details>: folding works with JS off, and keyboard + AT semantics
+         come free. Server-set `open` on the current chain so the correct groups are open in
+         the first painted frame (a JS pass would flash the folded tree).{% endcomment %}
       <details class="unit-tree__group"{% if item.contains_current %} open{% endif %}>
         <summary class="unit-tree__head">
           <svg class="icon unit-tree__chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>
@@ -784,9 +877,10 @@ In `templates/courses/_unit_tree_node.html`, replace the `{% else %}` branch (cu
             {% if item.required_done == item.required_total %}
               <span class="unit-tree__groupcheck badge badge--done" aria-hidden="true">✓</span>
             {% endif %}
-            {# The visible ratio is aria-hidden; this sentence is what gets announced.
-               Count-neutral on purpose — PL has three plural forms, so a count-bearing
-               noun would need {% templatetag openblock %} plural {% templatetag closeblock %}, which would also change the msgid. #}
+            {% comment %}The visible ratio is aria-hidden; this sentence is what gets
+               announced. Count-neutral on purpose: PL has three plural forms, so a
+               count-bearing noun would need a plural branch, which would also turn the
+               msgid into a msgid/msgid_plural pair.{% endcomment %}
             <span class="visually-hidden">{% blocktrans with done=item.required_done total=item.required_total %}{{ done }} of {{ total }} required units completed{% endblocktrans %}</span>
           {% endif %}
         </summary>
@@ -795,17 +889,25 @@ In `templates/courses/_unit_tree_node.html`, replace the `{% else %}` branch (cu
         </ul>
       </details>
     {% else %}
-      {# No children: an empty disclosure would be a dead control. The chevron-width
-         spacer keeps this title's left edge aligned with the <details> shape's. #}
-      <div class="unit-tree__head" lang="{{ course.language }}">
+      {% comment %}No children: an empty disclosure would be a dead control. The
+         chevron-width spacer keeps this title's left edge aligned with the <details>
+         shape's.{% endcomment %}
+      <div class="unit-tree__head">
         <span class="unit-tree__chevron unit-tree__chevron--spacer" aria-hidden="true"></span>
-        <span class="unit-tree__grouptitle">{{ item.node.title }}</span>
+        <span class="unit-tree__grouptitle" lang="{{ course.language }}">{{ item.node.title }}</span>
       </div>
     {% endif %}
   {% endif %}
 ```
 
-The `{% templatetag %}` calls in that comment exist only so the comment can mention `{% plural %}` without Django parsing it — if you prefer, write the comment without naming the tag.
+**Every comment above is `{% comment %}…{% endcomment %}`, not `{# … #}` — this is not a style
+preference.** Django's tokenizer matches `{#.*?#}` without `DOTALL`, so a `{# #}` comment that
+spans lines is not recognised as a comment at all: the braces and the prose render as **visible
+text** inside every summary, in both the rail and the drawer. None of the tests in this task
+would catch it. `_unit_tree_node.html:4-5` already uses `{% comment %}` for exactly this reason.
+
+Note `lang="{{ course.language }}"` sits on the **title span** in both branches — the title is
+author content, the counter is UI chrome in the interface language.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -869,7 +971,7 @@ def _seed_grouped_course(username, slug, num_chapters=6, units_per_chapter=8):
     User = get_user_model()
     student = User.objects.get(username=username)
     course = CourseFactory(slug=slug, owner=student)
-    Enrollment.objects.get_or_create(student=student, course=course)
+    EnrollmentFactory(student=student, course=course)
 
     chapters, units = [], []
     for c in range(num_chapters):
@@ -884,13 +986,28 @@ def _seed_grouped_course(username, slug, num_chapters=6, units_per_chapter=8):
                 title=f"C{c + 1} Unit {u + 1}",
             ))
     middle = units[len(units) // 2]
-    return course, chapters, units, middle
+    middle_chapter = middle.parent
+
+    # A SECTION nested inside the current (open) chapter. Without this the seed is a flat
+    # set of sibling chapters, and the chevron test's negative half cannot detect the bug
+    # it exists to catch: the hazard is `details[open] .unit-tree__chevron` matching a
+    # CLOSED group that is a DESCENDANT of an open one. Sibling chapters are not
+    # descendants, so a buggy descendant selector would leave them unrotated and pass.
+    nested_section = ContentNodeFactory(
+        course=course, kind="section", parent=middle_chapter, unit_type=None,
+        title="Nested Section",
+    )
+    ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=nested_section,
+        title="Nested Unit 1",
+    )
+    return course, chapters, units, middle, nested_section
 
 
 @pytest.mark.django_db(transaction=True)
 def test_current_chapter_open_siblings_shut(browser, live_server):
     _make_student("e2e_fold")
-    course, chapters, _units, middle = _seed_grouped_course("e2e_fold", "e2e-fold")
+    course, chapters, _units, middle, _sec = _seed_grouped_course("e2e_fold", "e2e-fold")
 
     ctx = browser.new_context(reduced_motion="reduce")
     page = ctx.new_page()
@@ -898,19 +1015,29 @@ def test_current_chapter_open_siblings_shut(browser, live_server):
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
 
     rail = page.locator("[data-unit-tree]")
-    open_titles = rail.locator("details[open] > summary .unit-tree__grouptitle").all_inner_texts()
-    assert len(open_titles) == 1, f"exactly one chapter should be open, got {open_titles}"
-    assert open_titles[0] == middle.parent.title
+    # all_text_contents(), NOT all_inner_texts(): .unit-tree__grouptitle inherits
+    # text-transform: uppercase from the chapter micro-type rule, and innerText reflects
+    # RENDERED text — so inner_text would yield "CHAPTER 4" and the comparison would
+    # invert the RED/GREEN cycle (passing before Step 3's selector fix, failing after).
+    open_titles = rail.locator(
+        "details[open] > summary .unit-tree__grouptitle"
+    ).all_text_contents()
+    open_titles = [t.strip() for t in open_titles]
+    # The nested section inside the current chapter is SHUT, so exactly one group is open.
+    assert open_titles == [middle.parent.title], (
+        f"exactly the current chapter should be open, got {open_titles}"
+    )
 
     shut = rail.locator("details:not([open])")
-    assert shut.count() == len(chapters) - 1, "every other chapter should be shut"
+    # every other chapter, plus the nested section inside the open one
+    assert shut.count() == len(chapters) - 1 + 1, "every other group should be shut"
     ctx.close()
 
 
 @pytest.mark.django_db(transaction=True)
 def test_clicking_a_folded_summary_reveals_its_units(browser, live_server):
     _make_student("e2e_reveal")
-    course, chapters, _units, middle = _seed_grouped_course("e2e_reveal", "e2e-reveal")
+    course, chapters, _units, middle, _sec = _seed_grouped_course("e2e_reveal", "e2e-reveal")
 
     ctx = browser.new_context(reduced_motion="reduce")
     page = ctx.new_page()
@@ -932,7 +1059,7 @@ def test_chapter_microtype_survives_the_details_nesting(browser, live_server):
     <details> is interposed, and chapters silently lose their uppercase micro-type.
     Baseline is the literal current value (courses.css:540-542), not 'same as today'."""
     _make_student("e2e_micro")
-    course, _chapters, _units, middle = _seed_grouped_course("e2e_micro", "e2e-micro")
+    course, _chapters, _units, middle, _sec = _seed_grouped_course("e2e_micro", "e2e-micro")
     from tests.factories import ContentNodeFactory
     ContentNodeFactory(course=course, kind="chapter", parent=None, unit_type=None,
                        title="Empty Chapter")   # the childless shape
@@ -964,7 +1091,7 @@ def test_chevron_rotates_only_for_the_open_group(browser, live_server):
     """Both halves in one test so they cannot drift apart: a missing rule satisfies the
     negative assertion perfectly while shipping a chevron that never rotates."""
     _make_student("e2e_chev")
-    course, _chapters, _units, middle = _seed_grouped_course("e2e_chev", "e2e-chev")
+    course, _chapters, _units, middle, _sec = _seed_grouped_course("e2e_chev", "e2e-chev")
 
     ctx = browser.new_context(reduced_motion="reduce")
     page = ctx.new_page()
@@ -975,14 +1102,18 @@ def test_chevron_rotates_only_for_the_open_group(browser, live_server):
     open_t = rail.locator("details[open] > summary > .unit-tree__chevron").first.evaluate(
         "el => getComputedStyle(el).transform"
     )
-    shut_t = rail.locator("details:not([open]) > summary > .unit-tree__chevron").first.evaluate(
-        "el => getComputedStyle(el).transform"
-    )
+    # Target the NESTED section specifically — a closed group INSIDE the open chapter.
+    # A sibling closed chapter would not detect the descendant-selector bug, because it
+    # is not a descendant of the open one.
+    shut_t = rail.locator(
+        "details[open] details:not([open]) > summary > .unit-tree__chevron"
+    ).first.evaluate("el => getComputedStyle(el).transform")
     assert open_t not in ("none", "matrix(1, 0, 0, 1, 0, 0)"), (
         f"open group's chevron does not rotate ({open_t})"
     )
     assert shut_t in ("none", "matrix(1, 0, 0, 1, 0, 0)"), (
-        f"closed group's chevron is rotated ({shut_t}) — descendant selector leaked"
+        f"closed NESTED group's chevron is rotated ({shut_t}) — the rotation selector is a "
+        f"descendant selector; it must be the direct-child chain"
     )
     ctx.close()
 
@@ -992,7 +1123,7 @@ def test_drawer_focus_trap_holds_at_a_folded_summary(browser, live_server):
     """<summary> is natively tabbable but matches none of focusable()'s selectors, so
     without widening it, Tab from a trailing folded summary escapes the drawer."""
     _make_student("e2e_trap")
-    course, _chapters, _units, middle = _seed_grouped_course("e2e_trap", "e2e-trap")
+    course, _chapters, _units, middle, _sec = _seed_grouped_course("e2e_trap", "e2e-trap")
 
     ctx = browser.new_context(reduced_motion="reduce", viewport={"width": 480, "height": 800})
     page = ctx.new_page()
@@ -1017,7 +1148,7 @@ def test_drawer_focus_trap_holds_at_a_folded_summary(browser, live_server):
 def test_drawer_shows_the_current_chain_open(browser, live_server):
     """The drawer has its own container and centring path, so it gets its own coverage."""
     _make_student("e2e_drawer_fold")
-    course, chapters, _units, middle = _seed_grouped_course("e2e_drawer_fold", "e2e-drawer-fold")
+    course, chapters, _units, middle, _sec = _seed_grouped_course("e2e_drawer_fold", "e2e-drawer-fold")
 
     ctx = browser.new_context(reduced_motion="reduce", viewport={"width": 480, "height": 800})
     page = ctx.new_page()
@@ -1028,9 +1159,14 @@ def test_drawer_shows_the_current_chain_open(browser, live_server):
     drawer = page.locator("[data-unit-drawer]")
     drawer.wait_for(state="visible")
 
-    open_titles = drawer.locator("details[open] > summary .unit-tree__grouptitle").all_inner_texts()
+    open_titles = [
+        t.strip()
+        for t in drawer.locator(
+            "details[open] > summary .unit-tree__grouptitle"
+        ).all_text_contents()   # not inner_text — see the rail test's note on uppercase
+    ]
     assert open_titles == [middle.parent.title]
-    assert drawer.locator("details:not([open])").count() == len(chapters) - 1
+    assert drawer.locator("details:not([open])").count() == len(chapters) - 1 + 1
     ctx.close()
 ```
 
@@ -1040,7 +1176,16 @@ def test_drawer_shows_the_current_chain_open(browser, live_server):
 uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "fold or reveal or microtype or chevron or trap or drawer_shows" -v
 ```
 
-Expected: the micro-type, chevron, and focus-trap tests FAIL (the folding ones may already pass from Task 4 — that is fine, they are regression cover).
+Expected, per test:
+- `test_chapter_microtype_survives_the_details_nesting` — **FAIL** on the `<details>` shape:
+  `textTransform` is `none`, because the interposed `<details>` broke the `>` chain.
+- `test_chevron_rotates_only_for_the_open_group` — **FAIL** on the positive half: the open
+  chapter's chevron `transform` is `none` (no rotation rule exists yet).
+- `test_drawer_focus_trap_holds_at_a_folded_summary` — **FAIL**: Tab escapes the drawer.
+- `test_current_chapter_open_siblings_shut`, `test_clicking_a_folded_summary_reveals_its_units`,
+  `test_drawer_shows_the_current_chain_open` — **PASS already** (Task 4 delivered the folding).
+  They are regression cover here, not new RED. Note they use `all_text_contents()`, so the
+  micro-type fix in Step 3 does **not** flip them from green to red.
 
 - [ ] **Step 3: Fix the child-combinator break and style the summary**
 
@@ -1066,14 +1211,30 @@ Replace it with — same declarations, four selectors:
 
 Then add the new summary/group styling near the other `.unit-tree__*` rules:
 
+First **merge** the flex declarations into the EXISTING `.unit-tree__head` rule at
+`courses.css:539` rather than adding a second rule with the same selector — this file treats
+source order as load-bearing, and two rules for one selector resolve future collisions by
+accident:
+
 ```css
-/* Group summary: flex row of chevron / title / counter / check. display:flex also drops
-   the default list-item box; list-style + ::-webkit-details-marker kill the native
+.unit-tree__head { font-weight: 700; color: var(--text-primary); margin: .5rem .35rem .15rem;
+  display: flex; align-items: center; gap: .35rem; }
+```
+
+Then add the summary-specific rules:
+
+```css
+/* Group summary: flex row of chevron / title / counter / check. display:flex (above) also
+   drops the default list-item box; list-style + ::-webkit-details-marker kill the native
    triangle in favour of our own chevron. */
-.unit-tree__head { display: flex; align-items: center; gap: .35rem; }
 summary.unit-tree__head { cursor: pointer; list-style: none; }
 summary.unit-tree__head::-webkit-details-marker { display: none; }
-summary.unit-tree__head:hover { background: var(--surface-raised); color: var(--text-primary); }
+/* Background only — NOT color. The micro-type rule
+   `.unit-tree__node--chapter > .unit-tree__group > .unit-tree__head` has specificity (0,3,0)
+   and would beat `summary.unit-tree__head:hover` (0,2,1), so a colour here would apply to
+   part-level summaries and silently no-op on chapters and sections. The micro-type colour is
+   deliberately constant across states. */
+summary.unit-tree__head:hover { background: var(--surface-raised); }
 summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
 
 /* Title may wrap to TWO lines (unlike unit rows): a chapter title is a landmark, and
@@ -1112,11 +1273,70 @@ In `courses/static/courses/js/unit_nav.js`, change `focusable()`'s selector:
     }
 ```
 
-Then update the in-test focusable list in `tests/test_e2e_unit_nav.py`'s `test_mobile_drawer_focus_trap` to match — it re-implements the same selector, so leaving it stale would let it pass while the trap leaks.
+Then update the in-test focusable list in `tests/test_e2e_unit_nav.py`'s
+`test_mobile_drawer_focus_trap` (around `:341-350`) — it re-implements the same selector in an
+escaped JS string, so leaving it stale would let it keep passing while the real trap leaks:
+
+```python
+            " const f = [...p.querySelectorAll("
+            "'a[href],button:not([disabled]),summary,[tabindex]:not([tabindex=\"-1\"])')]"
+            ".filter(e => e.offsetParent);"
+```
+
+This edit is a **consistency fix with no coverage of its own** — that test's seed
+(`_seed_nav_course`, one part, all units visible) has no trailing folded summary, so its
+`is_last` assertion is unchanged either way. The new
+`test_drawer_focus_trap_holds_at_a_folded_summary` is what actually guards the behaviour.
 
 - [ ] **Step 5: Run the design pass and verify visually**
 
-Invoke the `frontend-design` skill for the concrete values of `.unit-tree__chevron`, `.unit-tree__count`, and `.unit-tree__groupcheck` within the constraints above. Then capture Playwright screenshots in **light and dark**, for the **rail and the drawer**, including a pinned worst-case row (a depth-3 section, a 60-character title, and a `12/12 ✓` chip) and a childless group in the same shot. Confirm the worst-case title is still readable at 14rem; if it is not, widening the rail is the sanctioned fallback — make that call explicitly.
+Invoke the `frontend-design` skill for the concrete values of `.unit-tree__chevron`,
+`.unit-tree__count`, and `.unit-tree__groupcheck` within the constraints above.
+
+The worst-case row needs a seed of its own — `_seed_grouped_course` produces depth-2, short
+titles and `0/n` counters, none of the three ingredients. Add:
+
+```python
+WORST_CASE_TITLE = "Wprowadzenie do funkcji trygonometrycznych i ich zastosowan"  # 58 chars
+
+
+def _seed_worst_case_row(username, slug):
+    """Pinned synthetic worst case for the screenshot review: the deepest nesting, a long
+    title, and a full 12/12 counter — plus a childless group to check chevron alignment."""
+    from django.contrib.auth import get_user_model
+
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+    from tests.factories import UnitProgressFactory
+
+    student = get_user_model().objects.get(username=username)
+    course = CourseFactory(slug=slug, owner=student)
+    EnrollmentFactory(student=student, course=course)
+
+    part = ContentNodeFactory(course=course, kind="part", parent=None, unit_type=None,
+                              title="Part One")
+    chapter = ContentNodeFactory(course=course, kind="chapter", parent=part, unit_type=None,
+                                 title="Chapter One")
+    section = ContentNodeFactory(course=course, kind="section", parent=chapter,
+                                 unit_type=None, title=WORST_CASE_TITLE)
+    units = [
+        ContentNodeFactory(course=course, kind="unit", unit_type="lesson", parent=section,
+                           title=f"Unit {i + 1}", obligatory=True)
+        for i in range(12)
+    ]
+    for unit in units:
+        UnitProgressFactory(student=student, unit=unit, completed=True)
+    ContentNodeFactory(course=course, kind="chapter", parent=part, unit_type=None,
+                       title="Childless Chapter")
+    return course, units[0]
+```
+
+Then capture Playwright screenshots in **light and dark**, for the **rail and the drawer**, on
+a page seeded by that helper — the depth-3 section row will read `12/12 ✓` with the childless
+chapter directly below it. Confirm the worst-case title is still readable at 14rem; if it is
+not, widening the rail is the sanctioned fallback — make that call explicitly rather than
+shipping an ellipsised landmark.
 
 - [ ] **Step 6: Run the whole nav e2e file**
 
@@ -1161,12 +1381,25 @@ def test_expanding_the_rail_recentres_the_active_unit(browser, live_server):
     """The bug: centring ran only on load and only when not collapsed, so expanding a
     collapsed rail left the student at scroll-top with the active unit far away."""
     _make_student("e2e_recentre")
-    course, _chapters, _units, middle = _seed_grouped_course("e2e_recentre", "e2e-recentre")
+    # 40 units in the CURRENT chapter. With the default 8, the folded tree is ~400px inside
+    # a 720px rail — it never scrolls, the active row is always inside the visible band, and
+    # the poll below succeeds with OR without centerActive(). The test could never go red.
+    # (The pre-existing test_active_unit_scrolled_into_view needed 35 VISIBLE units for the
+    # same reason.) Only the open chapter's units are visible, so they must carry the count.
+    course, _chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_recentre", "e2e-recentre", num_chapters=3, units_per_chapter=40
+    )
 
     ctx = browser.new_context(reduced_motion="reduce")
     page = ctx.new_page()
     _login(page, live_server, "e2e_recentre")
     page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    # Precondition: the rail must actually overflow, or nothing below proves anything.
+    overflow = page.locator("[data-unit-tree]").evaluate(
+        "el => el.scrollHeight - el.clientHeight"
+    )
+    assert overflow > 0, f"rail does not scroll (overflow={overflow}); seed more units"
 
     toggle = page.locator("[data-unit-tree-toggle]")
     toggle.click()                                   # collapse (real gesture)
@@ -1196,7 +1429,7 @@ def test_expanding_the_rail_recentres_the_active_unit(browser, live_server):
 @pytest.mark.django_db(transaction=True)
 def test_active_marker_is_strong_and_width_neutral(browser, live_server):
     _make_student("e2e_marker")
-    course, _chapters, _units, middle = _seed_grouped_course("e2e_marker", "e2e-marker")
+    course, _chapters, _units, middle, _sec = _seed_grouped_course("e2e_marker", "e2e-marker")
 
     ctx = browser.new_context(reduced_motion="reduce")
     page = ctx.new_page()
@@ -1217,13 +1450,30 @@ def test_active_marker_is_strong_and_width_neutral(browser, live_server):
         f"the box (inset box-shadow or ::before), or compensate padding-left"
     )
 
-    # Focus ring is present and distinct from the accent bar.
-    active.focus()
+    # Focus ring: driven by a REAL Tab. Chromium's :focus-visible heuristic does not apply
+    # reliably to a programmatic .focus() with no prior keyboard interaction.
+    # Tab forward until the active row has keyboard focus (bounded, so a regression fails
+    # rather than hangs). Tabbing is what arms :focus-visible.
+    page.locator("[data-unit-tree-toggle]").focus()
+    for _ in range(200):
+        page.keyboard.press("Tab")
+        if page.evaluate(
+            "() => !!document.activeElement.classList"
+            " && document.activeElement.classList.contains('is-active')"
+        ):
+            break
+    else:
+        raise AssertionError("never reached the active row by tabbing")
     ring = active.evaluate(
         "el => { const s = getComputedStyle(el);"
         " return {w: s.outlineWidth, c: s.outlineColor}; }"
     )
     assert ring["w"] not in ("0px", ""), "no focus-visible ring on the active row"
+    # Distinct from the accent bar, or the two compose into one muddy edge.
+    bar = active.evaluate("el => getComputedStyle(el).boxShadow")
+    assert ring["c"] not in bar, (
+        f"focus ring colour {ring['c']} matches the accent bar ({bar}) — use a distinct token"
+    )
     ctx.close()
 
 
@@ -1232,11 +1482,18 @@ def test_done_and_active_row_keeps_the_active_colour(browser, live_server):
     """A completed current unit must not render in .is-done's faint --text-tertiary —
     it is the one row the student most needs to find."""
     _make_student("e2e_doneactive")
-    course, _chapters, _units, middle = _seed_grouped_course("e2e_doneactive", "e2e-doneactive")
-    from courses.models import UnitProgress
+    course, _chapters, units, middle, _sec = _seed_grouped_course("e2e_doneactive", "e2e-doneactive")
     from django.contrib.auth import get_user_model
+
+    from tests.factories import UnitProgressFactory
+
     student = get_user_model().objects.get(username="e2e_doneactive")
-    UnitProgress.objects.create(student=student, unit=middle, completed=True)
+    UnitProgressFactory(student=student, unit=middle, completed=True)
+    # A SECOND completed unit in the same (open) chapter, so a done-but-not-active
+    # comparison row always exists. Without it the comparison below is skipped and the
+    # test asserts nothing about the cascade.
+    other_done = next(u for u in units if u.parent == middle.parent and u.pk != middle.pk)
+    UnitProgressFactory(student=student, unit=other_done, completed=True)
 
     ctx = browser.new_context(reduced_motion="reduce")
     page = ctx.new_page()
@@ -1249,10 +1506,13 @@ def test_done_and_active_row_keeps_the_active_colour(browser, live_server):
 
     active_colour = active.evaluate("el => getComputedStyle(el).color")
     done_only = rail.locator(".unit-tree__unit.is-done:not(.is-active)").first
-    if done_only.count():
-        assert active_colour != done_only.evaluate("el => getComputedStyle(el).color"), (
-            "done+active resolves to the faint done colour — .is-active must win"
-        )
+    # No `if count()` guard: an absent comparison row is a seeding failure and must fail
+    # the test, not silently skip its only meaningful assertion.
+    assert done_only.count() == 1 or done_only.count() > 0, "seed must include a done-only row"
+    assert active_colour != done_only.evaluate("el => getComputedStyle(el).color"), (
+        "done+active resolves to the faint --text-tertiary — .is-active must win "
+        "(check it comes AFTER .is-done in source order)"
+    )
     ctx.close()
 ```
 
@@ -1262,7 +1522,15 @@ def test_done_and_active_row_keeps_the_active_colour(browser, live_server):
 uv run pytest tests/test_e2e_unit_nav.py -m e2e -k "recentre or marker or doneactive" -v
 ```
 
-Expected: FAIL — `fontWeight` is `600`, and the re-centre poll times out.
+Expected, per test:
+- `test_expanding_the_rail_recentres_the_active_unit` — **FAIL**: the `wait_for_function` poll
+  times out after the expand, because today's centring runs only on load. (If it passes
+  immediately, your rail is not overflowing — check the `overflow > 0` precondition fired.)
+- `test_active_marker_is_strong_and_width_neutral` — **FAIL** on `fontWeight == "700"` (it is
+  `600` today).
+- `test_done_and_active_row_keeps_the_active_colour` — **FAIL or PASS** depending on today's
+  source order; if it passes, that is the pre-existing behaviour and the test is regression
+  cover. Do not "fix" a passing result by weakening it.
 
 - [ ] **Step 3: Extract `centerActive()`**
 
@@ -1294,7 +1562,12 @@ In `courses/static/courses/js/unit_nav.js`, replace the block at `:35-46` with a
   centerActive();   // on load
 ```
 
-Place `centerActive()`'s definition ABOVE the toggle-handler block so the load-time call and the handler both see it.
+**Placement, stated once:** put the `function centerActive() { … }` **declaration** near the top
+of the IIFE, just below `isCollapsed()` — it is a hoisted function declaration, so the toggle
+handler at `:21-25` can call it regardless of order, but keeping the definition above its callers
+reads better. Leave the `centerActive();` **invocation** where the old block was (after the
+toggle wiring, around the old `:35`), preserving the ordering the original comment describes:
+the pre-paint collapse restore on `<html>` must already have run before the first centring.
 
 **On the `offsetParent` guard's test:** the spec forbids the obvious e2e for it — "fold the active group, collapse → expand, assert `scrollTop` unchanged" is **vacuous**, because collapsing applies `html.unit-tree-collapsed .unit-tree__list { display: none }` (`courses.css:642`), which clamps `scrollTop` to 0 in *both* implementations. It can never go red. Ship the guard as documented defensive code (the comment above is that documentation) unless you can spy `tree.scrollTo` from a JS-level test; do not write a green-but-meaningless e2e for it. In the toggle's click handler (`:21-25`), add the expand-branch call:
 
@@ -1323,8 +1596,15 @@ In `courses/static/courses/css/courses.css`, replace `.unit-tree__unit.is-active
      1px-bordered inactive rows. */
   border-left-color: transparent;
   box-shadow: inset 3px 0 0 0 var(--primary); }
-.unit-tree__unit.is-active:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+/* Distinct token from the bar's --primary: the spec requires the ring and the accent bar be
+   tellable apart, and the e2e asserts outlineColor is not the bar's colour. */
+.unit-tree__unit.is-active:focus-visible { outline: 2px solid var(--focus-ring, var(--text-primary));
+  outline-offset: 1px; }
 ```
+
+Check `core/static/core/css/tokens.css` for an existing focus-ring token and use it if one
+exists; the `var(--focus-ring, …)` fallback above is a safety net, not a licence to skip
+looking.
 
 Verify `.is-active` appears **after** `.is-done` in source order; if not, move it.
 
