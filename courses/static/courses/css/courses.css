@@ -601,7 +601,7 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
 .unit-tree__count { flex: none; font-size: .62rem; font-weight: 600; letter-spacing: 0;
   font-variant-numeric: tabular-nums; color: var(--text-tertiary); }
 /* Its OWN class, not .unit-tree__check: that one resets .badge--done's margin-left:auto
-   because in a unit row the tick is a LEADING icon (courses.css:550-552). Here it trails. */
+   because in a unit row the tick is a LEADING icon (courses.css:550-552). Here it trails.
    The one coloured mark in an otherwise tertiary row, so a finished group reads at a
    glance; .badge's default padding (var(--space-2)) is too wide for a 14rem rail. */
 .unit-tree__groupcheck { flex: none; font-size: .66rem; line-height: 1; padding: 0 .3rem; }
@@ -610,8 +610,20 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
   border-left: 1px solid var(--border-subtle); text-decoration: none; }
 .unit-tree__unit:hover { background: var(--surface-raised); color: var(--text-primary); }
 .unit-tree__unit.is-done { color: var(--text-tertiary); }
+/* Placed AFTER .is-done so a completed current unit keeps the accent colour: it is the
+   one row the student most needs to find, and .is-done's --text-tertiary would render
+   it faintest of all. */
 .unit-tree__unit.is-active { background: var(--primary-subtle); color: var(--primary);
-  font-weight: 600; border-left: 2px solid var(--primary); }
+  font-weight: 700;
+  /* Inset shadow, not a wider border: width-neutral, so the text still aligns with the
+     1px-bordered inactive rows. */
+  border-left-color: transparent;
+  box-shadow: inset 3px 0 0 0 var(--primary); }
+/* Same ring as every other focusable in the rail (summaries use this too) — ONE ring colour
+   for the whole component. "Tellable apart from the accent bar" is achieved by the offset,
+   not by a second hue: the bar is a flush inset shadow on the left edge, the ring is an
+   offset outline around the whole row. */
+.unit-tree__unit.is-active:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 /* The ✓ reuses .badge--done, which carries margin-left:auto for the outline's
    right-aligned rollup chips. In the tree it's a LEADING icon, so reset that or it
    pushes itself + the label to the right edge (completed rows misalign). */

@@ -8,6 +8,33 @@
   }
   function isCollapsed() { return html.classList.contains("unit-tree-collapsed"); }
 
+  // Centre the active unit within the rail. Self-contained: re-queries at CALL time
+  // (never a stale module-eval reference) and owns its own guards, so both call sites
+  // are unconditional one-liners. Scroll the rail CONTAINER directly rather than
+  // active.scrollIntoView({block:"center"}): the latter walks every scrollable
+  // ancestor and could also nudge the window/article.
+  function centerActive() {
+    var tree = document.querySelector("[data-unit-tree]");
+    // Only when expanded (labels visible).
+    if (!tree || isCollapsed()) return;
+    // Scope the lookup to the rail: the mobile drawer renders a SECOND .is-active node.
+    var active = tree.querySelector(".unit-tree__unit.is-active");
+    if (!active) return;
+    // The student folded the group holding the active unit. NOT `offsetParent === null`:
+    // a closed <details> hides content with content-visibility (Chromium 131+), so
+    // offsetParent stays truthy and the element keeps a STALE non-zero rect — which the
+    // arithmetic below turns into a positive, meaningless scroll target (measured: 383px).
+    // checkVisibility() is false for both display:none and content-visibility-skipped.
+    if (!active.checkVisibility()) return;
+
+    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // getBoundingClientRect().top is the border-box outer edge; clientTop reconciles it
+    // with scrollTop's padding-box origin. scrollTo clamps out-of-range targets.
+    var delta = active.getBoundingClientRect().top - tree.getBoundingClientRect().top;
+    var target = tree.scrollTop + delta - tree.clientTop - (tree.clientHeight - active.offsetHeight) / 2;
+    tree.scrollTo({ top: target, behavior: reduce ? "auto" : "smooth" });
+  }
+
   // Desktop collapse toggle.
   var toggle = document.querySelector("[data-unit-tree-toggle]");
   if (toggle) {
@@ -22,28 +49,14 @@
       var collapsed = html.classList.toggle("unit-tree-collapsed");
       store(collapsed ? "1" : "0");
       syncToggle(collapsed);
+      // Expanding restores the labels — re-centre, or the student lands at scroll-top
+      // with the active unit an arbitrary distance away. Nothing to centre when collapsing.
+      if (!collapsed) centerActive();
     });
     syncToggle(isCollapsed());
   }
 
-  // Auto-scroll the active unit into view — only when expanded (labels visible),
-  // after the pre-paint collapse restore has already run on <html>. Scroll the rail
-  // CONTAINER directly rather than active.scrollIntoView({block:"center"}): the
-  // latter walks every scrollable ancestor and could also nudge the window/article
-  // on load. Scope the active lookup to the rail so the mobile drawer's second
-  // .is-active node is never selected.
-  var tree = document.querySelector("[data-unit-tree]");
-  var active = tree && tree.querySelector(".unit-tree__unit.is-active");
-  if (tree && active && !isCollapsed()) {
-    var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    // Center the active item within the rail, in the rail's scroll coordinates.
-    // getBoundingClientRect().top is the border-box outer edge; clientTop (top
-    // border, 0 today) reconciles it with scrollTop's padding-box origin so the
-    // formula survives a future top-border. scrollTo clamps out-of-range targets.
-    var delta = active.getBoundingClientRect().top - tree.getBoundingClientRect().top;
-    var target = tree.scrollTop + delta - tree.clientTop - (tree.clientHeight - active.offsetHeight) / 2;
-    tree.scrollTo({ top: target, behavior: reduce ? "auto" : "smooth" });
-  }
+  centerActive();   // on load
 
   // ── Mobile drawer with a self-contained focus trap (catalog_modal.js has none). ──
   var fab = document.querySelector("[data-unit-drawer-open]");
