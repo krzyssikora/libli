@@ -91,6 +91,45 @@ def _split_multi_input_cell(c, answer_by_input):
     return out
 
 
+def _fill_span_table(grid, answer_by_input):
+    """A colspan/rowspan fill table -> a native FillTableElement with RAGGED rows,
+    each cell's span + <th>-ness preserved. An input cell -> answer, a pure <img>
+    cell -> image, else static. The multi-input column-split (a rectangular-grid
+    transform) doesn't apply here -- spans + multi-input cells don't co-occur."""
+    cells = []
+    for r in grid:
+        row = []
+        for c in r:
+            inputs = c.find_all(class_="table_input")
+            if inputs:
+                raw = answer_by_input.get(id(inputs[0]), "")
+                cell = {"kind": "answer", "answer": _answer_alternatives(raw)}
+            elif not c.get_text(strip=True) and len(c.find_all("img")) == 1:
+                img = c.find("img")
+                cell = {
+                    "kind": "image",
+                    "media_src": img.get("src", ""),
+                    "alt": img.get("alt", ""),
+                }
+            else:
+                cell = {"kind": "static", "html": c.decode_contents().strip()}
+            if c.name == "th":
+                cell["header"] = True
+            for key in ("colspan", "rowspan"):
+                v = str(c.get(key) or "").strip()
+                if v.isdigit() and int(v) > 1:
+                    cell[key] = int(v)
+            row.append(cell)
+        cells.append(row)
+    data = {
+        "header_row": False,
+        "header_col": False,
+        "border": "grid",
+        "cells": cells,
+    }
+    return {"type": "fill_table", "data": data}, []
+
+
 def fill_table_element(table, answer_by_input):
     """A <table> holding <input class="table_input"> cells -> FillTableElement
     grid: an input cell becomes an `answer` cell (its accepted answer looked up
@@ -101,12 +140,17 @@ def fill_table_element(table, answer_by_input):
     if not rows:
         return _flag_html(table, "table_empty", "table has no rows")
     grid = [_cells(tr) for tr in rows]
-    for tr in rows:
-        for c in tr.find_all(["td", "th"]):
-            if c.get("colspan") or c.get("rowspan"):
-                return _flag_html(table, "table_span", "table uses rowspan/colspan")
     if any(c.find("table") for tr in rows for c in tr.find_all(["td", "th"])):
         return _flag_html(table, "table_nested", "table nests another table")
+
+    def _has_real_span(c):
+        return any(
+            str(c.get(k) or "").strip().isdigit() and int(c.get(k)) > 1
+            for k in ("colspan", "rowspan")
+        )
+
+    if any(_has_real_span(c) for tr in rows for c in tr.find_all(["td", "th"])):
+        return _fill_span_table(grid, answer_by_input)
     width = len(grid[0])
     if any(len(r) != width for r in grid):
         return _flag_html(table, "table_ragged", "rows have differing cell counts")

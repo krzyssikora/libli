@@ -959,36 +959,47 @@ class FillTableElement(ElementBase):
         valign = v if v in TableElement.VALIGN else "top"
         if raw.get("kind") == FillTableElement.ANSWER:
             ans = raw.get("answer")
-            return {
+            cell = {
                 "kind": FillTableElement.ANSWER,
                 "answer": ans if isinstance(ans, str) else "",
                 "halign": halign,
                 "valign": valign,
             }
-        if raw.get("kind") == "image":
+        elif raw.get("kind") == "image":
             media = raw.get("media")
             if isinstance(media, int) and not isinstance(media, bool):
                 alt = raw.get("alt")
-                return {
+                cell = {
                     "kind": "image",
                     "media": media,
                     "alt": alt if isinstance(alt, str) else "",
                     "halign": halign,
                     "valign": valign,
                 }
-            # invalid/missing media -> safe empty static (never a broken <img>)
-            return {
+            else:
+                # invalid/missing media -> safe empty static (never a broken <img>)
+                cell = {
+                    "kind": FillTableElement.STATIC,
+                    "html": "",
+                    "halign": halign,
+                    "valign": valign,
+                }
+        else:
+            cell = {
                 "kind": FillTableElement.STATIC,
-                "html": "",
+                "html": raw.get("html") or "",
                 "halign": halign,
                 "valign": valign,
             }
-        return {
-            "kind": FillTableElement.STATIC,
-            "html": raw.get("html") or "",
-            "halign": halign,
-            "valign": valign,
-        }
+        # Spanning-table extras (imported): a header (<th>) cell + colspan/rowspan.
+        # Absent when unset, so simple fill tables and the editor are unaffected.
+        if raw.get("header"):
+            cell["header"] = True
+        for key in ("colspan", "rowspan"):
+            span = TableElement._span(raw, key)
+            if span is not None:
+                cell[key] = span
+        return cell
 
     @staticmethod
     def normalize_data(data):
@@ -996,14 +1007,30 @@ class FillTableElement(ElementBase):
         rows = data.get("cells")
         rows = rows if isinstance(rows, list) else []
         rows = [r if isinstance(r, list) else [] for r in rows]
-        width = max((len(r) for r in rows), default=0)
-        if not rows or width == 0:
-            rows = [[{}, {}], [{}, {}]]  # default 2x2
-            width = 2
-        cells = [
-            [FillTableElement._cell(r[i] if i < len(r) else {}) for i in range(width)]
+        # A spanning table keeps its ragged rows verbatim (see TableElement).
+        spanning = any(
+            isinstance(c, dict)
+            and (
+                TableElement._span(c, "colspan") is not None
+                or TableElement._span(c, "rowspan") is not None
+            )
             for r in rows
-        ]
+            for c in r
+        )
+        if spanning:
+            cells = [[FillTableElement._cell(c) for c in r] for r in rows]
+        else:
+            width = max((len(r) for r in rows), default=0)
+            if not rows or width == 0:
+                rows = [[{}, {}], [{}, {}]]  # default 2x2
+                width = 2
+            cells = [
+                [
+                    FillTableElement._cell(r[i] if i < len(r) else {})
+                    for i in range(width)
+                ]
+                for r in rows
+            ]
         border = data.get("border")
         prompt = data.get("prompt")
         return {

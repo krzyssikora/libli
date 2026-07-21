@@ -74,6 +74,24 @@ def test_ragged_rows_flagged():
     assert any(f["kind"] == "table_ragged" for f in flags)
 
 
+def test_spanning_fill_table_becomes_native_with_answer_and_span():
+    # A fill table with a colspan header row + an input cell -> native fill_table,
+    # ragged, span/header preserved, input -> answer cell; not flagged.
+    t = _fill_table(
+        "<table>"
+        '<tr><th colspan="2">naglowek</th></tr>'
+        '<tr><td>x</td><td><input class="table_input"></td></tr>'
+        "</table>"
+    )
+    inp = t.find("input", class_="table_input")
+    result, flags = fill_table_element(t, {id(inp): "5"})
+    assert result["type"] == "fill_table" and not flags
+    cells = result["data"]["cells"]
+    assert len(cells[0]) == 1 and cells[0][0]["colspan"] == 2
+    assert cells[0][0]["header"] is True and cells[0][0]["kind"] == "static"
+    assert cells[1][1]["kind"] == "answer"
+
+
 def test_pure_image_cell_becomes_image_kind():
     # one input cell (so it routes to fill_table) + one pure-<img> cell
     t = _fill_table(

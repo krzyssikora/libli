@@ -243,7 +243,17 @@ def build_element(
                             "kind": "image",
                             "media": asset.pk,
                             "alt": cell.get("alt", ""),
-                            **{k: cell[k] for k in ("halign", "valign") if k in cell},
+                            **{
+                                k: cell[k]
+                                for k in (
+                                    "halign",
+                                    "valign",
+                                    "colspan",
+                                    "rowspan",
+                                    "header",
+                                )
+                                if k in cell
+                            },
                         }
                     )
                 else:

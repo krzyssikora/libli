@@ -18,6 +18,20 @@ def test_normalize_defaults_and_degenerate_collapse():
     assert nd["header_row"] is False and nd["header_col"] is False
     assert nd["case_sensitive"] is False
     assert nd["prompt"] == ""
+
+
+def test_normalize_spanning_fill_table_keeps_ragged_and_span():
+    nd = FillTableElement.normalize_data(
+        {
+            "cells": [
+                [{"kind": "static", "html": "h", "colspan": 2, "header": True}],
+                [{"kind": "static", "html": "x"}, {"kind": "answer", "answer": "5"}],
+            ]
+        }
+    )
+    assert [len(r) for r in nd["cells"]] == [1, 2]  # ragged preserved, not padded
+    assert nd["cells"][0][0]["colspan"] == 2 and nd["cells"][0][0]["header"] is True
+    assert nd["cells"][1][1]["kind"] == "answer" and nd["cells"][1][1]["answer"] == "5"
     # every cell has a valid kind
     assert all(c["kind"] in ("static", "answer") for row in nd["cells"] for c in row)
 
