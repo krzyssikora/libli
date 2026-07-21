@@ -39,9 +39,11 @@ the user fold. 2B's folded-group guard ships with **2B**, not 2A — between tho
 folding the active unit's own group is possible but the rail is simply never re-centred, which is
 today's behaviour and therefore no regression at any point in the sequence.
 
-### Part 1 — Builder: sticky detail panel (CSS only)
+### Part 1 — Builder: sticky detail panel
 
-`courses/static/courses/css/builder.css` only. No template or JS change.
+Files: `courses/static/courses/css/builder.css` and `courses/static/courses/js/builder.js`. The JS
+change is confined to consolidating the nine panel-content assignments behind one `setPanel()`
+helper (below); no template change.
 
 The student rail already solves this exact problem and has been in production since the
 lesson-shell work (`courses/static/courses/css/courses.css:505-507`):
@@ -63,10 +65,16 @@ that existing rule**; `min-width: 0` and its comment must not be dropped:
                   max-height: calc(100vh - var(--space-8)); overflow: hidden auto; }
 ```
 
-- `align-self: start` is **required**, not decorative. Grid items default to
-  `align-self: stretch`; a stretched item fills its row and therefore has no free space to
-  travel within, so `position: sticky` silently does nothing. This is the single most likely
-  way the part fails, which is why the e2e for it must be shown failing first (see Testing).
+- `align-self: start` is **belt-and-braces, not the load-bearing declaration.** The intuitive
+  story ("a stretched item has no free space to travel in, so sticky does nothing") is
+  contradicted by the very precedent quoted above: `.unit-tree` sets `align-self: stretch`
+  **explicitly** (`courses.css:505`) and sticks fine in production, because `max-height` clamps
+  the stretch and *that* is what creates the free space. Since Part 1 also specifies
+  `max-height`, sticky would very likely work without `align-self: start`; it is specified
+  anyway for the short-panel case where the cap never binds. The consequence is for testing:
+  the builder e2e must be demonstrated RED by removing the **whole new declaration block**, not
+  by removing `align-self` alone — which would probably still pass and produce a falsely
+  reassuring red-green cycle (see Testing).
 - `max-height` + vertical overflow cover the panel that is itself taller than the viewport
   (a unit with many elements). Without them, a tall panel's own buttons are pushed below the
   fold and the fix does not fix anything. `max-height` is a **ceiling**, not a fixed height —
@@ -81,8 +89,9 @@ that existing rule**; `min-width: 0` and its comment must not be dropped:
   ellipsises) — but it does mean panel content must continue to wrap or truncate rather than
   overflow, and the content-heavy-panel screenshot check exists to catch a regression there.
 - Below the existing `@media (max-width: 720px)` breakpoint (`builder.css:2`) the two columns
-  stack vertically, and the mobile override must reverse **all four** declarations, not just
-  `position`:
+  stack vertically, and the mobile override must reverse **`position`, `max-height`, and
+  `overflow`** — `top` and `align-self` need no reset, being inert once `position: static` and
+  single-column stacking apply:
 
   ```css
   @media (max-width: 720px) { .builder__panel { position: static; max-height: none; overflow: visible; } }
@@ -106,6 +115,18 @@ that existing rule**; `min-width: 0` and its comment must not be dropped:
   `panel.innerHTML =` assignment site, inside `setPanel`** — stated that way rather than "none
   remain", which `setPanel`'s own body would violate. The existing *read* at `builder.js:10`
   (`var neutralPanel = panel.innerHTML;`) is a permitted non-assignment occurrence.
+- **`.panel__seam` must stick to the bottom of the panel, or Part 1 misses its own goal.** In
+  `templates/courses/manage/_unit_panel.html` the seam holding *+ Add element* and
+  *Open editor →* sits **after** the element list (line 21, list at line 11). Cap the panel at
+  ~100vh, scroll it internally, and reset `scrollTop = 0` on every swap, and an element-heavy
+  unit shows the panel's *top* — with the two buttons the Purpose section names again below the
+  fold. That is the author's original complaint relocated from the page into the panel, and
+  "the last control is reachable" would be satisfied while the actual goal is not. The seam is
+  therefore pinned to the bottom of the panel's scroll container —
+  `position: sticky; bottom: 0` with an opaque background — mirroring `.unit-foot`'s existing
+  pattern (`courses.css:558`), and it is **tested**: on a unit with enough elements to overflow
+  the panel, both buttons are within the viewport immediately after selecting that unit, with no
+  scrolling of any kind.
 - **The `notice()` bar must stay visible.** `builder.js`'s `notice(text)` builds an `.op-error`
   bar and calls `panel.prepend(bar)`, auto-removing it after 6s. Today the panel is short and
   top-anchored, so the bar is always seen. Once the panel scrolls internally, a notice
@@ -258,7 +279,11 @@ box rather than an expand-all toggle.
 `done/total`, read from `required_done` / `required_total`, which `build_outline` already places
 on every group dict (`build_unit_nav` consumes exactly these fields today for `part_progress`
 and `course_progress`). A group at `n/n` additionally gets a ✓ badge, so "finished" reads
-identically at unit and group level.
+identically at unit and group level **for groups that contain required work**. It cannot for the
+rest: unit rows take their ✓ from `item.completed`, groups from
+`required_done == required_total`, and quizzes have `required_total == 0` (`rollups.py:61`) — so
+an all-quiz chapter shows every child ✓'d and stays bare itself. That is intentional: a group
+with no required work has no completion to report.
 
 **The group ✓ needs its own class**, `.unit-tree__groupcheck`, not the unit row's
 `.unit-tree__check`. That class exists specifically to cancel `.badge--done`'s
@@ -300,8 +325,8 @@ few words before the ellipsis. Two requirements follow:
 - The group title **may wrap to two lines** (unlike unit rows, which stay single-line): a
   chapter title is a landmark, and truncating it to "Introduction to…" defeats the point. Beyond
   two lines it ellipsises.
-- The **worst case must be verified in the required screenshots**: deepest supported level +
-  the longest real chapter title in a production course + an `nn/nn ✓` chip. If that case is
+- The **worst case must be verified in the required screenshots**, pinned synthetically so it is
+  repeatable: a depth-3 section, a 60-character title, and a `12/12 ✓` chip. If that case is
   still unreadable, widening the rail beyond 14rem is the fallback — an explicit decision to
   make at screenshot review, not silently.
 
@@ -319,8 +344,16 @@ template body is a hard failure, not a style slip: `blocktrans` collects an empt
 ("unable to format string returned by gettext") — 500ing every lesson and quiz page that has a
 counted group.
 
-The msgid is added to **both** the `en` and `pl` catalogs
-and using `gettext_lazy` if ever referenced at module level. `aria-label` on the counter span is
+**Phrasing is count-neutral, deliberately.** The sentence is
+`{{ done }} of {{ total }} required units completed` **without** a `{% plural %}` branch, which
+would otherwise be wrong for Polish: PL has three plural forms, so a count-bearing noun would be
+ungrammatical at 1, 2, and 5. Adding `{% plural %}` later would also turn the msgid into a
+msgid/msgid_plural pair and invalidate the exact msgid pinned above. If the PL translation reads
+awkwardly, the fix is a count-neutral rephrasing in **both** catalogs, never a plural branch on
+one of them.
+
+The msgid is added to both the `en` and `pl` catalogs. It lives only in a template, so
+`gettext_lazy` does not arise. `aria-label` on the counter span is
 **rejected**, not offered as an alternative: a bare `<span>` maps to role `generic`, on which
 ARIA prohibits naming, so most screen readers ignore it. Marking the visible text
 `aria-hidden` is what prevents the row announcing "three slash seven, three of seven required
@@ -535,8 +568,8 @@ browser
             collapsed, missing, or offsetParent === null (folded group)
 ```
 
-Part 1 introduces no data flow: it is a stylesheet change to an existing grid item, plus a
-`scrollTop = 0` reset at `builder.js`'s existing panel-swap sites.
+Part 1 introduces no data flow: it is a stylesheet change to an existing grid item, plus routing
+every panel swap through a new `setPanel()` helper that resets `scrollTop`.
 
 ## Error handling
 
@@ -592,8 +625,9 @@ new user input. What it has is a set of degradation paths that must each stay be
 **e2e (Playwright)** — must drive the real UI with real clicks; `page.evaluate` shortcuts are
 forbidden by the repo's standing e2e rule, since they would let a broken control ship green.
 Per the repo's "falsify tests, don't run them" rule, **each e2e below must be demonstrated RED**
-before its implementation lands — most importantly the builder one, whose whole subject is a
-single easily-omitted `align-self: start`.
+before its implementation lands. For the builder cases, RED is demonstrated by removing the
+**whole new `.builder__panel` declaration block** — not `align-self: start` alone, which
+`max-height` would likely mask (see Part 1).
 
 Seeding: `tests/test_e2e_unit_nav.py`'s `_seed_nav_course(..., num_units=35)` creates **one
 `part` node** containing all the units — it does not create *chapter or section* nodes, and it is
@@ -615,7 +649,12 @@ not flat. Two consequences:
 - A real click on a folded `<summary>` reveals that chapter's units.
 - Collapsing the rail with the real toggle and expanding it again leaves the active unit centred
   — assert the rail's scroll position places the active element within the rail's visible band,
-  not merely that `scrollTop != 0`.
+  not merely that `scrollTop != 0`. This test **must** run in a
+  `browser.new_context(reduced_motion="reduce")` context and **poll** via `wait_for_function`
+  rather than reading the position once: `centerActive()` keeps the existing
+  `behavior: reduce ? "auto" : "smooth"` branch, so a default context animates the scroll and a
+  single immediate read is flaky. The file's existing `test_active_unit_scrolled_into_view`
+  already does exactly this, for exactly this reason — match it.
 - **Folded-active guard — NOT an e2e.** The obvious test ("fold the active group, collapse →
   expand, assert `scrollTop` unchanged") is **vacuous** and must not be written: collapsing
   applies `html.unit-tree-collapsed .unit-tree__list { display: none }` (`courses.css:642`),
@@ -629,8 +668,10 @@ not flat. Two consequences:
   never papered over with a green-but-meaningless e2e.
 - **Chapter micro-type survives the `<details>` nesting** — the highest-risk change in 2A, and
   invisible to every other assertion. Computed-style assertion that a chapter `<summary>`
-  resolves the same `text-transform: uppercase` and font-size as today, in **both** shapes: the
-  `<details>` group and the childless group.
+  resolves **the literal current values** — `text-transform: uppercase` and the px equivalent of
+  `font-size: .64rem` (`courses.css:540-542`) — in **both** shapes: the `<details>` group and the
+  childless group. Asserting only that the two shapes agree *with each other* would pass with the
+  new selector wrong in both, so the baseline is quoted, not inferred.
 - **Chevron rotation, both halves in one test** so they cannot drift apart: the open chapter's
   own chevron resolves a **non-identity** `transform` (the 90° rotation matrix), **and** a closed
   section nested inside it resolves none. The negative half alone is satisfied perfectly by a
@@ -664,23 +705,37 @@ scroll (the tree, not the panel, is what must overflow).
 
 - **Builder, deep unit:** with the tree scrolled to the bottom, click a deep unit and assert
   *Open editor* is inside the viewport.
-- **Builder, tall panel:** on a unit whose panel exceeds the viewport, the panel's last control is
-  reachable (the panel scrolls internally rather than clipping), and a `notice()` bar raised
-  while the panel is scrolled down is visible **and legible** — assert its painted background,
-  not merely `is_visible()`, since an unbacked sticky bar lets content scroll under its text.
+- **Builder, tall panel:** on a unit whose panel exceeds the viewport, both *+ Add element* and
+  *Open editor →* are **within the viewport immediately after selecting that unit, with no
+  scrolling** — the `.panel__seam` sticky-bottom requirement, and the assertion that actually
+  encodes Part 1's goal (a mere "last control is reachable" check passes while the goal fails).
+- **Builder, notice legibility:** a `notice()` bar raised while the panel is scrolled down is
+  visible **and legible** — assert its painted background, not merely `is_visible()`, since an
+  unbacked sticky bar lets content scroll under its text. **Name the trigger:** use a
+  `page.route(...)`-aborted panel-form POST (or a drag producing a 422). The 409-conflict path is
+  explicitly **not** the one under test — it also calls `refreshPanel`, which post-change routes
+  through `setPanel`, resetting `scrollTop` and replacing the innerHTML the bar was prepended
+  into, making the assertion vacuous.
 - **Builder, panel scroll reset:** scroll a tall panel down, then click a *different* unit
-  through the real tree control, and assert the new panel is at `scrollTop === 0`. This is the
-  test the `setPanel` invariant exists for — a grep is not run by CI — and it must be
-  demonstrated RED against a `setPanel`-less implementation.
+  through the real tree control, and assert the new panel is at `scrollTop === 0`. Demonstrated
+  RED against a `setPanel`-less implementation.
+- **`setPanel` invariant, as a real test.** The e2e above drives only the `data-select` path
+  (`builder.js:122`); a partial refactor that routes 122 through `setPanel` and leaves 119, 164,
+  189/190, 200/203 and 296 raw passes it green — exactly the missed-async-branch failure the
+  helper exists to prevent. So the invariant gets a **source-scan unit test**: read `builder.js`
+  and assert exactly one `panel.innerHTML =` **assignment**, excluding the `builder.js:10` read.
+  ("A grep is not run by CI" is not a reason to skip this — a test that greps is.)
 - **Builder, stacked:** at a ≤720px viewport the panel is **not** sticky **and is not a scroll
   container** — assert computed `max-height: none` (or `scrollHeight <= clientHeight`), not
   merely that `position` is `static`, or the nested-scroll-trap regression ships green.
 
 **Screenshots.** Light and dark, desktop rail and mobile drawer, reviewed before shipping, plus
 one content-heavy builder panel to confirm `overflow: hidden auto` clips nothing that matters.
-The rail shots must include the **worst-case summary row** (deepest level + longest real chapter
-title + `nn/nn ✓`) so the title-legibility decision — including whether 14rem still suffices —
-is made against evidence.
+The rail shots must include a **pinned synthetic worst-case summary row** so the title-legibility
+decision — including whether 14rem still suffices — is made against repeatable evidence rather
+than "the longest title in some production course", which no seed can reproduce: a **depth-3
+section, a 60-character title, and a `12/12 ✓` chip**. A **childless group** appears in the same
+shot so the chevron-spacer alignment is reviewed alongside it.
 Also check whether any committed help screenshot under `core/static/core/img/help/` depicts the
 unit tree; if one does, regenerate it, since this change dates it.
 
