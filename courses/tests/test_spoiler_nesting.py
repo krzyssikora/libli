@@ -20,6 +20,7 @@ INTERACTIVE_SPOILER_FORM_KEYS = [
     "switchgate",
     "switchgrid",
     "fillblankquestion",
+    "filltable",
 ]
 
 
@@ -146,7 +147,14 @@ def test_resolve_scope_rejects_disallowed_child_type_in_spoiler():
 
 
 def test_spoiler_child_types_includes_interactive_leaves():
-    for k in ("reveal_gate", "fill_gate", "switch_gate", "switch_grid", "fill_blank"):
+    for k in (
+        "reveal_gate",
+        "fill_gate",
+        "switch_gate",
+        "switch_grid",
+        "fill_blank",
+        "fill_table",
+    ):
         assert k in SPOILER_CHILD_TYPES
     for k in ("tabs", "two_column", "spoiler"):  # containers still excluded
         assert k not in SPOILER_CHILD_TYPES
@@ -292,13 +300,12 @@ def test_spoiler_add_menu_hides_disallowed_cards(client):
         "callout",
     ):
         assert f'data-add-type="{allowed}"' in block, allowed
-    # disallowed cards are NOT offered inside the spoiler menu (the 5 non-allowed
-    # Interactive cards -- gates/switchgrid/fillblank are now ALLOWED, see
+    # disallowed cards are NOT offered inside the spoiler menu (the non-allowed
+    # Interactive cards -- gates/switchgrid/fillblank/filltable are now ALLOWED, see
     # test_spoiler_add_menu_shows_allowed_interactive_cards below)
     for banned in (
         "html",
         "spoiler",
-        "filltable",
         "stepper",
         "markdone",
         "guessnumber",
@@ -333,11 +340,10 @@ def test_spoiler_add_menu_shows_allowed_interactive_cards(client):
         "switchgate",
         "switchgrid",
         "fillblankquestion",
+        "filltable",
     } <= present
-    # C1 guard -- the 5 non-allowed interactive/structure cards are ABSENT in-spoiler
-    assert present.isdisjoint(
-        {"filltable", "spoiler", "stepper", "markdone", "guessnumber"}
-    )
+    # the non-allowed interactive/structure cards are ABSENT in-spoiler
+    assert present.isdisjoint({"spoiler", "stepper", "markdone", "guessnumber"})
     # no other question card leaks in-spoiler
     assert present.isdisjoint(
         {"choice-single", "shorttextquestion", "dragfillblankquestion"}

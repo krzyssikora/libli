@@ -898,6 +898,10 @@ def test_build_spoiler_accepts_fillblank_child():
             "stem": f"x = {_LAL_SENTINEL}0{_LAL_SENTINEL}",
             "blanks": [["0"]],
         },
+        {
+            "type": "fill_table",
+            "data": {"cells": [[{"kind": "answer", "answer": "1"}]]},
+        },
     ],
 )
 def test_loader_accepts_interactive_spoiler_child(child):

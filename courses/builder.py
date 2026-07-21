@@ -57,9 +57,10 @@ NESTABLE_TYPE_KEYS = frozenset(
 
 # Leaf children a spoiler may hold (server-enforced), in CANONICAL (transfer) keys.
 # Static leaves PLUS the interactive leaves (reveal/fill/switch gate, switch grid,
-# fill blank). Excludes spoiler itself and native containers (tabs/two_column) — the
-# depth-1 leaf-only scope. Non-canonical callers normalize first: editor form keys via
-# _NESTABLE_FORM_KEY_ALIASES, the LAL loader's parser keys via its _PARSER_TO_CANONICAL.
+# fill blank, fill table). Excludes spoiler itself and native containers
+# (tabs/two_column) — the depth-1 leaf-only scope. Non-canonical callers normalize
+# first: editor form keys via _NESTABLE_FORM_KEY_ALIASES, the LAL loader's parser keys
+# via its _PARSER_TO_CANONICAL.
 SPOILER_CHILD_TYPES = frozenset(
     {
         "text",
@@ -75,6 +76,7 @@ SPOILER_CHILD_TYPES = frozenset(
         "switch_gate",
         "switch_grid",
         "fill_blank",
+        "fill_table",
     }
 )
 
