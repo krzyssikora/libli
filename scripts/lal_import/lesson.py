@@ -1115,10 +1115,12 @@ def _emit_text_with_images(node, elements, flags):
 
 def _emit_text_or_images(node, body, elements, flags):
     """Emit `node` as a single TextElement, unless it holds an <img> (which nh3
-    would strip from the sanitized body) — then split it into text + images."""
+    would strip from the sanitized body) — then split it into text + images. A
+    whitespace-only block (e.g. an empty `<p>\\n</p>` used for LAL spacing) is
+    dropped: it would render as a blank element in libli, which spaces via margins."""
     if isinstance(node, Tag) and node.find("img") is not None:
         _emit_text_with_images(node, elements, flags)
-    else:
+    elif BeautifulSoup(body, "html.parser").get_text(strip=True):
         elements.append({"type": "text", "body": body})
 
 

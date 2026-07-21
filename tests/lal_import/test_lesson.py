@@ -1358,3 +1358,19 @@ def test_r3_reveal_row_prompt_image_extracted_before_spoiler():
         c for c in sp["elements"] if isinstance(c, dict) and c.get("type") == "image"
     ]
     assert any(c["media_src"] == "static/s.png" for c in sol_imgs)
+
+
+def test_whitespace_only_block_is_dropped():
+    # a whitespace-only <p> (e.g. <p>\n</p>) must NOT become an empty TextElement
+    elements, _ = parse_lesson("<p>\n</p><p>Treść.</p>", "x.html")
+    texts = [e for e in elements if e["type"] == "text"]
+    assert len(texts) == 1
+    assert "Treść" in texts[0]["body"]
+
+
+def test_inline_math_only_block_is_kept():
+    # a block whose only content is inline math must survive (regression guard)
+    elements, _ = parse_lesson(r"<p>\(a\)</p>", "x.html")
+    texts = [e for e in elements if e["type"] == "text"]
+    assert len(texts) == 1
+    assert "a" in texts[0]["body"]
