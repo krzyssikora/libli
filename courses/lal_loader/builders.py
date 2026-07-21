@@ -38,6 +38,11 @@ class LoaderError(Exception):
     pass
 
 
+# The LAL parser emits "fillblank"; the canonical/transfer key is "fill_blank".
+# Every other interactive/static parser type key already equals its canonical key.
+_PARSER_TO_CANONICAL = {"fillblank": "fill_blank"}
+
+
 def build_element(
     course, unit, el, *, source_root, source_dir, allow_html, parent=None, tab_id=""
 ):
@@ -71,16 +76,19 @@ def build_element(
 
             for child in el["elements"]:
                 ctype = child.get("type")
-                # Enforce the same static-leaf allowlist resolve_scope() (the editor
-                # path) enforces: rejects NATIVE containers (tabs/two_column/nested
-                # spoiler) AND interactive/question types (reveal_gate, fillblank,
-                # etc.) that the parser's no-nest-container mode never emits but
-                # malformed JSON could carry. A FLAGGED child is exempt: it follows
-                # build_element's own flagged branch below, which honours --allow-html
-                # (HtmlElement under the flag, LoaderError without) exactly as a
-                # top-level flagged element does — so an unmappable block inside a
-                # spoiler isn't newly hard-blocked relative to the top level.
-                if not child.get("flagged") and ctype not in SPOILER_CHILD_TYPES:
+                # Enforce the same allowlist resolve_scope() (the editor path)
+                # enforces: permits static leaves AND interactive leaves (reveal/
+                # fill/switch gate, switch grid, fill blank -- normalized to their
+                # canonical key via _PARSER_TO_CANONICAL), rejects NATIVE containers
+                # (tabs/two_column/nested spoiler) and question types the parser's
+                # no-nest-container mode never emits but malformed JSON could carry.
+                # A FLAGGED child is exempt: it follows build_element's own flagged
+                # branch below, which honours --allow-html (HtmlElement under the
+                # flag, LoaderError without) exactly as a top-level flagged element
+                # does — so an unmappable block inside a spoiler isn't newly
+                # hard-blocked relative to the top level.
+                canonical = _PARSER_TO_CANONICAL.get(ctype, ctype)
+                if not child.get("flagged") and canonical not in SPOILER_CHILD_TYPES:
                     raise LoaderError(
                         f"non-leaf child ({ctype}) nested inside a spoiler in unit "
                         f"{unit.pk}; spoilers hold only static content "

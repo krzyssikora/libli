@@ -47,6 +47,7 @@ NESTABLE_TYPE_KEYS = frozenset(
         "fill_gate",
         "switch_gate",
         "switch_grid",
+        "fill_blank",
         "fill_table",
         "stepper",
         "mark_done",
@@ -54,15 +55,32 @@ NESTABLE_TYPE_KEYS = frozenset(
     }
 )
 
-# Static content leaves a spoiler may hold as children (server-enforced). Excludes
-# spoiler itself, containers, interactive/stateful types, and questions -- the
-# depth-1 leaf-only scope of the nestable-spoiler feature.
+# Leaf children a spoiler may hold (server-enforced), in CANONICAL (transfer) keys.
+# Static leaves PLUS the interactive leaves (reveal/fill/switch gate, switch grid,
+# fill blank). Excludes spoiler itself and native containers (tabs/two_column) — the
+# depth-1 leaf-only scope. Non-canonical callers normalize first: editor form keys via
+# _NESTABLE_FORM_KEY_ALIASES, the LAL loader's parser keys via its _PARSER_TO_CANONICAL.
 SPOILER_CHILD_TYPES = frozenset(
-    {"text", "math", "image", "video", "iframe", "table", "gallery", "callout"}
+    {
+        "text",
+        "math",
+        "image",
+        "video",
+        "iframe",
+        "table",
+        "gallery",
+        "callout",
+        "reveal_gate",
+        "fill_gate",
+        "switch_gate",
+        "switch_grid",
+        "fill_blank",
+    }
 )
 
 # Form key -> transfer key, for the types where the two namespaces diverge.
 _NESTABLE_FORM_KEY_ALIASES = {
+    "fillblankquestion": "fill_blank",
     "fillgate": "fill_gate",
     "filltable": "fill_table",
     "guessnumber": "guess_number",
@@ -115,7 +133,8 @@ def resolve_scope(unit, parent_ref, tab, type_key):
             raise NestingError("a nested spoiler may not have children")
         if tab != SpoilerElement.SLOT_ID:
             raise NestingError("unknown slot")
-        if type_key not in SPOILER_CHILD_TYPES:
+        child_key = _NESTABLE_FORM_KEY_ALIASES.get(type_key, type_key)
+        if child_key not in SPOILER_CHILD_TYPES:
             raise NestingError(f"{type_key} may not be nested inside a spoiler")
         return join, SpoilerElement.SLOT_ID
     # normalize_data (behind normalized_data) is DESTRUCTIVE and read-side only: it

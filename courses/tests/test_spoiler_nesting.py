@@ -1,5 +1,9 @@
 import pytest
 
+from courses import builder
+from courses.builder import NESTABLE_TYPE_KEYS
+from courses.builder import SPOILER_CHILD_TYPES
+from courses.builder import NestingError
 from courses.models import Element
 from courses.models import SpoilerElement
 from courses.models import TextElement
@@ -7,6 +11,14 @@ from tests.factories import add_element
 from tests.factories import make_course_with_unit
 
 pytestmark = pytest.mark.django_db
+
+INTERACTIVE_SPOILER_FORM_KEYS = [
+    "revealgate",
+    "fillgate",
+    "switchgate",
+    "switchgrid",
+    "fillblankquestion",
+]
 
 
 def _nested_spoiler(unit, child_bodies=("<p>a</p>", "<p>b</p>")):
@@ -126,9 +138,46 @@ def test_resolve_scope_rejects_disallowed_child_type_in_spoiler():
 
     _course, unit = make_course_with_unit()
     _sp, join = _spoiler_join(unit)
-    for bad in ("tabs", "spoiler", "revealgate", "choicequestion"):
+    for bad in ("tabs", "spoiler", "choicequestion"):
         with pytest.raises(NestingError):
             builder.resolve_scope(unit, str(join.pk), SpoilerElement.SLOT_ID, bad)
+
+
+def test_spoiler_child_types_includes_interactive_leaves():
+    for k in ("reveal_gate", "fill_gate", "switch_gate", "switch_grid", "fill_blank"):
+        assert k in SPOILER_CHILD_TYPES
+    for k in ("tabs", "two_column", "spoiler"):  # containers still excluded
+        assert k not in SPOILER_CHILD_TYPES
+
+
+def test_nestable_type_keys_includes_fill_blank():
+    assert "fill_blank" in NESTABLE_TYPE_KEYS
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("form_key", INTERACTIVE_SPOILER_FORM_KEYS)
+def test_resolve_scope_accepts_interactive_form_key_in_spoiler(form_key):
+    _course, unit = make_course_with_unit()
+    _sp, join = _spoiler_join(unit)
+    parent_join, tab = builder.resolve_scope(
+        unit, str(join.pk), SpoilerElement.SLOT_ID, form_key
+    )
+    assert parent_join == join
+    assert tab == SpoilerElement.SLOT_ID
+
+
+@pytest.mark.django_db
+def test_resolve_scope_still_rejects_children_of_nested_spoiler():
+    # a spoiler whose OWN join.parent_id is not None (depth-2) takes no children
+    _course, unit = make_course_with_unit()
+    _outer_sp, outer_join = _spoiler_join(unit)
+    _inner_sp, inner_join = _spoiler_join(
+        unit, parent=outer_join, tab_id=SpoilerElement.SLOT_ID
+    )
+    with pytest.raises(NestingError):
+        builder.resolve_scope(
+            unit, str(inner_join.pk), SpoilerElement.SLOT_ID, "switchgate"
+        )
 
 
 def test_resolve_scope_rejects_wrong_slot_for_spoiler():
@@ -208,7 +257,7 @@ def _spoiler_menu_block(html, join_pk):
     marker), so the window contains exactly this spoiler's menu."""
     marker = f'data-parent="{join_pk}"'
     start = html.index(marker)
-    rest = html[start + len(marker):]
+    rest = html[start + len(marker) :]
     nxt = rest.find("addwrap")  # start of the next add-menu wrapper, if any
     return rest if nxt == -1 else rest[:nxt]
 
@@ -219,7 +268,7 @@ def test_top_level_spoiler_renders_child_list_and_add_menu(client):
     unit = _lesson_unit(course)
     sp, join = _nested_spoiler(unit, ("<p>c</p>",))
     html = _editor_html(client, course, unit)
-    assert f'data-parent="{join.pk}"' in html          # add-menu scope present
+    assert f'data-parent="{join.pk}"' in html  # add-menu scope present
     assert f'data-tab="{SpoilerElement.SLOT_ID}"' in html
 
 
@@ -230,10 +279,26 @@ def test_spoiler_add_menu_hides_disallowed_cards(client):
     _sp, join = _nested_spoiler(unit, ("<p>c</p>",))
     block = _spoiler_menu_block(_editor_html(client, course, unit), join.pk)
     # allowlisted leaves ARE offered inside the spoiler menu
-    for allowed in ("text", "image", "table", "math", "video", "iframe", "gallery", "callout"):
+    for allowed in (
+        "text",
+        "image",
+        "table",
+        "math",
+        "video",
+        "iframe",
+        "gallery",
+        "callout",
+    ):
         assert f'data-add-type="{allowed}"' in block, allowed
     # disallowed cards are NOT offered inside the spoiler menu
-    for banned in ("html", "spoiler", "revealgate", "fillgate", "switchgate", "stepper"):
+    for banned in (
+        "html",
+        "spoiler",
+        "revealgate",
+        "fillgate",
+        "switchgate",
+        "stepper",
+    ):
         assert f'data-add-type="{banned}"' not in block, banned
 
 

@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from django.conf import settings
 
+from courses.fillblank import SENTINEL as _LAL_SENTINEL
 from courses.lal_loader.builders import LoaderError
 from courses.lal_loader.builders import build_element
 from courses.lal_loader.guards import assert_iframe_hosts_allowlisted
@@ -835,20 +836,30 @@ def test_build_spoiler_flagged_child_still_errors_without_allow_html():
         build_element(course, unit, el, source_root="", source_dir="", allow_html=False)
 
 
-def test_build_spoiler_rejects_reveal_gate_child():
+def test_build_spoiler_accepts_reveal_gate_child():
+    # Task 1 widening: an interactive leaf now loads as a spoiler child instead
+    # of raising (was test_build_spoiler_rejects_reveal_gate_child).
+    from courses.models import RevealGateElement
     from tests.factories import make_course_with_unit
 
     course, unit = make_course_with_unit()
     el = {
         "type": "spoiler",
         "label": "L",
-        "elements": [{"type": "reveal_gate", "label": "x"}],  # interactive -> refuse
+        "elements": [{"type": "reveal_gate", "label": "x"}],
     }
-    with pytest.raises(LoaderError):
-        build_element(course, unit, el, source_root="", source_dir="", allow_html=False)
+    obj = build_element(
+        course, unit, el, source_root="", source_dir="", allow_html=False
+    )
+    kids = obj.resolved_children()
+    assert len(kids) == 1
+    assert isinstance(kids[0].content_object, RevealGateElement)
 
 
-def test_build_spoiler_rejects_fillblank_child():
+def test_build_spoiler_accepts_fillblank_child():
+    # Task 1 widening: fillblank (canonical fill_blank) now loads as a spoiler
+    # child instead of raising (was test_build_spoiler_rejects_fillblank_child).
+    from courses.fillblank import SENTINEL
     from tests.factories import make_course_with_unit
 
     course, unit = make_course_with_unit()
@@ -856,8 +867,46 @@ def test_build_spoiler_rejects_fillblank_child():
         "type": "spoiler",
         "label": "L",
         "elements": [
-            {"type": "fillblank", "stem": "x", "blanks": []}
-        ],  # question -> refuse
+            {
+                "type": "fillblank",
+                "stem": f"x = {SENTINEL}0{SENTINEL}",
+                "blanks": [["0"]],
+            }
+        ],
     }
-    with pytest.raises(LoaderError):
-        build_element(course, unit, el, source_root="", source_dir="", allow_html=False)
+    obj = build_element(
+        course, unit, el, source_root="", source_dir="", allow_html=False
+    )
+    kids = obj.resolved_children()
+    assert len(kids) == 1
+    assert isinstance(kids[0].content_object, FillBlankQuestionElement)
+
+
+@pytest.mark.parametrize(
+    "child",
+    [
+        {"type": "reveal_gate", "label": "pokaż"},
+        {"type": "switch_gate", "stem": "s", "options": ["a", "b"], "answer": 0},
+        {"type": "fill_gate", "stem": "s", "answers": [["1"]]},
+        {
+            "type": "switch_grid",
+            "prompt": "",
+            "lines": [{"stem": "s", "cyclers": [{"options": ["a", "b"], "answer": 0}]}],
+        },
+        {
+            "type": "fillblank",
+            "stem": f"x = {_LAL_SENTINEL}0{_LAL_SENTINEL}",
+            "blanks": [["0"]],
+        },
+    ],
+)
+def test_loader_accepts_interactive_spoiler_child(child):
+    from tests.factories import make_course_with_unit
+
+    course, unit = make_course_with_unit()
+    el = {"type": "spoiler", "label": "rozwiązanie", "elements": [child]}
+    spoiler = build_element(
+        course, unit, el, source_root="", source_dir="", allow_html=False
+    )
+    kids = spoiler.resolved_children()
+    assert len(kids) == 1
