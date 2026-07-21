@@ -45,8 +45,10 @@ classifier, `reveal_table_cell` bucket): `100_geometria_2/240_pole_trojkata` (7)
 - **`_reveal_table_spoilers(table, consumed, state)`** (`lesson.py` ~235): iterates
   `table.find_all("tr")`; for each `<tr>` with a `.question_solution`:
   - `sol = tr.find(class_="question_solution")`
-  - `first_td = tr.find("td")`; `label = first_td.get_text(strip=True)` (the
-    "zobacz"/"pokaż" button text — the first td is the show-solution button cell).
+  - `first_td = tr.find("td")`; `label = first_td.get_text(strip=True)` (the first
+    cell's text — depending on the file this is a "zobacz"/"pokaż" show-solution
+    button OR a concept name, e.g. `test_r3_…` uses a concept like "Suma zbiorów").
+    The fix below is unaffected by which; it only touches the `question_answer` cell.
   - `_flag_relative_hrefs(sol, flags)`
   - `_emit_solution_region(label, list(sol.children), elements, flags, consumed,
     state)` → appends a `{type:"spoiler", label, elements:[…]}` (top level) whose
@@ -56,11 +58,15 @@ classifier, `reveal_table_cell` bucket): `100_geometria_2/240_pole_trojkata` (7)
 - The **`.question_answer`** div (sibling of `.question_solution` inside the same
   data `<td>`) is never referenced → dropped. It holds the visible prompt (often a
   figure/diagram image) the student sees before revealing the solution.
-- **`_emit_text_with_images` / `_emit_text_or_images`** (the shipped prose-image
-  split): a text-destined block containing `<img>` is split into `TextElement`s +
-  `ImageElement`s in reading order (NavigableStrings math-escaped, tags
-  re-serialised). This is the mechanism that must be applied to `question_answer`
-  so its image is not stripped by the sanitized `TextElement.body`.
+- **`_walk` is the chosen entry point** for `question_answer` (see Design). `_walk`
+  dispatches each child individually: a bare `<img>` child → `ImageElement`
+  directly; a `<figure><img>` → `_emit_figure` (figcaption preserved); a text-tag
+  child that itself contains `<img>` → the shipped prose-image split
+  (**`_emit_text_with_images` / `_emit_text_or_images`**: split into `TextElement`s +
+  `ImageElement`s in reading order, NavigableStrings math-escaped, tags
+  re-serialised, so the image is not stripped by the sanitized `TextElement.body`).
+  We do NOT call `_emit_text_or_images(ans, …)` directly (that treats the whole div
+  as one text block); walking the children routes each correctly.
 - **`_walk(nodes, elements, flags, consumed, state)`** is the general dispatcher;
   it already routes an `<img>`/`<figure>`/text-with-images to the right emitter.
 
@@ -74,12 +80,12 @@ the `_emit_solution_region` call**, locate the row's visible prompt and emit it:
   into the same `elements` list: `_walk(list(ans.children), elements, flags,
   consumed, state)`. `_walk` routes an `<img>` (or a text-with-`<img>` block) through
   the image-aware path, so the prompt image becomes an `ImageElement` and any
-  accompanying prompt text becomes a `TextElement`, in reading order. Mark `ans`
-  and its descendants consumed if the surrounding walk could revisit them (it does
-  not, because the whole table is intercepted by `_reveal_table_spoilers` and the
-  table node is added to `consumed` by the caller — confirm the caller's consume
-  contract during planning; if the row cells are not otherwise walked, no extra
-  consume bookkeeping is needed).
+  accompanying prompt text becomes a `TextElement`, in reading order. **No `consumed`
+  bookkeeping is needed:** the caller (`_walk`'s `name == "table"` branch) does NOT
+  add the table to `consumed`; double-walk is prevented simply because the reveal
+  table is fully handled by the `_is_reveal_table` branch and its descendant cells
+  are never enqueued into any other `_walk` call, so `ans` is reached exactly once
+  (here). Do NOT add a spurious `consumed.add(id(table))`.
 - Then emit the spoiler exactly as today (`_emit_solution_region(label,
   list(sol.children), …)`).
 
@@ -102,9 +108,15 @@ image) stays behind the reveal.
   nestable-spoiler INLINE mode) — consistent with how `_emit_solution_region`
   already branches on `state["in_spoiler"]`. Verify the prompt walk respects the
   same branch (it does, because `_walk` reads `state`).
-- **`first_td` vs the answer cell**: the label still comes from the first `<td>`
-  (the button). The `question_answer` is in the data `<td>` (a later cell). Do not
-  confuse them.
+- **`first_td` vs the answer cell**: the label still comes from the first `<td>`.
+  The `question_answer` is in the data `<td>` (a later cell). Do not confuse them.
+- **`question_answer` / `question_solution` are disjoint siblings** (verified: in the
+  5 affected files both are separate `<div>`s inside the same data `<td>`). The fix
+  relies on this — if a file ever NESTED `question_solution` inside `question_answer`,
+  `_walk(list(ans.children))` would also walk the solution div (which, without a
+  following `show_solution` button, falls to the `_unmapped` flagged-html catch-all),
+  double-emitting/flagging. Add a test asserting the sibling structure; none of the 5
+  files nest, so this is a guard, not a handled case.
 - **Ordering across rows**: emit prompt-then-spoiler per row, preserving row order,
   so a multi-row reveal table reads prompt₁, spoiler₁, prompt₂, spoiler₂, …
 
@@ -117,13 +129,18 @@ the `question_answer` content.
 
 ## Testing
 
-TDD, falsifiable (RED first).
+TDD, falsifiable (RED first). Build fixtures by EXTENDING the existing reveal-table
+tests in `tests/lal_import/test_lesson.py` (`test_r3_reveal_table_becomes_spoilers_
+per_row` / `test_reveal_table_row_becomes_nested_spoiler`) so the table shell
+(`my_table*` class or a `.question_solution`, a label `<td>`, `<tr>` scaffolding)
+routes through `_reveal_table_spoilers` — a bare fixture without that shell won't.
 
-- **Prompt image extracted** (`tests/lal_import/test_lesson.py`): a reveal table
-  whose row has `<div class="question_answer"><img src="p.png"></div>` +
-  `<div class="question_solution hidden"><img src="s.png"></div>` emits, in order,
-  an `image` element for `p.png` (the prompt) THEN a `spoiler` whose children
-  include an `image` for `s.png` (the solution). RED today (only `s.png` emitted).
+- **Prompt image extracted**: a reveal table whose row has
+  `<div class="question_answer"><img src="p.png"></div>` +
+  `<div class="question_solution hidden"><img src="s.png"></div>` (in a proper
+  `my_table`/`question_solution` shell with a label td) emits, in order, an `image`
+  element for `p.png` (the prompt) THEN a `spoiler` whose children include an `image`
+  for `s.png` (the solution). RED today (only `s.png` emitted).
 - **Prompt text + image** split into `text` + `image` in reading order.
 - **Prompt text only** (no img) → a `text` element before the spoiler.
 - **No `question_answer`** → only the spoiler (unchanged); no spurious element.
@@ -133,8 +150,12 @@ TDD, falsifiable (RED first).
 - **Regression**: the existing reveal-table tests (spoiler label, solution
   children) still pass; solution-image recovery is unchanged.
 - **Integration / count**: re-parsing the 5 affected files, the `reveal_table_cell`
-  lost count drops 18 → 0 (measure via `measure_lost_imgs_recursive.py` + the
-  per-image classifier `reveal_table_cell` bucket).
+  lost count drops 18 → 0. **Measurement prerequisites:** the source LAL HTML tree
+  must be present (external `source_root`, `C:/Users/krzys/Documents/teaching/LAL/
+  html`), and the measure scripts live in the session scratchpad, not the repo —
+  `measure_lost_imgs_recursive.py` + `classify_lost_imgs.py` (both already updated to
+  count fill-table image cells). Reseed the parts (`parser <part> --force`) before
+  measuring; the committed `out/*.json` is stale between parser changes.
 
 ## Verification
 
