@@ -285,8 +285,12 @@ def test_panel_scroll_resets_between_units(page, live_server):
     panel = page.locator(".builder__panel")
     panel.hover()
     page.mouse.wheel(0, 2000)
-    assert panel.evaluate("el => el.scrollTop") > 0, (
-        "panel did not scroll; seed more elements"
+    # POLL, don't read once. Playwright's mouse.wheel() dispatches the event but does
+    # not wait for the scroll to be applied, so an immediate scrollTop read is a race:
+    # it happened to land locally and returned 0 on the slower CI runner.
+    page.wait_for_function(
+        "() => document.querySelector('.builder__panel').scrollTop > 0",
+        timeout=5000,
     )
 
     # Select a different unit through the real tree control.
@@ -329,6 +333,14 @@ def test_notice_bar_is_visible_and_opaque_while_panel_scrolled(page, live_server
     panel = page.locator(".builder__panel")
     panel.hover()
     page.mouse.wheel(0, 2000)
+    # Same race as the scroll-reset test: wait for the scroll to actually apply. This
+    # test's whole premise is "a notice raised while the panel is scrolled down", so if
+    # the wheel had not landed it would assert against an unscrolled panel and pass
+    # vacuously — a silent false green rather than a failure.
+    page.wait_for_function(
+        "() => document.querySelector('.builder__panel').scrollTop > 0",
+        timeout=5000,
+    )
 
     def _abort_posts(route):
         # Named handler, not a multi-line lambda: `ruff format --check` runs on tests/.
