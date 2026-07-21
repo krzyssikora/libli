@@ -1043,6 +1043,188 @@ def test_switch_show_next_becomes_switch_gate_chain():
     assert order.index("switch_gate") < len(order) - 1
 
 
+# --- Sub-spec B3: non-.switch_step content of .switch_steps is now walked ---
+
+# A <figure> before the first .switch_step (104_geometria_3 / 090_wstep shape).
+SWITCH_FIGURE_BEFORE = r"""
+<div id="question60">
+  <div class="switch_steps">
+    <figure><img alt="" src="static/fig1.png"/></figure>
+    <div class="switch_step">
+      <p>Krok pierwszy.</p>
+      <div class="switch_line">
+        <div class="switch_value">>> wybierz >></div>
+        <div class="switch_value">\(a\)</div>
+        <div class="switch_value">\(b\)</div>
+        <div class="switch_show_next ks_button">zatwierdź</div>
+      </div>
+    </div>
+    <div class="switch_step hidden"><p>Krok drugi.</p></div>
+  </div>
+</div>
+<script>localStorage.setItem("switch_answers", JSON.stringify({60: [1]}));</script>
+"""
+
+
+def test_switch_nonstep_figure_before_steps_emitted():
+    elements, flags = parse_lesson(SWITCH_FIGURE_BEFORE, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    imgs = [e for e in elements if e["type"] == "image"]
+    assert [e["media_src"] for e in imgs] == ["static/fig1.png"]
+    # the prompt figure renders BEFORE the first gate, in document order
+    order = [e["type"] for e in elements]
+    assert order.index("image") < order.index("switch_gate")
+    # no empty text blocks from whitespace NavigableStrings between children
+    assert all(e.get("body", "").strip() for e in elements if e["type"] == "text")
+
+
+# An image-TABLE stranded as the first child of switch_steps (330 shape).
+SWITCH_IMAGE_TABLE = r"""
+<div id="question50">
+  <div class="switch_steps">
+    <div class="table_wrapper">
+      <table class="my_table_noborder">
+        <tr><td><img alt="" src="static/k1.png"/></td>
+            <td><img alt="" src="static/k2.png"/></td></tr>
+      </table>
+    </div>
+    <div class="switch_step">
+      <p>Opis.</p>
+      <div class="switch_line">
+        <div class="switch_value">>> wybierz >></div>
+        <div class="switch_value">\(a\)</div>
+        <div class="switch_show_next ks_button">zatwierdź</div>
+      </div>
+    </div>
+    <div class="switch_step hidden"><p>Dalej.</p></div>
+  </div>
+</div>
+<script>localStorage.setItem("switch_answers", JSON.stringify({50: [1]}));</script>
+"""
+
+
+def test_switch_nonstep_image_table_unpacked():
+    elements, flags = parse_lesson(SWITCH_IMAGE_TABLE, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    assert not any(e["type"] == "table" for e in elements)  # not a TableElement
+    imgs = [e for e in elements if e["type"] == "image"]
+    # assert on the src SET (robust to _emit_image_table caption-folding)
+    assert {e["media_src"] for e in imgs} == {"static/k1.png", "static/k2.png"}
+    assert "switch_gate" in [e["type"] for e in elements]
+
+
+# A bare <img> direct child (090_trygonometria_1 / 080 shape).
+SWITCH_BARE_IMG = r"""
+<div id="question70">
+  <div class="switch_steps">
+    <img alt="" src="static/bare.png"/>
+    <div class="switch_step"><p>Treść.</p></div>
+  </div>
+</div>
+"""
+
+
+def test_switch_nonstep_bare_img_emitted():
+    elements, _ = parse_lesson(SWITCH_BARE_IMG, "x.html")
+    imgs = [e for e in elements if e["type"] == "image"]
+    assert [e["media_src"] for e in imgs] == ["static/bare.png"]
+
+
+# Two gated steps with a figure BETWEEN them; distinct per-gate answers so a
+# gate_idx mis-thread flips the second gate's answer.
+SWITCH_GATE_CONTINUITY = r"""
+<div id="question80">
+  <div class="switch_steps">
+    <div class="switch_step">
+      <p>Krok 1.</p>
+      <div class="switch_line">
+        <div class="switch_value">>> wybierz >></div>
+        <div class="switch_value">\(p\)</div>
+        <div class="switch_value">\(q\)</div>
+        <div class="switch_value">\(r\)</div>
+        <div class="switch_show_next ks_button">zatwierdź</div>
+      </div>
+    </div>
+    <figure><img alt="" src="static/mid.png"/></figure>
+    <div class="switch_step hidden">
+      <p>Krok 2.</p>
+      <div class="switch_line">
+        <div class="switch_value">>> wybierz >></div>
+        <div class="switch_value">\(p\)</div>
+        <div class="switch_value">\(q\)</div>
+        <div class="switch_value">\(r\)</div>
+        <div class="switch_show_next ks_button">zatwierdź</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>localStorage.setItem("switch_answers", JSON.stringify({80: [2, 1]}));</script>
+"""
+
+
+def test_switch_gate_continuity_with_nonstep_between():
+    elements, _ = parse_lesson(SWITCH_GATE_CONTINUITY, "x.html")
+    gates = [e for e in elements if e["type"] == "switch_gate"]
+    assert len(gates) == 2
+    # strip_lead_prompt drops the ">> wybierz >>" placeholder and decrements:
+    # LAL 2 -> libli 1 (gate 0), LAL 1 -> libli 0 (gate 1). Distinct: a
+    # gate_idx mis-thread (both reading answers[0]) would make gate 1 == 1.
+    assert gates[0]["answer"] == 1
+    assert gates[1]["answer"] == 0
+    # the mid figure renders between the two gates
+    assert any(e["type"] == "image" for e in elements)  # clear RED msg under master
+    order = [e["type"] for e in elements]
+    img_i = next(i for i, e in enumerate(elements) if e["type"] == "image")
+    assert order.index("switch_gate") < img_i < len(order) - 1
+    assert order[img_i + 1 :].count("switch_gate") == 1
+
+
+# Regression guard for the buffer-and-flush invariant: a show_solution button
+# immediately followed by its sibling .question_solution (two adjacent non-step
+# children) must pair into ONE solution region, not two unmapped flags.
+SWITCH_SIBLING_COUPLED = r"""
+<div id="question90">
+  <div class="switch_steps">
+    <div class="show_solution ks_button">zobacz</div>
+    <div class="question_solution hidden"><p>Rozwiązanie.</p></div>
+    <div class="switch_step"><p>Krok.</p></div>
+  </div>
+</div>
+"""
+
+
+def test_switch_nonstep_sibling_coupled_pairs_into_one_region():
+    elements, _ = parse_lesson(SWITCH_SIBLING_COUPLED, "x.html")
+    # buffer-and-flush walks [button, solution, ...] together so _find_solution
+    # pairs them into a single spoiler; per-child walking would emit two flags.
+    assert sum(1 for e in elements if e["type"] == "spoiler") == 1
+    assert not any(e.get("flagged") for e in elements)
+
+
+# A bare <div> carrying a cycler but LACKING the switch_step class (280 shape):
+# the image is recovered; the cycler renders as static content (not asserted).
+SWITCH_BARE_DIV_CYCLER = r"""
+<div id="question760">
+  <div class="switch_steps">
+    <div>
+      <img alt="" src="static/wyc.png"/>
+      <div class="switch_line">
+        <div class="switch_value">>> wybierz >></div>
+        <div class="switch_value">\(2\pi r\)</div>
+      </div>
+    </div>
+    <div class="switch_step hidden"><p>Koniec.</p></div>
+  </div>
+</div>
+"""
+
+
+def test_switch_nonstep_bare_div_with_cycler_recovers_image():
+    elements, _ = parse_lesson(SWITCH_BARE_DIV_CYCLER, "x.html")
+    imgs = [e for e in elements if e["type"] == "image"]
+    assert "static/wyc.png" in [e["media_src"] for e in imgs]
+
+
 def test_show_next_step_with_block_math_kept_as_math_element():
     html = (
         '<div class="steps">'

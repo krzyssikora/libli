@@ -691,16 +691,28 @@ def _is_switch_gate_line(node):
 
 
 def _emit_switch_gate_chain(container, elements, flags, consumed, state):
-    """Group B #2: a .switch_steps block -> [step0 content][SwitchGate][step1
-    content][SwitchGate]... Each .switch_step's trailing cycler line becomes a
-    SwitchGate whose correct choice reveals the following siblings (the next
-    step's content), mirroring the show_next RevealGate chain."""
+    """Group B #2: a .switch_steps block -> [non-step content][step0 content]
+    [SwitchGate][step1 content][SwitchGate]... Direct children are visited in
+    document order: a .switch_step becomes gate-split content (via
+    _emit_switch_step); any other direct child (a stranded <figure>, bare <img>,
+    image-table, or prose) is buffered and walked as native siblings in place, so
+    its images/text survive. Non-step children never emit a gate, so gate_idx (the
+    positional index into switch_answers[qid]) is untouched by them."""
     answers = state.get("switch_answers", {}).get(_enclosing_qid(container), [])
     gate_idx = 0
-    for step in container.find_all(class_="switch_step", recursive=False):
-        gate_idx = _emit_switch_step(
-            step, elements, flags, consumed, state, answers, gate_idx
-        )
+    pending = []  # consecutive non-step children, flushed as ONE sibling run
+    for child in container.children:
+        if isinstance(child, Tag) and "switch_step" in (child.get("class") or []):
+            if pending:
+                _walk(pending, elements, flags, consumed, state)
+                pending = []
+            gate_idx = _emit_switch_step(
+                child, elements, flags, consumed, state, answers, gate_idx
+            )
+        else:
+            pending.append(child)
+    if pending:
+        _walk(pending, elements, flags, consumed, state)
 
 
 def _emit_switch_step(step, elements, flags, consumed, state, answers, gate_idx):
