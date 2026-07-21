@@ -33,9 +33,10 @@ three review cycles for one coherent change.
 
 The commit order is **Part 1 → Part 2A → Part 2B**. Part 1 goes first because it is genuinely
 independent (it touches only `builder.css` and `builder.js`) and therefore never conflicts with
-what follows. Parts 2A and 2B are **coupled**: they share
-`courses/static/courses/css/courses.css`, and 2B's centring has to account for a group 2A lets
-the user fold. 2B's folded-group guard ships with **2B**, not 2A — between those two commits,
+what follows. Parts 2A and 2B are **coupled**: they share **both**
+`courses/static/courses/css/courses.css` **and** `courses/static/courses/js/unit_nav.js` (2A
+widens `focusable()`; 2B extracts `centerActive()`), and 2B's centring has to account for a group
+2A lets the user fold. 2B's folded-group guard ships with **2B**, not 2A — between those two commits,
 folding the active unit's own group is possible but the rail is simply never re-centred, which is
 today's behaviour and therefore no regression at any point in the sequence.
 
@@ -94,8 +95,18 @@ that existing rule**; `min-width: 0` and its comment must not be dropped:
   single-column stacking apply:
 
   ```css
+  /* MUST appear AFTER the .builder__panel rule in source order — see below. */
   @media (max-width: 720px) { .builder__panel { position: static; max-height: none; overflow: visible; } }
   ```
+
+  **Placement is load-bearing.** `builder.css`'s only existing media query is at line 2, and the
+  sticky declarations merge into `.builder__panel` at line 10. Media queries add **no**
+  specificity, so an override written into (or just after) the line-2 block — the natural reading
+  of "below the existing breakpoint", and the obvious home given it is the file's only media
+  block — would *lose* to line 10's later, equal-specificity declarations and do nothing. The new
+  media block must therefore sit **after** the `.builder__panel` rule in source order. Getting
+  this wrong produces exactly the nested-scroll-trap regression this bullet forbids, by following
+  the spec's own pointer.
 
   Dropping only `position: static` would leave the stacked panel a nested ~100vh scroll
   container sitting under the tree — a touch scroll-trap and a clipped panel on the narrowest
@@ -124,7 +135,12 @@ that existing rule**; `min-width: 0` and its comment must not be dropped:
   "the last control is reachable" would be satisfied while the actual goal is not. The seam is
   therefore pinned to the bottom of the panel's scroll container —
   `position: sticky; bottom: 0` with an opaque background — mirroring `.unit-foot`'s existing
-  pattern (`courses.css:558`), and it is **tested**: on a unit with enough elements to overflow
+  pattern (`courses.css:558`). Add the declarations to the **existing**
+  `.builder__panel .panel__seam` rule at `builder.css:88`, not a new bare `.panel__seam` rule,
+  which would be lower specificity. Note that the seam is **not** a direct child of
+  `.builder__panel` — `_unit_panel.html` wraps its content in `<div class="panel">`, so the
+  seam's sticky containing block is that `.panel` wrapper; sticky-bottom pins across the whole
+  scroll range precisely because `.panel` spans the full panel content. It is **tested**: on a unit with enough elements to overflow
   the panel, both buttons are within the viewport immediately after selecting that unit, with no
   scrolling of any kind.
 - **The `notice()` bar must stay visible.** `builder.js`'s `notice(text)` builds an `.op-error`
@@ -161,7 +177,9 @@ that existing rule**; `min-width: 0` and its comment must not be dropped:
 ### Part 2A — Student tree: collapsible groups, current chain auto-open
 
 Files: `courses/rollups.py`, `templates/courses/_unit_tree_node.html`,
-`courses/static/courses/css/courses.css`.
+`courses/static/courses/css/courses.css`, `courses/static/courses/js/unit_nav.js` (the
+`focusable()` widening — see the focus-trap requirement below), and
+`tests/test_e2e_unit_nav.py` (its in-test focusable list).
 
 **Markup.** `_unit_tree_node.html` currently renders a non-unit node as a
 `<div class="unit-tree__head" lang="{{ course.language }}">` followed by
@@ -288,7 +306,7 @@ with no required work has no completion to report.
 **The group ✓ needs its own class**, `.unit-tree__groupcheck`, not the unit row's
 `.unit-tree__check`. That class exists specifically to cancel `.badge--done`'s
 `margin-left: auto` because in a *unit* row the ✓ is a **leading** icon (see the comment at
-`courses.css:544-546`). In the summary the ✓ is a **trailing** chip, so reusing the class would
+`courses.css:550-552`, immediately above `.unit-tree__check` at 553). In the summary the ✓ is a **trailing** chip, so reusing the class would
 apply a reset written for the opposite case. `.unit-tree__groupcheck` composes with
 `badge badge--done` for colour but keeps the trailing behaviour.
 
@@ -467,9 +485,12 @@ Files: `courses/static/courses/js/unit_nav.js`, `courses/static/courses/css/cour
 **(1) Re-centre on expand — bug fix.** The centring block at `unit_nav.js:35-46` runs once at
 load and is guarded by `!isCollapsed()`. It is extracted into a named function `centerActive()`
 with a **self-contained interface**, so both call sites are unconditional one-liners: the
-function performs its own `document.querySelector("[data-unit-tree]")` and `.is-active` lookups
-at call time (not module-evaluation time, so it never operates on a stale reference), and its own
-`isCollapsed()` and null guards. It keeps the existing scroll-the-container arithmetic verbatim —
+function performs its own lookups at call time (not module-evaluation time, so it never operates
+on a stale reference), and its own `isCollapsed()` and null guards. The `.is-active` lookup stays
+**scoped to the rail** — `tree.querySelector(".unit-tree__unit.is-active")` after
+`document.querySelector("[data-unit-tree]")`, not a second document-level query — because the
+drawer renders a second `.is-active` node; the comment at `unit_nav.js:33-34` explaining this
+moves with the code. It keeps the existing scroll-the-container arithmetic verbatim —
 `scrollIntoView` is deliberately avoided because it walks every scrollable ancestor and can nudge
 the window and the article, which is why the current code computes rail-relative coordinates by
 hand — and keeps the existing `prefers-reduced-motion` branch.
@@ -722,8 +743,11 @@ scroll (the tree, not the panel, is what must overflow).
 - **`setPanel` invariant, as a real test.** The e2e above drives only the `data-select` path
   (`builder.js:122`); a partial refactor that routes 122 through `setPanel` and leaves 119, 164,
   189/190, 200/203 and 296 raw passes it green — exactly the missed-async-branch failure the
-  helper exists to prevent. So the invariant gets a **source-scan unit test**: read `builder.js`
-  and assert exactly one `panel.innerHTML =` **assignment**, excluding the `builder.js:10` read.
+  helper exists to prevent. So the invariant gets a **source-scan unit test**, home
+  `tests/test_builder_js_invariants.py` (a plain unit test, not an e2e — it does not belong in
+  the builder e2e file): read `builder.js` and assert exactly one `panel.innerHTML =`
+  **assignment**. Match on `=` *following* `panel.innerHTML`, which excludes the `builder.js:10`
+  read (`var neutralPanel = panel.innerHTML;`) naturally rather than by special-casing it.
   ("A grep is not run by CI" is not a reason to skip this — a test that greps is.)
 - **Builder, stacked:** at a ≤720px viewport the panel is **not** sticky **and is not a scroll
   container** — assert computed `max-height: none` (or `scrollHeight <= clientHeight`), not
