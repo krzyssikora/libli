@@ -679,16 +679,40 @@ def _flatten_unit_leaves(tree):
     return leaves
 
 
-def _top_level_part(tree, current_pk):
-    """The root dict whose subtree contains current_pk (the top-level ancestor), or
-    None. If current_pk is itself a root, returns that root dict (its is_unit tells the
-    caller it is a depth-1 unit with no enclosing part)."""
+def _stamp_current_chain(tree, current_pk):
+    """Set contains_current on EVERY dict in a build_outline tree.
 
-    def contains(d):
-        return d["node"].pk == current_pk or any(contains(c) for c in d["children"])
+    True for the node whose pk is current_pk and for every ancestor of it; False
+    everywhere else. The key is always present so callers (and the template's
+    {% if item.contains_current %}) never have to distinguish absent from False.
+
+    Pure dict mutation over an already-materialised tree — no queries. Units are
+    stamped too, which is what lets _top_level_part still return a root that IS the
+    current unit (the depth-1 part-chip case).
+    """
+
+    def walk(d):
+        hit = d["node"].pk == current_pk
+        for child in d["children"]:
+            if walk(child):
+                hit = True
+        d["contains_current"] = hit
+        return hit
 
     for root in tree:
-        if contains(root):
+        walk(root)
+
+
+def _top_level_part(tree):
+    """The root dict whose subtree contains the current node, or None.
+
+    REQUIRES a tree already stamped by _stamp_current_chain. If current_pk is itself a
+    root, returns that root dict (its is_unit tells the caller it is a depth-1 unit with
+    no enclosing part). Reads the flag directly, not via .get(), so an unstamped tree
+    raises KeyError loudly instead of silently blanking part_progress.
+    """
+    for root in tree:
+        if root["contains_current"]:
             return root
     return None
 
@@ -718,7 +742,8 @@ def build_unit_nav(course, user, current_node):
     }
 
     part_progress = None
-    top = _top_level_part(tree, current_node.pk)
+    _stamp_current_chain(tree, current_node.pk)
+    top = _top_level_part(tree)
     if top is not None and not top["is_unit"] and top["required_total"] > 0:
         part_progress = {
             "done": top["required_done"],
