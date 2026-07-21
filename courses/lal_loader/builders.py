@@ -5,6 +5,7 @@ from decimal import Decimal
 from courses.geogebra import canonicalize_geogebra_url
 from courses.lal_loader.media import get_or_create_asset
 from courses.lal_loader.media import resolve_source
+from courses.lal_loader.media import source_present
 from courses.models import Blank
 from courses.models import Choice
 from courses.models import ChoiceGridQuestionElement
@@ -43,8 +44,24 @@ class LoaderError(Exception):
 _PARSER_TO_CANONICAL = {"fillblank": "fill_blank"}
 
 
+def _record_missing(missing, unit, kind, media_src):
+    """Note a skipped element whose source media file was absent, so the caller
+    can warn. A no-op when no sink is threaded in (keeps unit tests terse)."""
+    if missing is not None:
+        missing.append((getattr(unit, "title", ""), kind, media_src))
+
+
 def build_element(
-    course, unit, el, *, source_root, source_dir, allow_html, parent=None, tab_id=""
+    course,
+    unit,
+    el,
+    *,
+    source_root,
+    source_dir,
+    allow_html,
+    parent=None,
+    tab_id="",
+    missing=None,
 ):
     # A local _attach that injects this call's parent/tab_id, so every branch's
     # `_attach(unit, obj)` places a top-level element by default but a nested
@@ -103,6 +120,7 @@ def build_element(
                     allow_html=allow_html,
                     parent=join,
                     tab_id=SpoilerElement.SLOT_ID,
+                    missing=missing,
                 )
             return obj
         return _attach(
@@ -170,6 +188,7 @@ def build_element(
                     allow_html=allow_html,
                     parent=join,
                     tab_id=t["id"],
+                    missing=missing,
                 )
         return obj
     if etype == "fill_gate":
@@ -208,6 +227,12 @@ def build_element(
             resolved_row = []
             for cell in row if isinstance(row, list) else []:
                 if isinstance(cell, dict) and cell.get("kind") == "image":
+                    if not source_present(source_root, source_dir, cell["media_src"]):
+                        # Missing source: degrade to an empty static cell (keeps
+                        # the grid shape) rather than aborting the whole part.
+                        _record_missing(missing, unit, "image", cell["media_src"])
+                        resolved_row.append({"kind": "static", "html": ""})
+                        continue
                     path = resolve_source(source_root, source_dir, cell["media_src"])
                     asset = get_or_create_asset(course, "image", path)
                     resolved_row.append(
@@ -264,6 +289,9 @@ def build_element(
             unit, IframeElement.objects.create(url=url, title=el.get("title", ""))
         )
     if etype == "image":
+        if not source_present(source_root, source_dir, el["media_src"]):
+            _record_missing(missing, unit, "image", el["media_src"])
+            return None  # skip: a missing image must not abort the whole part
         path = resolve_source(source_root, source_dir, el["media_src"])
         asset = get_or_create_asset(course, "image", path)
         return _attach(
@@ -275,6 +303,9 @@ def build_element(
             ),
         )
     if etype == "video":
+        if not source_present(source_root, source_dir, el["media_src"]):
+            _record_missing(missing, unit, "video", el["media_src"])
+            return None  # skip: a missing video must not abort the whole part
         path = resolve_source(source_root, source_dir, el["media_src"])
         asset = get_or_create_asset(course, "video", path)
         return _attach(unit, VideoElement.objects.create(media=asset))

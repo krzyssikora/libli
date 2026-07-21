@@ -34,7 +34,7 @@ def prune_orphans(course, parent, keep_count):
 
 
 def rebuild_unit_elements(
-    course, unit, element_dicts, *, source_root, source_dir, allow_html
+    course, unit, element_dicts, *, source_root, source_dir, allow_html, missing=None
 ):
     rows = Element.objects.filter(unit=unit)
     _delete_element_content_objects(rows)  # delete concrete rows first (no orphans)
@@ -47,4 +47,5 @@ def rebuild_unit_elements(
             source_root=source_root,
             source_dir=source_dir,
             allow_html=allow_html,
+            missing=missing,
         )

@@ -910,3 +910,128 @@ def test_loader_accepts_interactive_spoiler_child(child):
     )
     kids = spoiler.resolved_children()
     assert len(kids) == 1
+
+
+# --- missing-source-media tolerance ------------------------------------------
+# A missing source file must not abort the whole part: the offending element is
+# skipped (not created) and recorded in the `missing` sink so the command can
+# warn. Mirrors the tolerant course-export convention (missing image/video ->
+# not a hard failure). Pre-fix, get_or_create_asset raised bare FileNotFoundError.
+
+
+def test_build_image_missing_source_is_skipped_not_raised(tmp_path):
+    from courses.models import ImageElement
+
+    course = CourseFactory()
+    unit = _unit(course)
+    missing = []
+    obj = build_element(
+        course,
+        unit,
+        {"type": "image", "media_src": "static/gone.png", "alt": "x"},
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+        missing=missing,
+    )
+    assert obj is None
+    assert Element.objects.filter(unit=unit).count() == 0
+    assert ImageElement.objects.count() == 0
+    assert MediaAsset.objects.count() == 0
+    assert len(missing) == 1
+    assert missing[0][1] == "image" and "gone.png" in missing[0][2]
+
+
+def test_build_video_missing_source_is_skipped_not_raised(tmp_path):
+    from courses.models import VideoElement
+
+    course = CourseFactory()
+    unit = _unit(course)
+    missing = []
+    obj = build_element(
+        course,
+        unit,
+        {"type": "video", "media_src": "static/gone.mp4"},
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+        missing=missing,
+    )
+    assert obj is None
+    assert Element.objects.filter(unit=unit).count() == 0
+    assert VideoElement.objects.count() == 0
+    assert len(missing) == 1 and missing[0][1] == "video"
+
+
+def test_build_image_remote_url_src_is_treated_as_missing(tmp_path):
+    course = CourseFactory()
+    unit = _unit(course)
+    missing = []
+    obj = build_element(
+        course,
+        unit,
+        {"type": "image", "media_src": "https://example.com/a.png", "alt": "x"},
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+        missing=missing,
+    )
+    assert obj is None
+    assert len(missing) == 1 and "https://example.com/a.png" in missing[0][2]
+
+
+def test_build_missing_image_inside_spoiler_skips_only_that_child(tmp_path):
+    course = CourseFactory()
+    unit = _unit(course)
+    missing = []
+    el = {
+        "type": "spoiler",
+        "label": "rozwiązanie",
+        "elements": [
+            {"type": "text", "body": "<p>hi</p>"},
+            {"type": "image", "media_src": "static/gone.png", "alt": "x"},
+        ],
+    }
+    spoiler = build_element(
+        course,
+        unit,
+        el,
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+        missing=missing,
+    )
+    # The spoiler still builds; only the missing image child is dropped.
+    assert len(spoiler.resolved_children()) == 1
+    assert len(missing) == 1 and missing[0][1] == "image"
+
+
+def test_build_fill_table_missing_image_cell_degrades_to_static(tmp_path):
+    course = CourseFactory()
+    unit = _unit(course)
+    missing = []
+    el = {
+        "type": "fill_table",
+        "data": {
+            "cells": [
+                [
+                    {"kind": "image", "media_src": "static/gone.png", "alt": "g"},
+                    {"kind": "answer", "answer": "1"},
+                ]
+            ]
+        },
+    }
+    obj = build_element(
+        course,
+        unit,
+        el,
+        source_root=tmp_path,
+        source_dir="x",
+        allow_html=False,
+        missing=missing,
+    )
+    assert isinstance(obj, FillTableElement)
+    cell = obj.data["cells"][0][0]
+    assert cell["kind"] != "image"  # degraded to a (static) cell, no dangling media
+    assert MediaAsset.objects.count() == 0
+    assert len(missing) == 1 and missing[0][1] == "image"

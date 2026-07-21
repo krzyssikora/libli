@@ -12,6 +12,22 @@ def resolve_source(source_root, source_dir, media_src):
     return Path(source_root) / source_dir / media_src
 
 
+def source_present(source_root, source_dir, media_src):
+    """True iff media_src resolves to an existing local source file.
+
+    A remote (http/https) src can never be a local file — the LAL parser
+    sometimes captures an external ``<img src="https://…">`` as a media_src —
+    so it reads as absent and the loader skips it tolerantly rather than
+    aborting the whole part on a bare FileNotFoundError.
+    """
+    if isinstance(media_src, str) and media_src.startswith(("http://", "https://")):
+        return False
+    try:
+        return resolve_source(source_root, source_dir, media_src).exists()
+    except OSError:  # e.g. a URL-ish src with path-illegal chars on Windows
+        return False
+
+
 def _sha256(data):
     return hashlib.sha256(data).hexdigest()
 

@@ -46,6 +46,7 @@ class Command(BaseCommand):
         ensure_depth_policy(course, o["set_policy"])
         assert_no_foreign_top_level(course, owned_part_orders(json_dir))
 
+        missing = []  # (unit_title, kind, media_src) for skipped absent-source media
         with transaction.atomic():
             part = upsert_node(
                 course,
@@ -74,12 +75,21 @@ class Command(BaseCommand):
                         source_root=o["source_root"],
                         source_dir=u["source_dir"],
                         allow_html=o["allow_html"],
+                        missing=missing,
                     )
                 prune_orphans(course, chapter, len(ch["units"]))
             prune_orphans(course, part, len(manifest["chapters"]))
 
         if o["gc_media"]:
             self._gc_media(course)
+        if missing:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"skipped {len(missing)} element(s) with missing source media:"
+                )
+            )
+            for title, kind, src in missing:
+                self.stdout.write(f"  - [{kind}] {src}  (unit: {title})")
         self.stdout.write(
             self.style.SUCCESS(f"loaded part {o['part']} into course {course.slug}")
         )
