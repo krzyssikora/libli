@@ -7,7 +7,20 @@
    detail panel is content-heavy) inflates the 1fr track and steals width back from the
    tree — collapsing the 2:1 ratio to ~0.73:1. Panel content shrinks safely: the h2
    wraps, .element-list__summary truncates (its own min-width:0), .panel__seam wraps. */
-.builder__panel { min-width: 0; }
+.builder__panel { min-width: 0;
+  /* Sticky so the detail panel stays on screen while a long tree scrolls. Mirrors
+     .unit-tree (courses.css:505). max-height is what un-stretches the grid item and
+     creates the travel room; align-self:start is belt-and-braces for short panels.
+     Two-value overflow: a non-visible overflow-y would force overflow-x to auto. */
+  position: sticky; top: var(--space-4); align-self: start;
+  max-height: calc(100vh - var(--space-8)); overflow: hidden auto; }
+
+/* Stacked layout: reverse ALL of position/max-height/overflow, or the panel becomes a
+   nested ~100vh scroll trap under the tree. MUST come after the rule above — media
+   queries add no specificity, so an override placed in the line-2 block would lose. */
+@media (max-width: 720px) {
+  .builder__panel { position: static; max-height: none; overflow: visible; }
+}
 .builder__title { font-weight: 700; letter-spacing: var(--heading-letter-spacing); }
 
 /* #5 connectors */
@@ -85,7 +98,23 @@
 .builder__panel .panel__meta { color: var(--text-secondary); }
 .builder__panel .form--inline { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
 .builder__panel .form--inline > label { width: 100%; margin: 0; }
-.builder__panel .panel__seam { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5); }
+.builder__panel .panel__seam { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5);
+  /* Pinned to the bottom of the panel's scroll range. Containing block is the injected
+     .panel wrapper, which spans the full panel content. Mirrors .unit-foot (courses.css:558). */
+  position: sticky; bottom: 0; z-index: 1;
+  /* --surface-raised: the token .unit-foot actually uses. There is NO --surface-default
+     in tokens.css (only base/raised/sunken/overlay) — an invalid token computes to
+     nothing and the seam paints transparent, letting content scroll under the labels. */
+  background: var(--surface-raised); padding-block: var(--space-2); }
+
+/* Scoped to the panel: the page-level flash (builder.html:6) sits outside .builder and
+   must NOT become sticky. The two network-error divs builder.js writes as panel content
+   ARE direct children and are intentionally covered. */
+.builder__panel > .op-error {
+  position: sticky; top: 0; z-index: 2;
+  padding: var(--space-2) var(--space-3); margin-bottom: var(--space-3);
+  background: var(--danger-subtle); border: 1px solid var(--danger);
+  border-radius: var(--radius-sm); color: var(--text-primary); }
 
 /* Empty/course panel only (unique data-panel-for="course"): stack its title, meta,
    and the four ghost buttons one-per-line in the narrowed 1/3 column. Scoped so the
