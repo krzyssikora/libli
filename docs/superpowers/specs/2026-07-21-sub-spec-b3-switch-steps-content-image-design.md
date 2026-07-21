@@ -10,7 +10,7 @@ remain (`classify_lost_imgs.py` buckets: `question_div_stem` 15,
 that do not map 1:1 to parser mechanisms**; a per-file DOM investigation of all 21
 files regrouped the losses into five real mechanisms. **This slice (B3) is the
 largest and cleanest: content that is a direct child of a `.switch_steps`
-container but is NOT a `.switch_step` — 16 images across 9 files.**
+container but is NOT a `.switch_step` — 17 images across 9 files.**
 
 A LAL `switch_steps` block is a cycler-gated progressive reveal, mapped by
 `scripts/lal_import/lesson.py:_emit_switch_gate_chain` (lesson.py ~693) to a
@@ -40,12 +40,12 @@ with no intervening `.switch_step`):
 | `104_geometria_3_czworokaty/620_podobne` | 1 | `<figure><img>` direct child |
 | `140_geometria_analityczna_2/300_odleglosci` | 1 | `<figure><img>` direct child |
 
-Total **16**. Note this pulls images the classifier labelled `reveal_table_cell`
+Total **17**. Note this pulls images the classifier labelled `reveal_table_cell`
 (330's 6 — its table has a `my_table*` class so the classifier bucketed it as a
 reveal cell, but there is no `show_solution`/`question_solution`, so it is NOT a
 reveal table; it is a plain image-table stranded in `switch_steps`) and
 `details_nontable` (the `<figure>`s, whose only shared trait was a `<details>`
-ancestor). The true mechanism is identical for all 16: **non-`.switch_step`
+ancestor). The true mechanism is identical for all 17: **non-`.switch_step`
 direct children of `.switch_steps` are never walked.**
 
 ## Scope
@@ -66,7 +66,7 @@ direct children of `.switch_steps` are never walked.**
     one_choice list), `030_kwadratowa/kwadratowa_140_wlasnosci` (2, image cells in
     a one_choice *table*), `080_geometria_analityczna/110_geo_an` (1, bare stem div).
   - **B-fill — fill_step images (6 / 2):** `090_trygonometria_1/040`+`044_tryg_tozsamosci`.
-  - **B-tail (9 / ~6):** `020_uklady_rownan/uk_rown_30` slideshow (3),
+  - **B-tail (8 / 5):** `020_uklady_rownan/uk_rown_30` slideshow (3),
     `030_kwadratowa/kwadratowa_161`+`162` tab-panel (2), `100_geometria_2/250_pole_trojkata`
     mixed fill-cell (2), `100_geometria_2/030_twierdzenie_sinusow` img-inside-gate-line (1).
 - **No model, loader, transfer, or editor change** — recovered content is ordinary
@@ -175,9 +175,12 @@ def _emit_switch_step(step, elements, flags, consumed, state, answers, gate_idx)
 Behaviour: a `.switch_step` child produces the same `[content…][SwitchGate]…`
 sequence as today, with `gate_idx` threaded through; a non-step child (figure,
 image-table, bare img, prose) is walked in place, emitting its native elements in
-document order. Result for e.g. 330: `[6 image-table ImageElements][step0
-content][gate?]…`; for 090_wstep: `[figure ImageElement][prose text][step
-content + gates]`.
+document order. 330's `switch_steps` is a 6-diagram image-table (`table_wrapper`,
+the stranded non-step first child) followed by 3 `.switch_step`s, two of which
+carry a `switch_show_next` gate line (`switch_answers[50] = [6, 2]`), so the result
+is: `[6 image-table ImageElements][step0 content][SwitchGate₀][step1
+content][SwitchGate₁][step2 content]`. For 090_wstep: `[figure ImageElement][prose
+text/math from the leading `<p>`/`<ul>` non-step children][step content + gates]`.
 
 `container.children` yields `NavigableString` whitespace nodes between the block
 children; they accumulate into `pending` and are stripped by `_walk`'s
@@ -188,9 +191,11 @@ no-op — no need to pre-filter.
 
 - **`gate_idx` continuity:** the helper returns the running index; the outer loop
   reassigns it. Non-step children never emit gates, so they never consume an answer
-  slot — identical gate→answer alignment to today. A regression test on an existing
-  multi-gate file (007/funkcje_030, verified 4 gates) must show byte-identical gate
-  stems/options/answers and count.
+  slot — identical gate→answer alignment to today. The **binding** gate-continuity
+  test is the synthetic in-repo fixture (Testing → "Gate continuity regression"); a
+  byte-identical before/after diff on the external corpus file 007/funkcje_030 is an
+  optional manual cross-check (Verification), not an automated unit test — it depends
+  on the out-of-tree source tree the prior round removed as a gate.
 - **Ordering:** document order is preserved because we iterate `container.children`
   directly (not a `find_all` that would re-group). A prompt figure that precedes the
   first `switch_step` now renders before the first gate; an image-table between two
@@ -255,10 +260,10 @@ dispatch reaches `_emit_switch_gate_chain`.
 - **Primary acceptance gate = repo tests, not the out-of-tree measure.** The
   binding pass/fail criterion is the `test_lesson.py` assertions above, which live in
   the repo and any session can run (`uv run pytest tests/lal_import/test_lesson.py`).
-  The 40→24 corpus measure is a **secondary cross-check**, not the gate, because it
+  The 40→23 corpus measure is a **secondary cross-check**, not the gate, because it
   depends on tooling outside the repo.
 - **Integration / count (secondary cross-check):** re-parsing the 9 affected files,
-  total lost drops **40 → 24** and every listed non-step image is emitted.
+  total lost drops **40 → 23** and every listed non-step image is emitted.
   **Measurement prerequisites:** the external source tree
   (`C:/Users/krzys/Documents/teaching/LAL/html`) must be present; the
   measure/classifier scripts are NOT in the repo — they live in this session's
@@ -275,8 +280,12 @@ dispatch reaches `_emit_switch_gate_chain`.
 
 ## Verification
 
-- Re-measure (`classify_lost_imgs.py`): total 40 → 24; the 16 listed images gone
+- Re-measure (`classify_lost_imgs.py`): total 40 → 23; the 17 listed images gone
   from the lost set; no new lost images introduced.
+- **007/funkcje_030 gate cross-check (manual, optional):** parse the corpus file
+  before and after the change and confirm the emitted `switch_gate` stems/options/
+  answers and count are byte-identical — a belt-and-suspenders check that the
+  buffer-and-flush refactor did not perturb an unaffected multi-gate file.
 - Reseed + reload the two highest-value parts into `libli_mat`
   (`050_ulamki_algebraiczne` for 330's 6-image table; `104_geometria_3_czworokaty`
   for the figure group), render a sample unit (330's unit: the 6 `homograficzna_ksztalt`
