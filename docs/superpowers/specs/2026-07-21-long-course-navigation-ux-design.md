@@ -81,17 +81,25 @@ that existing rule**; `min-width: 0` and its comment must not be dropped:
   ellipsises) — but it does mean panel content must continue to wrap or truncate rather than
   overflow, and the content-heavy-panel screenshot check exists to catch a regression there.
 - Below the existing `@media (max-width: 720px)` breakpoint (`builder.css:2`) the two columns
-  stack vertically. Sticky is dropped there (`position: static`) so the panel cannot hover
-  over the tree it is stacked above. No new breakpoint is introduced.
+  stack vertically, and the mobile override must reverse **all four** declarations, not just
+  `position`:
+
+  ```css
+  @media (max-width: 720px) { .builder__panel { position: static; max-height: none; overflow: visible; } }
+  ```
+
+  Dropping only `position: static` would leave the stacked panel a nested ~100vh scroll
+  container sitting under the tree — a touch scroll-trap and a clipped panel on the narrowest
+  viewport, strictly worse than today. No new breakpoint is introduced.
 - **`100vh` is safe here** precisely because sticky only applies above 720px — the mobile
   visual-viewport discrepancy never comes into play. `top: var(--space-4)` needs no
   header-height offset because `.app-header` is `position: relative`, not sticky.
 - **Panel scroll reset — via one helper, not by hand.** Once the panel is a scroll container,
   `builder.js` replacing its `innerHTML` on node select leaves any non-zero `scrollTop` in
   place, so the next unit's panel would appear scrolled part-way down. There are **nine**
-  `panel.innerHTML = …` assignments in `builder.js` — in `refreshPanel`'s `.then` *and*
-  `.catch`, the submit handler's `neutralPanel` restore, the node-selection fetch's `.then`
-  and `.catch`, a second fetch path, and the drag handler's `panel.innerHTML = ""`. A
+  `panel.innerHTML = …` assignments in `builder.js` — lines **119, 122, 123, 164, 189, 190, 200,
+  203, 296**. The easiest to miss is `refreshPanel`'s early return at 119
+  (`if (!url) { panel.innerHTML = ""; return; }`), which sits *before* the fetch. A
   requirement phrased as "every place" would miss an async branch and reintroduce the bug with
   no test to catch it. Instead: a single `setPanel(html)` helper that assigns and then sets
   `scrollTop = 0`, with **every** site routed through it. The invariant is **exactly one
@@ -111,10 +119,14 @@ that existing rule**; `min-width: 0` and its comment must not be dropped:
   .builder__panel > .op-error { position: sticky; top: 0; z-index: 1; /* + opaque background */ }
   ```
 
-  Scoping to the panel's direct child matters twice over. `.op-error` is also the page-level
-  flash at `builder.html:6` (outside `.builder`) and is used by `_op_error.html`; and the two
-  network-error strings `builder.js` writes *as* `panel.innerHTML` are panel **content**, not
-  prepended bars — a bare rule would restyle all of them.
+  What the scoping excludes is the **page-level flash** at `builder.html:6`, which sits outside
+  `.builder` entirely, and `_op_error.html`'s renders elsewhere in the app — a bare `.op-error`
+  rule would make those sticky too. It does **not** exclude the two network-error strings
+  `builder.js` writes as `panel.innerHTML` (`builder.js:190`, `:203`): those are
+  `<div class="op-error">` written as the panel's direct child, so `.builder__panel > .op-error`
+  matches them exactly as a bare rule would. That is intentional — they are error messages in a
+  scrolling panel and should be pinned and backed like any other — but it is a decision, not an
+  accident, and no test should assert that panel-content op-errors are non-sticky.
 
   **The bar also needs an opaque background of its own here.** `.op-error` is styled only in
   `courses/static/courses/css/editor.css:5` (whose comment even says "shared with builder; styled
@@ -145,7 +157,7 @@ Files: `courses/rollups.py`, `templates/courses/_unit_tree_node.html`,
         {% if item.required_done == item.required_total %}
           <span class="unit-tree__groupcheck badge badge--done" aria-hidden="true">✓</span>
         {% endif %}
-        <span class="visually-hidden">{% blocktrans with done=item.required_done total=item.required_total %}%(done)s of %(total)s required units completed{% endblocktrans %}</span>
+        <span class="visually-hidden">{% blocktrans with done=item.required_done total=item.required_total %}{{ done }} of {{ total }} required units completed{% endblocktrans %}</span>
       {% endif %}
     </summary>
     <ul class="unit-tree__children">…</ul>
@@ -171,6 +183,13 @@ warranted.
 **A group with no children renders as it does
 today** (a plain `<div class="unit-tree__head">`, no `<details>` wrapper) — an empty disclosure
 would be a dead control. Both shapes therefore exist in the DOM and both must be styled.
+
+**The childless head reserves chevron-width space.** The `<details>` shape has a leading chevron
+inside its flex row and the plain-div shape does not, so without compensation their titles start
+at different left edges within the same list — reading as accidental misalignment in the very
+column this feature exists to make scannable. The childless head therefore gets an
+`aria-hidden` spacer (or equivalent padding) of the chevron's width, and a childless group is
+included in the required rail screenshots so the result is actually reviewed.
 
 **Open state.** `contains_current` is computed **server-side** so the correct groups are open
 in the first painted frame; a JS pass would flash the fully-folded tree first.
@@ -251,12 +270,18 @@ apply a reset written for the opposite case. `.unit-tree__groupcheck` composes w
 The counter is **suppressed entirely** — no counter, no ✓ — when `required_total == 0`: there is
 no required work to count, so neither `0/0` nor a bare suffix is rendered.
 
-There is **no anonymous-viewer case to handle.** Both consumers, `lesson_unit`
-(`courses/views.py:561`) and `quiz_unit` (`courses/views.py:1100`), are `@login_required` and
-additionally gate on `can_access_course`, and `_unit_tree_node.html` is reachable only through
-`build_unit_nav` from those two views. There is no anonymous render path and no preview-viewer
-role, so a `user.is_authenticated` branch would be dead code and a test for it could not be
-driven through the client at all (an anonymous GET redirects to `/accounts/login/`).
+There is **no anonymous-viewer case to handle.** `build_unit_nav` has three call sites
+(`courses/views.py:422` inside `full_lesson_render_context`, `:1115`, `:1144`), reached from the
+`lesson_unit` GET, the `check_answer` and notes no-JS re-renders, `quiz_unit`, and
+`_quiz_render_feedback`'s no-JS re-render — i.e. every render path routed through
+`full_lesson_render_context` / `_quiz_render_feedback`, **all** login-gated (`lesson_unit` at
+`views.py:561` and `quiz_unit` at `:1100` are `@login_required` and additionally gate on
+`can_access_course`). There is no anonymous render path and no preview-viewer role, so a
+`user.is_authenticated` branch would be dead code and a test for it could not be driven through
+the client at all (an anonymous GET redirects to `/accounts/login/`).
+
+Those no-JS re-render paths add a **fourth accepted cost**: a student browsing without JS resets
+their folds on every *answer submission*, not only on navigation.
 
 **Summary row layout.** `.unit-tree__head` is a plain block today, and the rail is
 `flex: 0 0 14rem` — adding a chevron and a counter to that row without pinning the layout would
@@ -283,8 +308,18 @@ few words before the ellipsis. Two requirements follow:
 **Accessible naming.** A bare `3/7` announces as "three slash seven" with no context. Exactly one
 technique is used, not a choice of two: the visible ratio and the ✓ are both
 `aria-hidden="true"`, and a sibling `<span class="visually-hidden">` (the class already ships at
-`core/static/core/css/app.css:1167`) carries the translated sentence, msgid
-`"%(done)s of %(total)s required units completed"`, added to **both** the `en` and `pl` catalogs
+`core/static/core/css/app.css:1167`) carries the translated sentence.
+
+**Two forms, do not conflate them.** The `{% blocktrans %}` **body** is written with template
+tokens — `{{ done }} of {{ total }} required units completed` — while the **msgid** that
+`makemessages` extracts and that lands in the `.po` files is
+`"%(done)s of %(total)s required units completed"`. Writing the `%(done)s` form *inside* the
+template body is a hard failure, not a style slip: `blocktrans` collects an empty `vars` list,
+`result % data` raises `KeyError`, and `BlockTranslateNode` re-raises it as `TemplateSyntaxError`
+("unable to format string returned by gettext") — 500ing every lesson and quiz page that has a
+counted group.
+
+The msgid is added to **both** the `en` and `pl` catalogs
 and using `gettext_lazy` if ever referenced at module level. `aria-label` on the counter span is
 **rejected**, not offered as an alternative: a bare `<span>` maps to role `generic`, on which
 ARIA prohibits naming, so most screen readers ignore it. Marking the visible text
@@ -304,7 +339,21 @@ only scrollable thing on screen, so `scrollIntoView`'s ancestor-walking — the 
 avoids it — is harmless there. The folded-active case is also benign in the drawer:
 `scrollIntoView` on a `display: none` element is a no-op, leaving the panel at its natural top,
 rather than the rail's negative-target-clamped jump. The drawer therefore needs no `offsetParent`
-guard. Because the two surfaces diverge, the drawer gets its **own** e2e coverage rather than
+guard.
+
+**The drawer's focus trap does need widening, and this is the one drawer change that is not
+optional.** `unit_nav.js`'s `focusable()` selects
+`a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])`. A `<summary>` is natively
+tabbable but matches **none** of those, so after 2A it sits in the browser's tab order while
+being absent from the trap's `items` list. `onKeydown` calls `preventDefault()` only when
+`activeElement` is `items[0]` or `items[last]`, so focus resting on a summary Tabs natively —
+and when a folded group's summary is the last tabbable thing in the panel (a shut chapter at the
+end of the tree, the normal case once folding exists) **Tab escapes the drawer entirely**.
+`focusable()`'s selector therefore gains `summary`. The existing
+`test_mobile_drawer_focus_trap` re-implements the same selector in its own assertion, so it
+would keep passing while the trap leaked — that in-test list must be updated to match, and an
+e2e added that Tabs from a folded trailing `<summary>` and asserts focus is still inside
+`[data-unit-drawer]`. Because the two surfaces diverge, the drawer gets its **own** e2e coverage rather than
 inheriting the rail's (see Testing).
 
 **Fold state is per-surface, and that is accepted.** The partial is included twice per page, so
@@ -567,14 +616,28 @@ not flat. Two consequences:
 - Collapsing the rail with the real toggle and expanding it again leaves the active unit centred
   — assert the rail's scroll position places the active element within the rail's visible band,
   not merely that `scrollTop != 0`.
-- **Folded-active guard:** fold the active unit's own group, then collapse → expand the rail, and
-  assert the rail's `scrollTop` is unchanged (no jump to top).
+- **Folded-active guard — NOT an e2e.** The obvious test ("fold the active group, collapse →
+  expand, assert `scrollTop` unchanged") is **vacuous** and must not be written: collapsing
+  applies `html.unit-tree-collapsed .unit-tree__list { display: none }` (`courses.css:642`),
+  which shrinks the rail's content and makes the browser clamp `scrollTop` to 0. On expand the
+  rail is at 0 in *both* implementations — the buggy one via `scrollTo`'s clamp of a negative
+  target, the fixed one via the early return — so the assertion is 0 → 0 either way and can
+  never be shown RED. Instead the guard is asserted at the **JS level**: spy the rail's
+  `scrollTo` and assert `centerActive()` does not call it when the active element has
+  `offsetParent === null`. If that spy is impractical in this harness, the guard is demoted to
+  documented defensive code with an explicit note that it is not observable through the real UI —
+  never papered over with a green-but-meaningless e2e.
 - **Chapter micro-type survives the `<details>` nesting** — the highest-risk change in 2A, and
   invisible to every other assertion. Computed-style assertion that a chapter `<summary>`
   resolves the same `text-transform: uppercase` and font-size as today, in **both** shapes: the
   `<details>` group and the childless group.
-- **Nested closed group is not rotated:** a closed section inside an open chapter resolves no
-  rotation on its chevron — the descendant-vs-direct-child selector hazard.
+- **Chevron rotation, both halves in one test** so they cannot drift apart: the open chapter's
+  own chevron resolves a **non-identity** `transform` (the 90° rotation matrix), **and** a closed
+  section nested inside it resolves none. The negative half alone is satisfied perfectly by a
+  typo'd or entirely missing rule, which would ship a chevron that never rotates — removing the
+  only visual signal that a group is open.
+- **Drawer focus trap:** Tab from a folded trailing `<summary>` in the open drawer and assert
+  focus is still within `[data-unit-drawer]`.
 - **Mobile drawer:** open the drawer at a mobile viewport and assert the current unit's chapter
   is open while a sibling chapter is shut — the drawer has its own container and centring path,
   so it does not inherit the rail's coverage.
@@ -587,7 +650,10 @@ here is exactly what an eyeball misses:
 - `font-weight` on the active row resolves to 700.
 - A row carrying **both** `.is-done` and `.is-active` resolves `color` to the `--primary` value,
   not `--text-tertiary` — the source-order precedence requirement.
-- The active row's `:focus-visible` treatment is present and does not double up with the bar.
+- Focus the active row with a real `Tab` and assert `outline-width` resolves non-zero and
+  `outline-color` differs from the accent-bar colour. ("Does not double up into a muddy ring" is
+  a judgement, not a computed value — it belongs on the screenshot-review checklist, and is
+  listed there rather than faked as an assertion.)
 
 Builder e2e — home file **`tests/test_e2e_builder_tree_layout.py`**, which already owns the
 `.builder__panel` rule Part 1 edits (it guards the 2:1 ratio and `min-width: 0`). Its existing
@@ -606,7 +672,9 @@ scroll (the tree, not the panel, is what must overflow).
   through the real tree control, and assert the new panel is at `scrollTop === 0`. This is the
   test the `setPanel` invariant exists for — a grep is not run by CI — and it must be
   demonstrated RED against a `setPanel`-less implementation.
-- **Builder, stacked:** at a ≤720px viewport the panel is **not** sticky.
+- **Builder, stacked:** at a ≤720px viewport the panel is **not** sticky **and is not a scroll
+  container** — assert computed `max-height: none` (or `scrollHeight <= clientHeight`), not
+  merely that `position` is `static`, or the nested-scroll-trap regression ships green.
 
 **Screenshots.** Light and dark, desktop rail and mobile drawer, reviewed before shipping, plus
 one content-heavy builder panel to confirm `overflow: hidden auto` clips nothing that matters.
