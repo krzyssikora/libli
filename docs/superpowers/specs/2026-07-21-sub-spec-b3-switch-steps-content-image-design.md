@@ -172,6 +172,12 @@ def _emit_switch_step(step, elements, flags, consumed, state, answers, gate_idx)
     return gate_idx
 ```
 
+`_emit_switch_step` is a **new module-level function placed immediately after
+`_emit_switch_gate_chain`** in `scripts/lal_import/lesson.py` (both are module-level
+`def`s, so ordering is functionally irrelevant — this is for reviewer locality). Its
+body is the current inner per-step loop moved verbatim, with `gate_idx` now a
+parameter it returns.
+
 Behaviour: a `.switch_step` child produces the same `[content…][SwitchGate]…`
 sequence as today, with `gate_idx` threaded through; a non-step child (figure,
 image-table, bare img, prose) is walked in place, emitting its native elements in
@@ -247,13 +253,24 @@ dispatch reaches `_emit_switch_gate_chain`.
   `image` `media_src`s matching the N fixture srcs, not a bare element count (a label
   cell directly above an image is folded into its `figcaption`, changing the count).
   RED today.
-- **Bare `<img>` direct child (080 shape):** emitted as an `image`.
+- **Bare `<img>` direct child (080 shape):** emitted as an `image`. RED today
+  (image dropped).
 - **Gate continuity regression:** a two-step, two-gate `switch_steps` with a
   non-step figure between the steps still emits exactly two `switch_gate`s with the
   same stems/options/answers as without the figure (asserts `gate_idx` threading).
+- **Buffer-and-flush invariant (sibling-coupled non-step run):** a `switch_steps`
+  whose non-step direct children are a `show_solution` button *immediately followed
+  by* its sibling `.question_solution` div (two adjacent non-step children) emits a
+  single spoiler/solution region and **zero** `flagged`-html/unmapped elements.
+  **RED under naive per-child walking** (the button alone → a "show_solution button
+  without solution" unmapped flag; the orphan `.question_solution` → an unmapped
+  flag), **GREEN under buffer-and-flush** (the run is walked together so
+  `_find_solution`'s forward scan pairs them). This is the falsifying test for the
+  buffer-and-flush design decision, which no affected corpus file exercises.
 - **Bare-div-with-cycler (280 shape):** a non-`switch_step` `<div>` holding an
   `<img>` and a `>> wybierz >>` cycler emits the `image`; assert the image is
-  present (the static-cycler text is acceptable, not asserted precisely).
+  present (the static-cycler text is acceptable, not asserted precisely). RED today
+  (image dropped).
 - **Whitespace-only children** between steps produce no spurious element.
 - **Regression:** existing SwitchGate tests (stem token, options, answer index,
   step content order) still pass unchanged.
@@ -297,5 +314,5 @@ dispatch reaches `_emit_switch_gate_chain`.
 
 See Scope above: B-reveal (reveal-table label/non-solution cells, 3), B2
 (one_choice/stem prompts, 6), B-fill (fill_step images, 6), B-tail (slideshow +
-tab-panel + mixed fill-cell + gate-line img, 9). Each is an independent parser
+tab-panel + mixed fill-cell + gate-line img, 8). Each is an independent parser
 slice with its own spec; re-measure after each.
