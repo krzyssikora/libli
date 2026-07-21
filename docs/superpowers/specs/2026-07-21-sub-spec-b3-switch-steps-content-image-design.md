@@ -213,6 +213,15 @@ no-op — no need to pre-filter.
   wybierz >>` + the option spans) rather than an interactive SwitchGate. This is
   strictly better than today (image AND text both dropped). Do NOT add special
   handling to re-interpret an un-classed div as a step — out of scope; note it.
+- **Safety invariant (answer-index alignment):** a non-step child that IS an
+  answer-mapped cycler (a `switch_line` + `switch_show_next` outside any
+  `.switch_step`) consumes a slot in LAL's `switch_answers[qid]` numbering yet emits
+  no `switch_gate` here, so if a single question ever mixed a real `.switch_step` gate
+  with such a non-step cycler, the surviving gates would misread
+  `switch_answers[qid]`. **No affected question mixes them** (280's cycler-bearing
+  divs contain no real `.switch_step` gate), so skipping the non-step cycler cannot
+  shift the `gate_idx`→`answers` alignment. A future slice touching 280-like files
+  must not violate this assumption.
 - **`_is_switch_gate_line` on a non-Tag:** unchanged — it already guards
   `isinstance(node, Tag)`. The new outer-loop `isinstance(child, Tag)` guard mirrors
   it so a whitespace `NavigableString` is treated as non-step and walked (stripped).
@@ -250,14 +259,22 @@ dispatch reaches `_emit_switch_gate_chain`.
   `div.table_wrapper > table.my_table_noborder` with N image cells and **no label
   rows** (so `_emit_image_table`'s caption-folding does not collapse a cell) emits N
   `image` elements before the step/gate sequence. Assert on the set of emitted
-  `image` `media_src`s matching the N fixture srcs, not a bare element count (a label
-  cell directly above an image is folded into its `figcaption`, changing the count).
-  RED today.
+  `image` `media_src`s matching the N fixture srcs, **not** a bare element count. The
+  src-set assertion is chosen deliberately: real 330 *does* have label cells that
+  `_emit_image_table` folds into `figcaption`s (changing any count), so asserting the
+  src set keeps this test valid against the corpus file too. RED today.
 - **Bare `<img>` direct child (080 shape):** emitted as an `image`. RED today
   (image dropped).
 - **Gate continuity regression:** a two-step, two-gate `switch_steps` with a
   non-step figure between the steps still emits exactly two `switch_gate`s with the
   same stems/options/answers as without the figure (asserts `gate_idx` threading).
+  **The fixture MUST populate `switch_answers[qid]` with two DISTINCT per-gate
+  answers** (e.g. `[2, 1]`, as the existing `SWITCH_SHOW_NEXT`/`SWITCH_CONFIRM`
+  fixtures do) and assert the two emitted gates carry those two *different* answers
+  in document order. Otherwise (empty or uniform answers like `[]`/`[0, 0]`) a
+  `gate_idx` mis-thread — the outer loop forgetting `gate_idx =
+  _emit_switch_step(...)`, so step 2 re-reads `answers[0]` — produces byte-identical
+  output and the test is vacuously green.
 - **Buffer-and-flush invariant (sibling-coupled non-step run):** a `switch_steps`
   whose non-step direct children are a `show_solution` button *immediately followed
   by* its sibling `.question_solution` div (two adjacent non-step children) emits a
@@ -266,7 +283,12 @@ dispatch reaches `_emit_switch_gate_chain`.
   without solution" unmapped flag; the orphan `.question_solution` → an unmapped
   flag), **GREEN under buffer-and-flush** (the run is walked together so
   `_find_solution`'s forward scan pairs them). This is the falsifying test for the
-  buffer-and-flush design decision, which no affected corpus file exercises.
+  buffer-and-flush design decision, which no affected corpus file exercises. **To
+  observe its RED phase** (it is green against both master — non-step children are
+  skipped entirely today — and the finished design): temporarily replace the flush
+  with per-child `_walk([child])`, confirm the two spurious unmapped flags, then
+  restore buffer-and-flush. Treat it as a regression-guard for the invariant, not a
+  natural RED-first driver.
 - **Bare-div-with-cycler (280 shape):** a non-`switch_step` `<div>` holding an
   `<img>` and a `>> wybierz >>` cycler emits the `image`; assert the image is
   present (the static-cycler text is acceptable, not asserted precisely). RED today
