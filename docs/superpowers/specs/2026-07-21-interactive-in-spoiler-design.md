@@ -33,8 +33,12 @@ not import-specific.
   `SpoilerElement`, across: model/loader/editor allowlist, the JS-wiring flag for
   nested questions, the reveal-cascade client scoping (so a gate reveals content
   *within* its spoiler), transfer round-trip, and editor add-menu authoring.
-- **Out of scope:** other nestable containers (Tabs/TwoColumn) already handle these
-  types; no change there. No new element type, no migration (all changes are
+- **Out of scope:** Tabs/TwoColumn already accept the 4 gates. **One unavoidable
+  side effect** (see Layer 1.2): adding `fill_blank` to the shared `NESTABLE_TYPE_KEYS`
+  also newly permits `fill_blank` as a Tabs/TwoColumn child server-side — an accepted
+  widening (render/practice-state/`has_questions` cover it identically), though the
+  tab/column add-menu still hides the fillblank card, so it is server-permitted but
+  not UI-authored there. No new element type, no migration (all changes are
   allowlists + JS/CSS + one query). Degrade-to-static (the rejected alternative) is
   not built. The parser is UNCHANGED — it already emits these as spoiler children;
   they were only being rejected downstream.
@@ -103,7 +107,13 @@ before checking `NESTABLE_TYPE_KEYS` (`builder.py:133-134`). Canonical keys adde
 2. **`NESTABLE_TYPE_KEYS`** (`courses/builder.py:34`): add `fill_blank` (the 4 gates
    are already present). This is required by the transfer general nestable check
    (`payloads.py:752`) and keeps the `NESTABLE_TYPE_KEYS <= set(SERIALIZERS)`
-   invariant (`fill_blank` ∈ `SERIALIZERS`).
+   invariant (`fill_blank` ∈ `SERIALIZERS`). **`NESTABLE_TYPE_KEYS` is shared with
+   the Tabs/TwoColumn path** (`builder.py:133-134`), so this unavoidably also permits
+   `fill_blank` as a Tabs/TwoColumn child server-side — an accepted widening: a nested
+   `fillblank` renders (generic `render_element`), restores (server-side per-pk), and
+   is detected by the flat `has_questions` (Layer 2) regardless of which container
+   holds it. The tab/column add-menu still hides the fillblank card (Questions group
+   is `not nested`-gated), so it is server-permitted but not UI-authored there.
 3. **`_NESTABLE_FORM_KEY_ALIASES`** (`courses/builder.py:65`): add
    `"fillblankquestion": "fill_blank"` so the editor form key normalizes to the
    canonical key (the 4 gate aliases already exist: `revealgate→reveal_gate`, etc.).
@@ -131,8 +141,12 @@ no-nest mode).
 
 ### Layer 2 — `has_questions` flat query (JS wiring for nested fillblank)
 
-`has_questions` (`courses/views.py:340`) is the only element flag still computed
-from the top-level `elements` list (`parent__isnull=True`), so a `fillblank` that
+`has_questions` (`courses/views.py:340`) is the only flag that tests an element's
+OWN `content_type` against the top-level `elements` list (`parent__isnull=True`)
+non-recursively. (`has_math` and `has_html` also iterate that list, but are already
+safe for spoiler children: `has_math` → `_element_has_math` → `_spoiler_has_math`
+(`views.py:241-252`) recurses into `resolved_children()`, and `html` is not a
+permitted spoiler child.) So a `fillblank` that
 exists ONLY as a spoiler child would leave `has_questions` false → `question.js` +
 `dnd.js` never load (`lesson_unit.html:65-66`), and the nested widget stays inert.
 (`question.js` itself uses a global `document.querySelectorAll("[data-question]")`,
@@ -183,27 +197,43 @@ gates in one change. `switch_gate`/`fill_gate` reach the cascade via
 `window.libliRevealCascade` (`switchgate.js:79`, `fillgate.js:72`), so they inherit
 the fix; their own answer-check/lock already work nested.
 
-**Must-verify before locking selectors (Task 0 of the plan):** confirm the rendered
-DOM of a gate spoiler-child is a DIRECT child of `.spoiler__child`
-(`.spoiler__child > [data-reveal-gate]`), matching the `:scope > [data-reveal-gate]`
-selector and the pre-hide CSS. The tab-panel case proves `render_element` emits the
-gate without a `.lesson-block__body` wrapper in a nested context, but verify via a
-real render (the whole cascade/CSS correctness hinges on this one DOM fact). If a
-wrapper intervenes, adjust both the `isGateWrapper` selector and the CSS to match.
+**Must-verify before locking selectors (Task 0 of the plan):** via a real render,
+confirm that for **all three cascading families** — `reveal_gate`, `switch_gate`,
+`fill_gate` — the element carrying `[data-reveal-gate]` is a DIRECT child of
+`.spoiler__child` (`.spoiler__child > [data-reveal-gate]`), matching the
+`:scope > [data-reveal-gate]` selector and the pre-hide CSS `:has(> [data-reveal-gate])`.
+All three reach the cascade the same way (switchgate.js/fillgate.js carry
+`[data-reveal-gate]` on their container and call `libliRevealCascade`), so each
+container root must sit directly under `.spoiler__child`. The tab-panel case proves
+`render_element` emits the gate without a `.lesson-block__body` wrapper in a nested
+context, but the whole cascade/CSS correctness hinges on this DOM fact — verify it. If
+a wrapper intervenes for any family, adjust both the `isGateWrapper` selector and the
+CSS to match.
 
 ### Layer 4 — Editor authoring (add-menu)
 
 `_add_menu.html` currently hides interactive cards in a spoiler:
 
-1. **Interactive group** (`_add_menu.html:27`): `{% if not unit_is_quiz and not
-   in_spoiler %}` → `{% if not unit_is_quiz %}`. The 4 gate cards
-   (revealgate/fillgate/switchgate/switchgrid) already render in a *tab* nested
-   add-menu (they are not `nested`-gated), so dropping the `in_spoiler` clause makes
-   them authorable in a spoiler too. `resolve_scope` (Layer 1.4) now accepts them.
-2. **`fillblankquestion` card** (`_add_menu.html:41-48`): the question group is
-   `{% if not nested %}`, so `fillblankquestion` is hidden in ANY nested context.
-   Add a single `fillblankquestion` card shown when `in_spoiler` (it is the only
-   nestable question). Keep the other question cards hidden (they are not nestable).
+1. **Interactive group** (`_add_menu.html:27`): change the group guard
+   `{% if not unit_is_quiz and not in_spoiler %}` → `{% if not unit_is_quiz %}` so
+   the group is visible in a spoiler. **CAUTION: the group holds NINE cards**
+   (revealgate, fillgate, switchgate, switchgrid, **filltable, spoiler, stepper,
+   markdone, guessnumber** — `_add_menu.html:29-39`), and only the first four are in
+   the widened `SPOILER_CHILD_TYPES`. So also add a per-card `{% if not in_spoiler %}`
+   guard to the **filltable, spoiler, stepper, markdone, guessnumber** cards
+   (mirroring the existing per-card `{% if not nested %}` on tabs/twocolumn/html), so
+   only revealgate/fillgate/switchgate/switchgrid render in a spoiler. Without those
+   per-card guards, the other five would render a clickable card whose POST
+   `resolve_scope` rejects with a 400 (`{type} may not be nested inside a spoiler`).
+   The four gate cards already render in a *tab* nested add-menu (not `nested`-gated),
+   and `resolve_scope` (Layer 1.4) now accepts exactly those four in a spoiler.
+2. **`fillblankquestion` card:** the Questions group is wrapped in
+   `{% if not nested %}` (`_add_menu.html:41`) and the spoiler add-menu is included
+   with `nested=True` (`_element_row.html:177`), so a card placed inside that group
+   NEVER renders in a spoiler. Add the `fillblankquestion` card in its OWN standalone
+   `{% if in_spoiler %}…{% endif %}` block (e.g. appended to the Interactive group),
+   NOT inside the `{% if not nested %}` Questions group. It is the only nestable
+   question; the other question cards stay hidden.
 3. Editor rows + edit forms for nested interactive children already work via the
    generic `_element_row` (the nestable-spoiler editor branch renders children) and
    the now-permissive `resolve_scope`; no per-type editor change.
@@ -260,10 +290,13 @@ TDD, falsifiable (RED first). Group by layer; use the existing test conventions
   `.spoiler__child` WITHIN the spoiler and does NOT reveal content after the spoiler;
   and on reload `restoreGates` re-reveals it. Run e2e foreground.
 - **Editor add-menu (RED today):** the editor page for a top-level spoiler renders
-  the 4 interactive cards + a `fillblankquestion` card in its in-spoiler add-menu;
-  a POST authoring a `switchgate` into the spoiler (through `manage_element_save` →
-  `resolve_scope`) succeeds (200) and creates the child. Assert the PR#126
-  no-regression: the Tabs nested add-menu is unaffected.
+  the 4 interactive cards (revealgate/fillgate/switchgate/switchgrid) + a
+  `fillblankquestion` card in its in-spoiler add-menu, AND — negative assertions
+  guarding the C1 defect — does NOT contain `data-add-type` cards for `filltable`,
+  `spoiler`, `stepper`, `markdone`, `guessnumber`, nor any question card other than
+  `fillblankquestion`. A POST authoring a `switchgate` into the spoiler (through
+  `manage_element_save` → `resolve_scope`) succeeds (200) and creates the child.
+  Assert the PR#126 no-regression: the Tabs nested add-menu is unaffected.
 - **Regression:** the existing `test_spoiler_nesting.py` guards (static-only
   rejection now widened — update the specific "rejects disallowed child type"
   test to assert a still-disallowed type like `tabs`, not a now-allowed gate) and
