@@ -13,7 +13,29 @@ from scripts.lal_import.numbers import normalize_numeric
 _OPTION = re.compile(r"^\s*([\[(])\s*([ xX]?)\s*[\])]\s*(.*)$")
 _HINT = re.compile(r"\{\{\s*(\w+)\s*:\s*(.*?)\s*\}\}\s*$", re.DOTALL)
 _POINTS = re.compile(r"^\(\s*(\d+(?:[.,]\d+)?)\s*\)$")
-_STEM_STRIP_TAGS = {"img", "table", "figure", "iframe", "h2"}
+_STEM_STRIP_TAGS = {"img", "table", "iframe", "h2"}
+_DISPLAY_OPEN, _DISPLAY_CLOSE = "\\[", "\\]"
+
+
+def _logical_lines(text):
+    """Split `text` into lines, but keep a multi-line \\[...\\] display-math block as
+    ONE logical line. A bare-text intro often writes display math across physical
+    lines; without this each line would be wrapped in its own <p> (splitting \\[
+    from \\]), which KaTeX cannot render."""
+    buf = None
+    for line in text.splitlines():
+        if buf is not None:
+            buf.append(line)
+            if _DISPLAY_CLOSE in line:
+                yield "\n".join(buf)
+                buf = None
+            continue
+        if _DISPLAY_OPEN in line and _DISPLAY_CLOSE not in line:
+            buf = [line]
+            continue
+        yield line
+    if buf is not None:  # unterminated \\[ -> yield what we accumulated
+        yield "\n".join(buf)
 
 
 def _flag(kind, reason, excerpt=""):
@@ -53,6 +75,23 @@ def parse_quiz(html):
             cur = flush(cur)
             continue
         if isinstance(node, Tag):
+            if node.name == "figure":
+                # A standalone diagram: emit a native ImageElement (nh3 would strip
+                # the <img> from a sanitized stem). Flush any pending intro first so
+                # the figure keeps its document position.
+                img = node.find("img")
+                if img is not None:
+                    cap = node.find("figcaption")
+                    cur = flush(cur)
+                    questions.append(
+                        {
+                            "type": "image",
+                            "media_src": img.get("src", ""),
+                            "alt": img.get("alt", ""),
+                            "figcaption": cap.get_text(strip=True) if cap else "",
+                        }
+                    )
+                continue
             if node.name in _STEM_STRIP_TAGS:
                 # content-loss: emit a flagged element AND a flag record (I5)
                 questions.append(
@@ -76,7 +115,7 @@ def parse_quiz(html):
             continue
         if not isinstance(node, NavigableString):
             continue
-        for line in str(node).splitlines():
+        for line in _logical_lines(str(node)):
             if not line.strip():
                 continue
             cur = _consume_line(line, cur, flags, flush)
@@ -206,8 +245,10 @@ def _finish(cur):
             flags,
         )
     if stem.strip():
-        return (
-            _flag_element("stem had no answer DSL", stem),
-            [_flag("stem_without_answer", "stem had no answer DSL", stem)],
-        )
+        # A stem with no answer DSL is INTRODUCTORY content (a shared "Wprowadzenie"
+        # before a group of questions), not a malformed question. Emit it as a
+        # TextElement so it renders in the quiz flow (the quiz page renders every
+        # element, and KaTeX typesets any \[...\]/\(...\) in the body) rather than
+        # a flagged HtmlElement.
+        return ({"type": "text", "body": stem}, [])
     return None, []

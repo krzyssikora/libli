@@ -1,5 +1,43 @@
 from scripts.lal_import.quiz import parse_quiz
 
+
+def test_intro_stem_without_answer_becomes_text_not_flagged():
+    # A shared "Wprowadzenie" (stem, no answer DSL) before a group of questions is
+    # introductory content, not a malformed question -> a TextElement, not flagged.
+    src = "Rozpatrzmy układ\n<!-- Zadanie 1 -->\n<p>Q</p>\n(x) a\n( ) b\n"
+    qs, flags = parse_quiz(src)
+    assert not any(q.get("flagged") for q in qs)
+    texts = [q for q in qs if q.get("type") == "text"]
+    assert len(texts) == 1 and "Rozpatrzmy" in texts[0]["body"]
+    assert any(q.get("type") == "choice" for q in qs)  # the real question survives
+
+
+def test_multiline_display_math_in_intro_stays_in_one_paragraph():
+    # A \[...\] block spanning physical lines must not be split into <p>\[</p>
+    # <p>\begin{cases}</p>... (KaTeX needs \[ and \] in one element to render).
+    src = (
+        "Wprowadzenie\n\\[\n\\begin{cases}\nx=1\\\\\ny=2\n\\end{cases}\n\\]\n"
+        "<!-- Zadanie 1 -->\n<p>Q</p>\n(x) a\n( ) b\n"
+    )
+    qs, _ = parse_quiz(src)
+    text = [q for q in qs if q.get("type") == "text"][0]
+    assert "\\begin{cases}" in text["body"]
+    assert text["body"].count("<p>") == 2  # "Wprowadzenie" + the whole \[...\] block
+
+
+def test_standalone_figure_in_quiz_becomes_image_not_flagged():
+    src = (
+        '<figure><img src="static/d.png"/><figcaption>rys</figcaption></figure>\n'
+        "<!-- Zadanie 1 -->\n<p>Q</p>\n(x) a\n( ) b\n"
+    )
+    qs, flags = parse_quiz(src)
+    assert not any(q.get("flagged") for q in qs)
+    imgs = [q for q in qs if q.get("type") == "image"]
+    assert len(imgs) == 1
+    assert imgs[0]["media_src"] == "static/d.png"
+    assert imgs[0]["figcaption"] == "rys"
+
+
 CHOICE_QUIZ = r"""
 <p>Dany jest zbiór \(A=\{3,4,7\}\).</p>
 [x] \(3\in A\)
