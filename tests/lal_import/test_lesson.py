@@ -857,6 +857,30 @@ def test_stray_inline_fragment_becomes_text_not_flagged():
     assert "(*)" in joined and "wszystkie" in joined
 
 
+# --- <input id=show_solution> + adjacent equations_solution div -> Spoiler ---
+SHOW_SOLUTION_INPUT = """
+<div id="question1">
+  <input id="show_solution1" type="button" value="Analiza zadania - zobacz"/>
+  <div id="equations_solution2" style="display: none;">
+    <p>To jest rozwiazanie.</p>
+  </div>
+</div>
+"""
+
+
+def test_input_show_solution_button_becomes_spoiler():
+    # The <input id=show_solution\\d+> button variant (value holds the label) pairs
+    # with an adjacent div[id^=equations_solution] -> a Spoiler, not a flagged
+    # HtmlElement button + a leaked display:none solution.
+    elements, flags = parse_lesson(SHOW_SOLUTION_INPUT, "x.html")
+    assert not any(e.get("flagged") for e in elements)
+    spoilers = [e for e in elements if e["type"] == "spoiler"]
+    assert len(spoilers) == 1
+    assert "Analiza zadania" in spoilers[0]["label"]
+    joined = " ".join(str(e) for e in elements)
+    assert "rozwiazanie" in joined  # solution content preserved (inside the spoiler)
+
+
 # --- Group B #6: ks_tabs -> TabsElement (nested children) ---
 KS_TABS = r"""
 <div class="ks_tabs">

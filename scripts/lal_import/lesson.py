@@ -215,11 +215,18 @@ def _unmapped(reason, node, elements, flags):
 
 
 def _is_show_solution_button(node):
-    return (
-        isinstance(node, Tag)
-        and node.name == "div"
-        and "show_solution" in (node.get("class") or [])
-    )
+    if not isinstance(node, Tag):
+        return False
+    if node.name == "div" and "show_solution" in (node.get("class") or []):
+        return True
+    # The <input id="show_solution\d+" type="button" value="… - zobacz"> variant
+    # (funkcje_2/3, podobienstwo); its solution is a sibling equations_solution div.
+    return node.name == "input" and (node.get("id") or "").startswith("show_solution")
+
+
+def _show_solution_label(node):
+    """The button's toggle label — its text, or the <input>'s `value` attribute."""
+    return node.get_text(strip=True) or (node.get("value") or "").strip() or "zobacz"
 
 
 def _is_reveal_table(table):
@@ -551,7 +558,7 @@ def _walk(nodes, elements, flags, consumed, state):
                 consumed.add(id(sol))  # so the loop does not re-flag it (I2)
                 _flag_relative_hrefs(sol, flags)
                 _emit_solution_region(
-                    node.get_text(strip=True) or "zobacz",
+                    _show_solution_label(node),
                     list(sol.children),
                     elements,
                     flags,
@@ -1167,7 +1174,11 @@ def _emit_widget_placeholder(nodes, start, elements, flags, consumed):
 
 
 def _is_question_solution(n):
-    return isinstance(n, Tag) and "question_solution" in (n.get("class") or [])
+    return isinstance(n, Tag) and (
+        "question_solution" in (n.get("class") or [])
+        # the equations_solution\d+ div paired with an <input id=show_solution> button
+        or (n.get("id") or "").startswith("equations_solution")
+    )
 
 
 def _find_solution(nodes, button_i, consumed):
