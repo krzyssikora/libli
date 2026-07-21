@@ -240,10 +240,20 @@ def _reveal_table_spoilers(table, consumed, state):
         sol = tr.find(class_="question_solution")
         if sol is None:
             continue
+        # B1: the row's .question_answer div is the always-VISIBLE prompt (often a
+        # figure/diagram <img>); emit it as visible siblings BEFORE the spoiler so
+        # its image survives (walking the children routes each <img>/<figure>/text
+        # through the image-aware path). question_answer and question_solution are
+        # disjoint siblings, so this never re-walks the (hidden) solution.
+        ans = tr.find(class_="question_answer")
+        if ans is not None:
+            _walk(list(ans.children), elements, flags, consumed, state)
         first_td = tr.find("td")
         label = first_td.get_text(strip=True) if first_td is not None else ""
         _flag_relative_hrefs(sol, flags)
-        _emit_solution_region(label, list(sol.children), elements, flags, consumed, state)
+        _emit_solution_region(
+            label, list(sol.children), elements, flags, consumed, state
+        )
     return elements, flags
 
 
@@ -295,9 +305,7 @@ def _emit_solution_region(label, content_nodes, elements, flags, consumed, state
             _walk(content_nodes, child_elements, flags, consumed, state)
         finally:
             state["in_spoiler"] = prev
-        elements.append(
-            {"type": "spoiler", "label": label, "elements": child_elements}
-        )
+        elements.append({"type": "spoiler", "label": label, "elements": child_elements})
 
 
 def _walk(nodes, elements, flags, consumed, state):
@@ -1174,4 +1182,6 @@ def _emit_details(details, elements, flags, consumed, state):
     if summary is not None:
         summary.extract()
     _flag_relative_hrefs(details, flags)  # spoiler children are nh3-sanitized too
-    _emit_solution_region(label, list(details.children), elements, flags, consumed, state)
+    _emit_solution_region(
+        label, list(details.children), elements, flags, consumed, state
+    )

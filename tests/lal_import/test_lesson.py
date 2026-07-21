@@ -1152,3 +1152,27 @@ def test_reveal_table_inside_solution_is_inlined_not_nested_spoiler():
     elements, _flags = parse_lesson(html, html)
     sp = _only_spoiler(elements)  # exactly ONE spoiler total
     assert "spoiler" not in [c["type"] for c in sp["elements"]]
+
+
+def test_r3_reveal_row_prompt_image_extracted_before_spoiler():
+    # B1: the row's visible .question_answer prompt (with an <img>) must be emitted
+    # as a visible ImageElement BEFORE the spoiler; the .question_solution image
+    # stays inside the spoiler (unchanged).
+    html = (
+        '<table class="my_table_TL"><tr>'
+        '<td><div class="show_solution ks_button">zobacz</div></td>'
+        '<td><div class="question_answer"><img src="static/p.png"></div>'
+        '<div class="question_solution hidden">sol <img src="static/s.png"></div>'
+        "</td></tr></table>"
+    )
+    elements, _ = parse_lesson(html, "x.html")
+    types = [e["type"] for e in elements]
+    assert "image" in types and "spoiler" in types
+    assert types.index("image") < types.index("spoiler")  # prompt before the reveal
+    prompt = next(e for e in elements if e["type"] == "image")
+    assert prompt["media_src"] == "static/p.png"
+    sp = next(e for e in elements if e["type"] == "spoiler")
+    sol_imgs = [
+        c for c in sp["elements"] if isinstance(c, dict) and c.get("type") == "image"
+    ]
+    assert any(c["media_src"] == "static/s.png" for c in sol_imgs)
