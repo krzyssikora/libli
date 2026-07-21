@@ -27,12 +27,17 @@ tree state, which would create its own "where was I?" problem.
 
 ## Architecture / components
 
-Three parts. Part 1 is genuinely independent (it touches only `builder.css`). Parts 2A and 2B
-are **coupled**: they share `courses/static/courses/css/courses.css`, and 2B's centring has to
-account for a group 2A lets the user fold. **Implementation and merge order is 2A before 2B**,
-and 2B's folded-group guard (see C4 below) ships with 2B, not 2A — until 2B lands, folding the
-active unit's own group is possible but the rail is never re-centred, which is today's
-behaviour and therefore no regression.
+Three parts, shipped as **one PR with ordered commits** — not three PRs. They are small, they
+share a review context ("long courses"), and 2A/2B share a stylesheet; splitting them would cost
+three review cycles for one coherent change.
+
+The commit order is **Part 1 → Part 2A → Part 2B**. Part 1 goes first because it is genuinely
+independent (it touches only `builder.css` and `builder.js`) and therefore never conflicts with
+what follows. Parts 2A and 2B are **coupled**: they share
+`courses/static/courses/css/courses.css`, and 2B's centring has to account for a group 2A lets
+the user fold. 2B's folded-group guard ships with **2B**, not 2A — between those two commits,
+folding the active unit's own group is possible but the rail is simply never re-centred, which is
+today's behaviour and therefore no regression at any point in the sequence.
 
 ### Part 1 — Builder: sticky detail panel (CSS only)
 
@@ -89,17 +94,35 @@ that existing rule**; `min-width: 0` and its comment must not be dropped:
   and `.catch`, a second fetch path, and the drag handler's `panel.innerHTML = ""`. A
   requirement phrased as "every place" would miss an async branch and reintroduce the bug with
   no test to catch it. Instead: a single `setPanel(html)` helper that assigns and then sets
-  `scrollTop = 0`, with **every** site routed through it. **No direct `panel.innerHTML =`
-  assignment may remain** — a grep-checkable invariant.
+  `scrollTop = 0`, with **every** site routed through it. The invariant is **exactly one
+  `panel.innerHTML =` assignment site, inside `setPanel`** — stated that way rather than "none
+  remain", which `setPanel`'s own body would violate. The existing *read* at `builder.js:10`
+  (`var neutralPanel = panel.innerHTML;`) is a permitted non-assignment occurrence.
 - **The `notice()` bar must stay visible.** `builder.js`'s `notice(text)` builds an `.op-error`
   bar and calls `panel.prepend(bar)`, auto-removing it after 6s. Today the panel is short and
   top-anchored, so the bar is always seen. Once the panel scrolls internally, a notice
   prepended while the author is scrolled part-way down renders *above* the visible band and
   vanishes unseen — and these are precisely the conflict / illegal-move / network messages
   (`data-msg-conflict`, `data-msg-illegal`, `data-msg-network`) whose entire purpose is to be
-  noticed. The bar is therefore made `position: sticky; top: 0` within the scroll container
-  (preferred, since it survives any scroll position), or `notice()` scrolls the panel to top
-  before prepending. This is a degradation Part 1 must not introduce, and it is listed under
+  noticed. The bar is therefore pinned inside the scroll container, with a **scoped** selector —
+  not a bare `.op-error` rule:
+
+  ```css
+  .builder__panel > .op-error { position: sticky; top: 0; z-index: 1; /* + opaque background */ }
+  ```
+
+  Scoping to the panel's direct child matters twice over. `.op-error` is also the page-level
+  flash at `builder.html:6` (outside `.builder`) and is used by `_op_error.html`; and the two
+  network-error strings `builder.js` writes *as* `panel.innerHTML` are panel **content**, not
+  prepended bars — a bare rule would restyle all of them.
+
+  **The bar also needs an opaque background of its own here.** `.op-error` is styled only in
+  `courses/static/courses/css/editor.css:5` (whose comment even says "shared with builder; styled
+  here"), and `builder.html`'s `extra_css` loads **only** `builder.css` — so on the builder page
+  the bar today has no background, border, or padding. Sticking an unbacked bar at `top: 0` would
+  let panel content scroll *under* its text, leaving the message less readable than before. The
+  new rule in `builder.css` must therefore also give it `--danger-subtle` + border + padding
+  mirroring `editor.css`. This is a degradation Part 1 must not introduce, and it is listed under
   Error handling for that reason.
 
 ### Part 2A — Student tree: collapsible groups, current chain auto-open
@@ -115,12 +138,15 @@ Files: `courses/rollups.py`, `templates/courses/_unit_tree_node.html`,
 <li class="unit-tree__node unit-tree__node--{{ item.node.kind }}">
   <details class="unit-tree__group" {% if item.contains_current %}open{% endif %}>
     <summary class="unit-tree__head">
-      <svg class="icon unit-tree__chevron" aria-hidden="true"><use href="#icon-chevron-…"></use></svg>
+      <svg class="icon unit-tree__chevron" aria-hidden="true" viewBox="0 0 24 24"><path d="…"/></svg>
       <span class="unit-tree__grouptitle" lang="{{ course.language }}">{{ item.node.title }}</span>
-      {# counter block, only when required_total > 0 — see "Folded row content" #}
-      <span class="unit-tree__count" aria-hidden="true">{{ done }}/{{ total }}</span>
-      <span class="unit-tree__groupcheck badge badge--done" aria-hidden="true">✓</span>  {# only at n/n #}
-      <span class="visually-hidden">…translated sentence…</span>
+      {% if item.required_total %}
+        <span class="unit-tree__count" aria-hidden="true">{{ item.required_done }}/{{ item.required_total }}</span>
+        {% if item.required_done == item.required_total %}
+          <span class="unit-tree__groupcheck badge badge--done" aria-hidden="true">✓</span>
+        {% endif %}
+        <span class="visually-hidden">{% blocktrans with done=item.required_done total=item.required_total %}%(done)s of %(total)s required units completed{% endblocktrans %}</span>
+      {% endif %}
     </summary>
     <ul class="unit-tree__children">…</ul>
   </details>
@@ -136,7 +162,13 @@ would otherwise mislabel the counter's language.
 
 Native `<details>`/`<summary>` is chosen over a JS disclosure because it works with JS off,
 brings keyboard operation and correct screen-reader semantics for free, and needs no state
-machine, no ARIA wiring, and no new JS file. **A group with no children renders as it does
+machine, no ARIA wiring, and no new JS file. The one keyboard trade-off: every `<summary>` is
+natively focusable, so tabbing through the rail now stops once per group in addition to the unit
+links. On the long courses this targets that is a net *reduction* in tab stops — folding removes
+far more unit links from the tab order than the summaries add — so no `tabindex` intervention is
+warranted.
+
+**A group with no children renders as it does
 today** (a plain `<div class="unit-tree__head">`, no `<details>` wrapper) — an empty disclosure
 would be a dead control. Both shapes therefore exist in the DOM and both must be styled.
 
@@ -275,6 +307,13 @@ rather than the rail's negative-target-clamped jump. The drawer therefore needs 
 guard. Because the two surfaces diverge, the drawer gets its **own** e2e coverage rather than
 inheriting the rail's (see Testing).
 
+**Fold state is per-surface, and that is accepted.** The partial is included twice per page, so
+every group exists as two independent `<details>` elements: folding a chapter in the rail leaves
+the drawer's copy open, and vice versa. No JS syncs them. Both copies are server-seeded
+identically on every load, so the divergence can only last until the next navigation, and the two
+surfaces are never visible at the same time (the rail is `display: none` below 640px, the drawer
+above it).
+
 **Flat courses.** A course on the Flat depth preset has no group nodes at all, so its tree
 renders byte-identically to today. Part 2B is what helps those courses.
 
@@ -308,11 +347,31 @@ The remaining `<summary>` declarations are pinned rather than left to interpreta
 is now interactive. It also gets a `:focus-visible` treatment consistent with the rest of the
 rail, and a hover treatment matching `.unit-tree__unit:hover`.
 
-**The chevron follows the repo's icon convention:** a monochrome `currentColor` line SVG
-`<use>` from the existing sprite with the shared `.icon` class, **not** a text glyph — the
-`‹` on `.unit-tree__toggle` predates that convention and is not a precedent to copy. It rotates
-90° off `details[open] .unit-tree__chevron`, with a short transition that is suppressed under
-`prefers-reduced-motion: reduce`.
+**The chevron follows the repo's icon convention:** a monochrome `currentColor` line SVG with the
+shared `.icon` class (`fill: none; stroke: currentColor`, `app.css:108`), **not** a text glyph —
+the `‹` on `.unit-tree__toggle` predates that convention and is not a precedent to copy.
+
+It is an **inline `<svg>` with its own `<path>`, not a `<use>` reference.** The repo's only
+sprite, `templates/courses/manage/_icon_sprite.html`, contains no chevron symbol (its ids are
+`bi-*` and `el-*`) and is included by exactly three templates — `manage/builder.html`,
+`manage/editor/editor.html`, `help/doc.html` — never by `base.html`, `_unit_tree.html`, or
+`_unit_shell.html`. A `<use href="#icon-chevron-…">` on a lesson page would therefore resolve to
+nothing and render an empty box. Inline SVG is also what non-manage pages already do (see the
+notification bell at `templates/base.html:120`), and it avoids both adding a symbol and newly
+including the whole manage sprite on every student page.
+
+**The rotation selector must be a direct-child chain**, not a descendant selector:
+
+```css
+.unit-tree__group[open] > .unit-tree__head > .unit-tree__chevron { transform: rotate(90deg); }
+```
+
+The tree is recursive, so a **closed** section's `<details>` sits inside its **open** chapter's
+`<details>`. A loose `details[open] .unit-tree__chevron` would match the closed section's chevron
+too and paint every nested closed group in the open orientation — the same descendant-selector
+hazard this spec devotes a section to for `.unit-tree__head`, and it must not be reintroduced
+here. A computed-style assertion covers it (see Testing). The rotation carries a short
+transition, suppressed under `prefers-reduced-motion: reduce`.
 
 **Values for the new classes** (`.unit-tree__chevron`, `.unit-tree__count`,
 `.unit-tree__groupcheck`) — size, colour token, gap, and the two-line title treatment — are
@@ -468,8 +527,9 @@ new user input. What it has is a set of degradation paths that must each stay be
 - **Depth-1 unit regression:** a course whose current unit is a root node still suppresses the
   part chip — `_top_level_part` returns that root unit dict after the refactor. (Extends the
   existing `test_unit_shell_part_chip_hidden_for_root_unit`.)
-- The counter renders `done/total` from the group's rollup fields, is `aria-hidden`, and is
-  accompanied by the `.visually-hidden` translated sentence.
+- The counter renders the **actual numerals** from the group's rollup fields (assert `3/7`, not
+  merely that `.unit-tree__count` exists — a template scoping slip renders a bare `/` silently),
+  is `aria-hidden`, and is accompanied by the `.visually-hidden` translated sentence.
 - A group with `required_total == 0` renders no counter and no ✓.
 - A group at `n/n` renders the ✓ **in addition to** the counter, using `.unit-tree__groupcheck`
   (not `.unit-tree__check`).
@@ -486,11 +546,20 @@ Per the repo's "falsify tests, don't run them" rule, **each e2e below must be de
 before its implementation lands — most importantly the builder one, whose whole subject is a
 single easily-omitted `align-self: start`.
 
-Seeding: `tests/test_e2e_unit_nav.py`'s `_seed_nav_course(..., num_units=35)` builds a **flat**
-unit list; nothing in the file creates chapter/section nodes. It is extended (or a sibling helper
-added) taking `num_chapters` × `units_per_chapter` — enough total units to exceed the rail's
-viewport — with the current unit placed in the **middle** chapter so both "an earlier sibling is
-shut" and "a later sibling is shut" are observable.
+Seeding: `tests/test_e2e_unit_nav.py`'s `_seed_nav_course(..., num_units=35)` creates **one
+`part` node** containing all the units — it does not create *chapter or section* nodes, and it is
+not flat. Two consequences:
+
+- The helper is extended (or a sibling helper added) taking `num_chapters` × `units_per_chapter`
+  — enough total units to exceed the rail's viewport — with the current unit placed in the
+  **middle** chapter so both "an earlier sibling is shut" and "a later sibling is shut" are
+  observable.
+- **Every existing test in that file is affected and is part of the must-pass set.** Because the
+  helper already seeds a `part`, `test_desktop_tree_collapse_persists`,
+  `test_active_unit_scrolled_into_view`, `test_active_unit_scroll_does_not_move_window` and both
+  drawer tests will, after 2A, render their units inside a `<details>` with a new `<summary>` row
+  and a `0/35` counter in the rail. Their scroll arithmetic and locators now see that extra row;
+  any breakage is a real signal, not a fixture to paper over.
 
 - On loading that middle-chapter unit, its chapter's `<details>` is open and the sibling
   chapters are shut.
@@ -504,9 +573,21 @@ shut" and "a later sibling is shut" are observable.
   invisible to every other assertion. Computed-style assertion that a chapter `<summary>`
   resolves the same `text-transform: uppercase` and font-size as today, in **both** shapes: the
   `<details>` group and the childless group.
+- **Nested closed group is not rotated:** a closed section inside an open chapter resolves no
+  rotation on its chevron — the descendant-vs-direct-child selector hazard.
 - **Mobile drawer:** open the drawer at a mobile viewport and assert the current unit's chapter
   is open while a sibling chapter is shut — the drawer has its own container and centring path,
   so it does not inherit the rail's coverage.
+
+Part 2B(2) is verified by **computed-style assertions**, not screenshot review — a cascade bug
+here is exactly what an eyeball misses:
+
+- The active row's left text edge equals an inactive sibling's (the width-neutrality requirement:
+  "assert this, don't eyeball it").
+- `font-weight` on the active row resolves to 700.
+- A row carrying **both** `.is-done` and `.is-active` resolves `color` to the `--primary` value,
+  not `--text-tertiary` — the source-order precedence requirement.
+- The active row's `:focus-visible` treatment is present and does not double up with the bar.
 
 Builder e2e — home file **`tests/test_e2e_builder_tree_layout.py`**, which already owns the
 `.builder__panel` rule Part 1 edits (it guards the 2:1 ratio and `min-width: 0`). Its existing
@@ -519,7 +600,12 @@ scroll (the tree, not the panel, is what must overflow).
   *Open editor* is inside the viewport.
 - **Builder, tall panel:** on a unit whose panel exceeds the viewport, the panel's last control is
   reachable (the panel scrolls internally rather than clipping), and a `notice()` bar raised
-  while the panel is scrolled down is visible.
+  while the panel is scrolled down is visible **and legible** — assert its painted background,
+  not merely `is_visible()`, since an unbacked sticky bar lets content scroll under its text.
+- **Builder, panel scroll reset:** scroll a tall panel down, then click a *different* unit
+  through the real tree control, and assert the new panel is at `scrollTop === 0`. This is the
+  test the `setPanel` invariant exists for — a grep is not run by CI — and it must be
+  demonstrated RED against a `setPanel`-less implementation.
 - **Builder, stacked:** at a ≤720px viewport the panel is **not** sticky.
 
 **Screenshots.** Light and dark, desktop rail and mobile drawer, reviewed before shipping, plus
