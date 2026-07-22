@@ -226,7 +226,7 @@ Every function takes the `grid` descriptor above as its first argument.
 |---|---|
 | `slotMap(grid)` | Standard HTML table cell-mapping: `{ map, width, height }` where `map[r][c]` is the cell occupying that layout slot (or `null`), accounting for colspan and rowspan. The primitive everything else builds on. |
 | `layoutWidth(grid)` | Layout column count. Replaces `colCount()`, which reads row 0's **cell** count and is wrong once a span exists. |
-| `insertColumn(grid, layoutCol)` | Insert a layout column at `layoutCol`. **A row gains no new cell whenever a cell *straddles* the insertion point** (strict `c < layoutCol < c + colspan`) — whether that cell is anchored in the row itself (its colspan grows by 1) or in an *earlier* row (the covering cell's colspan grows exactly once, at its anchor). Every other row gains a real new cell. |
+| `insertColumn(grid, layoutCol)` | Insert a layout column at `layoutCol`. **A row gains no new cell whenever a cell *straddles* the insertion point** (strict `c < layoutCol < c + colspan`) — whether that cell is anchored in the row itself (its colspan grows by 1) or in an *earlier* row (the covering cell's colspan grows exactly once, at its anchor). Every other row gains a real new cell, positioned by the **layout** rule below, not by sibling index. |
 | `deleteColumn(grid, layoutCol)` | Delete a layout column. Arithmetic is over the **covering** predicate, *not* the strict straddle one: any cell whose covered range `[c, c + colspan)` contains `layoutCol` has its colspan decremented by 1, and is removed outright when that reaches 0. Cells anchored strictly left or right are untouched. |
 | `insertRow(grid, layoutRow)` | Insert a row **at** `layoutRow` (same *at*-convention as `insertColumn`, deliberately not an "after" index); straddling rowspans grow by 1; only uncovered slots get real new cells (via `grid.makeCell`). |
 | `deleteRow(grid, layoutRow)` | Like `deleteColumn`, **plus anchor relocation** — see the rule below; it is not a pure transpose. |
@@ -245,6 +245,19 @@ rule is numeric: a cell anchored at column `c` with colspan `s` **grows** iff
 *before* it (the span does not grow). At `layoutCol == c + s` the insert falls outside
 the span entirely. `insertColumn(grid, width)` appends at the right edge and is legal.
 `insertRow` mirrors the same inequality against `r` and `rowspan`.
+
+**Where the new cell goes in the row** — the same layout-based rule `split` and
+`deleteRow` step 2 already use, stated here because a ragged row's *positional* index
+diverges from its layout column and the naive
+`tr.insertBefore(makeCell(), cells(tr)[layoutCol])` is a defensible misreading that
+silently produces a layout-inconsistent grid on the 8 rowspan-bearing corpus tables.
+Example: a cell anchored at `(0, 0)` with `rowspan=2` leaves row 1 with data cells at
+layout columns 1, 2, 3 — inserting at `layoutCol = 2` must land before sibling index 1,
+not index 2. The rule: **insert before the first data cell in that row whose layout column
+is `>= layoutCol`, always before the trailing control cell; if there is no such cell,
+append last among the data cells.** Named test: insert a column into a row whose leading
+layout slots are covered by a rowspan anchored above, asserting the new cell's sibling
+index.
 
 **Handler → API mapping.** The existing buttons are labelled "Insert column right" and
 carry `data-col-index`, while the new API inserts *at* a layout column. The translation
