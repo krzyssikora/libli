@@ -260,7 +260,7 @@ test red.
    and returns immediately if false, **without** setting `dataset.submitting`. A failed
    `requestSubmit()` fires no `submit` event, so nothing would ever clear that flag and the row could
    never commit again. Order: cancel default → dirty check → trim write-back → validity → set flag →
-   `requestSubmit()`.
+   **set `readOnly`** → `requestSubmit()`. (`readOnly` must come after validity — see step 7a.)
 5. **Trim by writing back to the input.** The interceptor builds `new FormData(form)`
    (`builder.js:142`), which reads the input's **live** value, so trimming into a local would leave
    the untrimmed string in the POST body. Assign `input.value = input.value.trim()` before the
@@ -278,9 +278,16 @@ test red.
    dirty, so the next blur would silently post the old title back and undo the rename. Escape during a
    round trip therefore does nothing; the round trip is a few tens of milliseconds.
 
-6a. **The input is `readOnly` while a commit is in flight.** Set `input.readOnly = true` immediately
+7a. **The input is `readOnly` while a commit is in flight.** Set `input.readOnly = true` immediately
    after `dataset.submitting`, and clear it in **every** completion branch alongside that flag
    (200 / 409 / 422 / `.catch`).
+
+   The flag lives on the *form* but this property lives on a child input that only rename forms have,
+   so the shared clear sites (`builder.js:181`, `:185`) must look it up defensively — either scoped to
+   the `data-op === "rename"` branch, or as a guarded pair:
+   `var t = form.querySelector("input.tree__title"); if (t) t.readOnly = false;`. Note the tempting
+   one-liner `form.querySelector(...)?.readOnly = false` is a **syntax error** — optional chaining is
+   illegal on an assignment target.
 
    This is what makes the response handler simple and total: the author physically cannot type,
    delete, or empty the field between the POST and its response, so the field the response lands on is
@@ -295,7 +302,7 @@ test red.
    not registering.
 8. **Blur commits synchronously, with four bail-outs first.** The `focusout` ordering is:
    1. **Bail if a commit is already in flight** — `form.dataset.submitting`. Nothing is lost by this:
-      step 6a's `readOnly` means the field cannot have changed since the POST, so there is never newer
+      step 7a's `readOnly` means the field cannot have changed since the POST, so there is never newer
       text for this blur to save.
    2. **Bail if the window itself lost focus** — `relatedTarget === null && !document.hasFocus()`.
       Chromium fires `focusout` when the browser window or tab loses focus, so without this,
@@ -316,7 +323,8 @@ test red.
    **Parsing, and which elements the branch operates on.** Parse the body with the throwaway-`div` +
    `innerHTML` pattern the 422 branch already uses (`builder.js:177-178`), then read
    `[data-rename-for]`. **A 200 body with no such element is a silent no-op** that still clears
-   `dataset.submitting` — mirroring the missing-row rule below, so an unexpected response can never
+   `dataset.submitting` **and `readOnly`** — mirroring the missing-row rule below, so an unexpected
+   response can never
    throw inside the `.then` and be converted by the outer `.catch` into a spurious "Network error"
    notice.
 
@@ -326,7 +334,10 @@ test red.
    already server-rendered, so patching is unnecessary — and actively harmful. A swapped-in render can
    *predate* this rename's DB commit, so its input would hold the **old** title; writing our committed
    title into its `defaultValue` while leaving the displayed old `value` alone would leave the row
-   showing a stale name and reading dirty against it. Skipping is both simpler and safer.
+   reading **dirty against a stale value** — from which the next blur would post the old title back and
+   silently undo the rename. Skipping avoids that. It does **not** make the stale display go away: the
+   row may keep showing the pre-rename title until a reload, and the next op on it will 409-and-reload
+   off its predating token. That residual is the accepted outcome, recorded in the error table.
 
    Otherwise the form is still in the document, which is itself the proof that no swap replaced it, so
    every write targets the submitted form's own row: `row = form.closest("li.tree__row")` and the
@@ -371,16 +382,15 @@ test red.
    1. Assign `input.value` **only when it differs from the committed title** — i.e. only when the
       server normalised something the client had not. Skipping the equal case is what preserves the
       caret: the HTML `value` setter jumps the caret to the end and drops the selection *even when
-      assigning an identical string*. (Thanks to step 6a's `readOnly`, the field cannot have been
+      assigning an identical string*. (Thanks to step 7a's `readOnly`, the field cannot have been
       edited during the round trip, so "differs" can only mean server-side normalisation.)
-   2. Set `defaultValue` to the committed title. This is what makes the field clean again so a
-      subsequent blur does not re-post — and, if the author typed more in flight, what leaves the
-      field correctly reading *dirty* against it.
+   2. Set `defaultValue` to the committed title. This is what makes the field clean again, so a
+      subsequent blur does not re-post.
    3. Set `input.title = input.value` — **after** step 1, not before, so the tooltip reflects what is
       actually displayed. This matches the ordering `revert()` uses, and matters on exactly the
       truncated long titles where the tooltip is the only way to read the name.
 
-   **There is no recommit, because nothing can change during the round trip.** See step 6a: the input
+   **There is no recommit, because nothing can change during the round trip.** See step 7a: the input
    is `readOnly` from the moment a commit is dispatched until its response lands, so when the response
    arrives the field necessarily still holds exactly what was posted. That removes an entire class of
    in-flight edit-recovery problems rather than solving them.
@@ -501,7 +511,7 @@ Concretely:
    last-request-wins `fetch(data-panel-url)` → `setPanel`.
 2. Author types, then presses Enter (default cancelled unconditionally) or clicks away → dirty check
    passes → `input.value` trimmed in place → `reportValidity()` passes → `dataset.submitting` set →
-   `requestSubmit()` → the submit handler posts `node`, `token`, `title`, CSRF.
+   `readOnly` set → `requestSubmit()` → the submit handler posts `node`, `token`, `title`, CSRF.
 3. `node_rename` → `rename_node` (normalizes the title) → `_check_token` → `full_clean()` →
    `save(update_fields=["updated", "title"])` → renders `_rename_result.html`.
 4. The submit handler's rename branch parses `<data data-rename-for>` and updates the row **in place**,
@@ -525,13 +535,13 @@ Concretely:
 | Enter immediately followed by click-away | `dataset.submitting` suppresses the second commit — exactly one POST. |
 | Any keystroke — typing, delete, a second Enter — while a commit is in flight | The input is `readOnly` for the round trip, so the edit never happens. No text to lose, no field left blank, no swallowed commit to recover. |
 | Escape pressed while a commit is in flight | Nothing happens (the `keydown` bail covers Escape). Reverting mid-flight would leave the field stale-but-dirty and silently undo the rename on the next blur. |
-| A foreign swap detaches the row while its rename is in flight | `!form.isConnected` → silent no-op; flags and `readOnly` still cleared. The swapped-in markup is already server-rendered, and patching it could write a committed title onto a render that predates the commit. |
+| A foreign swap detaches the row while its rename is in flight | `!form.isConnected` → silent no-op; flags and `readOnly` still cleared. The swapped-in markup is already server-rendered, and patching it could write a committed title onto a render that predates the commit. **Accepted residual:** that row may keep displaying the pre-rename title until a reload, and its next op 409s-and-reloads off the predating token. |
 | Enter on an unchanged title | Default cancelled before the dirty check, so native implicit submission cannot fire — no POST. |
 | Window/tab loses focus mid-edit | No commit; the field stays dirty. |
 | Another op replaced this row's scope before the blur was delivered | `!form.isConnected` bail; the edit is discarded rather than posting a superseded token. |
 | Another op's response swaps the scope **while** a title is being typed (no blur involved — e.g. an open add row's 120ms `commitOrCancel` timer landing) | The input is destroyed and the typed text lost. Accepted; re-seeding would reintroduce the removed restoration machinery. |
 | A same-row op fired during the rename round trip | May 409 and reload — accepted, non-destructive, and the same race any two builder ops have always had. |
-| Network failure | Existing `catch` → "Network error — please try again."; flag cleared, no DOM change, typed text kept. |
+| Network failure | Existing `catch` → "Network error — please try again."; `dataset.submitting` **and `readOnly`** cleared, no DOM change, typed text kept and editable again. |
 | No JavaScript | Enter submits natively; `node_rename` redirects back to the builder. |
 
 ## Testing
@@ -604,8 +614,14 @@ Drive the actual UI — never `page.evaluate` shortcuts, which ship broken UX gr
   even for an identical string), so the mid-string caret is the real guard on step 9's conditional
   assignment — and the observable proof that no scope swap happened, i.e. the core of this design.
 - **The field is read-only during the round trip:** with the response delayed (Playwright route
-  interception), press Enter, then type — assert the value is unchanged — then let the response land
-  and assert the field is editable again. Falsify by removing the `readOnly` assignment. Also assert
+  interception), press Enter, then attempt to type, assert the value is unchanged, then let the
+  response land and assert the field is editable again.
+  **Use `page.keyboard.type()` after focusing — not `fill()` or `pressSequentially()`/`type()` on the
+  locator.** Those run an *editable* actionability check, so against a `readOnly` input they hang and
+  throw a timeout instead of typing-and-asserting-unchanged — and they *succeed* once the `readOnly`
+  assignment is removed, inverting the test's RED and GREEN relative to what it is meant to prove.
+  `page.keyboard.type()` performs no editability check and silently no-ops on a readonly field.
+  Assert `readOnly` is `false` afterwards via `to_have_js_property` before re-typing. Also assert
   `readOnly` is cleared on a **422**, not only on success, or a rejected rename would leave the row
   permanently uneditable.
 - **Tab to a row, then click a different row within 150ms** → the panel ends up showing the clicked
@@ -625,7 +641,12 @@ Drive the actual UI — never `page.evaluate` shortcuts, which ship broken UX gr
 - **Enter on an unchanged title issues no POST**; **plain Enter posts exactly once**;
   **Enter-then-blur posts exactly once**.
 - **Enter on an empty field does not wedge the row:** clear the field, press Enter (native bubble),
-  then type a valid title and press Enter → it commits. Guards validity-before-flag ordering.
+  then type a valid title and press Enter → it commits. Additionally assert **zero** requests to
+  `manage_node_rename` during the empty-Enter step. Without that request-count assertion the test
+  passes even if `readOnly` is set *before* `reportValidity()` — which would skip validation entirely
+  (a readonly input is barred from constraint validation), POST the empty title, and merely 422. That
+  inversion is this test's falsification: swap the `readOnly` and `reportValidity()` order and require
+  RED.
 - **422 does not wedge the row:** force a rejected rename, then correct and re-submit successfully
   without reloading — and the typed text was still there to correct.
 - **Trailing whitespace:** type `"Fractions "`, commit through the real JS path → `"Fractions"`
