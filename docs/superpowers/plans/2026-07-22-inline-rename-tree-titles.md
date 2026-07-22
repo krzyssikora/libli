@@ -381,6 +381,7 @@ row instead; builder.js will patch it in place."
 - Modify: `templates/courses/manage/_node_panel.html` (remove the include)
 - Delete: `templates/courses/manage/_rename_form.html`
 - Modify: `tests/test_tree_badge.py` (line 23 regex)
+- Modify: `tests/test_e2e_builder.py`, `tests/test_e2e_builder_authoring.py`, `tests/test_e2e_builder_reorder.py`, `tests/test_e2e_builder_ws2.py` (14 `text=` waits — see Step 5b)
 - Test: `tests/test_manage_builder.py`
 
 **Interfaces:**
@@ -567,6 +568,11 @@ Then:
 git rm templates/courses/manage/_rename_form.html
 ```
 
+Delete its **CSS** in the same commit, or the dead-code removal is only half done:
+`builder.css:99-100` (`.builder__panel .form--inline { … }` and
+`.builder__panel .form--inline > label { … }`) exist solely to style that panel form —
+`form--inline` occurs nowhere else in `templates/` or `courses/`.
+
 `_node_panel.html:4` was its only consumer anywhere in the repo — `editor/_unit_settings.html` carries its own form markup rather than including it.
 
 - [ ] **Step 5: Retarget the tree-badge regex**
@@ -590,11 +596,42 @@ longer exists: the constant `TITLE_BTN_RE` → `TITLE_INPUT_RE`, the test
 `test_title_button_has_hover_title` (~line 74) → `test_title_input_has_hover_title`, and its assertion
 message `"title button title attr not found"` → `"title input title attr not found"`.
 
+- [ ] **Step 5b: Migrate the `text=` waits in four other builder e2e modules**
+
+This is the change most likely to ship broken, because nothing in the default test run would catch
+it. Playwright's `text=` engine matches an `<input>` by its value **only** for `type=button` and
+`type=submit` — a `type=text` input is never matched. So every
+`page.wait_for_selector("text=<node title>")` that waits for a tree row silently stops matching the
+moment Task 3 lands, and those tests fail on a timeout that looks like a product bug. There are 14,
+in four modules the plan does not otherwise touch:
+
+| File | Lines |
+|---|---|
+| `tests/test_e2e_builder.py` | 75, 83, 119, 187 |
+| `tests/test_e2e_builder_authoring.py` | 70, 85, 121, 132, 188, 198 |
+| `tests/test_e2e_builder_reorder.py` | 103 |
+| `tests/test_e2e_builder_ws2.py` | 66, 135, 245 |
+
+Rewrite each as a value-attribute wait against the tree title, e.g.
+
+```python
+page.wait_for_selector("text=Foundations")
+# becomes
+page.wait_for_selector('.tree__title[value="Foundations"]')
+```
+
+Check each one in context first: a few may be waiting for text that is **not** a tree row title (a
+notice, a panel heading), in which case leave them alone. Only the tree-row waits change.
+
 - [ ] **Step 6: Run the tests to verify they pass**
 
 ```bash
 uv run pytest tests/test_manage_builder.py tests/test_tree_badge.py -v
+uv run pytest -m e2e tests/test_e2e_builder.py tests/test_e2e_builder_authoring.py tests/test_e2e_builder_reorder.py tests/test_e2e_builder_ws2.py -v
 ```
+
+The e2e run proves Step 5b's migration: without it those modules break **here**, and Task 6 would
+later run two of them and mispredict PASS, sending you to debug the wrong change.
 
 Expected: all PASS.
 
@@ -605,7 +642,7 @@ Wrap the new form in `{% if node.kind != "unit" %}`. The `unit` parametrization 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add templates/courses/manage/_tree_node.html templates/courses/manage/_node_panel.html tests/test_manage_builder.py tests/test_tree_badge.py
+git add templates/courses/manage/_tree_node.html templates/courses/manage/_node_panel.html \n        courses/static/courses/css/builder.css \n        tests/test_manage_builder.py tests/test_tree_badge.py \n        tests/test_e2e_builder.py tests/test_e2e_builder_authoring.py \n        tests/test_e2e_builder_reorder.py tests/test_e2e_builder_ws2.py
 git commit -m "feat(builder): editable title input on every tree row
 
 Replaces the title button with a one-field rename form, and removes the
@@ -1218,7 +1255,6 @@ a chapter no longer breaks the next drop or add under it."
 **Files:**
 - Create: `tests/test_e2e_inline_rename.py`
 - Modify: `tests/test_e2e_builder_tree_layout.py` (seven `.tree__title` locators; the truncation assertion; two `refreshPanel` docstring mentions)
-- Modify: `tests/test_e2e_builder.py`, `tests/test_e2e_builder_authoring.py`, `tests/test_e2e_builder_reorder.py`, `tests/test_e2e_builder_ws2.py` (14 `text=` waits — see Step 2b)
 
 **Interfaces:**
 - Consumes: everything above.
@@ -1259,33 +1295,6 @@ rename**, not after typing.
 It asserts `scrollWidth > clientWidth` to prove truncation. An `<input>` renders text in an inner editing host where those may not report overflow as they do for a `<button>`. Take the measurement on the **unfocused** input and falsify it (give the row a short title, require RED).
 
 If the engine reports `scrollWidth === clientWidth` for a text control, the comparison goes **hard RED**, not vacuously green — and the short-title falsification would then pass trivially while the real case stays broken, so do not read a RED here as "the assertion works". In that case switch to comparing the input's rendered box width against the measured width of its full text (a hidden span with the same computed font), and falsify *that*.
-
-- [ ] **Step 2b: Migrate the `text=` waits in the OTHER four builder e2e modules**
-
-This is the change most likely to ship broken, because nothing in the default test run would catch
-it. Playwright's `text=` engine matches an `<input>` by its value **only** for `type=button` and
-`type=submit` — a `type=text` input is never matched. So every
-`page.wait_for_selector("text=<node title>")` that waits for a tree row silently stops matching the
-moment Task 3 lands, and those tests fail on a timeout that looks like a product bug. There are 14,
-in four modules the plan does not otherwise touch:
-
-| File | Lines |
-|---|---|
-| `tests/test_e2e_builder.py` | 75, 83, 119, 187 |
-| `tests/test_e2e_builder_authoring.py` | 70, 85, 121, 132, 188, 198 |
-| `tests/test_e2e_builder_reorder.py` | 103 |
-| `tests/test_e2e_builder_ws2.py` | 66, 135, 245 |
-
-Rewrite each as a value-attribute wait against the tree title, e.g.
-
-```python
-page.wait_for_selector("text=Foundations")
-# becomes
-page.wait_for_selector('.tree__title[value="Foundations"]')
-```
-
-Check each one in context first: a few may be waiting for text that is **not** a tree row title (a
-notice, a panel heading), in which case leave them alone. Only the tree-row waits change.
 
 - [ ] **Step 3: Update the stale docstring**
 
@@ -1522,7 +1531,11 @@ def test_tabbing_across_a_row_issues_one_panel_fetch(page, live_server):
     page.on("request", lambda r: gets.append(r.url) if _is_panel_get(r) else None)
 
     page.locator('.tree__title[value="Unit 1"]').focus()
-    gets.clear()                        # ignore any fetch from focusing the start row
+    # Programmatic focus takes the KEYBOARD branch, which only schedules a fetch 150ms
+    # out -- clearing immediately would discard nothing. Wait it out so the start row's
+    # fetch is deterministically issued, then drop it.
+    page.wait_for_timeout(400)
+    gets.clear()
 
     # The REAL tab order is title -> cluster controls -> next row's title, and the
     # number of stops VARIES: _move_buttons renders the up arrow `disabled` on the
@@ -1613,9 +1626,10 @@ would not exercise the token refresh at all. `_simulate_drag` **already dispatch
 uv run pytest -m e2e tests/test_e2e_builder*.py tests/test_e2e_inline_rename.py -v
 ```
 
-Run the **whole builder e2e set**, not just the two modules this task edits directly: Step 2b touches
-four further modules, and `uv run pytest` in Task 9 deselects every e2e test (`addopts` excludes the
-marker), so this command is the only thing standing between a `text=`-wait regression and the PR.
+Run the **whole builder e2e set**, not just the two modules this task edits directly: Task 3 Step 5b touched
+four further modules in Task 3 Step 5b, and `uv run pytest` in Task 9 deselects every e2e test
+(`addopts` excludes the marker), so this command is the last check that the whole builder e2e set is
+still green before the PR.
 
 Expected: all PASS, with a collected count matching the number of tests written — **`-m e2e` is
 mandatory** (`pyproject.toml:48` excludes the marker by default), and a run that collects 0 tests
@@ -1716,10 +1730,12 @@ print(c.slug)
 
 That is 800 units + 40 chapters, owned by **`perfadmin`** — one identity throughout, created here as
 a verified platform admin (a bare `UserFactory` is not authorized for the manage surface). Its
-password is `tests.factories.TEST_PASSWORD`; export it for the curl step:
+password is `tests.factories.TEST_PASSWORD`; export it for the curl step. Use `manage.py shell`, not
+a bare `python -c` — `tests/factories.py` imports `accounts.models`/`courses.models` at module level
+and would raise `AppRegistryNotReady` before reaching the constant, leaving `PW` empty:
 
 ```bash
-export PW=$(DATABASE_URL=$PERF_DATABASE_URL uv run python -c "from tests.factories import TEST_PASSWORD; print(TEST_PASSWORD)")
+export PW=$(DATABASE_URL=$PERF_DATABASE_URL uv run python manage.py shell -c "from tests.factories import TEST_PASSWORD; print(TEST_PASSWORD)")
 ```
 
 **3. Serve both checkouts against that database**, on distinct ports. `runserver` **blocks**, so each
