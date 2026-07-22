@@ -380,6 +380,7 @@ row instead; builder.js will patch it in place."
 - Modify: `templates/courses/manage/_tree_node.html` (lines 12-13)
 - Modify: `templates/courses/manage/_node_panel.html` (remove the include)
 - Delete: `templates/courses/manage/_rename_form.html`
+- Modify: `courses/static/courses/css/builder.css` (delete lines 99-100, the dead `.form--inline` panel rules)
 - Modify: `tests/test_tree_badge.py` (line 23 regex)
 - Modify: `tests/test_e2e_builder.py`, `tests/test_e2e_builder_authoring.py`, `tests/test_e2e_builder_reorder.py`, `tests/test_e2e_builder_ws2.py` (14 `text=` waits — see Step 5b)
 - Test: `tests/test_manage_builder.py`
@@ -642,7 +643,7 @@ Wrap the new form in `{% if node.kind != "unit" %}`. The `unit` parametrization 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add templates/courses/manage/_tree_node.html templates/courses/manage/_node_panel.html \n        courses/static/courses/css/builder.css \n        tests/test_manage_builder.py tests/test_tree_badge.py \n        tests/test_e2e_builder.py tests/test_e2e_builder_authoring.py \n        tests/test_e2e_builder_reorder.py tests/test_e2e_builder_ws2.py
+git add templates/courses/manage/_tree_node.html templates/courses/manage/_node_panel.html courses/static/courses/css/builder.css tests/test_manage_builder.py tests/test_tree_badge.py tests/test_e2e_builder.py tests/test_e2e_builder_authoring.py tests/test_e2e_builder_reorder.py tests/test_e2e_builder_ws2.py
 git commit -m "feat(builder): editable title input on every tree row
 
 Replaces the title button with a one-field rename form, and removes the
@@ -1758,9 +1759,21 @@ cd "$BASE" && DATABASE_URL=$PERF_DATABASE_URL uv run python manage.py runserver 
 jar:
 
 ```bash
-curl -s -c jar.txt http://localhost:8010/accounts/login/ > /dev/null
-curl -s -b jar.txt -c jar.txt -d "login=perfadmin&password=$PW" \
+# Django's CsrfViewMiddleware requires csrfmiddlewaretoken in the POST BODY -- a cookie
+# plus a Referer is not enough for a non-AJAX POST, and allauth's login view is not
+# exempt. Omit it and the POST 403s, no session cookie is set, and the builder fetch
+# below silently measures the @login_required REDIRECT -- on both ports, so the two
+# numbers match and the 15% budget passes vacuously.
+curl -s -c jar.txt -o login.html http://localhost:8010/accounts/login/
+TOK=$(grep -o 'name="csrfmiddlewaretoken" value="[^"]*"' login.html | cut -d'"' -f4)
+curl -s -b jar.txt -c jar.txt \
+     -d "csrfmiddlewaretoken=$TOK" -d "login=perfadmin" -d "password=$PW" \
      -e http://localhost:8010/accounts/login/ http://localhost:8010/accounts/login/ > /dev/null
+
+# Sanity-check BEFORE recording a number -- a login redirect also returns 200.
+curl -s -b jar.txt http://localhost:8010/manage/courses/perf/build/ | grep -q 'data-scope="top"' \
+  || { echo "not logged in -- measuring the wrong page"; exit 1; }
+
 curl -s -b jar.txt --compressed -o /dev/null -w '%{size_download}\n' \
      http://localhost:8010/manage/courses/perf/build/
 ```
@@ -1795,8 +1808,20 @@ produced by `tests/capture_help_screenshots.py` (the `"builder-tree"` entry, cli
 — every row title becomes a text field with a hover border — so without regeneration the help page
 ships a picture of the old button-based tree.
 
-Re-run the `builder-tree` capture for **both** locales, confirm the dims guard still passes, and
-commit the two regenerated PNGs.
+```bash
+CAPTURE_ONLY=builder-tree uv run pytest tests/capture_help_screenshots.py::test_capture_help_screenshots -v
+```
+
+Two things make this non-obvious: the harness has no `test_` filename prefix, so a bare
+`uv run pytest` does **not** collect it; and without `CAPTURE_ONLY` it regenerates all ~23 shots in
+both locales, churning committed PNGs this change does not touch. The EN/PL loop is internal to the
+test — no per-locale invocation is needed.
+
+Then verify the topic still renders its illustration and commit the two regenerated PNGs:
+
+```bash
+uv run pytest tests/test_help.py -k every_topic_illustrated -v
+```
 
 - [ ] **Step 4c: Document the new capability in the builder help topic**
 
@@ -1835,7 +1860,7 @@ and the only way to rename a unit without opening the editor."
 
 ## Self-Review
 
-**Spec coverage.** Backend normalization → Task 1. Narrow response → Task 2. Template/markup, panel change, partial deletion → Task 3. Styling (cascade, font, layout-neutral hover) → Task 4. JS selection/debounce/`refreshPanel` → Task 5. Commit path (Enter/blur/Escape/trim/validity/`readOnly`) → Task 6. In-place application and the four-item token inventory → Task 7. All e2e and existing-test migration → Task 8. i18n, page weight, screenshots, screen-reader → Task 9. The no-JS path is covered by a test in Task 2 and by the markup in Task 3.
+**Spec coverage.** Backend normalization → Task 1. Narrow response → Task 2. Template/markup, panel change, partial deletion → Task 3. Styling (cascade, font, layout-neutral hover) → Task 4. JS selection/debounce/`refreshPanel` → Task 5. Commit path (Enter/blur/Escape/trim/validity/`readOnly`) → Task 6. In-place application and the four-item token inventory → Task 7. The four-module `text=` wait migration → Task 3 Step 5b (it must land with the markup that breaks those waits); `test_e2e_builder_tree_layout.py`'s locator migration and the new e2e suite → Task 8. i18n, page weight, screenshots, screen-reader → Task 9. The no-JS path is covered by a test in Task 2 and by the markup in Task 3.
 
 **Placeholders.** Every code step in Tasks 1-7 and 9 carries actual code, every command its expected output, every test its falsification. Task 8 is the deliberate exception: it ships the module skeleton, the Task 7 smoke test, and full code for the four scenarios with genuine Playwright-API risk (token refresh, readonly-in-flight, route-intercepted 422, debounce request-counting); the remaining ~20 scenarios are specified as prose because they are ordinary click/type/assert written by analogy. Each carries either an `(F)` falsification marker or an explicit falsification sentence.
 
