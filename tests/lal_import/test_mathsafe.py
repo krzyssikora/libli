@@ -1,4 +1,5 @@
 from scripts.lal_import.mathsafe import escape_math_delimited
+from scripts.lal_import.mathsafe import promote_display_math
 
 
 def test_escapes_inside_inline_span():
@@ -38,3 +39,23 @@ def test_escape_before_bs4_yields_wellformed_dom():
     # And the broken order mangles it (documents WHY the order matters):
     bad = BeautifulSoup(raw, "html.parser")
     assert bad.get_text() != r"gdy \(y<z\) tak"
+
+
+def test_inline_align_span_is_promoted_to_display():
+    # KaTeX: "{align*} can be used only in display mode" -> a few sources wrap an
+    # align environment in inline \(...\), which renders as a red error block.
+    src = r"\( \begin{align*} a &= b \ c &= d \end{align*} \)"
+    out = promote_display_math(src)
+    assert out.startswith(r"\[") and out.endswith(r"\]")
+    assert r"\begin{align*}" in out
+    assert r"\(" not in out and r"\)" not in out
+
+
+def test_promote_leaves_ordinary_math_untouched():
+    src = r"gdy \(y<z\) oraz \[x=y\] koniec"
+    assert promote_display_math(src) == src
+
+
+def test_promote_leaves_display_align_untouched():
+    src = r"\[\begin{align*} a &= b \end{align*}\]"
+    assert promote_display_math(src) == src

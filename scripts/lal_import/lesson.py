@@ -18,6 +18,7 @@ from scripts.lal_import.answers import extract_nested_str_map
 from scripts.lal_import.answers import extract_scalar_num_map
 from scripts.lal_import.answers import extract_str_map
 from scripts.lal_import.mathsafe import escape_math_delimited
+from scripts.lal_import.mathsafe import promote_display_math
 from scripts.lal_import.switch import strip_lead_prompt
 from scripts.lal_import.switch import switch_line_stem_cyclers
 from scripts.lal_import.switch import token as _blank_token
@@ -280,8 +281,13 @@ def _reveal_table_spoilers(table, consumed, state):
 
 def parse_lesson(html, source_html):
     # Escape math <,> on the RAW string BEFORE parsing (Global Constraints / C1),
-    # so BeautifulSoup builds a correct DOM. Never re-escape below.
-    soup = BeautifulSoup(escape_math_delimited(html), "html.parser")
+    # so BeautifulSoup builds a correct DOM. Never re-escape below. An inline
+    # \(\begin{align*}..\)\ span is promoted to display \[..\] first (KaTeX errors
+    # on align in inline mode). Only the SOUP sees this — the answer-key extractors
+    # below read the untouched raw `html`.
+    soup = BeautifulSoup(
+        escape_math_delimited(promote_display_math(html)), "html.parser"
+    )
     root = soup.body or soup
     elements, flags = [], []
     consumed = set()  # ids of nodes already folded into a Spoiler (I2)
@@ -392,17 +398,7 @@ def _walk(nodes, elements, flags, consumed, state):
         if "fill_step" in classes_here:
             # Group B #8: "Fill in & confirm" — the step's blank IS the gate;
             # a correct answer reveals the following siblings (the next step).
-            d = _fillblank_from_block(node, state)
-            if d["blanks"]:
-                # A diagram in the step is folded into the sanitized fill_gate stem
-                # (nh3 strips <img>); emit it as an ImageElement before the gate so
-                # it survives (040/044_tryg). No-op when the step has no image.
-                _emit_media_in(node, elements, flags)
-                elements.append(
-                    {"type": "fill_gate", "stem": d["stem"], "answers": d["blanks"]}
-                )
-            else:  # a fill_step with no input -> just reveal-only content
-                _walk(list(node.children), elements, flags, consumed, state)
+            _emit_fill_step(node, elements, flags, consumed, state)
             continue
         if "switch_steps" in classes_here:
             # Group B #2: cycler-gated progressive reveal -> SwitchGate chain.
@@ -726,6 +722,67 @@ def _fillblank_from_block(node, state):
         blanks.append(_answer_alt_list(answer_of.get(id(inp), "")))
         inp.replace_with(NavigableString(_blank_token(len(blanks) - 1)))
     return {"type": "fillblank", "stem": node.decode_contents(), "blanks": blanks}
+
+
+_FILL_INPUT_CLASSES = [cls for cls, _ in _FILL_INPUTS]
+
+
+def _fillblank_from_nodes(nodes, state):
+    """Like _fillblank_from_block, but over an explicit list of sibling nodes — a
+    fill_step's OWN children, excluding its nested step chain (see _emit_fill_step).
+    Serialization follows the usual rule: a Tag re-escapes via str(); a
+    NavigableString was decoded at parse time, so its math is re-escaped."""
+    answer_of = state.get("fill_answer_of", {})
+    blanks, parts = [], []
+
+    def _blank_for(inp):
+        blanks.append(_answer_alt_list(answer_of.get(id(inp), "")))
+        return _blank_token(len(blanks) - 1)
+
+    for n in nodes:
+        if isinstance(n, NavigableString):
+            parts.append(escape_math_delimited(str(n)))
+            continue
+        if not isinstance(n, Tag):
+            continue
+        if any(c in _FILL_INPUT_CLASSES for c in (n.get("class") or [])):
+            parts.append(_blank_for(n))  # the input is itself a direct child
+            continue
+        for inp in n.find_all(class_=_FILL_INPUT_CLASSES):
+            inp.replace_with(NavigableString(_blank_for(inp)))
+        parts.append(str(n))
+    return {"stem": "".join(parts), "blanks": blanks}
+
+
+def _emit_fill_step(step, elements, flags, consumed, state):
+    """Group B #8: one .fill_step -> its own FillGate ("Fill in & confirm": the
+    step's blank IS the gate). LAL nests each SUBSEQUENT step INSIDE the previous
+    one (040/044_tryg), so this step's own content is everything BEFORE its first
+    nested fill_show_next/fill_step; the rest is walked afterwards. Without the
+    split, a recursive find_all collapsed the whole chain into ONE gate holding
+    every blank, with the nested steps' text — and their literal "pokaż dalej"
+    labels — flattened into its stem."""
+    kids = list(step.children)
+    cut = len(kids)
+    for i, c in enumerate(kids):
+        cls = (c.get("class") or []) if isinstance(c, Tag) else []
+        if "fill_step" in cls or "fill_show_next" in cls:
+            cut = i
+            break
+    own, rest = kids[:cut], kids[cut:]
+    d = _fillblank_from_nodes(own, state)
+    if d["blanks"]:
+        # a diagram in this step is folded into the sanitized stem (nh3 strips
+        # <img>), so emit it as an ImageElement leading this step's own gate
+        for n in own:
+            if isinstance(n, Tag):
+                _emit_media_in(n, elements, flags)
+        elements.append(
+            {"type": "fill_gate", "stem": d["stem"], "answers": d["blanks"]}
+        )
+    else:  # a step with no input -> just reveal-only content
+        _walk(own, elements, flags, consumed, state)
+    _walk(rest, elements, flags, consumed, state)
 
 
 def _table_answer_map(table, state):
@@ -1423,7 +1480,8 @@ def _emit_media_in(node, elements, flags, skip=None):
     element). An <img> nested in a <figure> is emitted once, by its figure.
     `skip(media) -> True` excludes a media node (e.g. one inside an already-handled
     solution cell)."""
-    for media in node.find_all(["img", "figure"]):
+    own = [node] if getattr(node, "name", None) in ("img", "figure") else []
+    for media in own + node.find_all(["img", "figure"]):
         if skip is not None and skip(media):
             continue
         if media.name == "img" and media.find_parent("figure") is not None:

@@ -11,6 +11,22 @@ import re
 _MATH_SPAN = re.compile(r"\\\((.*?)\\\)|\\\[(.*?)\\\]", re.DOTALL)
 
 
+# An {align} environment typesets only in DISPLAY mode: KaTeX fails an inline
+# \(\begin{align*}...\end{align*}\) with "{align*} can be used only in display
+# mode" and renders the source as a red error block. A few sources use that form
+# (MathJax, used by the original site, was lenient), so promote them to \[...\].
+_INLINE_ALIGN = re.compile(
+    r"\\\(\s*(\\begin\{align\*?\}.*?\\end\{align\*?\})\s*\\\)", re.DOTALL
+)
+
+
+def promote_display_math(text):
+    """Rewrite an inline \\(...\\) span whose whole content is an {align}
+    environment into a display \\[...\\] span, so KaTeX typesets it instead of
+    erroring. Ordinary inline/display math is returned unchanged."""
+    return _INLINE_ALIGN.sub(lambda m: r"\[" + m.group(1) + r"\]", text)
+
+
 def _escape(s):
     return s.replace("<", "&lt;").replace(">", "&gt;")
 

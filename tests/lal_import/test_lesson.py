@@ -1797,6 +1797,55 @@ def test_fill_table_image_with_details_becomes_image_cell_plus_explanation_row()
     assert rows[3][1]["kind"] == "answer"
 
 
+NESTED_FILL_STEPS = r"""
+<div id="question40">
+  <div class="fill_steps">
+    <p>Wstęp.</p>
+    <div class="fill_show_next">pokaż dalej</div>
+    <div class="fill_step">
+      <p>Krok 1 <img src="static/z1.png" alt="z1"></p>
+      <span class="myequation">\(a=\)<span>
+        <input class="fill_answer" type="text"></span></span>
+      <div class="fill_show_next">pokaż dalej</div>
+      <div class="fill_step">
+        <p>Krok 2 <img src="static/z2.png" alt="z2"></p>
+        <span class="myequation">\(b=\)<span>
+          <input class="fill_answer" type="text"></span></span>
+        <div class="fill_show_next">pokaż dalej</div>
+        <div class="fill_step">
+          <span class="myequation">\(c=\)<span>
+            <input class="fill_answer" type="text"></span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+localStorage.setItem('answers_fill_next', JSON.stringify({40:["1","2","3"]}));
+</script>
+"""
+
+
+def test_nested_fill_steps_become_one_gate_each():
+    # 040/044_tryg nest each next step INSIDE the previous one. A recursive
+    # find_all collapsed the whole chain into ONE gate holding every blank, with
+    # the nested steps' text (incl. the literal "pokaż dalej" buttons) flattened
+    # into its stem. Each step must become its own gate, keeping its own diagram.
+    elements, _ = parse_lesson(NESTED_FILL_STEPS, "x.html")
+    allels = _flatten_all(elements)
+    gates = [e for e in allels if e.get("type") == "fill_gate"]
+    assert len(gates) == 3  # one per step, not one mega-gate
+    assert [len(g["answers"]) for g in gates] == [1, 1, 1]
+    # each step's own diagram leads its own gate, in document order
+    seq = [e for e in allels if e.get("type") in ("image", "fill_gate")]
+    assert seq[0]["media_src"] == "static/z1.png"
+    assert seq[1]["type"] == "fill_gate"
+    assert seq[2]["media_src"] == "static/z2.png"
+    assert seq[3]["type"] == "fill_gate"
+    # the reveal button's label must not leak into a stem
+    assert not any("pokaż dalej" in g["stem"] for g in gates)
+
+
 def test_whitespace_only_block_is_dropped():
     # a whitespace-only <p> (e.g. <p>\n</p>) must NOT become an empty TextElement
     elements, _ = parse_lesson("<p>\n</p><p>Treść.</p>", "x.html")
