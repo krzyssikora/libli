@@ -89,8 +89,13 @@ def test_builder_tree_layout(page, live_server, tmp_path):
     ratio = tree_box["width"] / panel_box["width"]
     assert 1.7 < ratio < 2.4, f"tree:panel width ratio {ratio:.2f} not ~2:1"
 
-    # Long title truncates on one line: content overflows the button box.
-    title = page.locator(".tree__title", has_text="deliberately very long").first
+    # Long title truncates on one line: content overflows the input box. Measured on
+    # the UNFOCUSED input — Chromium does report scrollWidth > clientWidth for a
+    # single-line text control, verified by falsification (a short title gives
+    # 371 == 371 and this assertion goes red), so no text-measuring fallback is needed.
+    # `*=`, not `=`: LONG_TITLE (line 17) is the phrase repeated three times, so an
+    # exact value selector matches nothing and the test would die on a timeout.
+    title = page.locator('.tree__title[value*="deliberately very long"]').first
     metrics = title.evaluate("el => ({sw: el.scrollWidth, cw: el.clientWidth})")
     assert metrics["sw"] > metrics["cw"], (
         "long title is not overflowing (not truncated)"
@@ -104,7 +109,7 @@ def test_builder_tree_layout(page, live_server, tmp_path):
 
     # (d) Unit panel at the narrowed 1/3 width: select the lesson unit so its detail
     # panel renders (with the seeded element list), then screenshot light + dark.
-    page.locator(".tree__title", has_text="deliberately very long").first.click()
+    page.locator('.tree__title[value*="deliberately very long"]').first.click()
     page.wait_for_selector(".builder__panel .element-list")
 
     # The 2:1 ratio must SURVIVE selecting a unit — the content-heavy unit panel must
@@ -180,7 +185,7 @@ def test_panel_stays_reachable_on_a_long_tree(page, live_server):
 
     # Scroll to the very bottom of the page, then click the LAST unit in the tree.
     page.mouse.wheel(0, 20000)
-    page.locator(".tree__title", has_text="Unit 40").first.click()
+    page.locator('.tree__title[value="Unit 40"]').click()
     page.locator(".panel__seam").wait_for(state="visible")
 
     vh = page.evaluate("() => window.innerHeight")
@@ -202,7 +207,7 @@ def test_tall_panel_keeps_actions_on_screen(page, live_server):
     page.set_viewport_size({"width": 1280, "height": 700})
     _login(page, live_server, "pa_tall")
     page.goto(f"{live_server.url}/manage/courses/{course.slug}/build/")
-    page.locator(".tree__title", has_text="Unit 1").first.click()
+    page.locator('.tree__title[value="Unit 1"]').click()
     page.locator(".panel__seam").wait_for(state="visible")
 
     # Scroll the page down so the panel is actually PINNED before asserting. This is
@@ -280,7 +285,7 @@ def test_panel_scroll_resets_between_units(page, live_server):
     page.goto(f"{live_server.url}/manage/courses/{course.slug}/build/")
 
     # Open the element-heavy unit and scroll its panel down (real wheel over the panel).
-    page.locator(".tree__title", has_text="Unit 1").first.click()
+    page.locator('.tree__title[value="Unit 1"]').click()
     page.locator(".panel__seam").wait_for(state="visible")
     panel = page.locator(".builder__panel")
     panel.hover()
@@ -294,7 +299,7 @@ def test_panel_scroll_resets_between_units(page, live_server):
     )
 
     # Select a different unit through the real tree control.
-    page.locator(".tree__title", has_text="Unit 2").first.click()
+    page.locator('.tree__title[value="Unit 2"]').click()
     page.wait_for_function(
         "() => document.querySelector('.builder__panel').textContent.includes('Unit 2')"
     )
@@ -313,13 +318,14 @@ def test_notice_bar_is_visible_and_opaque_while_panel_scrolled(page, live_server
     """A network notice raised while the panel is scrolled down stays on screen.
 
     Trigger: abort a TREE form's POST (the reorder arrows). notice() prepends into the
-    panel regardless of which form fired, and a tree form has inPanel == False so no
-    refreshPanel() runs — the bar survives.
+    panel regardless of which form fired, and a tree form has inPanel == False so the
+    panel innerHTML is never replaced — the bar survives.
 
     NOT the panel's own form: _unit_panel.html contains no form at all (unit settings
-    moved to the editor page). NOT the 409 path either: it calls refreshPanel(), which
-    now routes through setPanel(), resetting scroll and replacing the innerHTML the bar
-    was prepended into.
+    moved to the editor page). NOT the 409 path either: that would need a manufactured
+    stale token, and it applies the server's _conflict_scope fragment (swapping the
+    tree scope under the very button that fired it) plus raises its own conflict
+    notice — two moving parts this test is not about.
     """
     _make_pa_user("pa_notice")
     course, _first = _seed_tall_course("notice-demo")
@@ -327,7 +333,7 @@ def test_notice_bar_is_visible_and_opaque_while_panel_scrolled(page, live_server
     page.set_viewport_size({"width": 1280, "height": 700})
     _login(page, live_server, "pa_notice")
     page.goto(f"{live_server.url}/manage/courses/{course.slug}/build/")
-    page.locator(".tree__title", has_text="Unit 1").first.click()
+    page.locator('.tree__title[value="Unit 1"]').click()
     page.locator(".panel__seam").wait_for(state="visible")
 
     panel = page.locator(".builder__panel")
@@ -355,8 +361,12 @@ def test_notice_bar_is_visible_and_opaque_while_panel_scrolled(page, live_server
     # it on the first node, so the naive .first selector picks a disabled button and
     # Playwright's actionability check hangs for 30s on a failure unrelated to the
     # notice.
+    # Narrowed to data-op="reorder": every row now also carries
+    # form.tree__rename[data-op="rename"] whose visually-hidden submit precedes the
+    # cluster in document order — .first would pick that clipped button and .click()
+    # would hang on the hit-target check for the full timeout.
     page.locator(
-        ".builder__tree form[data-op] button[type='submit']:not([disabled])"
+        ".builder__tree form[data-op=\"reorder\"] button[type='submit']:not([disabled])"
     ).first.click()
 
     bar = page.locator(".builder__panel > .op-error")
