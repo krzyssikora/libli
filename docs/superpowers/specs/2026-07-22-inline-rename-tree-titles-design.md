@@ -132,8 +132,10 @@ An HTML fragment rather than JSON keeps the endpoint's content type uniform and 
 `r.text()` flow — the JS reads attributes off the parsed element. The non-fragment (no-JS) branch
 still redirects to the builder, and the 409 / 422 branches are untouched.
 
-Because the JS never calls `applyFragment` for a rename, `data-rename-for` also acts as the guard
-that a rename response is never mistaken for a scope fragment.
+`data-rename-for` also acts as the guard that a rename's 200 response is never mistaken for a scope
+fragment. Note this applies to the **200 branch only**: a rename's 409 still returns a
+`_conflict_scope` fragment and still goes through `applyFragment`, because there the tree genuinely
+diverged and must be reloaded.
 
 ### What the narrow response makes unnecessary
 
@@ -220,8 +222,12 @@ rewrite touches both the success and `.catch` branches of the panel fetch; inlin
 test red.
 
 1. **Selection moves from `click` to `focusin`.** The existing handler at line 190 calls
-   `e.preventDefault()` on `[data-select]`; on a text input that suppresses caret placement, so the
-   click handler must no longer claim `[data-select]`. Two guards come with the move:
+   `e.preventDefault()` on `[data-select]`; on a text input that suppresses caret placement. The
+   `[data-select]` branch is therefore **removed outright** from the `click` listener (leaving it with
+   the `[data-move]` branch only), and its `clearMoving()` responsibility moves to `focusin`. Merely
+   dropping the `preventDefault()` and leaving the branch in place would double-fetch the panel on
+   every pointer selection — once from `click`, once from `focusin` — defeating the debounce and
+   last-request-wins design below. Two guards come with the move:
    - **Pointer focus fetches immediately; keyboard focus is debounced.** A `pointerdown` on a row
      marks the next `focusin` as pointer-initiated, and pointer-initiated selection fetches with no
      delay — the click-to-select gesture must not gain latency. Keyboard focus (no mark) uses a
@@ -267,22 +273,45 @@ test red.
       step 4's ordering alone would post an empty title and surface a 422. The **Enter** path
       deliberately does not share this branch; it relies on `required` + `reportValidity()`.
    4. Otherwise commit immediately, with no timer.
-9. **Applying the narrow response (the `data-op === "rename"` branch of the submit handler).** On 200,
-   parse the returned `<data data-rename-for>` element and update, scoped to
-   `li.tree__row[data-node="<pk>"] > .tree__rowhead` so descendant rows are never touched:
-   - the input's `value`, `defaultValue` and `title` attribute (`defaultValue` is what makes the field
-     clean again, so a subsequent blur does not re-post);
-   - **every `input[name=token]` within that rowhead** — the rename form's, the reorder form's
-     (`_move_buttons.html`), and the duplicate form's on unit rows. All three carry the node's
-     `updated`, and all three would otherwise 409 on their next use;
-   - the row's own `data-updated` attribute on `li.tree__row`, which is what `dragstart` reads as
-     `node_token` (`builder.js:223-224`);
-   - if the panel currently holds a **Move picker for this node**, its `node_token` too — the picker
-     represents a multi-click investment and is worth keeping valid rather than resetting.
+9. **Applying the narrow response (the `data-op === "rename"` branch of the submit handler).** This
+   branch replaces `applyFragment` **on 200 only** — 409 and 422 keep the existing handling untouched
+   (`builder.js:164-165` calls `applyFragment` for 200 *and* 409, and the 409 `_conflict_scope`
+   fragment must still be applied or the stale row is never reloaded).
 
-   The parent `[data-scope]`'s `data-updated` is deliberately **not** touched: `rename_node` saves only
-   the node (`save(update_fields=…)`) and, unlike `add_node`, never calls `course.save()`, so no
-   ancestor token changes.
+   **The governing invariant: every DOM carrier of this node's `updated` must be refreshed.** A rename
+   bumps `node.updated`, and that value is rendered into more places than the rowhead. Missing any one
+   of them produces a spurious 409 on the author's *next* action — the exact class of bug the scope
+   swap used to hide. The complete inventory, all within `li.tree__row[data-node="<pk>"]` (descendant
+   rows are never touched):
+
+   - **`> .tree__rowhead` — every `input[name=token]`:** the rename form's, the reorder form's
+     (`_move_buttons.html`), and the duplicate form's on unit rows.
+   - **the `<li>`'s own `data-updated` attribute**, which `dragstart` reads as `node_token`
+     (`builder.js:223-224`).
+   - **`> ol.tree__scope[data-scope="<pk>"]`'s `data-updated`** — present on non-unit rows only.
+     `_tree_node.html:31` includes `_scope.html` with `scope_updated=node.updated.isoformat`
+     (`_scope.html:2`), and `builder.js:279` reads exactly that attribute as `dropToken`, posting it
+     as `parent_token` for `reparent_node` to check. Skip it and the next drag **into** the renamed
+     chapter 409s.
+   - **that same child scope's `input[name=parent_token]`** in its add affordance. `_scope.html:8`
+     passes `scope_updated` into `_add_affordance.html:11`, and `add_node` enforces it via
+     `_check_token(parent.updated, parent_token)` (`builder.py:145`). Skip it and the very common
+     "rename a chapter, then add a lesson under it" flow 409s and discards the typed child title.
+
+   **Values, and why `value` is conditional.** Always set the input's `defaultValue` to the committed
+   title (this is what makes the field clean again, so a subsequent blur does not re-post), then set
+   `input.title = input.value`. Assign `input.value` itself **only when the input is not focused.**
+   After an Enter commit the field keeps focus and stays editable, so an unconditional assignment
+   would clobber anything typed during the round trip — and the HTML `value` setter moves the caret to
+   the end and drops the selection *even when assigning an identical string*, so it would also destroy
+   the caret position this design exists to preserve. If the author did type more in flight, the newer
+   text simply stays and the field reads dirty against the new `defaultValue`, so their next blur
+   commits it — which is correct.
+
+   **Ancestor scopes are deliberately not touched:** `rename_node` saves only the node
+   (`save(update_fields=…)`) and, unlike `add_node`, never calls `course.save()`, so no *ancestor*
+   token changes. This is distinct from the node's *own* child scope above, which the rename does
+   invalidate.
 10. **Escape reverts without blurring** — `revert(input)`, focus retained. Blurring on cancel would
     drop focus to `<body>`, forcing someone who abandoned an edit deep in a long tree to Tab from the
     top of the document again.
@@ -305,10 +334,26 @@ test red.
     - Re-clicking an already-focused title does not refetch its panel (`focusin` does not re-fire).
       Harmless: no path clears the panel while a title retains focus, because a rename no longer
       touches the panel at all.
+    - **Starting a rename discards an open Move picker.** Focusing a title fires `focusin` → panel
+      fetch → `setPanel`, which replaces `panel.innerHTML` wholesale, and the picker lives in that
+      panel. This is not new — clicking a title does the same today — and it means the picker's tokens
+      can never be stale at rename time, because no picker survives to the commit. (An earlier draft
+      tried to patch the picker's `node_token` on the rename response; that code would have been
+      unreachable.)
     - A same-row op fired during the rename's round trip (clicking Duplicate the instant after
       blurring a dirty title) can still post the pre-rename token and 409. The window is one network
       round trip, the 409 path is non-destructive and self-correcting, and this is the same race any
       two concurrent builder ops have always had. Accepted rather than gated.
+    - **A *foreign* op's `applyFragment` can still destroy a half-typed title.** "Nothing is
+      destroyed" is a claim about the rename's **own** response only. Another op's response still
+      swaps whole scope `<ol>`s, and the most reachable case needs no blur at all: with an inline-add
+      row open and non-empty, clicking a tree title blurs the add input, and 120ms later
+      `commitOrCancel` (`builder.js:373-379`) posts `node_add`, whose response replaces the scope —
+      deleting the input the author started typing into a tenth of a second earlier. A landing
+      reorder, drag or duplicate does the same. No bail-out covers this because no `focusout` for the
+      title occurs. **Accepted**, and the same class as "uncommitted typing clobbered by an unrelated
+      op": re-seeding a swapped scope with a focused dirty input would reintroduce exactly the
+      restoration machinery this redesign removed, for a rarer case.
 
 ### Panel change — `templates/courses/manage/_node_panel.html`
 
@@ -395,6 +440,7 @@ Concretely:
 | Enter on an unchanged title | Default cancelled before the dirty check, so native implicit submission cannot fire — no POST. |
 | Window/tab loses focus mid-edit | No commit; the field stays dirty. |
 | Another op replaced this row's scope before the blur was delivered | `!form.isConnected` bail; the edit is discarded rather than posting a superseded token. |
+| Another op's response swaps the scope **while** a title is being typed (no blur involved — e.g. an open add row's 120ms `commitOrCancel` timer landing) | The input is destroyed and the typed text lost. Accepted; re-seeding would reintroduce the removed restoration machinery. |
 | A same-row op fired during the rename round trip | May 409 and reload — accepted, non-destructive, and the same race any two builder ops have always had. |
 | Network failure | Existing `catch` → "Network error — please try again."; flag cleared, no DOM change, typed text kept. |
 | No JavaScript | Enter submits natively; `node_rename` redirects back to the builder. |
@@ -411,14 +457,22 @@ first (a passing test that never fails proves nothing).
   `ValidationError`. Cover the no-JS POST path too.
 - **Strip happens before length validation:** a 200-character title wrapped in spaces persists intact,
   while a 201-character title still raises. Without this, an implementation that stripped *after*
-  `full_clean()` would pass every other listed test.
+  `full_clean()` would pass every other listed test. Note this is a **service/POST-level test only** —
+  `maxlength="200"` counts the untrimmed string, so the case cannot be reached by typing into the tree
+  input; it arises via the no-JS POST, the editor settings form, or a direct service call.
 - A title-only rename of a **unit** succeeds and leaves `unit_type`, `obligatory` and `html_seed_js`
   untouched — `rename_node`'s `_UNSET` handling is load-bearing. Include the type-only toggle, to
   prove normalization did not disturb the `_UNSET` branch.
 - **The fragment rename response is the narrow one:** a fragment POST returns
   `_rename_result.html` carrying `data-rename-for`, the new `data-updated` and the new title — **not**
   a `[data-scope]` tree fragment. This is the pivot of the whole design, so guard it directly.
-- The editor (`ctx=editor`) and unit-settings (`has_settings`) branches still behave as before.
+- The editor (`ctx=editor`) branch still behaves as before. Note the `is_settings` **fragment** branch
+  (`_render_unit_panel`, `views_manage.py:346`) is already unreachable in production: both
+  `has_settings` posters (`editor/_unit_settings.html:10-11`) and the type toggle
+  (`editor/editor.html:58`) also send `ctx=editor`, which is checked first (`views_manage.py:341-342`),
+  and they are full-page POSTs so `_wants_fragment` is false anyway. Leave the branch untouched; any
+  test of it is a synthetic guard on dead code, and the `ctx=editor` full-page path is the behaviour
+  actually worth asserting.
 
 **Django template/view tests**
 
@@ -451,8 +505,14 @@ Drive the actual UI — never `page.evaluate` shortcuts, which ship broken UX gr
 
 - Click a **unit** title, type, press Enter → the tree label updates *and* the DB value changes.
 - Same for a **chapter**, proving the interaction is kind-agnostic.
-- **Focus and caret survive an Enter commit** — the input is still focused afterwards. This is the
-  observable proof that no scope swap happened, i.e. the core of this design.
+- **Focus and caret survive an Enter commit** — place the caret **mid-string** before pressing Enter,
+  then assert the input is still focused *and* `selectionStart` is unchanged afterwards. Asserting
+  focus alone would pass even if the response reassigned `value` (which jumps the caret to the end
+  even for an identical string), so the mid-string caret is the real guard on step 9's conditional
+  assignment — and the observable proof that no scope swap happened, i.e. the core of this design.
+- **Typing during the round trip is not clobbered:** press Enter, keep typing before the response
+  lands, and assert the extra characters survive and the field is left dirty (so a later blur commits
+  them).
 - **Blur commits:** type, then click outside the tree → saved.
 - **Escape reverts and keeps focus:** the value reverts *and* the input still has focus.
 - **Escape restores the tooltip:** type into a long title, press Escape, assert the `title` attribute
@@ -471,8 +531,11 @@ Drive the actual UI — never `page.evaluate` shortcuts, which ship broken UX gr
   same row → it succeeds with **no** conflict notice. This is the test that proves step 9 updated the
   duplicate form's token, and it fails loudly if only the rename form's token was refreshed. Repeat
   for the reorder arrows (every row has them) and for a drag of the just-renamed row.
-- **The Move picker survives a rename:** open the picker for a node, rename that node, then complete
-  the move → no conflict.
+- **Rename a chapter, then drag a unit into it** → no conflict notice. Guards the child scope's
+  `data-updated` refresh.
+- **Rename a chapter, then add a lesson under it** → succeeds, no conflict notice, typed child title
+  not discarded. Guards the child scope's `parent_token` refresh. Together with the drag case above,
+  these are the two tests that would have caught the original rowhead-only inventory.
 - **Window blur does not commit:** type, blur the window (not the field) → no POST; field stays dirty.
 - **Debounce / ordering:** tabbing across N rows issues exactly one panel GET; a pointer click issues
   its GET immediately.
