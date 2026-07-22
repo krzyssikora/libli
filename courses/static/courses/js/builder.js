@@ -105,6 +105,57 @@
     // on a missed selector would DUPLICATE the tree, so a miss is intentionally a no-op.
   }
 
+  // A rename changes no structure, so its 200 is applied IN PLACE -- no scope swap,
+  // so the focused input, its caret, and document scroll are all untouched.
+  function applyRename(form, html) {
+    // A foreign applyFragment can land between this POST and its response, replacing
+    // the row. The swapped-in markup is already server-rendered, so there is nothing
+    // to patch -- and patching would be harmful: that render can PREDATE this commit,
+    // so writing our committed title into its defaultValue while leaving the displayed
+    // old value alone would leave the row dirty against a stale value, from which the
+    // next blur would post the old title back and silently undo the rename.
+    if (!form.isConnected) return;
+    var tmp = document.createElement("div");
+    tmp.innerHTML = html.trim();
+    var data = tmp.querySelector("[data-rename-for]");
+    if (!data) return;                       // unexpected body: silent no-op
+    var row = form.closest("li.tree__row");
+    if (!row) return;
+    var token = data.getAttribute("data-updated");
+    var title = data.getAttribute("value");
+
+    var input = form.querySelector("input.tree__title");
+    if (input) {
+      // Assign value ONLY when it differs: the HTML value setter jumps the caret to
+      // the end and drops the selection even when assigning an identical string.
+      // readOnly means the field cannot have been edited in flight, so a difference
+      // can only be server-side normalisation.
+      if (input.value !== title) input.value = title;
+      input.defaultValue = title;            // makes the field clean again
+      input.title = input.value;             // after the assignment, not before
+    }
+
+    // Every carrier of this node's `updated`, scoped so descendant rows are untouched.
+    var head = row.querySelector(":scope > .tree__rowhead");
+    if (head) {
+      head.querySelectorAll("input[name=token]").forEach(function (el) {
+        el.value = token;                    // rename + reorder + duplicate (units)
+      });
+    }
+    row.setAttribute("data-updated", token); // dragstart reads this as node_token
+    var scope = row.querySelector(':scope > ol.tree__scope[data-scope="' + row.getAttribute("data-node") + '"]');
+    if (scope) {
+      scope.setAttribute("data-updated", token);   // drop target's parent_token
+      // Pk-anchored, NOT a descendant query: _add_affordance renders its add row LAST
+      // in every scope, so a nested child row's own add form precedes it in document
+      // order and a plain querySelector would return a GRANDCHILD's parent_token.
+      var add = root.querySelector(
+        'form.tree__add[data-add-scope="' + row.getAttribute("data-node") + '"] input[name=parent_token]'
+      );
+      if (add) add.value = token;
+    }
+  }
+
   function notice(text) {
     var bar = document.createElement("div");
     bar.className = "op-error";
@@ -145,7 +196,14 @@
     }).then(function (r) {
       return r.text().then(function (text) {
         if (r.status === 200 || r.status === 409) {
-          applyFragment(text);
+          // A rename's 200 is patched in place; its 409 deliberately still goes through
+          // applyFragment -- there the tree genuinely diverged and _conflict_scope must
+          // be applied, or the stale row is never reloaded.
+          if (r.status === 200 && form.getAttribute("data-op") === "rename") {
+            applyRename(form, text);
+          } else {
+            applyFragment(text);
+          }
           if (r.status === 409) notice(msg("conflict", "This changed elsewhere — reloaded to the latest."));
           // Only the Move picker remains as a panel form with data-op; it resets the
           // panel to neutral. (The panel's rename form is gone, so the re-token helper
