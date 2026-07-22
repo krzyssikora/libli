@@ -100,7 +100,7 @@ def _wait_order(page, scope_id, expected, timeout_ms=5000):
 def _goto_builder(page, live_server):
     page.goto(f"{live_server.url}/manage/courses/reorder-test/build/")
     page.wait_for_selector('[data-scope="top"]', state="attached")
-    page.wait_for_selector("text=Chapter 1")
+    page.wait_for_selector('.tree__title[value="Chapter 1"]')
 
 
 @pytest.mark.django_db(transaction=True)

@@ -1,3 +1,5 @@
+import re
+
 import pytest
 from django.urls import reverse
 
@@ -160,3 +162,108 @@ def test_builder_unit_panel_is_readonly(client):
     body = resp.content.decode()
     assert 'name="html_seed_js"' not in body  # seed moved to the editor
     assert 'data-op="settings"' not in body  # settings form removed from the builder
+
+
+RENAME_FORM_RE = re.compile(r'<form class="tree__rename".*?</form>', re.DOTALL)
+
+
+def _rename_form(html):
+    m = RENAME_FORM_RE.search(html)
+    assert m, "no .tree__rename form found in the builder page"
+    return m.group(0)
+
+
+@pytest.mark.django_db
+# unit_type MUST be None for non-units: ContentNodeFactory defaults it to "lesson"
+# and creates via objects.create() (no full_clean), so a kind="part" row would persist
+# with a unit_type and then 422 on rename -- ContentNode.clean() raises "Only units may
+# have a unit_type." (models.py:246). The repo documents this trap at
+# tests/test_e2e_transfer.py:128-133.
+@pytest.mark.parametrize(
+    "kind,unit_type",
+    [("part", None), ("chapter", None), ("section", None), ("unit", "lesson")],
+)
+def test_every_tree_row_title_is_an_editable_form(client, kind, unit_type):
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="c1", owner=owner)
+    node = ContentNodeFactory(
+        course=course, kind=kind, unit_type=unit_type, parent=None, title="Fractions"
+    )
+    resp = client.get(reverse("courses:manage_builder", kwargs={"slug": "c1"}))
+    assert resp.status_code == 200
+    form = _rename_form(resp.content.decode())
+    assert 'data-op="rename"' in form
+    assert f'name="node" value="{node.pk}"' in form
+    assert f'name="token" value="{node.updated.isoformat()}"' in form
+    assert 'class="tree__title"' in form
+    assert 'name="title"' in form
+    assert 'value="Fractions"' in form
+    assert "required" in form
+    assert 'maxlength="200"' in form
+    assert 'autocomplete="off"' in form
+    assert 'spellcheck="false"' in form
+    # data-select had exactly two readers (the click branch and refreshPanel); both are
+    # removed by this change, so it must not be carried on ~800 rows for nothing.
+    assert "data-select" not in resp.content.decode()
+
+
+@pytest.mark.django_db
+def test_tree_title_has_a_static_accessible_name_and_a_title_tooltip(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="c1", owner=owner)
+    ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Fractions"
+    )
+    resp = client.get(reverse("courses:manage_builder", kwargs={"slug": "c1"}))
+    assert resp.status_code == 200
+    form = _rename_form(resp.content.decode())
+    assert 'aria-label="Title"' in form
+    assert 'title="Fractions"' in form
+
+
+@pytest.mark.django_db
+def test_hidden_rename_submit_is_out_of_the_tab_order(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="c1", owner=owner)
+    ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Fractions"
+    )
+    resp = client.get(reverse("courses:manage_builder", kwargs={"slug": "c1"}))
+    assert resp.status_code == 200
+    form = _rename_form(resp.content.decode())
+    # .visually-hidden uses the clip pattern, which keeps the element FOCUSABLE --
+    # without tabindex="-1" every row would gain a second tab stop. Asserted per
+    # attribute so a harmless reorder doesn't fail a test that is about tab order.
+    btn = re.search(r"<button[^>]*>", form)
+    assert btn, "the rename form must contain a submit button"
+    assert 'class="visually-hidden"' in btn.group(0)
+    assert 'type="submit"' in btn.group(0)
+    assert 'tabindex="-1"' in btn.group(0)
+
+
+@pytest.mark.django_db
+def test_node_panel_no_longer_offers_a_rename_form(client):
+    owner = make_login(client, "owner")
+    course = CourseFactory(slug="c1", owner=owner)
+    node = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="P"
+    )
+    resp = client.get(
+        reverse("courses:manage_node_panel", kwargs={"slug": "c1", "pk": node.pk}),
+        HTTP_X_REQUESTED_WITH="fetch",
+    )
+    assert resp.status_code == 200
+    assert 'data-op="rename"' not in resp.content.decode()
+
+
+def test_rename_form_partial_is_deleted():
+    from pathlib import Path
+
+    p = (
+        Path(__file__).resolve().parent.parent
+        / "templates"
+        / "courses"
+        / "manage"
+        / "_rename_form.html"
+    )
+    assert not p.exists(), "_rename_form.html is dead code once the panel form is gone"

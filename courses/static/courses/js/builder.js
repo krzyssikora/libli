@@ -26,6 +26,11 @@
     movingPk = null;
   }
   function escHtml(s) { var d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+  function parseFragment(html) {
+    var d = document.createElement("div");
+    d.innerHTML = html.trim();
+    return d;
+  }
   function renderSlots(kidsOl, nodePk, rawPos) {
     if (!kidsOl) return;
     kidsOl.hidden = false;
@@ -89,20 +94,75 @@
     return m ? m[1] : "";
   }
 
+  // True only for the synchronous duration of the scope swap in applyFragment. Chromium
+  // DOES dispatch focusout for a focused input inside the subtree being removed, and it
+  // dispatches it from INSIDE replaceWith() -- at a point where the input and its form
+  // still report isConnected === true, relatedTarget is null and document.hasFocus() is
+  // true. Every isConnected/hasFocus test therefore reads "attached and focused" and the
+  // rename bail-outs let a half-typed title through. This flag is the only signal that
+  // distinguishes "the author blurred the field" from "the field was torn out under them".
+  var swapping = false;
+
   // Replace the tree element whose data-scope matches the returned fragment's root.
   function applyFragment(html) {
-    var tmp = document.createElement("div");
-    tmp.innerHTML = html.trim();
+    var tmp = parseFragment(html);
     var incoming = tmp.firstElementChild;
     if (!incoming) return;
     var scope = incoming.getAttribute("data-scope");
     var existing = root.querySelector('[data-scope="' + scope + '"]');
     if (existing) {
-      existing.replaceWith(incoming);
+      swapping = true;
+      try { existing.replaceWith(incoming); } finally { swapping = false; }
     }
     // No append fallback: the target [data-scope] element is always present after the
     // first render (the tree-pane root for "top", a nested <ol> otherwise). Appending
     // on a missed selector would DUPLICATE the tree, so a miss is intentionally a no-op.
+  }
+
+  // A rename changes no structure, so its 200 is applied IN PLACE -- no scope swap,
+  // so the focused input, its caret, and document scroll are all untouched.
+  function applyRename(form, html) {
+    // A foreign applyFragment can land between this POST and its response, replacing
+    // the row. The swapped-in markup is already server-rendered, so there is nothing
+    // to patch -- and patching would be harmful: that render can PREDATE this commit,
+    // so writing our committed title into its defaultValue while leaving the displayed
+    // old value alone would leave the row dirty against a stale value, from which the
+    // next blur would post the old title back and silently undo the rename.
+    if (!form.isConnected) return;
+    var data = parseFragment(html).querySelector("[data-rename-for]");
+    if (!data) return;                       // unexpected body: silent no-op
+    var row = form.closest("li.tree__row");
+    if (!row) return;
+    var nodePk = row.getAttribute("data-node");
+    var token = data.getAttribute("data-updated");
+    var title = data.getAttribute("value");
+
+    var input = form.querySelector("input.tree__title");
+    if (input) {
+      input.value = title;
+      input.defaultValue = title;            // makes the field clean again
+      input.title = title;
+    }
+
+    // Every carrier of this node's `updated`, scoped so descendant rows are untouched.
+    var head = row.querySelector(":scope > .tree__rowhead");
+    if (head) {
+      head.querySelectorAll("input[name=token]").forEach(function (el) {
+        el.value = token;                    // rename + reorder + duplicate (units)
+      });
+    }
+    row.setAttribute("data-updated", token); // dragstart reads this as node_token
+    var scope = row.querySelector(":scope > ol.tree__scope");
+    if (scope) {
+      scope.setAttribute("data-updated", token);   // drop target's parent_token
+      // Pk-anchored, NOT a descendant query: _add_affordance renders its add row LAST
+      // in every scope, so a nested child row's own add form precedes it in document
+      // order and a plain querySelector would return a GRANDCHILD's parent_token.
+      var add = root.querySelector(
+        'form.tree__add[data-add-scope="' + nodePk + '"] input[name=parent_token]'
+      );
+      if (add) add.value = token;
+    }
   }
 
   function notice(text) {
@@ -114,21 +174,14 @@
   }
   function msg(key, fallback) { return root.getAttribute("data-msg-" + key) || fallback; }
 
-  // The detail panel holds token-bearing forms (rename, unit-settings, the Move picker)
-  // that the [data-scope] tree swap never refreshes — so after their own op those forms
-  // keep a now-stale token and re-submitting them spuriously 409s ("can't move the lesson
-  // back"). After a panel form's op, re-fetch the operated node's fresh detail panel
-  // (fresh token); if the node is gone (e.g. it was reparented away and the row vanished
-  // from the freshly-swapped tree) or unidentifiable, clear the panel to a neutral state.
-  function refreshPanel(form) {
-    var nodeInput = form.querySelector("input[name='node']");
-    var btn = nodeInput && root.querySelector('[data-select="' + nodeInput.value + '"]');
-    var url = btn && btn.getAttribute("data-panel-url");
-    if (!url) { setPanel(""); return; }
-    fetch(url, { headers: { "X-Requested-With": "fetch" } })
-      .then(function (r) { return r.text(); })
-      .then(function (html) { setPanel(html); })
-      .catch(function () { setPanel(""); });
+  // Release a form from its in-flight state. Only a rename form locks its title input,
+  // so the data-op gate spares every add/reorder/duplicate/reparent submission a
+  // querySelector that can never match.
+  function releaseForm(form) {
+    delete form.dataset.submitting;
+    if (form.getAttribute("data-op") !== "rename") return;
+    var ti = form.querySelector("input.tree__title");
+    if (ti) ti.readOnly = false;
   }
 
   // Intercept any builder form with data-op; POST via fetch and swap the response.
@@ -136,8 +189,6 @@
     var form = e.target.closest("form[data-op]");
     if (!form) return;
     e.preventDefault();
-    // Forms inside the detail panel (rename/settings/Move picker) need a panel refresh
-    // after their op; tree forms (reorder/add) self-refresh via the [data-scope] swap.
     var inPanel = panel.contains(form);
     var body = new FormData(form);
     // include the submitter's name/value (e.g. direction=up)
@@ -162,42 +213,33 @@
     }).then(function (r) {
       return r.text().then(function (text) {
         if (r.status === 200 || r.status === 409) {
-          applyFragment(text);
-          if (r.status === 409) notice(msg("conflict", "This changed elsewhere — reloaded to the latest."));
-          // The op bumped tokens (200) or the tree was reloaded to latest (409); either
-          // way a panel form is now stale. A Move (reparent) resets the panel to neutral
-          // so it matches arrow/drag reorders (which never touch the panel); rename/settings
-          // forms keep editing their node, so re-fetch that node's fresh panel.
-          if (inPanel) {
-            if (form.getAttribute("data-op") === "reparent") setPanel(neutralPanel);
-            else refreshPanel(form);
+          // A rename's 200 is patched in place; its 409 deliberately still goes through
+          // applyFragment -- there the tree genuinely diverged and _conflict_scope must
+          // be applied, or the stale row is never reloaded.
+          if (r.status === 200 && form.getAttribute("data-op") === "rename") {
+            applyRename(form, text);
+          } else {
+            applyFragment(text);
           }
+          if (r.status === 409) notice(msg("conflict", "This changed elsewhere — reloaded to the latest."));
+          // Only the Move picker remains as a panel form with data-op; it resets the
+          // panel to neutral. (The panel's rename form is gone, so the re-token helper
+          // that existed solely to refresh it was deleted along with it.)
+          if (inPanel) setPanel(neutralPanel);
           clearMoving();
         } else if (r.status === 422) {
-          var tmp = document.createElement("div");
-          tmp.innerHTML = text.trim();
-          notice(tmp.textContent.trim());
+          notice(parseFragment(text).textContent.trim());
         }
-        delete form.dataset.submitting;
+        releaseForm(form);
       });
     }).catch(function () {
       notice(msg("network", "Network error — please try again."));
-      delete form.dataset.submitting;
+      releaseForm(form);
     });
   });
 
   // Node selection -> load the detail panel fragment.
   root.addEventListener("click", function (e) {
-    var sel = e.target.closest("[data-select]");
-    if (sel) {
-      e.preventDefault();
-      clearMoving();
-      fetch(sel.getAttribute("data-panel-url"), { headers: { "X-Requested-With": "fetch" } })
-        .then(function (r) { return r.text(); })
-        .then(function (html) { setPanel(html); })
-        .catch(function () { setPanel('<div class="op-error" role="alert">Network error — please reload.</div>'); });
-      return;
-    }
     // Move… links open their picker inline (fetch GET).
     var mv = e.target.closest("[data-move]");
     if (mv) {
@@ -211,6 +253,150 @@
         .catch(function () { setPanel('<div class="op-error" role="alert">Network error — please reload.</div>'); });
       return;
     }
+  });
+
+  // ---- Inline rename: selection ------------------------------------------------
+  // The value setter only resets the caret when the value actually CHANGES, so plain
+  // assignment is safe.
+  //
+  // Selection moved from click to focusin: preventDefault() on a click into a text
+  // input suppresses caret placement, so the click branch was removed outright.
+  var panelReq = 0;        // last-request-wins id, allocated when a fetch is ISSUED
+  var panelTimer = null;   // pending keyboard-debounce timer
+  var pointerFocus = false;
+
+  // pointerdown is scoped to the tree; the RELEASE listeners are on document, because a
+  // pointerup landing outside .builder (drag-select out of the pane, release over
+  // browser chrome, an HTML5 drag started from .ica--grip) would otherwise latch
+  // pointerFocus true -- and the next KEYBOARD Tab would then fetch immediately,
+  // silently defeating the debounce.
+  root.addEventListener("pointerdown", function () { pointerFocus = true; });
+  document.addEventListener("pointerup", function () { pointerFocus = false; });
+  document.addEventListener("pointercancel", function () { pointerFocus = false; });
+
+  function loadPanel(url) {
+    var id = ++panelReq;
+    fetch(url, { headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) { return r.text(); })
+      .then(function (html) { if (id === panelReq) setPanel(html); })
+      .catch(function () {
+        // The id check gates this branch too: an ungated slow FAILURE from an earlier
+        // row would otherwise replace a later row's loaded panel with an error box.
+        if (id === panelReq) {
+          setPanel('<div class="op-error" role="alert">Network error — please reload.</div>');
+        }
+      });
+  }
+
+  root.addEventListener("focusin", function (e) {
+    // Mark consumption and timer clearing run for EVERY focusin, whatever the target,
+    // BEFORE the .tree__title test. Tab goes title -> ~6 cluster controls -> next
+    // title, and those stops can span more than 150ms; if only titles cleared the
+    // timer, row A's fetch would fire while the author was still inside A's cluster.
+    var byPointer = pointerFocus;
+    pointerFocus = false;
+    if (panelTimer) { clearTimeout(panelTimer); panelTimer = null; }
+    var t = e.target.closest(".tree__title");
+    if (!t) return;
+    var url = t.getAttribute("data-panel-url");
+    if (!url) return;
+    clearMoving();
+    // A deliberate click must not gain 150ms of latency; only keyboard traversal is
+    // debounced, so tabbing across ten rows issues one fetch rather than ten.
+    if (byPointer) loadPanel(url);
+    else panelTimer = setTimeout(function () { panelTimer = null; loadPanel(url); }, 150);
+  });
+
+  // Focus leaving the builder entirely fires no further focusin on root, so a pending
+  // timer would still elapse and swap the panel for a row the author has left.
+  root.addEventListener("focusout", function (e) {
+    if (panelTimer && (!e.relatedTarget || !root.contains(e.relatedTarget))) {
+      clearTimeout(panelTimer);
+      panelTimer = null;
+    }
+  });
+
+  // ---- Inline rename: commit ---------------------------------------------------
+  function titleForm(input) { return input.closest("form.tree__rename"); }
+
+  // Programmatic value assignment fires NO input event, so the tooltip must be synced
+  // by hand here or it keeps showing abandoned text -- exactly on the truncated long
+  // titles where the tooltip is the only way to read the name.
+  function revert(input) {
+    input.value = input.defaultValue;
+    input.title = input.value;
+  }
+
+  function commitRename(input) {
+    var form = titleForm(input);
+    if (!form || form.dataset.submitting) return;
+    var trimmed = input.value.trim();
+    // Compare trimmed against trimmed: a legacy row whose stored title has stray
+    // whitespace would otherwise post a rename on a bare focus-and-blur.
+    if (trimmed === input.defaultValue.trim()) return;
+    // Write the trim back -- FormData reads the LIVE value, so trimming into a local
+    // would leave the untrimmed string in the POST body.
+    input.value = trimmed;
+    input.title = input.value;
+    if (!form.reportValidity()) return;   // native bubble; no state set, so no wedge
+    form.dataset.submitting = "1";
+    input.readOnly = true;           // AFTER validity: readonly is barred from it
+    form.requestSubmit();
+  }
+
+  root.addEventListener("keydown", function (e) {
+    var input = e.target.closest("input.tree__title");
+    if (!input) return;
+    if (e.key === "Enter") {
+      // Unconditional, before any check: a text input in a form with a submit button
+      // implicitly submits on Enter, which would post even an unchanged title and
+      // would double-post alongside requestSubmit().
+      e.preventDefault();
+      commitRename(input);   // itself null-guards the form and checks dataset.submitting
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      if (titleForm(input).dataset.submitting) return;
+      // Revert WITHOUT blurring: dropping focus to <body> would force someone who
+      // abandoned an edit 300 rows down to Tab from the top of the document again.
+      revert(input);
+    }
+  });
+
+  root.addEventListener("focusout", function (e) {
+    var input = e.target.closest("input.tree__title");
+    if (!input) return;
+    var form = titleForm(input);
+    if (!form) return;
+    // 1. A commit is already in flight. Nothing is lost -- readOnly means the field
+    //    cannot have changed since the POST.
+    if (form.dataset.submitting) return;
+    // 2. The WINDOW lost focus, not the field. Chromium fires focusout when the tab
+    //    or window is deactivated; committing here would persist half-typed text.
+    if (e.relatedTarget === null && !document.hasFocus()) return;
+    // 3. Another op's applyFragment is destroying, or has destroyed, this row. Committing
+    //    would post a token that swap already superseded, and applyRename would then
+    //    no-op on the detached form -- leaving the tree showing the old title while the
+    //    database holds the new one, with no notice and a stale row token.
+    //    `swapping` carries this, NOT isConnected: Chromium delivers the focusout from
+    //    inside replaceWith(), while the doomed subtree still reports isConnected true
+    //    (measured; the add flow's guard at the bottom of this file reads isConnected a
+    //    timer later, by which point it is false, so that one works as written).
+    //    isConnected is kept for the asynchronous case: a focusout queued before a swap
+    //    and delivered after it.
+    if (swapping || !form.isConnected) return;
+    // 4. Emptied field = cancel. This MUST precede the dirty check inside
+    //    commitRename: an emptied field IS dirty, so we would otherwise post "" and
+    //    surface a 422 on an ambiguous gesture. Enter deliberately does not share
+    //    this branch -- it relies on required + reportValidity's native bubble.
+    if (!input.value.trim()) { revert(input); return; }
+    commitRename(input);
+  });
+
+  // Keep the tooltip honest while typing. Delegated like every other handler here,
+  // because applyFragment replaces whole scopes on other ops.
+  root.addEventListener("input", function (e) {
+    var input = e.target.closest("input.tree__title");
+    if (input) input.title = input.value;
   });
 
   // --- WS2 drag-and-drop ----------------------------------------------------
@@ -305,7 +491,7 @@
       } else if (r.status === 422) { notice(msg("illegal", "That move isn't allowed here.")); }
     }); }).catch(function () { notice(msg("network", "Network error — please try again.")); });
   });
-  root.addEventListener("dragend", function () { clearDropMarks(); drag = null; });
+  root.addEventListener("dragend", function () { clearDropMarks(); drag = null; pointerFocus = false; });
   // --- end WS2 drag-and-drop ------------------------------------------------
 
   // Reveal the unit_type select only when kind === 'unit' on add forms.

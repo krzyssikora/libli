@@ -32,6 +32,15 @@ lub **+ Quiz**, aby utworzyć lekcję (strony z treścią) lub quiz (oceniane
 pytania). Przeciągaj jednostki, aby zmienić ich kolejność; konspekt po lewej
 stronie odzwierciedla to, co widzą uczniowie.
 
+## Zmiana nazwy
+
+Każdy tytuł w drzewie można edytować bezpośrednio na miejscu — zarówno części,
+rozdziały i sekcje, jak i jednostki. Kliknij tytuł, wpisz nową nazwę, a
+następnie naciśnij **Enter** lub kliknij poza polem, aby ją zapisać. Naciśnij
+**Escape**, aby porzucić zmianę i przywrócić poprzedni tytuł. To także
+najszybszy sposób na zmianę nazwy jednostki: nie trzeba już otwierać jej
+edytora.
+
 ## Co dalej
 
 - [Edytory treści](content-editors) — tworzenie stron lekcji.

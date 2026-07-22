@@ -9,8 +9,21 @@
     {% else %}
     <span class="tree__badge tree__badge--{{ node.kind }}">{{ node.get_kind_display }}</span>
     {% endif %}
-    <button class="tree__title" type="button" data-select="{{ node.pk }}" title="{{ node.title }}"
-            data-panel-url="{% url 'courses:manage_node_panel' slug=node.course.slug pk=node.pk %}">{{ node.title }}</button>
+    {% comment %}The form wraps ONLY the title, so it sits inside .tree__rowhead as a
+       sibling of .tree__cluster and never nests the duplicate/reorder forms that live
+       within that cluster (nested forms are invalid HTML). The hidden submit exists so
+       the no-JS path can commit; tabindex="-1" keeps it out of the tab order, since
+       .visually-hidden uses clip and stays focusable.{% endcomment %}
+    <form class="tree__rename" method="post" action="{{ rename_url }}" data-op="rename">
+      {% csrf_token %}
+      <input type="hidden" name="node" value="{{ node.pk }}">
+      <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
+      <input class="tree__title" type="text" name="title" value="{{ node.title }}"
+             title="{{ node.title }}" aria-label="{% trans 'Title' %}"
+             required maxlength="200" autocomplete="off" spellcheck="false"
+             data-panel-url="{% url 'courses:manage_node_panel' slug=node.course.slug pk=node.pk %}">
+      <button class="visually-hidden" type="submit" tabindex="-1">{% trans "Rename" %}</button>
+    </form>
     <span class="tree__cluster">
       <button type="button" class="ica ica--grip" draggable="true" aria-label="{% trans 'Drag to move' %}" title="{% trans 'Drag to move' %}"><svg class="ic"><use href="#bi-grip"/></svg></button>
       {% include "courses/manage/_move_buttons.html" with node=node is_first=is_first is_last=is_last %}
