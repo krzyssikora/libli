@@ -158,7 +158,6 @@ Line 12–13's title `<button>` becomes a small form wrapping a text input:
   <input class="tree__title" type="text" name="title" value="{{ node.title }}"
          title="{{ node.title }}" aria-label="{% trans 'Title' %}"
          required maxlength="200" autocomplete="off" spellcheck="false"
-         data-select="{{ node.pk }}"
          data-panel-url="{% url 'courses:manage_node_panel' slug=node.course.slug pk=node.pk %}">
   <button class="visually-hidden" type="submit" tabindex="-1">{% trans "Rename" %}</button>
 </form>
@@ -169,9 +168,12 @@ Points that are load-bearing rather than incidental:
 - **The form wraps only the title**, sitting inside `.tree__rowhead` as a sibling of `.tree__cluster`,
   so it never nests the duplicate (`_tree_node.html:20-25`) or reorder (`_move_buttons.html`) forms
   that live *within* that cluster. Nested forms are invalid HTML.
-- **`data-select` / `data-panel-url` move onto the input.** `data-select` remains the declared pk
-  source for the selection handler; `data-node` lives on the ancestor `<li class="tree__row">`
-  (`_tree_node.html:2`), not on the input.
+- **`data-panel-url` moves onto the input; `data-select` is dropped entirely.** The focusin selection
+  hook is `.tree__title` (matching every other handler here), and `data-select` had exactly two
+  readers in the repo — `builder.js:191`'s click branch and `refreshPanel` at `:125` — both of which
+  this design removes, leaving it with none. Dropping it also saves a few bytes on every one of ~800
+  rows, which the page-weight note below cares about. `data-node` remains on the ancestor
+  `<li class="tree__row">` (`_tree_node.html:2`) and is the anchor for step 9's row lookup.
 - **`maxlength="200"`** mirrors the model field. `required` is what makes Enter-on-empty fail validity
   rather than post a blank title.
 - **`autocomplete="off"`** stops browser autofill dropdowns over tree rows. **`spellcheck="false"`**
@@ -221,10 +223,11 @@ exactly one `panel.innerHTML =` assignment, inside `setPanel` (which resets `scr
 rewrite touches both the success and `.catch` branches of the panel fetch; inlining either turns that
 test red.
 
-1. **Selection moves from `click` to `focusin`.** The existing handler at line 190 calls
-   `e.preventDefault()` on `[data-select]`; on a text input that suppresses caret placement. The
-   `[data-select]` branch is therefore **removed outright** from the `click` listener (leaving it with
-   the `[data-move]` branch only), and its `clearMoving()` responsibility moves to `focusin`. Merely
+1. **Selection moves from `click` to `focusin`, hooked on `.tree__title`.** The existing handler at
+   line 190 calls `e.preventDefault()` on `[data-select]`; on a text input that suppresses caret
+   placement. The `[data-select]` branch is therefore **removed outright** from the `click` listener
+   (leaving it with the `[data-move]` branch only), and its `clearMoving()` responsibility moves to
+   `focusin`. The new handler reads `data-panel-url` off the focused `.tree__title`. Merely
    dropping the `preventDefault()` and leaving the branch in place would double-fetch the panel on
    every pointer selection — once from `click`, once from `focusin` — defeating the debounce and
    last-request-wins design below. Two guards come with the move:
@@ -278,6 +281,15 @@ test red.
    (`builder.js:164-165` calls `applyFragment` for 200 *and* 409, and the 409 `_conflict_scope`
    fragment must still be applied or the stale row is never reloaded).
 
+   **Locating the row.** Take the pk from the response's `data-rename-for` and look the row up fresh:
+   `root.querySelector('li.tree__row[data-node="<pk>"]')` — **not** `form.closest(".tree__row")`, so
+   that a row swapped in by a foreign op since the POST is still found. **A missing row is a silent
+   no-op** (still clearing `dataset.submitting`): a foreign `applyFragment` can land between the POST
+   and its response, and the row it swapped in is already server-rendered with the new title and
+   token, so there is nothing to patch. Without this guard the attribute writes throw inside the
+   `.then`, and the outer `.catch` (`builder.js:183`) turns a *successful* rename into a spurious
+   "Network error — please try again." notice.
+
    **The governing invariant: every DOM carrier of this node's `updated` must be refreshed.** A rename
    bumps `node.updated`, and that value is rendered into more places than the rowhead. Missing any one
    of them produces a spurious 409 on the author's *next* action — the exact class of bug the scope
@@ -297,6 +309,15 @@ test red.
      passes `scope_updated` into `_add_affordance.html:11`, and `add_node` enforces it via
      `_check_token(parent.updated, parent_token)` (`builder.py:145`). Skip it and the very common
      "rename a chapter, then add a lesson under it" flow 409s and discards the typed child title.
+
+     **Use the pk-anchored selector
+     `root.querySelector('form.tree__add[data-add-scope="<pk>"] input[name=parent_token]')`**
+     (`data-add-scope` is already rendered at `_add_affordance.html:8`). A plain descendant query on
+     the child scope is **wrong**: `_add_affordance.html` renders its `<li class="tree__add-row">`
+     **last** in every scope, so any nested non-unit child row's own add form precedes it in document
+     order and `childScope.querySelector('input[name=parent_token]')` would return a *grandchild's*
+     token — stamping this node's timestamp onto an unrelated node's add form (wedging that node's
+     adds until reload) while leaving the intended one stale.
 
    **Values, and why `value` is conditional.** Always set the input's `defaultValue` to the committed
    title (this is what makes the field clean again, so a subsequent blur does not re-post), then set
@@ -419,10 +440,11 @@ Concretely:
    `requestSubmit()` → the submit handler posts `node`, `token`, `title`, CSRF.
 3. `node_rename` → `rename_node` (normalizes the title) → `_check_token` → `full_clean()` →
    `save(update_fields=["updated", "title"])` → renders `_rename_result.html`.
-4. The submit handler's rename branch parses `<data data-rename-for>` and updates the row **in place**:
-   input `value`/`defaultValue`/`title`, all three `input[name=token]`s in the rowhead, the row's
-   `data-updated`, and an open Move picker's `node_token` if it targets this node.
-   `dataset.submitting` is cleared. **No DOM is replaced**; focus, caret and scroll are untouched.
+4. The submit handler's rename branch parses `<data data-rename-for>` and updates the row **in place**,
+   per step 9's inventory: input `defaultValue`/`title` (and `value` only if unfocused), the three
+   `input[name=token]`s in the rowhead, the row's `data-updated`, and — on non-unit rows — the child
+   scope's `data-updated` and its add form's `parent_token`. `dataset.submitting` is cleared.
+   **No DOM is replaced**; focus, caret and scroll are untouched.
 
 ## Error handling
 
@@ -536,6 +558,9 @@ Drive the actual UI — never `page.evaluate` shortcuts, which ship broken UX gr
 - **Rename a chapter, then add a lesson under it** → succeeds, no conflict notice, typed child title
   not discarded. Guards the child scope's `parent_token` refresh. Together with the drag case above,
   these are the two tests that would have caught the original rowhead-only inventory.
+  **The fixture chapter must itself contain a nested section with its own add row**, so that a naive
+  descendant query (which would find the *grandchild's* `parent_token`) fails RED. Additionally assert
+  the nested section's own add still works afterwards — that is what catches the mis-stamped token.
 - **Window blur does not commit:** type, blur the window (not the field) → no POST; field stays dirty.
 - **Debounce / ordering:** tabbing across N rows issues exactly one panel GET; a pointer click issues
   its GET immediately.
