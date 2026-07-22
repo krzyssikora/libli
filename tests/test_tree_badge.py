@@ -31,7 +31,17 @@ def _render_unit(unit_type, title="Intro", lang=None):
     unit = ContentNodeFactory(
         course=course, kind="unit", unit_type=unit_type, parent=None, title=title
     )
-    ctx = {"node": unit, "children_map": {}, "is_first": True, "is_last": True}
+    # `rename_url` is reversed once per scope by _scope.html and passed down, so a
+    # direct render of _tree_node.html has to supply it or the action comes out empty.
+    ctx = {
+        "node": unit,
+        "children_map": {},
+        "is_first": True,
+        "is_last": True,
+        "rename_url": reverse(
+            "courses:manage_node_rename", kwargs={"slug": course.slug}
+        ),
+    }
     if lang:
         with translation.override(lang):
             return render_to_string("courses/manage/_tree_node.html", ctx)

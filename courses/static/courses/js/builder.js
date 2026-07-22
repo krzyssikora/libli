@@ -26,6 +26,11 @@
     movingPk = null;
   }
   function escHtml(s) { var d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+  function parseFragment(html) {
+    var d = document.createElement("div");
+    d.innerHTML = html.trim();
+    return d;
+  }
   function renderSlots(kidsOl, nodePk, rawPos) {
     if (!kidsOl) return;
     kidsOl.hidden = false;
@@ -91,8 +96,7 @@
 
   // Replace the tree element whose data-scope matches the returned fragment's root.
   function applyFragment(html) {
-    var tmp = document.createElement("div");
-    tmp.innerHTML = html.trim();
+    var tmp = parseFragment(html);
     var incoming = tmp.firstElementChild;
     if (!incoming) return;
     var scope = incoming.getAttribute("data-scope");
@@ -115,24 +119,19 @@
     // old value alone would leave the row dirty against a stale value, from which the
     // next blur would post the old title back and silently undo the rename.
     if (!form.isConnected) return;
-    var tmp = document.createElement("div");
-    tmp.innerHTML = html.trim();
-    var data = tmp.querySelector("[data-rename-for]");
+    var data = parseFragment(html).querySelector("[data-rename-for]");
     if (!data) return;                       // unexpected body: silent no-op
     var row = form.closest("li.tree__row");
     if (!row) return;
+    var nodePk = row.getAttribute("data-node");
     var token = data.getAttribute("data-updated");
     var title = data.getAttribute("value");
 
     var input = form.querySelector("input.tree__title");
     if (input) {
-      // Assign value ONLY when it differs: the HTML value setter jumps the caret to
-      // the end and drops the selection even when assigning an identical string.
-      // readOnly means the field cannot have been edited in flight, so a difference
-      // can only be server-side normalisation.
-      if (input.value !== title) input.value = title;
+      input.value = title;
       input.defaultValue = title;            // makes the field clean again
-      input.title = input.value;             // after the assignment, not before
+      input.title = title;
     }
 
     // Every carrier of this node's `updated`, scoped so descendant rows are untouched.
@@ -143,14 +142,14 @@
       });
     }
     row.setAttribute("data-updated", token); // dragstart reads this as node_token
-    var scope = row.querySelector(':scope > ol.tree__scope[data-scope="' + row.getAttribute("data-node") + '"]');
+    var scope = row.querySelector(":scope > ol.tree__scope");
     if (scope) {
       scope.setAttribute("data-updated", token);   // drop target's parent_token
       // Pk-anchored, NOT a descendant query: _add_affordance renders its add row LAST
       // in every scope, so a nested child row's own add form precedes it in document
       // order and a plain querySelector would return a GRANDCHILD's parent_token.
       var add = root.querySelector(
-        'form.tree__add[data-add-scope="' + row.getAttribute("data-node") + '"] input[name=parent_token]'
+        'form.tree__add[data-add-scope="' + nodePk + '"] input[name=parent_token]'
       );
       if (add) add.value = token;
     }
@@ -165,13 +164,21 @@
   }
   function msg(key, fallback) { return root.getAttribute("data-msg-" + key) || fallback; }
 
+  // Release a form from its in-flight state. Only a rename form locks its title input,
+  // so the data-op gate spares every add/reorder/duplicate/reparent submission a
+  // querySelector that can never match.
+  function releaseForm(form) {
+    delete form.dataset.submitting;
+    if (form.getAttribute("data-op") !== "rename") return;
+    var ti = form.querySelector("input.tree__title");
+    if (ti) ti.readOnly = false;
+  }
+
   // Intercept any builder form with data-op; POST via fetch and swap the response.
   root.addEventListener("submit", function (e) {
     var form = e.target.closest("form[data-op]");
     if (!form) return;
     e.preventDefault();
-    // Forms inside the detail panel (rename/settings/Move picker) need a panel refresh
-    // after their op; tree forms (reorder/add) self-refresh via the [data-scope] swap.
     var inPanel = panel.contains(form);
     var body = new FormData(form);
     // include the submitter's name/value (e.g. direction=up)
@@ -211,19 +218,13 @@
           if (inPanel) setPanel(neutralPanel);
           clearMoving();
         } else if (r.status === 422) {
-          var tmp = document.createElement("div");
-          tmp.innerHTML = text.trim();
-          notice(tmp.textContent.trim());
+          notice(parseFragment(text).textContent.trim());
         }
-        delete form.dataset.submitting;
-        var ti = form.querySelector("input.tree__title");
-        if (ti) ti.readOnly = false;
+        releaseForm(form);
       });
     }).catch(function () {
       notice(msg("network", "Network error — please try again."));
-      delete form.dataset.submitting;
-      var ti = form.querySelector("input.tree__title");
-      if (ti) ti.readOnly = false;
+      releaseForm(form);
     });
   });
 
@@ -245,6 +246,9 @@
   });
 
   // ---- Inline rename: selection ------------------------------------------------
+  // The value setter only resets the caret when the value actually CHANGES, so plain
+  // assignment is safe.
+  //
   // Selection moved from click to focusin: preventDefault() on a click into a text
   // input suppresses caret placement, so the click branch was removed outright.
   var panelReq = 0;        // last-request-wins id, allocated when a fetch is ISSUED
@@ -321,11 +325,8 @@
     // whitespace would otherwise post a rename on a bare focus-and-blur.
     if (trimmed === input.defaultValue.trim()) return;
     // Write the trim back -- FormData reads the LIVE value, so trimming into a local
-    // would leave the untrimmed string in the POST body. GUARDED, because the HTML
-    // value setter jumps the caret to the end and drops the selection even when
-    // assigning an identical string; an unconditional write here would destroy the
-    // mid-string caret before the POST is even issued.
-    if (input.value !== trimmed) input.value = trimmed;
+    // would leave the untrimmed string in the POST body.
+    input.value = trimmed;
     input.title = input.value;
     if (!form.reportValidity()) return;   // native bubble; no state set, so no wedge
     form.dataset.submitting = "1";
@@ -341,8 +342,7 @@
       // implicitly submits on Enter, which would post even an unchanged title and
       // would double-post alongside requestSubmit().
       e.preventDefault();
-      if (titleForm(input).dataset.submitting) return;
-      commitRename(input);
+      commitRename(input);   // itself null-guards the form and checks dataset.submitting
     } else if (e.key === "Escape") {
       e.preventDefault();
       if (titleForm(input).dataset.submitting) return;
@@ -365,6 +365,9 @@
     if (e.relatedTarget === null && !document.hasFocus()) return;
     // 3. The form was detached by another op's applyFragment; committing would post a
     //    token that swap already superseded (cf. the add flow's isConnected guard).
+    //    Untested and unreachable in Chromium: it does not fire focusout when the
+    //    focused element is removed, it silently reassigns focus to <body>. This is
+    //    cross-engine insurance for Firefox/WebKit, which do fire it.
     if (!form.isConnected) return;
     // 4. Emptied field = cancel. This MUST precede the dirty check inside
     //    commitRename: an emptied field IS dirty, so we would otherwise post "" and

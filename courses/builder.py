@@ -127,9 +127,15 @@ def _clean_title(title):
 
     Strips surrounding whitespace so a whitespace-only title becomes "" and is
     rejected by full_clean()'s blank check on EVERY path -- JS, no-JS, and the
-    editor settings form. This deliberately does NOT live in ContentNode.clean():
-    full_clean() runs clean_fields() (which enforces blank) BEFORE clean(), so
-    stripping there would let "   " pass the blank check and persist as "".
+    editor settings form.
+
+    This deliberately does NOT live in ContentNode.clean(): full_clean() runs
+    clean_fields() (which enforces blank) BEFORE clean(), so stripping there
+    would let "   " pass the blank check and persist as "". Pushing the strip
+    even earlier -- into a custom field's to_python(), which DOES run before the
+    blank check -- was considered and rejected as disproportionate: a field
+    subclass drags in deconstruct() and a migration, for whitespace trimming
+    with only two entry points.
 
     Not applied by course import/transfer, which builds ContentNode directly
     rather than going through add_node/rename_node.

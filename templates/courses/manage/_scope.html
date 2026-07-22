@@ -1,7 +1,11 @@
 {% load i18n %}
+{% comment %}The rename endpoint is per-COURSE, not per-node, so reverse it once per
+   scope and pass it down instead of paying a reversal on every row (an 840-node
+   course reversed it 840 times, ~64us each).{% endcomment %}
+{% url 'courses:manage_node_rename' slug=course.slug as rename_url %}
 <ol class="tree__scope" data-scope="{{ scope_id }}" data-updated="{{ scope_updated }}">
   {% for node in nodes %}
-    {% include "courses/manage/_tree_node.html" with node=node children_map=children_map is_first=forloop.first is_last=forloop.last %}
+    {% include "courses/manage/_tree_node.html" with node=node children_map=children_map is_first=forloop.first is_last=forloop.last rename_url=rename_url %}
   {% empty %}
     <li class="tree__empty">{% trans "No children yet." %}</li>
   {% endfor %}

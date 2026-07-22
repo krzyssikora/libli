@@ -14,7 +14,7 @@
        within that cluster (nested forms are invalid HTML). The hidden submit exists so
        the no-JS path can commit; tabindex="-1" keeps it out of the tab order, since
        .visually-hidden uses clip and stays focusable.{% endcomment %}
-    <form class="tree__rename" method="post" action="{% url 'courses:manage_node_rename' slug=node.course.slug %}" data-op="rename">
+    <form class="tree__rename" method="post" action="{{ rename_url }}" data-op="rename">
       {% csrf_token %}
       <input type="hidden" name="node" value="{{ node.pk }}">
       <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
