@@ -829,13 +829,52 @@ class TableElement(ElementBase):
 
     @staticmethod
     def _span(raw, key):
-        """A colspan/rowspan value: a positive int > 1 (clamped to MAX_COLS),
-        else absent. Kept out of the cell dict when 1 so non-spanning tables and
-        the WYSIWYG editor are unaffected."""
+        """A colspan/rowspan value: a positive int > 1, clamped to that axis's
+        cap, else absent. Kept out of the cell dict when 1 so non-spanning
+        tables and the WYSIWYG editor are unaffected.
+
+        The clamp is per-axis: a rowspan clamped against MAX_COLS would
+        silently truncate a legal 30-row span. It is defence-in-depth only —
+        the forms REJECT an out-of-range span rather than relying on this
+        (a silent clamp produces a layout-inconsistent grid)."""
         n = raw.get(key)
         if isinstance(n, bool) or not isinstance(n, int):
             return None
-        return min(n, TableElement.MAX_COLS) if n > 1 else None
+        cap = TableElement.MAX_ROWS if key == "rowspan" else TableElement.MAX_COLS
+        return min(n, cap) if n > 1 else None
+
+    @staticmethod
+    def layout_dims(cells):
+        """(width, height) of a grid in LAYOUT terms, i.e. accounting for
+        colspan/rowspan rather than counting cells per row.
+
+        width = max over cells of (anchor column + colspan), 0 for an empty
+        grid; height = number of rows. Identical to table_grid.js's slotMap()
+        so the server and the editor can never disagree about a grid's size.
+
+        Degenerate input is coerced, never raised on (this runs on raw
+        author-supplied JSON in TableElementForm): a non-dict cell counts as a
+        1x1 occupant, a span value that fails _span's type test counts as 1,
+        and a non-list row is skipped."""
+        rows = cells if isinstance(cells, list) else []
+        occupied = set()
+        width = 0
+        for r, row in enumerate(rows):
+            if not isinstance(row, list):
+                continue
+            c = 0
+            for cell in row:
+                raw = cell if isinstance(cell, dict) else {}
+                while (r, c) in occupied:
+                    c += 1
+                colspan = TableElement._span(raw, "colspan") or 1
+                rowspan = TableElement._span(raw, "rowspan") or 1
+                for dr in range(rowspan):
+                    for dc in range(colspan):
+                        occupied.add((r + dr, c + dc))
+                c += colspan
+                width = max(width, c)
+        return width, len(rows)
 
     @staticmethod
     def _cell(raw):
