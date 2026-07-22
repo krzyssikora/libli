@@ -419,3 +419,25 @@ def test_delete_row_clamps_a_rowspan_that_would_overflow(grid_page):
         "<tr><td></td><td data-control></td></tr>"
     )
     assert _run(grid_page, rows, "libliTableGrid.deleteRow(g, 1)") == ["1x1,1x1"]
+
+
+def test_delete_row_clamps_an_overflowing_stored_rowspan(grid_page):
+    # 'a' carries an overflowing STORED rowspan=5 -- reachable only from
+    # hand-edited JSON, since slotMap clips it to height=2 for mapping while
+    # the attribute itself stays 5. It straddles the deleted row (anchored at
+    # row 0), so deleteRow's step (a) decrements it once: 5 -> 4. That alone
+    # is NOT enough -- 0 + 4 = 4 still overflows the new height=1 grid -- so
+    # only clampRowspans, bringing it to max(1, 1 - 0) = 1, keeps it in bounds.
+    rows = (
+        "<tr><td id='a' rowspan='5'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.deleteRow(g, 1);
+             return [shape(g), document.getElementById('a').rowSpan];
+           }"""
+    js = template % rows  # noqa: UP031
+    shape, row_span = grid_page.evaluate(js)
+    assert row_span == 1
+    assert shape == ["1x1,1x1"]
