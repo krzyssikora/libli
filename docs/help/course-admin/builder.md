@@ -31,6 +31,14 @@ Type a name into the **New title** field, then press the **+ Lesson** or
 questions). Drag units to reorder them; the outline on the left mirrors what
 students see.
 
+## Renaming
+
+Every title in the tree is editable in place — parts, chapters, sections and
+units alike. Click a title, type the new name, then press **Enter** or click
+away to save it. Press **Escape** to abandon the edit and restore the previous
+title. This is also the quickest way to rename a unit: you no longer need to
+open its editor.
+
 ## Next steps
 
 - [Content editors](content-editors) — building lesson pages.

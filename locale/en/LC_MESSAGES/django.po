@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-21 23:20+0200\n"
+"POT-Creation-Date: 2026-07-22 21:32+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -531,7 +531,7 @@ msgstr ""
 msgid "Which content levels this course uses."
 msgstr ""
 
-#: .\courses\forms.py:79 .\templates\courses\manage\_rename_form.html:6
+#: .\courses\forms.py:79 .\templates\courses\manage\_tree_node.html:23
 #: .\templates\courses\manage\editor\_edit_iframe.html:7
 #: .\templates\courses\manage\editor\_unit_settings.html:12
 msgid "Title"
@@ -722,7 +722,7 @@ msgstr ""
 
 #: .\courses\media.py:21 .\courses\models.py:527
 #: .\courses\templatetags\courses_manage_extras.py:31
-#: .\courses\views_manage.py:782
+#: .\courses\views_manage.py:784
 #: .\templates\courses\manage\editor\_add_menu.html:16
 #: .\templates\courses\manage\editor\_edit_dragtoimagequestion.html:10
 #: .\templates\courses\manage\media\manager.html:18
@@ -731,13 +731,13 @@ msgstr ""
 
 #: .\courses\media.py:22 .\courses\models.py:528
 #: .\courses\templatetags\courses_manage_extras.py:32
-#: .\courses\views_manage.py:783
+#: .\courses\views_manage.py:785
 #: .\templates\courses\manage\editor\_add_menu.html:17
 #: .\templates\courses\manage\media\manager.html:18
 msgid "Video"
 msgstr ""
 
-#: .\courses\media.py:23 .\courses\views_manage.py:809
+#: .\courses\media.py:23 .\courses\views_manage.py:811
 #: .\templates\courses\manage\editor\_add_menu.html:53
 msgid "Drag to image"
 msgstr ""
@@ -880,7 +880,7 @@ msgid "Great!"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:30
-#: .\courses\views_manage.py:781
+#: .\courses\views_manage.py:783
 #: .\templates\courses\manage\editor\_add_menu.html:15
 msgid "Text"
 msgstr ""
@@ -890,25 +890,25 @@ msgid "Embed"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:34
-#: .\courses\views_manage.py:785
+#: .\courses\views_manage.py:787
 #: .\templates\courses\manage\editor\_add_menu.html:19
 msgid "Math"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:35
-#: .\courses\views_manage.py:786
+#: .\courses\views_manage.py:788
 #: .\templates\courses\manage\editor\_add_menu.html:20
 msgid "HTML"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:36
-#: .\courses\views_manage.py:787
+#: .\courses\views_manage.py:789
 #: .\templates\courses\manage\editor\_add_menu.html:21
 msgid "Table"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:37
-#: .\courses\views_manage.py:788 .\templates\courses\lesson_unit.html:72
+#: .\courses\views_manage.py:790 .\templates\courses\lesson_unit.html:72
 #: .\templates\courses\manage\editor\_add_menu.html:22
 #: .\templates\courses\manage\editor\editor.html:135
 #: .\templates\courses\quiz_unit.html:27
@@ -916,7 +916,7 @@ msgid "Gallery"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:38
-#: .\courses\views_manage.py:789 .\templates\courses\lesson_unit.html:74
+#: .\courses\views_manage.py:791 .\templates\courses\lesson_unit.html:74
 #: .\templates\courses\manage\editor\_add_menu.html:24
 #: .\templates\courses\manage\editor\editor.html:142
 #: .\templates\courses\quiz_unit.html:29
@@ -924,7 +924,7 @@ msgid "Tabs"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:39
-#: .\courses\views_manage.py:790
+#: .\courses\views_manage.py:792
 #: .\templates\courses\manage\editor\_add_menu.html:25
 msgid "Columns"
 msgstr ""
@@ -958,7 +958,7 @@ msgid "Matrix"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:47
-#: .\courses\views_manage.py:808
+#: .\courses\views_manage.py:810
 #: .\templates\courses\manage\editor\_add_menu.html:52
 msgid "Multi-select grid"
 msgstr ""
@@ -972,7 +972,7 @@ msgid "Essay"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:50
-#: .\courses\views_manage.py:791
+#: .\courses\views_manage.py:793
 #: .\templates\courses\manage\editor\_add_menu.html:58
 #: .\templates\courses\manage\editor\_element_row.html:10
 msgid "Slide break"
@@ -980,7 +980,7 @@ msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:51
 #: .\courses\templatetags\courses_manage_extras.py:112
-#: .\courses\views_manage.py:792 .\notes\templates\notes\_notes_i18n.html:10
+#: .\courses\views_manage.py:794 .\notes\templates\notes\_notes_i18n.html:10
 #: .\templates\courses\elements\revealgateelement.html:5
 #: .\templates\courses\manage\editor\_add_menu.html:30
 #: .\templates\courses\manage\editor\_edit_revealgate.html:6
@@ -989,37 +989,37 @@ msgid "Show more"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:52
-#: .\courses\views_manage.py:793
+#: .\courses\views_manage.py:795
 #: .\templates\courses\manage\editor\_add_menu.html:35
 msgid "Spoiler"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:53
-#: .\courses\views_manage.py:794
+#: .\courses\views_manage.py:796
 #: .\templates\courses\manage\editor\_add_menu.html:31
 msgid "Fill in & confirm"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:54
-#: .\courses\views_manage.py:795
+#: .\courses\views_manage.py:797
 #: .\templates\courses\manage\editor\_add_menu.html:32
 msgid "Choose & confirm"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:55
-#: .\courses\views_manage.py:796
+#: .\courses\views_manage.py:798
 #: .\templates\courses\manage\editor\_add_menu.html:33
 msgid "Switch grid"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:56
-#: .\courses\views_manage.py:797
+#: .\courses\views_manage.py:799
 #: .\templates\courses\manage\editor\_add_menu.html:34
 msgid "Fill-in table"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:57
-#: .\courses\views_manage.py:798
+#: .\courses\views_manage.py:800
 #: .\templates\courses\manage\editor\_add_menu.html:23
 msgid "Callout"
 msgstr ""
@@ -1031,13 +1031,13 @@ msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:59
 #: .\courses\templatetags\courses_manage_extras.py:162
-#: .\courses\views_manage.py:800
+#: .\courses\views_manage.py:802
 #: .\templates\courses\manage\editor\_add_menu.html:37
 msgid "Checklist"
 msgstr ""
 
 #: .\courses\templatetags\courses_manage_extras.py:60
-#: .\courses\views_manage.py:801
+#: .\courses\views_manage.py:803
 #: .\templates\courses\manage\editor\_add_menu.html:38
 msgid "Guess the number"
 msgstr ""
@@ -1084,7 +1084,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: .\courses\templatetags\courses_manage_extras.py:157
-#: .\courses\views_manage.py:799
+#: .\courses\views_manage.py:801
 #: .\templates\courses\manage\editor\_add_menu.html:36
 msgid "Step-by-step"
 msgstr ""
@@ -2089,8 +2089,8 @@ msgid "You can't add the %(kind)s level to this course."
 msgstr ""
 
 #: .\courses\views_manage.py:270 .\courses\views_manage.py:327
-#: .\courses\views_manage.py:369 .\courses\views_manage.py:395
-#: .\courses\views_manage.py:448 .\courses\views_manage.py:480
+#: .\courses\views_manage.py:371 .\courses\views_manage.py:397
+#: .\courses\views_manage.py:450 .\courses\views_manage.py:482
 #: .\templates\courses\manage\builder.html:10
 #: .\templates\courses\manage\editor\editor.html:13
 #: .\templates\courses\manage\editor\editor.html:43
@@ -2098,61 +2098,61 @@ msgstr ""
 msgid "This changed elsewhere — reloaded to the latest."
 msgstr ""
 
-#: .\courses\views_manage.py:614
+#: .\courses\views_manage.py:616
 msgid "Provide exactly one of direction or position."
 msgstr ""
 
-#: .\courses\views_manage.py:620
+#: .\courses\views_manage.py:622
 msgid "Invalid position."
 msgstr ""
 
-#: .\courses\views_manage.py:784
+#: .\courses\views_manage.py:786
 #: .\templates\courses\manage\editor\_add_menu.html:18
 msgid "Iframe"
 msgstr ""
 
-#: .\courses\views_manage.py:802
+#: .\courses\views_manage.py:804
 #: .\templates\courses\manage\editor\_add_menu.html:46
 msgid "Short text"
 msgstr ""
 
-#: .\courses\views_manage.py:803
+#: .\courses\views_manage.py:805
 #: .\templates\courses\manage\editor\_add_menu.html:47
 msgid "Short numeric"
 msgstr ""
 
-#: .\courses\views_manage.py:804
+#: .\courses\views_manage.py:806
 #: .\templates\courses\manage\editor\_add_menu.html:48
 #: .\tests\test_i18n_questions_2b.py:29
 msgid "Fill in the blanks"
 msgstr ""
 
-#: .\courses\views_manage.py:805
+#: .\courses\views_manage.py:807
 #: .\templates\courses\manage\editor\_add_menu.html:49
 msgid "Drag the words"
 msgstr ""
 
-#: .\courses\views_manage.py:806
+#: .\courses\views_manage.py:808
 #: .\templates\courses\manage\editor\_add_menu.html:50
 msgid "Match pairs"
 msgstr ""
 
-#: .\courses\views_manage.py:807
+#: .\courses\views_manage.py:809
 #: .\templates\courses\manage\editor\_add_menu.html:51
 msgid "Matrix question"
 msgstr ""
 
-#: .\courses\views_manage.py:810
+#: .\courses\views_manage.py:812
 #: .\templates\courses\manage\editor\_add_menu.html:54
 msgid "Extended response"
 msgstr ""
 
-#: .\courses\views_manage.py:903
+#: .\courses\views_manage.py:905
 #: .\templates\courses\manage\editor\_add_menu.html:45
 msgid "Multiple choice"
 msgstr ""
 
-#: .\courses\views_manage.py:903
+#: .\courses\views_manage.py:905
 #: .\templates\courses\manage\editor\_add_menu.html:44
 msgid "Single choice"
 msgstr ""
@@ -2653,7 +2653,7 @@ msgstr ""
 
 #: .\notes\templates\notes\confirm_delete.html:9
 #: .\tags\templates\tags\delete_confirm.html:13
-#: .\templates\courses\manage\_tree_node.html:27
+#: .\templates\courses\manage\_tree_node.html:41
 #: .\templates\courses\manage\editor\_element_row_controls.html:17
 #: .\templates\courses\manage\media\_asset_cell.html:36
 #: .\templates\courses\manage\node_confirm_delete.html:11
@@ -4009,11 +4009,6 @@ msgstr ""
 msgid "Couldn't apply that change:"
 msgstr ""
 
-#: .\templates\courses\manage\_rename_form.html:7
-#: .\templates\courses\manage\media\_asset_cell.html:12
-msgid "Rename"
-msgstr ""
-
 #: .\templates\courses\manage\_roster_row.html:25
 #: .\templates\courses\manage\review_queue.html:33
 msgid "Force-submit"
@@ -4023,19 +4018,24 @@ msgstr ""
 msgid "No children yet."
 msgstr ""
 
-#: .\templates\courses\manage\_tree_node.html:15
+#: .\templates\courses\manage\_tree_node.html:26
+#: .\templates\courses\manage\media\_asset_cell.html:12
+msgid "Rename"
+msgstr ""
+
+#: .\templates\courses\manage\_tree_node.html:29
 msgid "Drag to move"
 msgstr ""
 
-#: .\templates\courses\manage\_tree_node.html:17
+#: .\templates\courses\manage\_tree_node.html:31
 msgid "Move…"
 msgstr ""
 
-#: .\templates\courses\manage\_tree_node.html:18
+#: .\templates\courses\manage\_tree_node.html:32
 msgid "Export subtree"
 msgstr ""
 
-#: .\templates\courses\manage\_tree_node.html:24
+#: .\templates\courses\manage\_tree_node.html:38
 #: .\tests\test_manage_duplicate_button.py:49
 msgid "Duplicate"
 msgstr ""
