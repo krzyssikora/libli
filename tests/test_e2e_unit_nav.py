@@ -343,8 +343,8 @@ def test_mobile_drawer_focus_trap(browser, live_server):
             " const p = document.querySelector"
             "('[data-unit-drawer] .unit-drawer__panel');"
             " const f = [...p.querySelectorAll("
-            "'a[href],button:not([disabled]),[tabindex]:not([tabindex=\"-1\"])')]"
-            ".filter(e => e.offsetParent);"
+            "'a[href],button:not([disabled]),summary,[tabindex]:not([tabindex=\"-1\"])')]"
+            ".filter(e => e.checkVisibility());"
             " return document.activeElement === f[f.length - 1];"
             "})()"
         )
@@ -393,3 +393,492 @@ def test_prev_next_traverses_lesson_and_quiz(browser, live_server):
         )
     finally:
         ctx.close()
+
+
+# ---------------------------------------------------------------------------
+# Folding groups (<details>) — seed + tests
+# ---------------------------------------------------------------------------
+
+
+def _seed_grouped_course(username, slug, num_chapters=6, units_per_chapter=8):
+    """A course with several chapters, current unit in the MIDDLE chapter so both an
+    earlier and a later sibling are observably shut."""
+    from django.contrib.auth import get_user_model
+
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+    from tests.factories import EnrollmentFactory
+
+    User = get_user_model()
+    student = User.objects.get(username=username)
+    course = CourseFactory(slug=slug, owner=student)
+    EnrollmentFactory(student=student, course=course)
+
+    chapters, units = [], []
+    for c in range(num_chapters):
+        chapter = ContentNodeFactory(
+            course=course,
+            kind="chapter",
+            parent=None,
+            unit_type=None,
+            title=f"Chapter {c + 1}",
+        )
+        chapters.append(chapter)
+        for u in range(units_per_chapter):
+            units.append(
+                ContentNodeFactory(
+                    course=course,
+                    kind="unit",
+                    unit_type="lesson",
+                    parent=chapter,
+                    title=f"C{c + 1} Unit {u + 1}",
+                )
+            )
+    middle = units[len(units) // 2]
+    middle_chapter = middle.parent
+
+    # A SECTION nested inside the current (open) chapter. Without this the seed is a
+    # flat set of sibling chapters, and the chevron test's negative half cannot detect
+    # the bug it exists to catch: the hazard is `details[open] .unit-tree__chevron`
+    # matching a CLOSED group that is a DESCENDANT of an open one. Sibling chapters are
+    # not descendants, so a buggy descendant selector would leave them unrotated and
+    # would pass.
+    nested_section = ContentNodeFactory(
+        course=course,
+        kind="section",
+        parent=middle_chapter,
+        unit_type=None,
+        title="Nested Section",
+    )
+    ContentNodeFactory(
+        course=course,
+        kind="unit",
+        unit_type="lesson",
+        parent=nested_section,
+        title="Nested Unit 1",
+    )
+    return course, chapters, units, middle, nested_section
+
+
+@pytest.mark.django_db(transaction=True)
+def test_current_chapter_open_siblings_shut(browser, live_server):
+    _make_student("e2e_fold")
+    course, chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_fold", "e2e-fold"
+    )
+
+    ctx = browser.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_fold")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    rail = page.locator("[data-unit-tree]")
+    # all_text_contents(), NOT all_inner_texts(): .unit-tree__grouptitle inherits
+    # text-transform: uppercase from the chapter micro-type rule, and innerText reflects
+    # RENDERED text — so inner_text would yield "CHAPTER 4" and the comparison would
+    # invert the RED/GREEN cycle (passing before Step 3's selector fix, failing after).
+    open_titles = rail.locator(
+        "details[open] > summary .unit-tree__grouptitle"
+    ).all_text_contents()
+    open_titles = [t.strip() for t in open_titles]
+    # The nested section inside the current chapter is SHUT, so one group is open.
+    assert open_titles == [middle.parent.title], (
+        f"exactly the current chapter should be open, got {open_titles}"
+    )
+
+    shut = rail.locator("details:not([open])")
+    # every other chapter, plus the nested section inside the open one
+    assert shut.count() == len(chapters) - 1 + 1, "every other group should be shut"
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_clicking_a_folded_summary_reveals_its_units(browser, live_server):
+    _make_student("e2e_reveal")
+    course, _chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_reveal", "e2e-reveal"
+    )
+
+    ctx = browser.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_reveal")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    rail = page.locator("[data-unit-tree]")
+    first_unit_of_ch1 = rail.get_by_role("link", name="C1 Unit 1")
+    assert not first_unit_of_ch1.is_visible(), "Chapter 1 should start folded"
+
+    rail.locator("summary", has_text="Chapter 1").first.click()  # real click
+    first_unit_of_ch1.wait_for(state="visible")
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_chapter_microtype_survives_the_details_nesting(browser, live_server):
+    """The highest-risk change in 2A: the > child combinator stops matching once
+    <details> is interposed, and chapters silently lose their uppercase micro-type.
+    Baseline is the literal current value (courses.css:540-542), not 'same as today'."""
+    _make_student("e2e_micro")
+    course, _chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_micro", "e2e-micro"
+    )
+    from tests.factories import ContentNodeFactory
+
+    # the childless shape
+    ContentNodeFactory(
+        course=course,
+        kind="chapter",
+        parent=None,
+        unit_type=None,
+        title="Empty Chapter",
+    )
+
+    ctx = browser.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_micro")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    rail = page.locator("[data-unit-tree]")
+    for locator, shape in (
+        (rail.locator("details > summary.unit-tree__head").first, "<details> shape"),
+        (rail.locator("div.unit-tree__head").first, "childless shape"),
+    ):
+        style = locator.evaluate(
+            "el => { const s = getComputedStyle(el);"
+            " return {tt: s.textTransform, fs: s.fontSize}; }"
+        )
+        assert style["tt"] == "uppercase", f"{shape}: lost uppercase ({style['tt']})"
+        # .64rem against the 16px root = 10.24px.
+        assert abs(float(style["fs"].rstrip("px")) - 10.24) < 0.5, (
+            f"{shape}: font-size drifted ({style['fs']})"
+        )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_chevron_rotates_only_for_the_open_group(browser, live_server):
+    """Both halves in one test so they cannot drift apart: a missing rule satisfies the
+    negative assertion perfectly while shipping a chevron that never rotates."""
+    _make_student("e2e_chev")
+    course, _chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_chev", "e2e-chev"
+    )
+
+    ctx = browser.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_chev")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    rail = page.locator("[data-unit-tree]")
+    open_t = rail.locator(
+        "details[open] > summary > .unit-tree__chevron"
+    ).first.evaluate("el => getComputedStyle(el).transform")
+    # Target the NESTED section specifically — a closed group INSIDE the open chapter.
+    # A sibling closed chapter would not detect the descendant-selector bug, because it
+    # is not a descendant of the open one.
+    shut_t = rail.locator(
+        "details[open] details:not([open]) > summary > .unit-tree__chevron"
+    ).first.evaluate("el => getComputedStyle(el).transform")
+    assert open_t not in ("none", "matrix(1, 0, 0, 1, 0, 0)"), (
+        f"open group's chevron does not rotate ({open_t})"
+    )
+    assert shut_t in ("none", "matrix(1, 0, 0, 1, 0, 0)"), (
+        f"closed NESTED group's chevron is rotated ({shut_t}) — the rotation selector "
+        f"is a descendant selector; it must be the direct-child chain"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_drawer_focus_trap_holds_at_a_folded_summary(browser, live_server):
+    """<summary> is natively tabbable but matches none of focusable()'s selectors, so
+    without widening it, Tab from a trailing folded summary escapes the drawer."""
+    _make_student("e2e_trap")
+    course, _chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_trap", "e2e-trap"
+    )
+
+    ctx = browser.new_context(
+        reduced_motion="reduce", viewport={"width": 480, "height": 800}
+    )
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_trap")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    page.locator("[data-unit-drawer-open]").click()
+    page.locator("[data-unit-drawer]").wait_for(state="visible")
+
+    last_summary = page.locator("[data-unit-drawer] details:not([open]) > summary").last
+    last_summary.focus()
+    page.keyboard.press("Tab")
+
+    inside = page.evaluate(
+        "() => !!document.activeElement.closest('[data-unit-drawer]')"
+    )
+    assert inside, (
+        "Tab escaped the drawer from a folded summary — focusable() must include "
+        "summary"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_drawer_shows_the_current_chain_open(browser, live_server):
+    """The drawer has its own container and centring path, so it gets its own cover."""
+    _make_student("e2e_drawer_fold")
+    course, chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_drawer_fold", "e2e-drawer-fold"
+    )
+
+    ctx = browser.new_context(
+        reduced_motion="reduce", viewport={"width": 480, "height": 800}
+    )
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_drawer_fold")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    page.locator("[data-unit-drawer-open]").click()
+    drawer = page.locator("[data-unit-drawer]")
+    drawer.wait_for(state="visible")
+
+    open_titles = [
+        t.strip()
+        for t in drawer.locator(
+            "details[open] > summary .unit-tree__grouptitle"
+        ).all_text_contents()  # not inner_text — see the rail test's note on uppercase
+    ]
+    assert open_titles == [middle.parent.title]
+    assert drawer.locator("details:not([open])").count() == len(chapters) - 1 + 1
+    ctx.close()
+
+
+# ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Re-centring on expand + the active marker
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_expanding_the_rail_recentres_the_active_unit(browser, live_server):
+    """The bug: centring ran only on load and only when not collapsed, so expanding a
+    collapsed rail left the student at scroll-top with the active unit far away."""
+    _make_student("e2e_recentre")
+    # 40 units in the CURRENT chapter. With the default 8, the folded tree is ~400px
+    # inside a 720px rail — it never scrolls, the active row is always inside the
+    # visible band, and the poll below succeeds with OR without centerActive(). The
+    # test could never go red. (The pre-existing test_active_unit_scrolled_into_view
+    # needed 35 VISIBLE units for the same reason.) Only the open chapter's units are
+    # visible, so they must carry the count.
+    course, _chapters, units, middle, _sec = _seed_grouped_course(
+        "e2e_recentre", "e2e-recentre", num_chapters=3, units_per_chapter=40
+    )
+    # The LAST unit of the current chapter, not the middle one. Overflowing the rail is
+    # not sufficient: the active row must start OUTSIDE the visible band, or the poll
+    # below succeeds at scrollTop=0 with or without centerActive(). (The pre-existing
+    # test_active_unit_scrolled_into_view targets the last of 35 for the same reason.)
+    target = [u for u in units if u.parent == middle.parent][-1]
+
+    ctx = browser.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_recentre")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{target.pk}/")
+
+    # Precondition: the rail overflows AND the active row would be out of view at
+    # the top.
+    overflow = page.locator("[data-unit-tree]").evaluate(
+        "el => el.scrollHeight - el.clientHeight"
+    )
+    assert overflow > 0, f"rail does not scroll (overflow={overflow}); seed more units"
+    out_of_band_at_top = page.evaluate(
+        """() => {
+             const rail = document.querySelector('[data-unit-tree]');
+             const act = rail.querySelector('.unit-tree__unit.is-active');
+             const prev = rail.scrollTop;
+             rail.scrollTop = 0;
+             const r = act.getBoundingClientRect(), t = rail.getBoundingClientRect();
+             const out = r.bottom > t.bottom || r.top < t.top;
+             rail.scrollTop = prev;
+             return out;
+           }"""
+    )
+    assert out_of_band_at_top, (
+        "the active row is visible at scrollTop=0, so this test cannot detect a "
+        "missing re-centre — target a unit further down the current chapter"
+    )
+
+    toggle = page.locator("[data-unit-tree-toggle]")
+    toggle.click()  # collapse (real gesture)
+    page.wait_for_function(
+        "() => document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+    toggle.click()  # expand
+    page.wait_for_function(
+        "() => !document.documentElement.classList.contains('unit-tree-collapsed')"
+    )
+
+    # Poll: centerActive() may animate. Assert the active row sits inside the rail's
+    # visible band, not merely that scrollTop moved.
+    page.wait_for_function(
+        """() => {
+             const rail = document.querySelector('[data-unit-tree]');
+             const act = rail && rail.querySelector('.unit-tree__unit.is-active');
+             if (!act) return false;
+             const r = act.getBoundingClientRect(), t = rail.getBoundingClientRect();
+             return r.top >= t.top && r.bottom <= t.bottom;
+           }""",
+        timeout=5000,
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_active_marker_is_strong_and_width_neutral(browser, live_server):
+    _make_student("e2e_marker")
+    course, _chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_marker", "e2e-marker"
+    )
+
+    ctx = browser.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_marker")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    rail = page.locator("[data-unit-tree]")
+    active = rail.locator(".unit-tree__unit.is-active").first
+    # Scope the comparison row to the OPEN chapter. `.unit-tree__unit:not(.is-active)`
+    # in DOM order is the first unit of Chapter 1, inside a CLOSED <details> — and
+    # Playwright returns None from bounding_box() for a non-rendered element, so the
+    # subtraction below would raise TypeError and the assertion could never run.
+    inactive = rail.locator("details[open] > ul .unit-tree__unit:not(.is-active)").first
+
+    assert active.evaluate("el => getComputedStyle(el).fontWeight") == "700"
+
+    # Width-neutral: the active row's text starts at the same x as its siblings'.
+    abox = active.locator(".unit-tree__label").bounding_box()
+    ibox = inactive.locator(".unit-tree__label").bounding_box()
+    assert abox is not None and ibox is not None, (
+        "both rows must be rendered to compare"
+    )
+    ax, ix = abox["x"], ibox["x"]
+    assert abs(ax - ix) < 1.0, (
+        f"active row's text jogged by {ax - ix:.1f}px — widen the bar without changing "
+        f"the box (inset box-shadow or ::before), or compensate padding-left"
+    )
+
+    # Focus ring: driven by a REAL Tab. Chromium's :focus-visible heuristic does not
+    # apply reliably to a programmatic .focus() with no prior keyboard interaction.
+    # Tab forward until the active row has keyboard focus (bounded, so a regression
+    # fails rather than hangs). Tabbing is what arms :focus-visible.
+    page.locator("[data-unit-tree-toggle]").focus()
+    for _ in range(200):
+        page.keyboard.press("Tab")
+        if page.evaluate(
+            "() => !!document.activeElement.classList"
+            " && document.activeElement.classList.contains('is-active')"
+        ):
+            break
+    else:
+        raise AssertionError("never reached the active row by tabbing")
+    ring = active.evaluate(
+        "el => { const s = getComputedStyle(el);"
+        " return {w: s.outlineWidth, o: s.outlineOffset}; }"
+    )
+    assert ring["w"] not in ("0px", ""), "no focus-visible ring on the active row"
+    # The ring shares --primary with the accent bar by design (one ring colour for the
+    # whole rail); what keeps them tellable apart is the OFFSET — a flush inset bar on
+    # the left edge versus an outline standing off the whole row.
+    assert ring["o"] not in ("0px", ""), (
+        f"focus ring has no offset ({ring['o']}) — it will merge into the accent bar"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_done_and_active_row_keeps_the_active_colour(browser, live_server):
+    """A completed current unit must not render in .is-done's faint --text-tertiary —
+    it is the one row the student most needs to find."""
+    _make_student("e2e_doneactive")
+    course, _chapters, units, middle, _sec = _seed_grouped_course(
+        "e2e_doneactive", "e2e-doneactive"
+    )
+    from django.contrib.auth import get_user_model
+
+    from tests.factories import UnitProgressFactory
+
+    student = get_user_model().objects.get(username="e2e_doneactive")
+    UnitProgressFactory(student=student, unit=middle, completed=True)
+    # A SECOND completed unit in the same (open) chapter, so a done-but-not-active
+    # comparison row always exists. Without it the comparison below is skipped and the
+    # test asserts nothing about the cascade.
+    other_done = next(
+        u for u in units if u.parent == middle.parent and u.pk != middle.pk
+    )
+    UnitProgressFactory(student=student, unit=other_done, completed=True)
+
+    ctx = browser.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_doneactive")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    rail = page.locator("[data-unit-tree]")
+    active = rail.locator(".unit-tree__unit.is-active").first
+    assert "is-done" in (active.get_attribute("class") or ""), (
+        "seed did not mark it done"
+    )
+
+    active_colour = active.evaluate("el => getComputedStyle(el).color")
+    done_only = rail.locator(".unit-tree__unit.is-done:not(.is-active)").first
+    # No `if count()` guard: an absent comparison row is a seeding failure and must fail
+    # the test, not silently skip its only meaningful assertion.
+    assert done_only.count() == 1, "seed must include a done-only row"
+    assert active_colour != done_only.evaluate("el => getComputedStyle(el).color"), (
+        "done+active resolves to the faint --text-tertiary — .is-active must win "
+        "(check it comes AFTER .is-done in source order)"
+    )
+    ctx.close()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_centering_is_skipped_when_the_active_group_is_folded(browser, live_server):
+    """The folded-active guard. NOTE: this passes VACUOUSLY before centerActive() lands
+    (today the expand does nothing at all). Its only meaningful run is the deliberate
+    falsification: delete `if (!active.checkVisibility()) return;` and it fails with
+    __scrollToCalls == 1."""
+    _make_student("e2e_guard")
+    course, _chapters, _units, middle, _sec = _seed_grouped_course(
+        "e2e_guard", "e2e-guard", num_chapters=3, units_per_chapter=40
+    )
+    ctx = browser.new_context(reduced_motion="reduce")
+    page = ctx.new_page()
+    _login(page, live_server, "e2e_guard")
+    page.goto(f"{live_server.url}/courses/{course.slug}/u/{middle.pk}/")
+
+    # Real click: fold the chapter that contains the active unit. (Verified against this
+    # repo's Playwright Chromium: after folding, the active link keeps a truthy
+    # offsetParent and a stale non-zero rect — only checkVisibility() sees it hidden.)
+    page.locator("[data-unit-tree] details[open] > summary").first.click()
+    page.wait_for_function(
+        "() => !document.querySelector('[data-unit-tree] .unit-tree__unit.is-active')"
+        "        .checkVisibility()"
+    )
+
+    page.evaluate(
+        """() => {
+             const rail = document.querySelector('[data-unit-tree]');
+             window.__scrollToCalls = 0;
+             const real = rail.scrollTo.bind(rail);
+             rail.scrollTo = function () {
+               window.__scrollToCalls++;
+               return real.apply(this, arguments);
+             };
+           }"""
+    )
+
+    toggle = page.locator("[data-unit-tree-toggle]")
+    toggle.click()  # collapse (real gesture)
+    toggle.click()  # expand   (real gesture) -> centerActive() runs
+    assert page.evaluate("() => window.__scrollToCalls") == 0, (
+        "centerActive() scrolled the rail for an element with no layout box — the "
+        "visibility guard is missing, and the rail will jump to a stale-rect position"
+    )
+    ctx.close()

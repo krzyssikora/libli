@@ -9,6 +9,14 @@
   // unchanged rather than Move alone forcing the moved node's details into view.
   var neutralPanel = panel.innerHTML;
 
+  // Single writer for panel content. The panel is a scroll container (builder.css), so
+  // every swap must reset scrollTop or the next node's panel opens mid-way down. Nine
+  // call sites funnel through here; tests/test_builder_js_invariants.py enforces it.
+  function setPanel(html) {
+    panel.innerHTML = html;
+    panel.scrollTop = 0;
+  }
+
   // ---- Move-picker state (declared early so the submit handler can call clearMoving) ----
   var movingPk = null;
   function clearMoving() {
@@ -116,11 +124,11 @@
     var nodeInput = form.querySelector("input[name='node']");
     var btn = nodeInput && root.querySelector('[data-select="' + nodeInput.value + '"]');
     var url = btn && btn.getAttribute("data-panel-url");
-    if (!url) { panel.innerHTML = ""; return; }
+    if (!url) { setPanel(""); return; }
     fetch(url, { headers: { "X-Requested-With": "fetch" } })
       .then(function (r) { return r.text(); })
-      .then(function (html) { panel.innerHTML = html; })
-      .catch(function () { panel.innerHTML = ""; });
+      .then(function (html) { setPanel(html); })
+      .catch(function () { setPanel(""); });
   }
 
   // Intercept any builder form with data-op; POST via fetch and swap the response.
@@ -161,7 +169,7 @@
           // so it matches arrow/drag reorders (which never touch the panel); rename/settings
           // forms keep editing their node, so re-fetch that node's fresh panel.
           if (inPanel) {
-            if (form.getAttribute("data-op") === "reparent") panel.innerHTML = neutralPanel;
+            if (form.getAttribute("data-op") === "reparent") setPanel(neutralPanel);
             else refreshPanel(form);
           }
           clearMoving();
@@ -186,8 +194,8 @@
       clearMoving();
       fetch(sel.getAttribute("data-panel-url"), { headers: { "X-Requested-With": "fetch" } })
         .then(function (r) { return r.text(); })
-        .then(function (html) { panel.innerHTML = html; })
-        .catch(function () { panel.innerHTML = '<div class="op-error" role="alert">Network error — please reload.</div>'; });
+        .then(function (html) { setPanel(html); })
+        .catch(function () { setPanel('<div class="op-error" role="alert">Network error — please reload.</div>'); });
       return;
     }
     // Move… links open their picker inline (fetch GET).
@@ -197,10 +205,10 @@
       fetch(mv.getAttribute("href"), { headers: { "X-Requested-With": "fetch" } })
         .then(function (r) { return r.text(); })
         .then(function (html) {
-          panel.innerHTML = html;
+          setPanel(html);
           initPicker(parseInt(mv.getAttribute("data-move"), 10));
         })
-        .catch(function () { panel.innerHTML = '<div class="op-error" role="alert">Network error — please reload.</div>'; });
+        .catch(function () { setPanel('<div class="op-error" role="alert">Network error — please reload.</div>'); });
       return;
     }
   });
@@ -293,7 +301,7 @@
         // A drag bypasses the submit handler's panel-refresh. If the panel holds a token-bearing
         // form (e.g. the dragged node's Move picker / rename), it is now stale — clear it so
         // reusing it can't spuriously 409.
-        if (panel.querySelector("form[data-op]")) panel.innerHTML = "";
+        if (panel.querySelector("form[data-op]")) setPanel("");
       } else if (r.status === 422) { notice(msg("illegal", "That move isn't allowed here.")); }
     }); }).catch(function () { notice(msg("network", "Network error — please try again.")); });
   });
