@@ -178,3 +178,48 @@ def test_grandfathering_is_per_axis():
     )
     too_tall = [[{}, {}] for _ in range(51)]
     assert not _table_form({"cells": too_tall}, instance=stored).is_valid()
+
+
+def test_grid_data_falls_back_to_stored_when_unbound():
+    stored = TableElement.objects.create(
+        data=TableElement.normalize_data({"cells": [[{"html": "kept"}, {}], [{}, {}]]})
+    )
+    form = TableElementForm(instance=stored)
+    assert form.grid_data["cells"][0][0]["html"] == "kept"
+
+
+def test_grid_data_reflects_submitted_json_on_a_rejected_save():
+    # A rejected save must re-render what the author submitted, not the stored
+    # value -- otherwise the visible grid and the hidden field disagree and the
+    # next Save silently re-posts the rejected shape.
+    stored = TableElement.objects.create(
+        data=TableElement.normalize_data({"cells": [[{"html": "old"}, {}], [{}, {}]]})
+    )
+    # Ragged + non-spanning => rejected.
+    form = _table_form({"cells": [[{"html": "new"}], [{}, {}, {}]]}, instance=stored)
+    assert not form.is_valid()
+    assert form.grid_data["cells"][0][0]["html"] == "new"
+
+
+def test_grid_data_carries_the_whole_binding_not_just_cells():
+    # header_row/border are read back by serialize() too, so a rejected save
+    # must re-render those from the submission as well.
+    stored = TableElement.objects.create(
+        data=TableElement.normalize_data({"cells": [[{}], [{}]], "header_row": False})
+    )
+    form = _table_form(
+        {"cells": [[{}], [{}, {}]], "header_row": True, "border": "rows"},
+        instance=stored,
+    )
+    assert not form.is_valid()
+    assert form.grid_data["header_row"] is True
+    assert form.grid_data["border"] == "rows"
+
+
+def test_grid_data_falls_back_when_payload_is_unparseable():
+    stored = TableElement.objects.create(
+        data=TableElement.normalize_data({"cells": [[{"html": "old"}, {}], [{}, {}]]})
+    )
+    form = TableElementForm(data={"data": "{not json"}, instance=stored)
+    assert not form.is_valid()
+    assert form.grid_data["cells"][0][0]["html"] == "old"

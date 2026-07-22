@@ -1,5 +1,6 @@
 """Forms for creating and editing the per-type lesson and question content elements."""
 
+import json
 import re
 
 from django import forms
@@ -1443,6 +1444,33 @@ class TableElementForm(forms.ModelForm):
         # Coerce enums / fill cell defaults (does not resize a valid grid).
         return TableElement.normalize_data(data)
 
+    @property
+    def grid_data(self):
+        """Normalised grid the editor template renders from.
+
+        On a bound-INVALID form this is the SUBMITTED payload, not the stored
+        one. The hidden name="data" field always carries the submission, and
+        serialize() skips its init pass when that field is non-empty -- so
+        rendering the stored grid after a rejected save shows the author their
+        pre-edit table while the field still holds the edit, and their next
+        Save silently re-posts the rejected shape.
+
+        The templates cannot do this themselves: the submission exists only as
+        an unparsed JSON string and Django templates have no json.loads.
+
+        Falls back to the stored value when unbound, valid, absent,
+        unparseable, or not a dict (which also covers the add path)."""
+        if self.is_bound and not self.is_valid():
+            raw = self.data.get("data")
+            if isinstance(raw, str):
+                try:
+                    parsed = json.loads(raw)
+                except ValueError:
+                    parsed = None
+                if isinstance(parsed, dict):
+                    return self._meta.model.normalize_data(parsed)
+        return self.instance.normalized_data
+
 
 class FillTableElementForm(_CourseScopedMediaForm):
     """Fill-in table. `data` JSON holds {cells:[[cell,...],...]}; image cells carry
@@ -1503,6 +1531,33 @@ class FillTableElementForm(_CourseScopedMediaForm):
                     _("A table image is not an image in this course.")
                 )
         return nd
+
+    @property
+    def grid_data(self):
+        """Normalised grid the editor template renders from.
+
+        On a bound-INVALID form this is the SUBMITTED payload, not the stored
+        one. The hidden name="data" field always carries the submission, and
+        serialize() skips its init pass when that field is non-empty -- so
+        rendering the stored grid after a rejected save shows the author their
+        pre-edit table while the field still holds the edit, and their next
+        Save silently re-posts the rejected shape.
+
+        The templates cannot do this themselves: the submission exists only as
+        an unparsed JSON string and Django templates have no json.loads.
+
+        Falls back to the stored value when unbound, valid, absent,
+        unparseable, or not a dict (which also covers the add path)."""
+        if self.is_bound and not self.is_valid():
+            raw = self.data.get("data")
+            if isinstance(raw, str):
+                try:
+                    parsed = json.loads(raw)
+                except ValueError:
+                    parsed = None
+                if isinstance(parsed, dict):
+                    return self._meta.model.normalize_data(parsed)
+        return self.instance.normalized_data
 
 
 class GalleryElementForm(_CourseScopedMediaForm):

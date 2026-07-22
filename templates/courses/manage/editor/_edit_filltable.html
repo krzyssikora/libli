@@ -5,7 +5,7 @@ contract, controls strip, B/I/U/math toolbar, contenteditable grid) with an
 table) or an answer cell (a shaded <input> holding the accepted-answer string,
 never any richer content). filltable_editor.js mirrors BOTH kinds into the
 hidden field.{% endcomment %}
-{% with d=form.instance.normalized_data %}
+{% with d=form.grid_data %}
 {% comment %}data-msg-* carry strings filltable_editor.js cannot {% templatetag openblock %}
 trans {% templatetag closeblock %} itself: the grid-handle labels it injects client-side,
 the answer-input placeholder, and the two submit-guard messages.{% endcomment %}

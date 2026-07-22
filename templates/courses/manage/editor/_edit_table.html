@@ -3,7 +3,7 @@
 SOLE authoritative input; the controls strip and grid are name-less JS UI that
 table_editor.js mirrors into it. Grid + controls are server-rendered from the
 normalised stored data so an existing table shows its saved state.{% endcomment %}
-{% with d=form.instance.normalized_data %}
+{% with d=form.grid_data %}
 {% comment %}data-msg-* carry the grid-handle labels: table_editor.js injects the
 row/column handles client-side and cannot call {% templatetag openblock %} trans
 {% templatetag closeblock %} itself.{% endcomment %}
