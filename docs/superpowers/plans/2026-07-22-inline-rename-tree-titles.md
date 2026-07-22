@@ -506,7 +506,7 @@ def test_rename_form_partial_is_deleted():
 uv run pytest tests/test_manage_builder.py -k "editable_form or accessible_name or tab_order or no_longer_offers or partial_is_deleted" -v
 ```
 
-Expected: all FAIL.
+Expected: **8 failures** — `test_every_tree_row_title_is_an_editable_form` is parametrized ×4, plus the accessible-name, tab-order, panel and partial-deleted tests. Check the count, so a partial collection is detectable. Note `test_rename_form_partial_is_deleted` is RED for a different reason from the rest (the file still exists) and is not a `django_db` test.
 
 - [ ] **Step 3: Replace the title button with the rename form**
 
@@ -536,6 +536,11 @@ with:
       <button class="visually-hidden" type="submit" tabindex="-1">{% trans "Rename" %}</button>
     </form>
 ```
+
+Note `{% csrf_token %}` renders as an **empty string plus a warning** under
+`render_to_string` without a request — which is how `tests/test_tree_badge.py::_render_unit` renders
+this partial. That is pre-existing (the unit row's duplicate form already contains one), it does not
+raise, and no assertion in this plan depends on it. Do not "fix" the warning.
 
 The accessible name is a static `Title` rather than an interpolated kind or title: a text input's *value* is announced alongside its name so the value already distinguishes rows; interpolating the kind would need a Polish genitive (`Tytuł rozdziału`) that `get_kind_display` cannot supply, and interpolating the title would go stale the moment the author types.
 
@@ -627,7 +632,7 @@ renaming for the first time; previously they required a trip to the editor."
 
 - [ ] **Step 1: Write the failing tests**
 
-In `tests/test_builder_styles.py`, replace `test_tree_title_truncates_with_ellipsis` with the version below and append the two new tests:
+**Leave `test_tree_title_truncates_with_ellipsis` unchanged** -- its `\.tree__title\s*\{` regex still matches inside `input.tree__title { ... }`, so there is nothing to edit there. Append only the two new tests to `tests/test_builder_styles.py`:
 
 ```python
 def test_tree_title_truncates_with_ellipsis():
@@ -673,8 +678,8 @@ def test_tree_rename_form_is_a_shrinkable_flex_item():
         ".tree__rename is now the flex item and would otherwise blow out the row"
     )
     assert re.search(r"margin:\s*0", body), (
-        "a <form> is a block element with a UA default margin, inside a row with only "
-        "padding: 3px 4px (cf. .tree__inline, which sets margin:0 for the same reason)"
+        "defensive reset matching .tree__inline (builder.css:44) so the form never "
+        "contributes vertical space in a row with only padding: 3px 4px"
     )
 ```
 
@@ -1223,12 +1228,18 @@ All seven call sites currently end in `.first`. Whether to keep it differs per l
 replacement expression is given — dropping `.first` where more than one element matches raises a
 Playwright strict-mode violation.
 
+**Six of the seven sites end in `.first.click()`, not just `.first`** — line 93 is the only bare
+assignment. The full replacement **including the trailing call** is given per line; dropping the
+`.click()` would turn six clicks into no-op expression statements and the following
+`wait_for_selector` waits would time out looking like product bugs.
+
 | Line | Current | Full replacement | Why |
 |---|---|---|---|
-| 93, 107 | `page.locator(".tree__title", has_text="deliberately very long").first` | `page.locator('.tree__title[value*="deliberately very long"]').first` | `LONG_TITLE` (line 17) is `"A deliberately very long unit title that must truncate " * 3`, so an **exact** selector matches nothing and the test dies on a timeout that looks like a product bug. **Keep `.first`** — `*=` is a substring match and may hit several rows. |
-| 183 | `page.locator(".tree__title", has_text="Unit 40").first` | `page.locator('.tree__title[value="Unit 40"]')` | Exact and unique. **Drop `.first`.** |
-| 205, 283, 330 | `page.locator(".tree__title", has_text="Unit 1").first` | `page.locator('.tree__title[value="Unit 1"]')` | Exact is **stricter** than the original, which also matched `Unit 10`, `Unit 12`, … and leaned on `.first`. **Drop `.first`.** If a test then finds zero elements, check the seeded titles rather than reverting to `*=`. |
-| 297 | `page.locator(".tree__title", has_text="Unit 2").first` | `page.locator('.tree__title[value="Unit 2"]')` | Same as above. **Drop `.first`.** |
+| 93 | `title = page.locator(".tree__title", has_text="deliberately very long").first` | `title = page.locator('.tree__title[value*="deliberately very long"]').first` | `LONG_TITLE` (line 17) is `"A deliberately very long unit title that must truncate " * 3`, so an **exact** selector matches nothing and the test dies on a timeout that looks like a product bug. **Keep `.first`** — `*=` is a substring match and may hit several rows. Assignment only, no `.click()`. |
+| 107 | `page.locator(".tree__title", has_text="deliberately very long").first.click()` | `page.locator('.tree__title[value*="deliberately very long"]').first.click()` | Same selector reasoning; **keeps both `.first` and `.click()`**. |
+| 183 | `page.locator(".tree__title", has_text="Unit 40").first.click()` | `page.locator('.tree__title[value="Unit 40"]').click()` | Exact and unique. **Drop `.first`, keep `.click()`.** |
+| 205, 283, 330 | `page.locator(".tree__title", has_text="Unit 1").first.click()` | `page.locator('.tree__title[value="Unit 1"]').click()` | Exact is **stricter** than the original, which also matched `Unit 10`, `Unit 12`, … and leaned on `.first`. **Drop `.first`, keep `.click()`.** If a test then finds zero elements, check the seeded titles rather than reverting to `*=`. |
+| 297 | `page.locator(".tree__title", has_text="Unit 2").first.click()` | `page.locator('.tree__title[value="Unit 2"]').click()` | Same as above. **Drop `.first`, keep `.click()`.** |
 
 On the attribute vs. property distinction: typing mutates only the `value` **IDL property**, never the
 content attribute, so these locators are stable while the author types. What *does* update the
@@ -1346,6 +1357,25 @@ full.** The remaining scenarios are ordinary click/type/assert and can be writte
 Task 7 smoke test. **Every scenario marked (F) must carry an explicit falsification** — break the
 named thing, require RED, restore.
 
+**Canonical URLs** (from `courses/urls.py:155-183`) — every glob and predicate below uses these, so
+they cannot drift:
+
+| Purpose | Path | Notes |
+|---|---|---|
+| Builder page | `/manage/courses/<slug>/build/` | **not** `/builder/` |
+| Panel fragment | `/manage/courses/<slug>/build/node/<pk>/` | contains **no** literal `panel` — filtering requests on `"panel" in r.url` matches nothing |
+| Rename POST | `/manage/courses/<slug>/build/node/rename/` | route glob `**/build/node/rename/` |
+
+Panel-GET counting therefore uses this shared predicate (the trailing `$` excludes
+`/node/<pk>/export/`, and `\d+` excludes `/node/rename/`):
+
+```python
+import re as _re
+
+def _is_panel_get(r):
+    return r.method == "GET" and _re.search(r"/build/node/\d+/$", r.url) is not None
+```
+
 ```python
 @pytest.mark.django_db(transaction=True)
 def test_sibling_tokens_are_refreshed_so_duplicate_still_works(page, live_server):
@@ -1377,14 +1407,17 @@ def test_field_is_readonly_during_the_round_trip(page, live_server):
     gate = {"release": None}
     def _handler(route):
         gate["release"] = route
-    page.route("**/manage/node/rename**", _handler)  # adjust glob to the real URL
+    page.route("**/build/node/rename/", _handler)
 
-    title = page.locator('.tree__title[value="Unit 1"]')
+    # Capture a HANDLE, not a value-attribute locator: applyRename sets defaultValue,
+    # which reflects to the `value` ATTRIBUTE, so '[value="Unit 1"]' would resolve to
+    # zero elements the moment the response lands.
+    title = page.locator('.tree__title[value="Unit 1"]').element_handle()
     title.click()
     title.press("Control+a")
     page.keyboard.type("Renamed")
     title.press("Enter")
-    expect(title).to_have_js_property("readOnly", True)
+    page.wait_for_function("el => el.readOnly === true", arg=title)
     # page.keyboard.type performs NO editability check and silently no-ops on a
     # readonly field. locator.fill()/type()/pressSequentially() run an *editable*
     # actionability check: they would hang and throw a timeout here, and would SUCCEED
@@ -1392,7 +1425,8 @@ def test_field_is_readonly_during_the_round_trip(page, live_server):
     page.keyboard.type("XYZ")
     assert title.input_value() == "Renamed"
     gate["release"].continue_()
-    expect(title).to_have_js_property("readOnly", False)
+    page.wait_for_function("el => el.readOnly === false", arg=title)
+    assert title.input_value() == "Renamed"
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1414,21 +1448,25 @@ def test_422_does_not_wedge_the_row(page, live_server):
             )
         else:
             route.continue_()
-    page.route("**/manage/node/rename**", _handler)
+    page.route("**/build/node/rename/", _handler)
 
-    title = page.locator('.tree__title[value="Unit 1"]')
+    title = page.locator('.tree__title[value="Unit 1"]').element_handle()
     title.click()
     title.press("Control+a")
     page.keyboard.type("Rejected")
     title.press("Enter")
     expect(page.locator(".op-error")).to_be_visible()
     assert title.input_value() == "Rejected"        # typed text survives
-    expect(title).to_have_js_property("readOnly", False)   # not wedged
-    expect(title).to_be_focused()
-    # Correcting and re-submitting must now reach the real server and succeed.
+    page.wait_for_function("el => el.readOnly === false", arg=title)   # not wedged
+    assert page.evaluate("el => el === document.activeElement", title)
+    # The counter (not page.unroute) is the mechanism: the second request falls through
+    # to route.continue_() and reaches the real server. No unroute call is needed, and
+    # the route stays registered for the rest of the test.
     title.press("Control+a")
     page.keyboard.type("Corrected")
-    with page.expect_response(lambda r: "rename" in r.url and r.request.method == "POST"):
+    with page.expect_response(
+        lambda r: "/build/node/rename/" in r.url and r.request.method == "POST"
+    ):
         title.press("Enter")
     nodes["unit1"].refresh_from_db()
     assert nodes["unit1"].title == "Corrected"
@@ -1440,18 +1478,30 @@ def test_tabbing_across_a_row_issues_one_panel_fetch(page, live_server):
     course, nodes = _seed_course()
     _open_builder(page, live_server, course, "owner")
     gets = []
-    page.on("request", lambda r: gets.append(r.url) if "panel" in r.url else None)
+    page.on("request", lambda r: gets.append(r.url) if _is_panel_get(r) else None)
 
     page.locator('.tree__title[value="Unit 1"]').focus()
-    # The REAL tab order is title -> ~6 cluster controls -> next row's title. Written
-    # as "Tab twice between titles" this would not exercise the actual path.
-    for _ in range(8):
+    gets.clear()                        # ignore any fetch from focusing the start row
+
+    # The REAL tab order is title -> cluster controls -> next row's title, and the
+    # number of stops VARIES: _move_buttons renders the up arrow `disabled` on the
+    # first sibling and the down arrow `disabled` on the last, and disabled buttons are
+    # skipped. So tab until focus lands on a title again rather than hard-coding a
+    # count -- a wrong count lands on a cluster control, whose focusin clears the timer,
+    # and the test then asserts 0 == 1 for a reason unrelated to the debounce.
+    for _ in range(15):
         page.keyboard.press("Tab")
+        if page.evaluate("document.activeElement.classList.contains('tree__title')"):
+            break
+    else:
+        raise AssertionError("never tabbed back onto a .tree__title")
+    assert page.evaluate("document.activeElement.value") == "Unit 2"
+
     page.wait_for_timeout(400)          # let the 150ms debounce settle
     assert len(gets) == 1, gets
 ```
 
-Adjust the `page.route` globs to the real rename URL for the seeded course. Cover, in addition:
+Cover, in addition:
 
 **Core**
 - Click a **unit** title, type, press Enter → the tree label updates *and* the DB value changes.
@@ -1459,7 +1509,7 @@ Adjust the `page.route` globs to the real rename URL for the seeded course. Cove
 - **Focus and caret survive an Enter commit:** place the caret **mid-string** before Enter, then assert the input is still focused *and* `selectionStart` is unchanged. Asserting focus alone would pass even if the response reassigned `value` (which jumps the caret to the end even for an identical string). This is the observable proof that no scope swap happened.
 - **Blur commits:** type, then click outside the tree → saved.
 - **Escape reverts and keeps focus.**
-- **Tooltip tracks typing, then reverts:** type into a long title and — **before** Escape — assert `title` equals the *typed* value; then Escape and assert it equals the reverted value. Without the mid-typing assertion, omitting the `input` handler entirely still passes the Escape half. Two falsifications: delete the `input` handler (first assertion RED); drop `revert()`'s title sync (second RED).
+- **Tooltip tracks typing, then reverts:** extend `_seed_course` with a fifth node carrying a deliberately long title (copy the `LONG_TITLE` constant idea from `tests/test_e2e_builder_tree_layout.py:17`; keep it under the 200-char field limit), since the four seeded nodes are all short and nothing would truncate. Type into that long title and — **before** Escape — assert `title` equals the *typed* value; then Escape and assert it equals the reverted value. Without the mid-typing assertion, omitting the `input` handler entirely still passes the Escape half. Two falsifications: delete the `input` handler (first assertion RED); drop `revert()`'s title sync (second RED).
 - **Unchanged field does not post:** focus and blur without typing → **no POST to `manage_node_rename`** (a panel GET is expected and must not be counted), and no `updated` bump.
 - **Enter on an unchanged title issues no POST**; **plain Enter posts exactly once**; **Enter-then-blur posts exactly once**.
 
@@ -1477,7 +1527,7 @@ pointer events internally and does **not** fire the `dragstart`/`dragover`/`drop
 `_simulate_drag` from `tests/test_e2e_builder_ws2.py:256` (synthetic `DragEvent` + `dataTransfer`),
 and note the **`dragover` sweep is required**: `scope.dataset.dropToken` is only populated by the
 `dragover` handler, so a `drop` without a preceding `dragover` posts no `parent_token` and the test
-would not exercise the token refresh at all. See the clientY sweep pattern in `tests/test_e2e_tabs.py:282`.
+would not exercise the token refresh at all. `_simulate_drag` **already dispatches that `dragover`** at the destination's centre, which is sufficient -- use it **unmodified**; no multi-`clientY` sweep is needed for these two scenarios.
 - **(F)** Drag of the just-renamed row (guards the `<li>`'s `data-updated`, read at `dragstart`).
 - **(F)** **Rename a chapter, await, then drag a unit into it** → no conflict notice. Guards the child scope's `data-updated`.
 - **Rename a chapter, await, then add a lesson under it** → succeeds, no conflict notice, typed child title not discarded. Guards the child scope's `parent_token`. **The fixture chapter must itself contain a nested section with its own add row**, so a naive descendant query (which would find the *grandchild's* `parent_token`) fails RED — and additionally assert the nested section's own add still works afterwards, which is what catches a mis-stamped token.
@@ -1507,14 +1557,14 @@ would not exercise the token refresh at all. See the clientY sweep pattern in `t
   that `applyFragment` swaps — destroying the rename input mid-edit and dropping focus to `<body>`.
   Assert that outcome. It is **accepted** (same class as any foreign swap; cross-wiring the two flows
   to avoid it would reintroduce the coordination machinery this design removed) and the test pins it.
-- **422 does not wedge the row.** The row's guards make a 422 **unreachable by typing** — `required` plus the unconditional Enter-cancel block an empty title, `maxlength="200"` truncates over-length input including pasted text, and `ContentNode.clean()` validates nothing else about the title. So both 422 tests use **route interception**: fulfil the first `manage_node_rename` request with a 422 and an `_op_error.html` body, assert the notice appeared and that the typed text, focus and cleared `readOnly` all survived; then unroute so the corrected re-submit reaches the real server. Do **not** use `page.evaluate` to strip `maxlength`.
+- **422 does not wedge the row.** The row's guards make a 422 **unreachable by typing** — `required` plus the unconditional Enter-cancel block an empty title, `maxlength="200"` truncates over-length input including pasted text, and `ContentNode.clean()` validates nothing else about the title. So both 422 tests use **route interception**: fulfil the first `manage_node_rename` request with a 422 and an `_op_error.html` body, assert the notice appeared and that the typed text, focus and cleared `readOnly` all survived; the **request counter** in the written-out test above -- not `page.unroute` -- is what lets the corrected re-submit through: the second request falls to `route.continue_()` and reaches the real server, so no teardown is needed. Do **not** use `page.evaluate` to strip `maxlength`.
 
 **Navigation / a11y**
 - **Enter on an empty field does not wedge the row:** clear the field, press Enter (native bubble), then type a valid title and Enter → it commits. Additionally assert **zero** requests to `manage_node_rename` during the empty-Enter step: without that, the test passes even if `readOnly` is set *before* `reportValidity()`, which would skip validation entirely, POST the empty title and merely 422. Falsify by swapping the `readOnly`/`reportValidity()` order.
 - **Debounce / ordering:** Tab from a row title through that row's cluster controls to the **next** row's title — the real tab order, ~6 stops per row — and assert exactly **one** panel GET, counted after focus rests. Written as "Tab N times between titles" it would not exercise the actual path. A pointer click issues its GET immediately. Falsify by scoping the timer clear to `.tree__title` focusins only.
-- **Tab to a row, then click a different row within 150ms** → the panel ends up showing the clicked row.
+- **Tab to a row, then immediately click a different row** → after both actions and a settle wait, the panel shows the **clicked** row. Assert the END STATE only: Playwright cannot guarantee the two actions complete inside the 150ms window, and on a loaded runner a timing-based assertion flakes both ways. The end state holds regardless of which fetch won, thanks to the `panelReq` last-request-wins guard -- which is the invariant actually worth pinning.
 - **Keyboard tab order:** tabbing from a row title reaches the next control, not a hidden "Rename".
-- **Top-level rename preserves document scroll** in a long course.
+- **Top-level rename preserves document scroll** in a long course. `_seed_course` is too small to scroll, and the tall fixture lives in another module -- give `_seed_course` an optional `n_units` parameter and seed enough rows to overflow the viewport (the repo's convention is self-contained e2e modules, so extend the local helper rather than importing `_seed_tall_course`).
 
 - [ ] **Step 5: Run the e2e suite in the foreground**
 
@@ -1575,25 +1625,19 @@ measure rather than assume. (The CSRF token is kept rather than dropped in favou
 cookie-reading `csrf()` helper, because dropping it would break the no-JS path this design newly
 enables.)
 
-**Take the baseline safely.** Do **not** `git checkout master` in this worktree — a parallel session
+Run these **in order**: seed → serve both → measure → tear down.
+
+**1. Take the baseline safely.** Do **not** `git checkout master` in this worktree — a parallel session
 has previously switched branches under an agent mid-task, and this worktree is explicitly flagged as
-running concurrently with others. Create a throwaway checkout instead:
+running concurrently with others. Create a throwaway checkout instead, on a Windows-safe path (this
+host runs Windows; `/tmp` only resolves under Git Bash and lands in the MSYS root):
 
 ```bash
-git -C C:/Users/krzys/Documents/Python/own/libli worktree add /tmp/libli-perf-baseline master
+BASE="$LOCALAPPDATA/Temp/claude/libli-perf-baseline"
+git -C C:/Users/krzys/Documents/Python/own/libli worktree add "$BASE" master
 ```
 
-Seed the course **once** (both measurements read the same `perf` course from the same dev database),
-measure this branch and the baseline checkout against it, then remove the throwaway worktree and
-delete the seeded course:
-
-```bash
-git -C C:/Users/krzys/Documents/Python/own/libli worktree remove --force /tmp/libli-perf-baseline
-uv run python manage.py shell -c "
-from courses.models import Course; Course.objects.filter(slug='perf').delete()"
-```
-
-Seed and measure:
+**2. Seed once.** Both measurements read the same `perf` course from the same dev database.
 
 ```bash
 uv run python manage.py shell -c "
@@ -1608,9 +1652,42 @@ print(c.slug)
 "
 ```
 
-That is 800 units + 40 chapters. Fetch `/manage/courses/perf/builder/` and record **transferred bytes**
-(gzipped, from DevTools' Network panel or `curl -s --compressed -o /dev/null -w '%{size_download}'`)
-and **DOM node count** (`document.getElementsByTagName('*').length`), on `master` and on this branch.
+That is 800 units + 40 chapters. Seed the owner as a platform admin (reuse `_make_pa_user` from
+Task 8) so the page is actually reachable.
+
+**3. Serve both checkouts against the same database**, on distinct ports:
+
+```bash
+# this branch
+DATABASE_URL=$DATABASE_URL uv run python manage.py runserver 8010
+# the baseline, from $BASE, same DATABASE_URL
+DATABASE_URL=$DATABASE_URL uv run python manage.py runserver 8011
+```
+
+**4. Measure.** `manage_builder` is `@login_required` and permission-gated, so an unauthenticated
+`curl` measures a **login redirect**, not the tree. Log in through the form first and reuse the cookie
+jar:
+
+```bash
+curl -s -c jar.txt http://localhost:8010/accounts/login/ > /dev/null
+curl -s -b jar.txt -c jar.txt -d "login=perfadmin&password=$PW" \
+     -e http://localhost:8010/accounts/login/ http://localhost:8010/accounts/login/ > /dev/null
+curl -s -b jar.txt --compressed -o /dev/null -w '%{size_download}\n' \
+     http://localhost:8010/manage/courses/perf/build/
+```
+
+The builder path is `/manage/courses/perf/build/` — **not** `/builder/` (`courses/urls.py:158`); this
+is the same canonical path Task 8 uses. Repeat against port 8011 for the baseline. Record **gzipped
+transferred bytes** from those two numbers, and **DOM node count**
+(`document.getElementsByTagName('*').length`) from DevTools on each.
+
+**5. Tear down, after both measurements:**
+
+```bash
+git -C C:/Users/krzys/Documents/Python/own/libli worktree remove --force "$BASE"
+uv run python manage.py shell -c "
+from courses.models import Course; Course.objects.filter(slug='perf').delete()"
+```
 
 **Budget:** flag it in the PR body if gzipped transferred size grows by more than **15%**, or if the
 per-row DOM node growth exceeds **6 nodes**. If either is exceeded, do not silently proceed — stop and
