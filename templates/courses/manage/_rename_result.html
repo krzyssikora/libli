@@ -1,0 +1,7 @@
+{% comment %}Narrow response for a tree-row rename. A rename changes no tree structure --
+only one label and one optimistic-lock token -- so responding with a re-rendered scope
+would destroy the <input> the author is typing in. builder.js reads these attributes and
+patches the row in place. See the design doc, "The central design decision".{% endcomment %}
+<data data-rename-for="{{ node.pk }}"
+      data-updated="{{ node.updated.isoformat }}"
+      value="{{ node.title }}"></data>
