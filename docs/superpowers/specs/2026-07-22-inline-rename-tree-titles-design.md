@@ -238,8 +238,15 @@ test red.
      mark is **consumed by the very next `focusin` whatever its target**, and also cleared on
      `pointerup` / `pointercancel`; without a defined lifecycle a `pointerdown` that never yields a
      `focusin` (badge, grip, right-click, aborted drag) would misclassify the next keyboard focus.
-     **Every `focusin` first clears any pending debounce timer**, pointer- or keyboard-initiated, and
-     the request id is allocated **when the fetch is issued**, not when it is scheduled. Without the
+     **The `focusin` listener consumes the pointer mark and clears any pending debounce timer
+     *before* it tests whether the target is a `.tree__title`** — so a focusin on **any** element
+     cancels a pending fetch, including the grip, the reorder arrows, Move…, Duplicate, Export,
+     Delete and anything in the panel. This scope is load-bearing, not incidental: Tab never goes
+     title → title, it goes title → ~6 cluster controls → next title, and those intervening tab stops
+     can easily span more than 150ms. If only title focusins cleared the timer, row A's fetch would
+     fire while the author was still tabbing through A's own cluster, and "tabbing across ten rows
+     issues one fetch" would be false.
+     The request id is allocated **when the fetch is issued**, not when it is scheduled. Without the
      clear, tabbing to row A and then clicking row B within 150ms would let A's timer fire *after* B's
      immediate fetch, taking a higher id and winning last-request-wins — leaving the panel showing A
      while B is focused and selected.
@@ -635,8 +642,12 @@ Drive the actual UI — never `page.evaluate` shortcuts, which ship broken UX gr
   `input[name=token]` refresh.
 - **Blur commits:** type, then click outside the tree → saved.
 - **Escape reverts and keeps focus:** the value reverts *and* the input still has focus.
-- **Escape restores the tooltip:** type into a long title, press Escape, assert the `title` attribute
-  matches the reverted value. Guards `revert()` syncing the tooltip, which no `input` event would.
+- **Tooltip tracks typing, then reverts:** type into a long title and — **before** pressing Escape —
+  assert the `title` attribute equals the *typed* value; then press Escape and assert it equals the
+  reverted value. The mid-typing assertion is what guards step 12's live sync: without it, an
+  implementer who omits the `input` handler entirely still passes the Escape half (the tooltip simply
+  never drifts) and the live-tooltip behaviour ships missing. Two falsifications: delete the `input`
+  handler (first assertion must go RED) and drop `revert()`'s title sync (second must go RED).
 - **Unchanged field does not post:** focus and blur without typing → **no POST to
   `manage_node_rename`** (a panel GET is expected and must not be counted), and no `updated` bump.
 - **Enter on an unchanged title issues no POST**; **plain Enter posts exactly once**;
@@ -681,8 +692,11 @@ Drive the actual UI — never `page.evaluate` shortcuts, which ship broken UX gr
   context plus `bring_to_front()`**, and confirm `document.hasFocus()` actually reports `False` under
   the run mode used — it differs between headed and headless Chromium. If it does not, the test is not
   exercising bail-out 2 and must be skipped with that reason rather than left falsely green.
-- **Debounce / ordering:** tabbing across N rows issues exactly one panel GET; a pointer click issues
-  its GET immediately.
+- **Debounce / ordering:** Tab from a row title through that row's cluster controls to the **next**
+  row's title — the real tab order, ~6 stops per row — and assert exactly **one** panel GET, counted
+  after focus comes to rest. Written as "Tab N times between titles" it would not exercise the actual
+  path. A pointer click issues its GET immediately. Falsify by scoping the timer clear to
+  `.tree__title` focusins only.
 - **Keyboard tab order:** tabbing from a row title reaches the next control, not a hidden "Rename".
 - `tests/test_e2e_builder_tree_layout.py` locates `.tree__title` with `has_text=` in seven places
   (lines 93, 107, 183, 205, 283, 297, 330). An `<input>` has no text content; use the value-attribute
