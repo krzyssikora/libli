@@ -94,6 +94,15 @@
     return m ? m[1] : "";
   }
 
+  // True only for the synchronous duration of the scope swap in applyFragment. Chromium
+  // DOES dispatch focusout for a focused input inside the subtree being removed, and it
+  // dispatches it from INSIDE replaceWith() -- at a point where the input and its form
+  // still report isConnected === true, relatedTarget is null and document.hasFocus() is
+  // true. Every isConnected/hasFocus test therefore reads "attached and focused" and the
+  // rename bail-outs let a half-typed title through. This flag is the only signal that
+  // distinguishes "the author blurred the field" from "the field was torn out under them".
+  var swapping = false;
+
   // Replace the tree element whose data-scope matches the returned fragment's root.
   function applyFragment(html) {
     var tmp = parseFragment(html);
@@ -102,7 +111,8 @@
     var scope = incoming.getAttribute("data-scope");
     var existing = root.querySelector('[data-scope="' + scope + '"]');
     if (existing) {
-      existing.replaceWith(incoming);
+      swapping = true;
+      try { existing.replaceWith(incoming); } finally { swapping = false; }
     }
     // No append fallback: the target [data-scope] element is always present after the
     // first render (the tree-pane root for "top", a nested <ol> otherwise). Appending
@@ -363,12 +373,17 @@
     // 2. The WINDOW lost focus, not the field. Chromium fires focusout when the tab
     //    or window is deactivated; committing here would persist half-typed text.
     if (e.relatedTarget === null && !document.hasFocus()) return;
-    // 3. The form was detached by another op's applyFragment; committing would post a
-    //    token that swap already superseded (cf. the add flow's isConnected guard).
-    //    Untested and unreachable in Chromium: it does not fire focusout when the
-    //    focused element is removed, it silently reassigns focus to <body>. This is
-    //    cross-engine insurance for Firefox/WebKit, which do fire it.
-    if (!form.isConnected) return;
+    // 3. Another op's applyFragment is destroying, or has destroyed, this row. Committing
+    //    would post a token that swap already superseded, and applyRename would then
+    //    no-op on the detached form -- leaving the tree showing the old title while the
+    //    database holds the new one, with no notice and a stale row token.
+    //    `swapping` carries this, NOT isConnected: Chromium delivers the focusout from
+    //    inside replaceWith(), while the doomed subtree still reports isConnected true
+    //    (measured; the add flow's guard at the bottom of this file reads isConnected a
+    //    timer later, by which point it is false, so that one works as written).
+    //    isConnected is kept for the asynchronous case: a focusout queued before a swap
+    //    and delivered after it.
+    if (swapping || !form.isConnected) return;
     // 4. Emptied field = cancel. This MUST precede the dirty check inside
     //    commitRename: an emptied field IS dirty, so we would otherwise post "" and
     //    surface a 422 on an ambiguous gesture. Enter deliberately does not share

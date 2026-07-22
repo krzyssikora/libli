@@ -314,9 +314,20 @@ test red.
    2. **Bail if the window itself lost focus** — `relatedTarget === null && !document.hasFocus()`.
       Chromium fires `focusout` when the browser window or tab loses focus, so without this,
       alt-tabbing mid-edit persists half-typed text. Leave the field dirty for a later real blur.
-   3. **Bail if the form is detached** — `!form.isConnected`. A `focusout` can be delivered for an
-      input whose scope `<ol>` was just replaced by *another* op's `applyFragment`; committing from a
-      detached form would post a superseded token. The add flow guards this at `builder.js:378`.
+   3. **Bail if the row is being, or has been, swapped away** — `swapping || !form.isConnected`.
+      A `focusout` is delivered for an input whose scope `<ol>` is replaced by *another* op's
+      `applyFragment`; committing from such a form posts a superseded token, `applyRename` then
+      no-ops on the detached form (step 9), and the tree is left showing the old title over a
+      database holding the new one — silently, and with a stale row token that 409s on the row's
+      next op. **`isConnected` alone does not catch this.** Measured in Chromium: the `focusout` is
+      dispatched from *inside* `existing.replaceWith(incoming)`, at a point where the input and its
+      form still report `isConnected === true` (with `relatedTarget === null`, `document.hasFocus()
+      === true` and `document.activeElement` already `<body>`, so bail-out 2 does not catch it
+      either). `applyFragment` therefore raises a `swapping` flag for the synchronous duration of the
+      swap, and that flag is what this bail-out reads; `isConnected` is retained only for the
+      asynchronous case — a `focusout` queued before a swap and delivered after it. The add flow's
+      guard reads `isConnected` a timer tick later, by which point it *is* false, so that one works
+      as written.
    4. **Bail if the trimmed value is empty** — `revert(input)` and return without posting. This must
       precede the dirty check: an emptied field *is* dirty (`"".trim() !== "Old"`), so relying on
       step 4's ordering alone would post an empty title and surface a 422. The **Enter** path
@@ -448,14 +459,17 @@ test red.
       two concurrent builder ops have always had. Accepted rather than gated.
     - **A *foreign* op's `applyFragment` can still destroy a half-typed title.** "Nothing is
       destroyed" is a claim about the rename's **own** response only. Another op's response still
-      swaps whole scope `<ol>`s, and the most reachable case needs no blur at all: with an inline-add
-      row open and non-empty, clicking a tree title blurs the add input, and 120ms later
-      `commitOrCancel` (`builder.js:373-379`) posts `node_add`, whose response replaces the scope —
-      deleting the input the author started typing into a tenth of a second earlier. A landing
-      reorder, drag or duplicate does the same. No bail-out covers this because no `focusout` for the
-      title occurs. **Accepted**, and the same class as "uncommitted typing clobbered by an unrelated
-      op": re-seeding a swapped scope with a focused dirty input would reintroduce exactly the
-      restoration machinery this redesign removed, for a rarer case.
+      swaps whole scope `<ol>`s, and the most reachable case needs no blur gesture at all: with an
+      inline-add row open and non-empty, clicking a tree title blurs the add input, and 120ms later
+      `commitOrCancel` posts `node_add`, whose response replaces the scope — deleting the input the
+      author started typing into a tenth of a second earlier. A landing reorder, drag or duplicate
+      does the same. The typed text is **accepted** as lost, the same class as "uncommitted typing
+      clobbered by an unrelated op": re-seeding a swapped scope with a focused dirty input would
+      reintroduce exactly the restoration machinery this redesign removed, for a rarer case.
+      What is *not* accepted is the edit committing on the way out. Chromium does dispatch a
+      `focusout` for the doomed input — from inside `replaceWith()`, with `isConnected` still true —
+      so bail-out 3 must key off the `swapping` flag rather than `isConnected`, or the half-typed
+      title is POSTed and the tree is left displaying a value the database no longer holds.
 
 ### Panel change — `templates/courses/manage/_node_panel.html`
 
@@ -547,7 +561,7 @@ Concretely:
 | Enter on an unchanged title | Default cancelled before the dirty check, so native implicit submission cannot fire — no POST. |
 | Window/tab loses focus mid-edit | No commit; the field stays dirty. |
 | Another op replaced this row's scope before the blur was delivered | `!form.isConnected` bail; the edit is discarded rather than posting a superseded token. |
-| Another op's response swaps the scope **while** a title is being typed (no blur involved — e.g. an open add row's 120ms `commitOrCancel` timer landing) | The input is destroyed and the typed text lost. Accepted; re-seeding would reintroduce the removed restoration machinery. |
+| Another op's response swaps the scope **while** a title is being typed (e.g. an open add row's 120ms `commitOrCancel` timer landing) | The input is destroyed and the typed text lost. Accepted; re-seeding would reintroduce the removed restoration machinery. The removal *does* dispatch a `focusout` for the doomed input, so the `swapping` bail-out is what stops that turning into a commit — without it the title is POSTed, `applyRename` no-ops on the detached form, and the tree displays the pre-edit title over a database holding the edit, with no notice. |
 | A same-row op fired during the rename round trip | May 409 and reload — accepted, non-destructive, and the same race any two builder ops have always had. |
 | Network failure | Existing `catch` → "Network error — please try again."; `dataset.submitting` **and `readOnly`** cleared, no DOM change, typed text kept and editable again. |
 | No JavaScript | Enter submits natively; `node_rename` redirects back to the builder. |

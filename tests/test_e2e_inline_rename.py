@@ -675,19 +675,36 @@ def test_409_reloads_the_row_and_discards_the_edit(page, live_server):
 
 @pytest.mark.django_db(transaction=True)
 def test_open_add_rows_deferred_commit_clobbers_a_fresh_rename_edit(page, live_server):
-    """(F) falsify: remove the deferred `commitOrCancel(form)` from the add row's
-    focusout -- no swap happens, the rename input survives and this goes RED.
+    """(F) falsify: drop `swapping ||` from the focusout handler's bail-out 3 -- the
+    rename posts "Doomed" and the zero-POST assertion goes RED (measured: 10 runs of
+    10, so this is a real guard and not a flake). Falsify the other half by removing
+    the deferred `commitOrCancel(form)` from the add row's focusout: no swap happens,
+    the input survives, focus never drops to <body> and the wait times out.
 
-    ACCEPTED behaviour, pinned rather than left to be discovered: 120ms after the
-    add field blurs, commitOrCancel posts node_add, whose 200 is a [data-scope]
-    fragment that applyFragment swaps -- destroying the rename input mid-edit.
-    Cross-wiring the two flows would reintroduce the coordination machinery this
-    design removed.
+    ACCEPTED behaviour, pinned rather than left to be discovered: 120ms after the add
+    field blurs, commitOrCancel posts node_add, whose 200 is a [data-scope] fragment
+    that applyFragment swaps -- destroying the rename input mid-edit. The typed text
+    is lost. Cross-wiring the two flows to preserve it would reintroduce the
+    coordination machinery this design removed.
+
+    What must NOT happen is the edit committing anyway. Chromium delivers a focusout
+    for the doomed input from inside replaceWith(), while it still reports
+    isConnected === true, so only the `swapping` flag stops it; a commit from there
+    posts a superseded token, applyRename then no-ops on the now-detached form, and
+    the tree is left displaying "Unit 1" over a database holding "Doomed".
+
+    The assertion is on REQUESTS, not on the row's title in the database. An earlier
+    version read the database the instant focus reached <body> -- which is true at
+    swap time, i.e. inside the window between the POST being issued and it landing.
+    It sampled that gap and passed locally while the commit went through behind it;
+    only a loaded CI runner closed the gap and turned it red.
     """
     from courses.models import ContentNode
 
     course, nodes = _seed_course()
     _open_builder(page, live_server, course, "owner")
+    posts = []
+    page.on("request", lambda r: posts.append(r.url) if _is_rename_post(r) else None)
 
     sec_pk = nodes["section"].pk
     section_add = page.locator(f'form.tree__add[data-add-scope="{sec_pk}"]')
@@ -698,16 +715,29 @@ def test_open_add_rows_deferred_commit_clobbers_a_fresh_rename_edit(page, live_s
     # now armed behind us.
     _select_all_and_type(page, page.locator('.tree__title[value="Unit 1"]'), "Doomed")
     page.wait_for_selector('.tree__title[value="Deferred child"]')
-
     page.wait_for_function("() => document.activeElement.tagName === 'BODY'")
-    assert page.locator('.tree__title[value="Unit 1"]').count() == 1
-    nodes["unit1"].refresh_from_db()
-    assert nodes["unit1"].title == "Unit 1", (
-        "the half-typed rename must not have posted"
-    )
+
+    # The swap has landed and torn the input out. Let any commit it could have posted
+    # reach the server before reading either the request log or the row.
+    page.wait_for_timeout(500)
+    assert posts == [], "the torn-out rename must not have posted"
     assert ContentNode.objects.filter(
         course=course, parent=nodes["section"], title="Deferred child"
     ).exists()
+
+    # Exactly one row for the unit, still showing server truth, and no error surfaced.
+    assert page.locator('.tree__title[value="Unit 1"]').count() == 1
+    nodes["unit1"].refresh_from_db()
+    assert nodes["unit1"].title == "Unit 1"
+    expect(page.locator(".op-error")).to_have_count(0)
+
+    # Not wedged: the swapped-in row is editable and its token is current, so the
+    # author simply retypes rather than being met with a phantom 409.
+    _select_all_and_type(page, page.locator('.tree__title[value="Unit 1"]'), "Retyped")
+    _commit_with_enter(page, "Retyped")
+    expect(page.locator(".op-error")).to_have_count(0)
+    nodes["unit1"].refresh_from_db()
+    assert nodes["unit1"].title == "Retyped"
 
 
 @pytest.mark.django_db(transaction=True)

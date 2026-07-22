@@ -1051,9 +1051,11 @@ Append to the inline-rename block:
     // 2. The WINDOW lost focus, not the field. Chromium fires focusout when the tab
     //    or window is deactivated; committing here would persist half-typed text.
     if (e.relatedTarget === null && !document.hasFocus()) return;
-    // 3. The form was detached by another op's applyFragment; committing would post a
-    //    token that swap already superseded (cf. the add flow's isConnected guard).
-    if (!form.isConnected) return;
+    // 3. Another op's applyFragment is destroying, or has destroyed, this row; committing
+    //    would post a token that swap already superseded. `swapping` carries this, NOT
+    //    isConnected: Chromium delivers the focusout from inside replaceWith(), while the
+    //    doomed subtree still reports isConnected true. isConnected stays for the async case.
+    if (swapping || !form.isConnected) return;
     // 4. Emptied field = cancel. This MUST precede the dirty check inside
     //    commitRename: an emptied field IS dirty, so we would otherwise post "" and
     //    surface a 422 on an ambiguous gesture. Enter deliberately does not share
@@ -1068,6 +1070,16 @@ Append to the inline-rename block:
     var input = e.target.closest("input.tree__title");
     if (input) input.title = input.value;
   });
+```
+
+Bail-out 3 needs a `swapping` flag that `applyFragment` owns — declare `var swapping = false;`
+beside it and wrap the swap:
+
+```js
+    if (existing) {
+      swapping = true;
+      try { existing.replaceWith(incoming); } finally { swapping = false; }
+    }
 ```
 
 - [ ] **Step 2: Clear the in-flight state on every completion branch**
@@ -1684,10 +1696,17 @@ would not exercise the token refresh at all. `_simulate_drag` **already dispatch
   of `applyFragment` — the row would keep the stale title.
 - **(F)** **An open add row's deferred commit clobbers a fresh rename edit:** type into an inline-add
   row, then click a tree title in the same scope and start typing. 120ms after the blur,
-  `commitOrCancel` (`builder.js:373-379`) posts `node_add`, whose 200 is a `[data-scope]` fragment
-  that `applyFragment` swaps — destroying the rename input mid-edit and dropping focus to `<body>`.
-  Assert that outcome. It is **accepted** (same class as any foreign swap; cross-wiring the two flows
-  to avoid it would reintroduce the coordination machinery this design removed) and the test pins it.
+  `commitOrCancel` posts `node_add`, whose 200 is a `[data-scope]` fragment that `applyFragment`
+  swaps — destroying the rename input mid-edit and dropping focus to `<body>`. The typed text is
+  **accepted** as lost (same class as any foreign swap; cross-wiring the two flows to avoid it would
+  reintroduce the coordination machinery this design removed). Assert on **requests** — zero POSTs to
+  `manage_node_rename` — not on the row's title in the database: focus reaches `<body>` at swap time,
+  i.e. inside the window between a POST being issued and it landing, so a database read there samples
+  the gap and passes even when the commit goes through behind it. Then assert the invariants that
+  make the loss merely a loss: the add child exists, exactly one row for the unit, the row still
+  shows server truth, no `.op-error`, and the row is still editable afterwards. Falsify by dropping
+  `swapping ||` from bail-out 3 — Chromium *does* dispatch a focusout for the doomed input, from
+  inside `replaceWith()` with `isConnected` still true, so the half-typed title is POSTed.
 - **422 does not wedge the row.** The row's guards make a 422 **unreachable by typing** — `required` plus the unconditional Enter-cancel block an empty title, `maxlength="200"` truncates over-length input including pasted text, and `ContentNode.clean()` validates nothing else about the title. So both 422 tests use **route interception**: fulfil the first `manage_node_rename` request with a 422 and an `_op_error.html` body, assert the notice appeared and that the typed text, focus and cleared `readOnly` all survived; the **request counter** in the written-out test above -- not `page.unroute` -- is what lets the corrected re-submit through: the second request falls to `route.continue_()` and reaches the real server, so no teardown is needed. Do **not** use `page.evaluate` to strip `maxlength`.
 
 **Navigation / a11y**
