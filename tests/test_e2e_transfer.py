@@ -174,7 +174,7 @@ def test_subtree_import_via_insertion_picker(page, live_server, tmp_path):
     # Confirm redirects back into course B's builder.
     page.wait_for_selector(f'[data-scope="{part.pk}"]', state="attached")
     part_scope = page.locator(f'[data-scope="{part.pk}"]')
-    assert part_scope.get_by_text("Root Chapter").count() == 1
+    assert part_scope.locator('.tree__title[value="Root Chapter"]').count() == 1
 
     new_chapter = course_b.nodes.get(kind="chapter", title="Root Chapter")
     assert new_chapter.parent_id == part.pk

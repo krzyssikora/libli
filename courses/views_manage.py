@@ -342,11 +342,13 @@ def node_rename(request, slug):
         return redirect("courses:manage_editor", slug=slug, pk=node.pk)
     if not _wants_fragment(request):
         return redirect("courses:manage_builder", slug=course.slug)
-    # a unit-settings change re-renders the unit panel; a plain rename re-renders scope
+    # a unit-settings change re-renders the unit panel
     if is_settings and node.kind == ContentNode.Kind.UNIT:
         return _render_unit_panel(request, node)
-    # rename changes only the node row; re-render its parent scope so the label updates
-    return _render_scope(request, course, _scope_ref(node.parent_id))
+    # A plain rename now has exactly one fragment caller: a builder tree row. It changes
+    # no structure, so it returns the new title + token for that row and builder.js
+    # patches in place -- re-rendering the scope would destroy the focused input.
+    return render(request, "courses/manage/_rename_result.html", {"node": node})
 
 
 @login_required

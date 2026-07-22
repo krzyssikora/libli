@@ -164,6 +164,27 @@ def _check_token(current_dt, token):
         raise ConflictError()
 
 
+def _clean_title(title):
+    """Normalize a node title before validation.
+
+    Strips surrounding whitespace so a whitespace-only title becomes "" and is
+    rejected by full_clean()'s blank check on EVERY path -- JS, no-JS, and the
+    editor settings form.
+
+    This deliberately does NOT live in ContentNode.clean(): full_clean() runs
+    clean_fields() (which enforces blank) BEFORE clean(), so stripping there
+    would let "   " pass the blank check and persist as "". Pushing the strip
+    even earlier -- into a custom field's to_python(), which DOES run before the
+    blank check -- was considered and rejected as disproportionate: a field
+    subclass drags in deconstruct() and a migration, for whitespace trimming
+    with only two entry points.
+
+    Not applied by course import/transfer, which builds ContentNode directly
+    rather than going through add_node/rename_node.
+    """
+    return title.strip()
+
+
 @transaction.atomic
 def add_node(course, parent_ref, kind, title, unit_type, parent_token):
     if parent_ref in (None, "", "top"):
@@ -189,7 +210,7 @@ def add_node(course, parent_ref, kind, title, unit_type, parent_token):
         course=course,
         parent=parent,
         kind=kind,
-        title=title,
+        title=_clean_title(title),
         unit_type=(unit_type or None),
     )
     # `order` is None until OrderField.pre_save assigns it during save(); exclude it
@@ -215,7 +236,7 @@ def rename_node(
     _check_token(node.updated, token)
     fields = ["updated"]
     if title is not _UNSET:
-        node.title = title
+        node.title = _clean_title(title)
         fields.append("title")
     if node.kind == ContentNode.Kind.UNIT:
         if unit_type is not _UNSET:

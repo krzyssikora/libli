@@ -70,3 +70,38 @@ def test_element_list_item_can_shrink():
     assert re.search(r"\.element-list__item\s*\{[^}]*min-width:\s*0", _css()), (
         ".element-list__item needs min-width:0 so its summary can truncate in-panel"
     )
+
+
+def test_tree_title_input_neutralises_the_global_form_control_rule():
+    # app.css:136 styles input[type=text] with a sunken background, a strong border and
+    # padding. It ties input.tree__title on specificity (0,1,1) and is only beaten by
+    # builder.css loading later, so the rule must explicitly reset each property --
+    # assert the DECLARATIONS, not specificity.
+    css = _css()
+    rule = re.search(r"input\.tree__title\s*\{[^}]*\}", css)
+    assert rule, "the rule must be written literally as `input.tree__title { ... }`"
+    body = rule.group(0)
+    assert re.search(r"font:\s*inherit", body), (
+        "an <input> does not inherit font-family/font-size; without font:inherit every "
+        "tree label falls back to the UA default (~13.33px Arial)"
+    )
+    assert re.search(r"background:\s*none", body), "must reset the sunken background"
+    assert re.search(r"padding:\s*0", body), "must reset the global padding"
+    assert re.search(r"border:\s*1px\s+solid\s+transparent", body), (
+        "a transparent rest border keeps :hover layout-neutral -- adding a border on "
+        "hover to a border-less element shifts text and grows the row"
+    )
+
+
+def test_tree_rename_form_is_a_shrinkable_flex_item():
+    css = _css()
+    rule = re.search(r"\.tree__rename\s*\{[^}]*\}", css)
+    assert rule, ".tree__rename must be styled"
+    body = rule.group(0)
+    assert re.search(r"min-width:\s*0", body), (
+        ".tree__rename is now the flex item and would otherwise blow out the row"
+    )
+    assert re.search(r"margin:\s*0", body), (
+        "defensive reset matching .tree__inline (builder.css:44) so the form never "
+        "contributes vertical space in a row with only padding: 3px 4px"
+    )

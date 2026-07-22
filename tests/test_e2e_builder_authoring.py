@@ -67,7 +67,7 @@ def test_add_quiz_unit_via_chip(page, live_server):
     top_add.locator('button[data-add-kind="chapter"]').click()
     top_add.locator("input[data-add-title]").fill("Chapter One")
     top_add.locator("input[data-add-title]").press("Enter")
-    page.wait_for_selector("text=Chapter One")
+    page.wait_for_selector('.tree__title[value="Chapter One"]')
 
     # Step 2: add a Quiz unit INSIDE the chapter.
     # After the chapter row appears, the builder renders its child add-row with
@@ -82,7 +82,7 @@ def test_add_quiz_unit_via_chip(page, live_server):
     chapter_add.locator('button[data-add-kind="quiz"]').click()
     chapter_add.locator("input[data-add-title]").fill("Quiz One")
     chapter_add.locator("input[data-add-title]").press("Enter")
-    page.wait_for_selector("text=Quiz One")
+    page.wait_for_selector('.tree__title[value="Quiz One"]')
 
     # Verify the node was created with the correct kind and unit_type.
     from courses.models import Course
@@ -118,7 +118,7 @@ def test_type_toggle_changes_unit_type(page, live_server):
     top_add.locator('button[data-add-kind="chapter"]').click()
     top_add.locator("input[data-add-title]").fill("Chapter Toggle")
     top_add.locator("input[data-add-title]").press("Enter")
-    page.wait_for_selector("text=Chapter Toggle")
+    page.wait_for_selector('.tree__title[value="Chapter Toggle"]')
 
     # Add a lesson unit inside the chapter.
     chapter_add = (
@@ -129,7 +129,7 @@ def test_type_toggle_changes_unit_type(page, live_server):
     chapter_add.locator('button[data-add-kind="lesson"]').click()
     chapter_add.locator("input[data-add-title]").fill("Toggle Lesson")
     chapter_add.locator("input[data-add-title]").press("Enter")
-    page.wait_for_selector("text=Toggle Lesson")
+    page.wait_for_selector('.tree__title[value="Toggle Lesson"]')
 
     # Navigate to the unit editor.
     course = Course.objects.get(slug="toggle-test")
@@ -185,7 +185,7 @@ def test_add_menu_grouped_labels_and_card_click(page, live_server):
     top_add.locator('button[data-add-kind="chapter"]').click()
     top_add.locator("input[data-add-title]").fill("Chapter Menu")
     top_add.locator("input[data-add-title]").press("Enter")
-    page.wait_for_selector("text=Chapter Menu")
+    page.wait_for_selector('.tree__title[value="Chapter Menu"]')
 
     chapter_add = (
         page.locator('form[data-op="add"]')
@@ -195,7 +195,7 @@ def test_add_menu_grouped_labels_and_card_click(page, live_server):
     chapter_add.locator('button[data-add-kind="quiz"]').click()
     chapter_add.locator("input[data-add-title]").fill("Menu Quiz")
     chapter_add.locator("input[data-add-title]").press("Enter")
-    page.wait_for_selector("text=Menu Quiz")
+    page.wait_for_selector('.tree__title[value="Menu Quiz"]')
 
     # Navigate to the unit editor.
     course = Course.objects.get(slug="menu-test")

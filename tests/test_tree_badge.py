@@ -18,9 +18,9 @@ UNIT_BADGE_RE = re.compile(
     r'(?: title="([^"]*)")?>'
     r"([^<]*)</span>"
 )
-# The title button's hover-title (edit #3). [^>]* spans the tag's line break
+# The title input's hover-title (edit #3). [^>]* spans the tag's line break
 # because it also matches newlines (any char except '>').
-TITLE_BTN_RE = re.compile(r'<button class="tree__title"[^>]*\btitle="([^"]*)"')
+TITLE_INPUT_RE = re.compile(r'<input class="tree__title"[^>]*\btitle="([^"]*)"')
 
 
 def _render_unit(unit_type, title="Intro", lang=None):
@@ -31,7 +31,17 @@ def _render_unit(unit_type, title="Intro", lang=None):
     unit = ContentNodeFactory(
         course=course, kind="unit", unit_type=unit_type, parent=None, title=title
     )
-    ctx = {"node": unit, "children_map": {}, "is_first": True, "is_last": True}
+    # `rename_url` is reversed once per scope by _scope.html and passed down, so a
+    # direct render of _tree_node.html has to supply it or the action comes out empty.
+    ctx = {
+        "node": unit,
+        "children_map": {},
+        "is_first": True,
+        "is_last": True,
+        "rename_url": reverse(
+            "courses:manage_node_rename", kwargs={"slug": course.slug}
+        ),
+    }
     if lang:
         with translation.override(lang):
             return render_to_string("courses/manage/_tree_node.html", ctx)
@@ -72,9 +82,9 @@ def test_unit_badge_keeps_accent_colour_class():
 
 
 @pytest.mark.django_db
-def test_title_button_has_hover_title():
-    m = TITLE_BTN_RE.search(_render_unit("lesson", title="Intro"))
-    assert m, "title button title attr not found"
+def test_title_input_has_hover_title():
+    m = TITLE_INPUT_RE.search(_render_unit("lesson", title="Intro"))
+    assert m, "title input title attr not found"
     assert m.group(1) == "Intro"
 
 

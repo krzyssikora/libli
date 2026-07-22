@@ -63,7 +63,7 @@ def test_inline_add_creates_node(page, live_server):
     field = scope.locator("input[data-add-title]")
     field.fill("Intro")
     field.press("Enter")
-    page.wait_for_selector("text=Intro")
+    page.wait_for_selector('.tree__title[value="Intro"]')
     assert ContentNode.objects.filter(
         course=course, parent=ch, title="Intro", kind="unit"
     ).exists()
@@ -132,7 +132,7 @@ def test_inline_add_second_click_commits_exactly_one(page, live_server):
     ).click()  # first click: open inline row
     scope.locator("input[data-add-title]").fill("Once")
     scope.locator('button[data-add-kind="lesson"]').click()  # second click: COMMIT
-    page.wait_for_selector("text=Once")
+    page.wait_for_selector('.tree__title[value="Once"]')
     # Give any erroneous second POST time to land, then assert exactly one node exists.
     page.wait_for_timeout(500)
     assert (
@@ -242,7 +242,7 @@ def test_inline_add_enter_then_blur_commits_once(page, live_server):
     field.press("Enter")
     # force a blur right after Enter (focusout timer arms)
     field.blur()
-    page.wait_for_selector("text=Solo")
+    page.wait_for_selector('.tree__title[value="Solo"]')
     # allow any erroneous second POST + the 120ms timer to fire
     page.wait_for_timeout(500)
     assert (

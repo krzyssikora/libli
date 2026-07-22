@@ -72,7 +72,7 @@ def test_builder_full_flow(page, live_server):
     add.locator('button[data-add-kind="chapter"]').click()  # opens the inline row
     add.locator("input[data-add-title]").fill("Foundations")
     add.locator("input[data-add-title]").press("Enter")
-    page.wait_for_selector("text=Foundations")
+    page.wait_for_selector('.tree__title[value="Foundations"]')
     # Add a SECOND top-level node WITHOUT reloading. Regression guard: the first add
     # bumped course.updated and the top-level add form sits outside the swapped scope,
     # so its parent_token is now stale — a second top add must still succeed (it would
@@ -80,7 +80,7 @@ def test_builder_full_flow(page, live_server):
     add.locator('button[data-add-kind="chapter"]').click()  # 2nd add, no reload
     add.locator("input[data-add-title]").fill("Appendix")
     add.locator("input[data-add-title]").press("Enter")
-    page.wait_for_selector("text=Appendix")
+    page.wait_for_selector('.tree__title[value="Appendix"]')
     course = Course.objects.get(slug="algebra-i")
     assert course.nodes.filter(title="Foundations").exists()
     assert course.nodes.filter(title="Appendix").exists()
@@ -116,7 +116,7 @@ def test_stale_token_409_swap(page, live_server):
 
     page.goto(f"{live_server.url}/manage/courses/stale-test/build/")
     page.wait_for_selector('[data-scope="top"]', state="attached")
-    page.wait_for_selector("text=Alpha")
+    page.wait_for_selector('.tree__title[value="Alpha"]')
 
     # Mutate unit_a out-of-band: bump `updated` so the DOM's token is now stale.
     # timezone.now() advances the timestamp reliably (auto_now fields use the DB clock
@@ -184,6 +184,6 @@ def test_no_js_fallback_add(browser, live_server):
     add.locator(
         'button[data-add-kind="part"]'
     ).click()  # full-page POST -> 302 redirect
-    page.wait_for_selector("text=Part A")
+    page.wait_for_selector('.tree__title[value="Part A"]')
     assert Course.objects.get(slug="nojs").nodes.filter(title="Part A").exists()
     ctx.close()
