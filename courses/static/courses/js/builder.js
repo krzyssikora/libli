@@ -114,23 +114,6 @@
   }
   function msg(key, fallback) { return root.getAttribute("data-msg-" + key) || fallback; }
 
-  // The detail panel holds token-bearing forms (rename, unit-settings, the Move picker)
-  // that the [data-scope] tree swap never refreshes — so after their own op those forms
-  // keep a now-stale token and re-submitting them spuriously 409s ("can't move the lesson
-  // back"). After a panel form's op, re-fetch the operated node's fresh detail panel
-  // (fresh token); if the node is gone (e.g. it was reparented away and the row vanished
-  // from the freshly-swapped tree) or unidentifiable, clear the panel to a neutral state.
-  function refreshPanel(form) {
-    var nodeInput = form.querySelector("input[name='node']");
-    var btn = nodeInput && root.querySelector('[data-select="' + nodeInput.value + '"]');
-    var url = btn && btn.getAttribute("data-panel-url");
-    if (!url) { setPanel(""); return; }
-    fetch(url, { headers: { "X-Requested-With": "fetch" } })
-      .then(function (r) { return r.text(); })
-      .then(function (html) { setPanel(html); })
-      .catch(function () { setPanel(""); });
-  }
-
   // Intercept any builder form with data-op; POST via fetch and swap the response.
   root.addEventListener("submit", function (e) {
     var form = e.target.closest("form[data-op]");
@@ -164,14 +147,10 @@
         if (r.status === 200 || r.status === 409) {
           applyFragment(text);
           if (r.status === 409) notice(msg("conflict", "This changed elsewhere — reloaded to the latest."));
-          // The op bumped tokens (200) or the tree was reloaded to latest (409); either
-          // way a panel form is now stale. A Move (reparent) resets the panel to neutral
-          // so it matches arrow/drag reorders (which never touch the panel); rename/settings
-          // forms keep editing their node, so re-fetch that node's fresh panel.
-          if (inPanel) {
-            if (form.getAttribute("data-op") === "reparent") setPanel(neutralPanel);
-            else refreshPanel(form);
-          }
+          // Only the Move picker remains as a panel form with data-op; it resets the
+          // panel to neutral. (The panel's rename form is gone, so the re-token helper
+          // that existed solely to refresh it was deleted along with it.)
+          if (inPanel) setPanel(neutralPanel);
           clearMoving();
         } else if (r.status === 422) {
           var tmp = document.createElement("div");
@@ -188,16 +167,6 @@
 
   // Node selection -> load the detail panel fragment.
   root.addEventListener("click", function (e) {
-    var sel = e.target.closest("[data-select]");
-    if (sel) {
-      e.preventDefault();
-      clearMoving();
-      fetch(sel.getAttribute("data-panel-url"), { headers: { "X-Requested-With": "fetch" } })
-        .then(function (r) { return r.text(); })
-        .then(function (html) { setPanel(html); })
-        .catch(function () { setPanel('<div class="op-error" role="alert">Network error — please reload.</div>'); });
-      return;
-    }
     // Move… links open their picker inline (fetch GET).
     var mv = e.target.closest("[data-move]");
     if (mv) {
@@ -210,6 +179,64 @@
         })
         .catch(function () { setPanel('<div class="op-error" role="alert">Network error — please reload.</div>'); });
       return;
+    }
+  });
+
+  // ---- Inline rename: selection ------------------------------------------------
+  // Selection moved from click to focusin: preventDefault() on a click into a text
+  // input suppresses caret placement, so the click branch was removed outright.
+  var panelReq = 0;        // last-request-wins id, allocated when a fetch is ISSUED
+  var panelTimer = null;   // pending keyboard-debounce timer
+  var pointerFocus = false;
+
+  // pointerdown is scoped to the tree; the RELEASE listeners are on document, because a
+  // pointerup landing outside .builder (drag-select out of the pane, release over
+  // browser chrome, an HTML5 drag started from .ica--grip) would otherwise latch
+  // pointerFocus true -- and the next KEYBOARD Tab would then fetch immediately,
+  // silently defeating the debounce.
+  root.addEventListener("pointerdown", function () { pointerFocus = true; });
+  document.addEventListener("pointerup", function () { pointerFocus = false; });
+  document.addEventListener("pointercancel", function () { pointerFocus = false; });
+
+  function loadPanel(url) {
+    var id = ++panelReq;
+    fetch(url, { headers: { "X-Requested-With": "fetch" } })
+      .then(function (r) { return r.text(); })
+      .then(function (html) { if (id === panelReq) setPanel(html); })
+      .catch(function () {
+        // The id check gates this branch too: an ungated slow FAILURE from an earlier
+        // row would otherwise replace a later row's loaded panel with an error box.
+        if (id === panelReq) {
+          setPanel('<div class="op-error" role="alert">Network error — please reload.</div>');
+        }
+      });
+  }
+
+  root.addEventListener("focusin", function (e) {
+    // Mark consumption and timer clearing run for EVERY focusin, whatever the target,
+    // BEFORE the .tree__title test. Tab goes title -> ~6 cluster controls -> next
+    // title, and those stops can span more than 150ms; if only titles cleared the
+    // timer, row A's fetch would fire while the author was still inside A's cluster.
+    var byPointer = pointerFocus;
+    pointerFocus = false;
+    if (panelTimer) { clearTimeout(panelTimer); panelTimer = null; }
+    var t = e.target.closest(".tree__title");
+    if (!t) return;
+    var url = t.getAttribute("data-panel-url");
+    if (!url) return;
+    clearMoving();
+    // A deliberate click must not gain 150ms of latency; only keyboard traversal is
+    // debounced, so tabbing across ten rows issues one fetch rather than ten.
+    if (byPointer) loadPanel(url);
+    else panelTimer = setTimeout(function () { panelTimer = null; loadPanel(url); }, 150);
+  });
+
+  // Focus leaving the builder entirely fires no further focusin on root, so a pending
+  // timer would still elapse and swap the panel for a row the author has left.
+  root.addEventListener("focusout", function (e) {
+    if (panelTimer && (!e.relatedTarget || !root.contains(e.relatedTarget))) {
+      clearTimeout(panelTimer);
+      panelTimer = null;
     }
   });
 
@@ -305,7 +332,7 @@
       } else if (r.status === 422) { notice(msg("illegal", "That move isn't allowed here.")); }
     }); }).catch(function () { notice(msg("network", "Network error — please try again.")); });
   });
-  root.addEventListener("dragend", function () { clearDropMarks(); drag = null; });
+  root.addEventListener("dragend", function () { clearDropMarks(); drag = null; pointerFocus = false; });
   // --- end WS2 drag-and-drop ------------------------------------------------
 
   // Reveal the unit_type select only when kind === 'unit' on add forms.
