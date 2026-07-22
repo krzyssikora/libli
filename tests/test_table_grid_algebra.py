@@ -327,3 +327,95 @@ def test_delete_column_decrements_a_rowspan_cell_only_once(grid_page):
         "colSpan": 1,
         "rowSpan": 2,
     }
+
+
+def test_insert_row_grows_a_straddling_rowspan(grid_page):
+    rows = (
+        "<tr><td rowspan='2'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.insertRow(g, 1)") == [
+        "1x3,1x1",
+        "1x1",
+        "1x1",
+    ]
+
+
+def test_insert_row_at_a_rowspans_anchor_does_not_grow_it(grid_page):
+    rows = (
+        "<tr><td rowspan='2'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.insertRow(g, 0)") == [
+        "1x1,1x1",
+        "1x2,1x1",
+        "1x1",
+    ]
+
+
+def test_insert_row_appends_at_the_bottom(grid_page):
+    assert _run(grid_page, ROW_3, "libliTableGrid.insertRow(g, 1)") == [
+        "1x1,1x1,1x1",
+        "1x1,1x1,1x1",
+    ]
+
+
+def test_inserted_row_carries_its_control_chrome(grid_page):
+    # makeRow supplies the caller's row handles; without it the new row would
+    # silently have no insert/delete buttons.
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.insertRow(g, 1);
+             return !!g.rows()[1].querySelector('td[data-control]');
+           }"""
+    has_ctl = grid_page.evaluate(template % ROW_3)  # noqa: UP031
+    assert has_ctl is True
+
+
+def test_delete_row_shrinks_a_rowspan_anchored_above(grid_page):
+    rows = (
+        "<tr><td rowspan='3'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.deleteRow(g, 1)") == ["1x2,1x1", "1x1"]
+
+
+def test_delete_row_relocates_a_cell_anchored_in_it(grid_page):
+    # The hard case: a rowspan=3 cell mid-way along a wide row. Its node must
+    # move into the next row, decremented, at the right sibling index.
+    rows = (
+        "<tr><td></td><td id='rs' rowspan='3'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td id='after'></td><td data-control></td></tr>"
+        "<tr><td></td><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.deleteRow(g, 0);
+             var rs = document.getElementById('rs');
+             var row0 = g.cells(g.rows()[0]);
+             return [shape(g), row0.indexOf(rs), rs.rowSpan];
+           }"""
+    result = grid_page.evaluate(template % rows)  # noqa: UP031
+    shape, index, rowspan = result
+    assert rowspan == 2
+    # It lands at layout column 1, i.e. sibling index 1 -- before 'after'.
+    assert index == 1
+    assert shape == ["1x1,1x2,1x1", "1x1,1x1"]
+
+
+def test_delete_last_row_removes_an_overflowing_rowspan_cell(grid_page):
+    # Terminal case: no row idx+1 to relocate into. Reachable from hand-edited
+    # JSON; must degrade rather than throw.
+    rows = "<tr><td rowspan='9'></td><td></td><td data-control></td></tr>"
+    assert _run(grid_page, rows, "libliTableGrid.deleteRow(g, 0)") == []
+
+
+def test_delete_row_clamps_a_rowspan_that_would_overflow(grid_page):
+    # After removing the last row, a rowspan=2 anchored in row 0 would reach
+    # past the grid and shove the control strip sideways.
+    rows = (
+        "<tr><td rowspan='2'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.deleteRow(g, 1)") == ["1x1,1x1"]

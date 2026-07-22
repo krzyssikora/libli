@@ -169,6 +169,107 @@
     }
   }
 
+  // Append a data cell to `tr`, before the trailing control cell.
+  function appendDataCell(grid, tr, td) {
+    var cells = grid.cells(tr);
+    if (cells.length) cells[cells.length - 1].after(td);
+    else tr.insertBefore(td, tr.firstChild);
+    return td;
+  }
+
+  function insertRow(grid, layoutRow) {
+    var sm = slotMap(grid);
+    var rows = grid.rows();
+    if (!rows.length) return null;
+    // Bounds-check like every other entry point. Without this, layoutRow >
+    // height makes sm.map[layoutRow - 1] undefined and the loop below throws.
+    if (layoutRow < 0 || layoutRow > sm.height) return null;
+    var tr = grid.makeRow();
+    if (layoutRow >= sm.height) rows[rows.length - 1].after(tr);
+    else rows[layoutRow].parentNode.insertBefore(tr, rows[layoutRow]);
+
+    // Mirror of insertColumn: a cell STRADDLES the insertion row iff it
+    // occupies both the slot above it and the slot at it. A cell anchored AT
+    // layoutRow does not suppress a new cell.
+    var grown = [];
+    for (var c = 0; c < sm.width; c++) {
+      var above = layoutRow > 0 ? sm.map[layoutRow - 1][c] : null;
+      var at = layoutRow < sm.height ? sm.map[layoutRow][c] : null;
+      if (above && above === at) {
+        if (grown.indexOf(above) === -1) {
+          setSpan(above, "rowspan", rowspanOf(above) + 1);
+          grown.push(above);
+        }
+        continue;
+      }
+      appendDataCell(grid, tr, grid.makeCell());
+    }
+    return tr;
+  }
+
+  // Enforce the bounds invariant: r + rowspan <= height. Only the ROW axis is
+  // falsifiable -- width is DEFINED as max(c + colspan), so its half is a
+  // tautology. An overflowing rowspan shoves the injected control row sideways
+  // and misaligns every handle, so it must be clamped after any op.
+  function clampRowspans(grid) {
+    var sm = slotMap(grid);
+    var rows = grid.rows();
+    for (var r = 0; r < rows.length; r++) {
+      var cells = grid.cells(rows[r]);
+      for (var k = 0; k < cells.length; k++) {
+        if (r + rowspanOf(cells[k]) > sm.height) {
+          setSpan(cells[k], "rowspan", Math.max(1, sm.height - r));
+        }
+      }
+    }
+  }
+
+  function deleteRow(grid, layoutRow) {
+    var sm = slotMap(grid);
+    var rows = grid.rows();
+    if (layoutRow < 0 || layoutRow >= rows.length) return;
+    var tr = rows[layoutRow];
+    var isLast = layoutRow === rows.length - 1;
+
+    // (a) Cells merely STRADDLING the deleted row (anchored above it) just
+    //     decrement; no node moves.
+    var handled = [];
+    for (var c = 0; c < sm.width; c++) {
+      var cell = sm.map[layoutRow][c];
+      if (!cell || handled.indexOf(cell) !== -1) continue;
+      handled.push(cell);
+      var a = anchorOf(sm, cell);
+      if (a && a.r < layoutRow) setSpan(cell, "rowspan", rowspanOf(cell) - 1);
+    }
+
+    // (b) Cells ANCHORED in the deleted row with rowspan > 1 relocate into the
+    //     next row they cover, at an index computed from THAT row's slot map.
+    //     Terminal case: on the last row there is nothing to relocate into
+    //     (only reachable via an overflowing stored rowspan), so the cell goes
+    //     with its row.
+    if (!isLast) {
+      var target = rows[layoutRow + 1];
+      var anchored = grid.cells(tr);
+      for (var k = 0; k < anchored.length; k++) {
+        var moving = anchored[k];
+        if (rowspanOf(moving) <= 1) continue;
+        var am = anchorOf(sm, moving);
+        setSpan(moving, "rowspan", rowspanOf(moving) - 1);
+        var tcells = grid.cells(target);
+        var ref = null;
+        for (var j = 0; j < tcells.length; j++) {
+          var ta = anchorOf(sm, tcells[j]);
+          if (ta && ta.c > am.c) { ref = tcells[j]; break; }
+        }
+        if (ref) target.insertBefore(moving, ref);
+        else appendDataCell(grid, target, moving);
+      }
+    }
+
+    tr.remove();
+    clampRowspans(grid);
+  }
+
   window.libliTableGrid = {
     slotMap: slotMap,
     layoutWidth: layoutWidth,
@@ -180,5 +281,8 @@
     insertColumn: insertColumn,
     deleteColumn: deleteColumn,
     insertCellAt: insertCellAt,
+    insertRow: insertRow,
+    deleteRow: deleteRow,
+    clampRowspans: clampRowspans,
   };
 })();
