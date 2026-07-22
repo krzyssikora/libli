@@ -382,7 +382,7 @@ row instead; builder.js will patch it in place."
 - Delete: `templates/courses/manage/_rename_form.html`
 - Modify: `courses/static/courses/css/builder.css` (delete lines 99-100, the dead `.form--inline` panel rules)
 - Modify: `tests/test_tree_badge.py` (line 23 regex)
-- Modify: `tests/test_e2e_builder.py`, `tests/test_e2e_builder_authoring.py`, `tests/test_e2e_builder_reorder.py`, `tests/test_e2e_builder_ws2.py` (14 `text=` waits — see Step 5b)
+- Modify: `tests/test_e2e_builder.py`, `tests/test_e2e_builder_authoring.py`, `tests/test_e2e_builder_reorder.py`, `tests/test_e2e_builder_ws2.py`, `tests/test_e2e_transfer.py` (15 text-engine matches — see Step 5b)
 - Test: `tests/test_manage_builder.py`
 
 **Interfaces:**
@@ -603,15 +603,22 @@ This is the change most likely to ship broken, because nothing in the default te
 it. Playwright's `text=` engine matches an `<input>` by its value **only** for `type=button` and
 `type=submit` — a `type=text` input is never matched. So every
 `page.wait_for_selector("text=<node title>")` that waits for a tree row silently stops matching the
-moment Task 3 lands, and those tests fail on a timeout that looks like a product bug. There are 14,
-in four modules the plan does not otherwise touch:
+moment this task lands, and those tests fail on a timeout that looks like a product bug. The same
+applies to `get_by_text`, which is the *same* text engine — so search for **both** forms. There are
+15, in five modules the plan does not otherwise touch:
 
-| File | Lines |
-|---|---|
-| `tests/test_e2e_builder.py` | 75, 83, 119, 187 |
-| `tests/test_e2e_builder_authoring.py` | 70, 85, 121, 132, 188, 198 |
-| `tests/test_e2e_builder_reorder.py` | 103 |
-| `tests/test_e2e_builder_ws2.py` | 66, 135, 245 |
+| File | Lines | Form |
+|---|---|---|
+| `tests/test_e2e_builder.py` | 75, 83, 119, 187 | `wait_for_selector("text=…")` |
+| `tests/test_e2e_builder_authoring.py` | 70, 85, 121, 132, 188, 198 | `wait_for_selector("text=…")` |
+| `tests/test_e2e_builder_reorder.py` | 103 | `wait_for_selector("text=…")` |
+| `tests/test_e2e_builder_ws2.py` | 66, 135, 245 | `wait_for_selector("text=…")` |
+| `tests/test_e2e_transfer.py` | 177 | `part_scope.get_by_text("Root Chapter").count() == 1` → `part_scope.locator('.tree__title[value="Root Chapter"]').count() == 1` |
+
+`test_e2e_transfer.py:177` is scoped to `[data-scope="{part.pk}"]`, i.e. a tree scope, so it *is* a
+row title. Its line 92 `wait_for_selector(f"text={course.title}")` is on the **import preview** page,
+not the tree — leave that one alone. Likewise `test_e2e_builder_tree_layout.py:188/233` scope
+`get_by_text` to `.builder__panel`, which is panel copy, not a row title.
 
 Rewrite each as a value-attribute wait against the tree title, e.g.
 
@@ -628,7 +635,7 @@ notice, a panel heading), in which case leave them alone. Only the tree-row wait
 
 ```bash
 uv run pytest tests/test_manage_builder.py tests/test_tree_badge.py -v
-uv run pytest -m e2e tests/test_e2e_builder.py tests/test_e2e_builder_authoring.py tests/test_e2e_builder_reorder.py tests/test_e2e_builder_ws2.py -v
+uv run pytest -m e2e tests/test_e2e_builder.py tests/test_e2e_builder_authoring.py tests/test_e2e_builder_reorder.py tests/test_e2e_builder_ws2.py tests/test_e2e_transfer.py -v
 ```
 
 The e2e run proves Step 5b's migration: without it those modules break **here**, and Task 6 would
@@ -643,7 +650,7 @@ Wrap the new form in `{% if node.kind != "unit" %}`. The `unit` parametrization 
 - [ ] **Step 8: Commit**
 
 ```bash
-git add templates/courses/manage/_tree_node.html templates/courses/manage/_node_panel.html courses/static/courses/css/builder.css tests/test_manage_builder.py tests/test_tree_badge.py tests/test_e2e_builder.py tests/test_e2e_builder_authoring.py tests/test_e2e_builder_reorder.py tests/test_e2e_builder_ws2.py
+git add templates/courses/manage/_tree_node.html templates/courses/manage/_node_panel.html courses/static/courses/css/builder.css tests/test_manage_builder.py tests/test_tree_badge.py tests/test_e2e_builder.py tests/test_e2e_builder_authoring.py tests/test_e2e_builder_reorder.py tests/test_e2e_builder_ws2.py tests/test_e2e_transfer.py
 git commit -m "feat(builder): editable title input on every tree row
 
 Replaces the title button with a one-field rename form, and removes the
@@ -1647,7 +1654,7 @@ would not exercise the token refresh at all. `_simulate_drag` **already dispatch
 - [ ] **Step 5: Run the e2e suite in the foreground**
 
 ```bash
-uv run pytest -m e2e tests/test_e2e_builder*.py tests/test_e2e_inline_rename.py -v
+uv run pytest -m e2e tests/test_e2e_builder*.py tests/test_e2e_transfer.py tests/test_e2e_inline_rename.py -v
 ```
 
 Run the **whole builder e2e set**, not just the two modules this task edits directly: Task 3 Step 5b touched
