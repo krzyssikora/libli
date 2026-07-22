@@ -1767,6 +1767,36 @@ def test_switch_gate_line_diagram_image_recovered():
     assert sum(1 for e in allels if e.get("type") == "switch_gate") == 1
 
 
+FILL_TABLE_IMAGE_WITH_DETAILS = (
+    '<table class="my_table_TL">'
+    "<tr><th>rysunek</th><th>pole</th></tr>"
+    '<tr><td><img src="static/t1.png" alt="t"><br>'
+    r"<details><summary>wyjaśnienie</summary>Skala \(k=3\).</details></td>"
+    "<td>27</td></tr>"
+    '<tr><td><img src="static/t2.png" alt="u"></td>'
+    '<td><input class="table_input" type="text"></td></tr>'
+    "</table>"
+)
+
+
+def test_fill_table_image_with_details_becomes_image_cell_plus_explanation_row():
+    # 250_pole_trojkata: a fill-table cell holds a diagram AND an explanatory
+    # <details>. A cell can hold exactly one thing, so the diagram becomes an image
+    # cell and the explanation is re-emitted as a full-width row directly BELOW its
+    # own row — keeping both (a <details> inside a cell is flattened by the cell
+    # sanitizer, so the collapse can't survive in-cell either way).
+    elements, _ = parse_lesson(FILL_TABLE_IMAGE_WITH_DETAILS, "x.html")
+    ft = next(e for e in elements if e["type"] == "fill_table")
+    rows = ft["data"]["cells"]
+    assert rows[1][0] == {"kind": "image", "media_src": "static/t1.png", "alt": "t"}
+    exp = rows[2]  # inserted directly below its diagram row
+    assert len(exp) == 1 and exp[0]["colspan"] == 2  # full width
+    assert "wyjaśnienie" in exp[0]["html"] and "k=3" in exp[0]["html"]
+    # the following diagram row + its input are untouched
+    assert rows[3][0]["kind"] == "image"
+    assert rows[3][1]["kind"] == "answer"
+
+
 def test_whitespace_only_block_is_dropped():
     # a whitespace-only <p> (e.g. <p>\n</p>) must NOT become an empty TextElement
     elements, _ = parse_lesson("<p>\n</p><p>Treść.</p>", "x.html")

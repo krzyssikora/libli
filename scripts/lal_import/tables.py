@@ -91,6 +91,37 @@ def _split_multi_input_cell(c, answer_by_input):
     return out
 
 
+def _image_with_details(c):
+    """A cell that is a diagram PLUS an explanatory <details> (250_pole_trojkata:
+    `<img><br><details><summary>wyjaśnienie</summary>…</details>`). A fill cell
+    holds exactly one thing, so the caller makes the diagram an `image` cell and
+    re-emits the explanation as its own full-width row. Returns (img, [details, …])
+    only when the cell's sole non-<details> content is one <img> — a cell with
+    other text, or whose image lives INSIDE the explanation, is left alone."""
+    details = c.find_all("details")
+    if not details:
+        return None, []
+    imgs = c.find_all("img")
+    if len(imgs) != 1 or imgs[0].find_parent("details") is not None:
+        return None, []
+    for s in c.find_all(string=True):
+        if s.strip() and s.find_parent("details") is None:
+            return None, []  # stray text beside the diagram -> not a clean split
+    return imgs[0], details
+
+
+def _explanation_html(details):
+    """The <details> content as cell HTML, its <summary> kept as a leading bold
+    label. The cell sanitizer drops <details>/<summary>, so the collapse cannot
+    survive in-cell; the label preserves what the disclosure was called."""
+    summary = details.find("summary")
+    label = summary.get_text(strip=True) if summary is not None else ""
+    if summary is not None:
+        summary.extract()
+    body = details.decode_contents().strip()  # already math-escaped; never re-escape
+    return (f"<strong>{label}</strong> " if label else "") + body
+
+
 def _fill_span_table(grid, answer_by_input):
     """A colspan/rowspan fill table -> a native FillTableElement with RAGGED rows,
     each cell's span + <th>-ness preserved. An input cell -> answer, a pure <img>
@@ -163,10 +194,12 @@ def fill_table_element(table, answer_by_input):
     # group; a split (>=2-input) cell -> the run of sub-cells. Keeping the groups
     # (instead of a flat row) lets the header label align with the column's input.
     grid_groups = []
-    for r in grid:
+    explanations = {}  # row index -> [explanation html, ...] to insert BELOW that row
+    for ri, r in enumerate(grid):
         row_groups = []
         for c in r:
             inputs = c.find_all(class_="table_input")
+            img_d, det = _image_with_details(c)
             if len(inputs) >= 2:
                 did_split = True
                 row_groups.append(_split_multi_input_cell(c, answer_by_input))
@@ -174,6 +207,21 @@ def fill_table_element(table, answer_by_input):
                 raw = answer_by_input.get(id(inputs[0]), "")
                 row_groups.append(
                     [{"kind": "answer", "answer": _answer_alternatives(raw)}]
+                )
+            elif img_d is not None:
+                # diagram + explanation: keep the diagram in the cell, and queue the
+                # explanation as a full-width row directly below this one (250).
+                row_groups.append(
+                    [
+                        {
+                            "kind": "image",
+                            "media_src": img_d.get("src", ""),
+                            "alt": img_d.get("alt", ""),
+                        }
+                    ]
+                )
+                explanations.setdefault(ri, []).extend(
+                    _explanation_html(d) for d in det
                 )
             elif not c.get_text(strip=True) and len(c.find_all("img")) == 1:
                 # a pure image cell (only an <img>, maybe a stray <br>): keep the
@@ -246,6 +294,11 @@ def fill_table_element(table, answer_by_input):
                 row.extend(group)
                 row.extend(_empty() for _ in range(w - len(group)))
         cells.append(row)
+        # A diagram cell's explanation follows as its own full-width row. The
+        # colspan makes normalize_data treat the grid as spanning, which keeps
+        # these ragged 1-cell rows verbatim instead of padding them out.
+        for html in explanations.get(ri, []):
+            cells.append([{"kind": "static", "html": html, "colspan": out_width}])
     data = {
         "header_row": header_row,
         "header_col": header_col,
@@ -292,9 +345,7 @@ def table_element(table):
             for k in ("colspan", "rowspan")
         )
 
-    spanning = any(
-        _has_real_span(c) for tr in rows for c in tr.find_all(["td", "th"])
-    )
+    spanning = any(_has_real_span(c) for tr in rows for c in tr.find_all(["td", "th"]))
     if spanning:
         # A colspan/rowspan table keeps RAGGED rows: each row's actual cells with
         # their span + <th>-ness preserved (the browser lays it out from the spans).
