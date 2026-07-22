@@ -109,8 +109,15 @@ entry point takes a `grid` descriptor supplied by the caller:
 { rows:  () => [<tr>, ...], // data rows only (control row excluded)
   cells: (tr) => [...],     // the row's data cells only (control cell excluded)
   makeCell: () => <td>,     // the caller's default empty cell factory
-  makeRow:  () => <tr> }    // an empty <tr> WITH the caller's row chrome
+  makeRow:  () => <tr>,     // an empty <tr> WITH the caller's row chrome
+  maxCols:  20,             // size caps, supplied by the caller
+  maxRows:  50 }
 ```
+
+The caps ride on the descriptor rather than being hard-coded in the module, so
+`table_grid.js` stays free of policy: `canMerge` needs them (a range wider than the cap is
+refused, never clamped), and today that knowledge lives in each editor's
+`refreshControlState`, which keeps supplying it.
 
 `rows` is a **function**, symmetrical with `cells`, and every op re-reads it after
 mutating. This is not cosmetic: `insertRow` adds a `<tr>` and `deleteRow` removes one, so
@@ -219,12 +226,12 @@ Every function takes the `grid` descriptor above as its first argument.
 |---|---|
 | `slotMap(grid)` | Standard HTML table cell-mapping: `{ map, width, height }` where `map[r][c]` is the cell occupying that layout slot (or `null`), accounting for colspan and rowspan. The primitive everything else builds on. |
 | `layoutWidth(grid)` | Layout column count. Replaces `colCount()`, which reads row 0's **cell** count and is wrong once a span exists. |
-| `insertColumn(grid, layoutCol)` | Insert a layout column at `layoutCol`; straddling colspans grow by 1; **a row is skipped only when a cell anchored in an *earlier* row *straddles* the insertion point** (strict `c < layoutCol < c + colspan`), in which case that covering cell's colspan grows exactly once, at its anchor. |
+| `insertColumn(grid, layoutCol)` | Insert a layout column at `layoutCol`. **A row gains no new cell whenever a cell *straddles* the insertion point** (strict `c < layoutCol < c + colspan`) — whether that cell is anchored in the row itself (its colspan grows by 1) or in an *earlier* row (the covering cell's colspan grows exactly once, at its anchor). Every other row gains a real new cell. |
 | `deleteColumn(grid, layoutCol)` | Delete a layout column. Arithmetic is over the **covering** predicate, *not* the strict straddle one: any cell whose covered range `[c, c + colspan)` contains `layoutCol` has its colspan decremented by 1, and is removed outright when that reaches 0. Cells anchored strictly left or right are untouched. |
 | `insertRow(grid, layoutRow)` | Insert a row **at** `layoutRow` (same *at*-convention as `insertColumn`, deliberately not an "after" index); straddling rowspans grow by 1; only uncovered slots get real new cells (via `grid.makeCell`). |
 | `deleteRow(grid, layoutRow)` | Like `deleteColumn`, **plus anchor relocation** — see the rule below; it is not a pure transpose. |
 | `rangeCells(grid, a, b)` | The rectangle between two cells, **normalised** to a fixpoint (below). Returns `{ cells, anchor, r0, c0, r1, c1 }`, where `anchor` is the cell occupying `(r0, c0)` **after** normalisation — which fixpoint expansion can make a different cell from the one the author first clicked. `merge` keeps *this* cell's content, not `rangeAnchor`. |
-| `canMerge(grid, a, b)` | True when the normalised range covers ≥ 2 cells. |
+| `canMerge(grid, a, b)` | True when the normalised range covers ≥ 2 cells, **and** its anchor slot is non-null, **and** it is no wider than `grid.maxCols` and no taller than `grid.maxRows`. All three clauses are load-bearing — see the null-anchor rule and "refuse, never silently clamp". |
 | `merge(grid, a, b)` | Top-left gains the covering colspan/rowspan; every other cell in the range is removed from its row. |
 | `split(grid, cell)` | Remove the cell's spans; re-insert empty cells (via `grid.makeCell`) into the correct position in each freed row. |
 
