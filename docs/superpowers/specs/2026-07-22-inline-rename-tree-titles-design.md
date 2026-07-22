@@ -41,13 +41,15 @@ Non-goals: renaming the course itself (that stays on the course-metadata page), 
   stored title and nothing is posted. (Blur is an ambiguous gesture; silently 422-ing on it would be
   hostile.)
 - **Enter on an empty *or whitespace-only* field** → the handler writes the trimmed value back first,
-  so the field is empty when `requestSubmit()` runs; `required` then fails constraint validation and
-  the browser shows its native "fill in this field" bubble. Nothing is posted.
+  so the field is empty when validity is checked; `required` then fails and the browser shows its
+  native "fill in this field" bubble. Nothing is posted **and no in-flight state is set** (see JS
+  step 4 — this is what stops the row wedging).
 - **Server-rejected title** (over `max_length`, or anything reaching the no-JS path) → see the error
-  table; the JS path retains typed text and the row's token, so a corrected re-submit succeeds.
+  table; the JS path retains typed text, focus, and the row's token, so a corrected re-submit
+  succeeds.
 - **Resting appearance:** the field looks like plain text — no border, no background — so the tree
   does not become a wall of input boxes. A subtle border appears on hover and a real focus ring on
-  focus. Ellipsis truncation is preserved.
+  focus, both **layout-neutral** (see Styling). Ellipsis truncation is preserved.
 
 **Touch devices — accepted cost.** Because selecting a node now focuses a text input, tapping a row
 on a tablet or phone raises the on-screen keyboard even when the author only meant to inspect the
@@ -59,7 +61,7 @@ desktop-first authoring surface (its two-pane layout already collapses to a stac
 ## Architecture / components
 
 The change is essentially a **relocation of the existing rename form**. It needs one small backend
-addition (title stripping, below); everything else reuses the existing plumbing unchanged.
+addition (title normalization, below); everything else reuses the existing plumbing unchanged.
 
 ### What already works and is reused unchanged
 
@@ -75,18 +77,29 @@ addition (title stripping, below); everything else reuses the existing plumbing 
 - The optimistic-lock token (`node.updated.isoformat`) and its `ConflictError` → 409 → "reloaded to
   the latest." path are unchanged.
 
-### The one backend change — strip the title in `rename_node`
+### The one backend change — normalize the title for *all* writers
 
 `ContentNode.title` is `models.CharField(max_length=200)` (`models.py:196`) and `ContentNode.clean()`
 (`models.py:235`) validates only parent/kind/unit_type. `full_clean()` rejects `""`, but `"   "` is
 **not** in Django's `EMPTY_VALUES`, so a whitespace-only title currently validates and persists.
 Client-side trimming cannot fix this, because the no-JS path posts whatever was typed.
 
-`rename_node` therefore strips the incoming title before assigning it (only when `title is not
-_UNSET`, so the type-only toggle is unaffected). A whitespace-only title then becomes `""` and
-`full_clean()` rejects it on **every** path — JS, no-JS, and the editor settings form alike. This also
-makes the client-side trim a UX nicety rather than the sole guarantee, which is the right division of
-responsibility.
+Add a small shared helper in `courses/builder.py` that strips an incoming title, and call it from
+**both** `rename_node` (only when `title is not _UNSET`, so the type-only toggle is unaffected) **and**
+`add_node` (`builder.py:146-156`, which currently assigns `title` unstripped). A whitespace-only title
+then becomes `""` and `full_clean()` rejects it on every path.
+
+Normalizing on the add path too is deliberate: the inline-add flow (`builder.js:343-347`) only *tests*
+`t.value.trim()` while submitting the raw value, so `"  Foo  "` currently enters the DB at creation
+time. Fixing only `rename_node` would leave the tree seeding exactly the "stored title with stray
+whitespace" rows that the trimmed-vs-trimmed dirty check (JS step 6) exists to tolerate.
+
+The normalization deliberately lives in these service functions rather than `ContentNode.clean()`:
+`full_clean()` runs `clean_fields()` (which enforces `blank`) *before* `clean()`, so stripping inside
+`clean()` would let `"   "` pass the blank check and then persist as `""`.
+
+**Out of scope:** course import/transfer paths, which write titles from an external payload. They are
+unchanged, and a note in the helper's docstring records that they bypass it.
 
 ### Scope of the returned fragment
 
@@ -99,12 +112,12 @@ re-renders the *entire* tree pane, not just a subtree. Two consequences the JS m
 - **Other rows' uncommitted typing** in the replaced scope is discarded. Accepted; identical to how
   every other builder op behaves today.
 
-**Scroll position is *not* at risk and needs no restoration code.** `.builder__panel` is the sticky,
-`overflow: hidden auto` scroll container (`builder.css:15-16`); the tree itself sits in normal
-document flow. Replacing `[data-scope="top"]` with a subtree of identical height — which a rename
-guarantees, since the row count and structure are unchanged — leaves document scroll untouched. An
-e2e assertion guards this invariant cheaply (see Testing); no `scrollTop` save/restore should be
-written.
+**Scroll position is *not* at risk and needs no restoration code**, provided focus restoration uses
+`preventScroll` (JS step 9). `.builder__panel` is the sticky, `overflow: hidden auto` scroll container
+(`builder.css:15-16`); the tree itself sits in normal document flow. Replacing `[data-scope="top"]`
+with a subtree of identical height — which a rename guarantees, since the row count and structure are
+unchanged — leaves document scroll untouched. An e2e assertion guards this invariant; no
+`scrollTop` save/restore should be written.
 
 ### Template change — `templates/courses/manage/_tree_node.html`
 
@@ -117,8 +130,7 @@ Line 12–13's title `<button>` becomes a small form wrapping a text input:
   <input type="hidden" name="node" value="{{ node.pk }}">
   <input type="hidden" name="token" value="{{ node.updated.isoformat }}">
   <input class="tree__title" type="text" name="title" value="{{ node.title }}"
-         title="{{ node.title }}"
-         aria-label="{% blocktrans with kind=node.get_kind_display %}Title of {{ kind }}{% endblocktrans %}"
+         title="{{ node.title }}" aria-label="{% trans 'Title' %}"
          required maxlength="200" autocomplete="off" spellcheck="false"
          data-select="{{ node.pk }}"
          data-panel-url="{% url 'courses:manage_node_panel' slug=node.course.slug pk=node.pk %}">
@@ -134,23 +146,34 @@ Points that are load-bearing rather than incidental:
 - **`data-select` / `data-panel-url` move onto the input**, so selection works from the element the
   user actually clicks.
 - **`maxlength="200"`** mirrors the model field, so over-length input is prevented client-side instead
-  of costing a 422 round trip. `required` is what makes Enter-on-empty fail constraint validation
-  rather than post a blank title.
+  of costing a 422 round trip. `required` is what makes Enter-on-empty fail validity rather than post
+  a blank title.
 - **`autocomplete="off"`** stops browser autofill dropdowns over tree rows. **`spellcheck="false"`**
   stops red squiggles across every row at rest; the tradeoff — no spellcheck while actively editing a
   prose title either — is **accepted** rather than fixed with focus-time toggling, which would add a
   handler for marginal benefit.
-- **The accessible name is the node's *kind*, not its title** (e.g. "Title of Chapter"). A text
-  input's *value* is announced alongside its name, so the value already distinguishes rows; embedding
-  the server-rendered title in `aria-label` instead would go stale the moment the author types (and
-  stay stale after a 422), which is exactly the drift the tooltip sync below exists to prevent. Note
-  `aria-label` overrides `title` for the accessible name; `title` is retained purely as the hover
-  tooltip for truncated labels.
+- **The accessible name is a plain, kind-independent `Title`.** A text input's *value* is announced
+  alongside its name, so the value already distinguishes rows, and the row's badge conveys the kind.
+  Interpolating the kind (`"Title of {{ kind }}"`) was considered and rejected: Polish needs the
+  genitive ("Tytuł rozdziału"), while `get_kind_display` supplies a nominative label, so the `pl`
+  catalog could not produce a correct string by translating the frame alone. Interpolating the
+  *title* was likewise rejected — it would go stale the moment the author types. Note `aria-label`
+  overrides `title` for the accessible name; `title` is retained purely as the hover tooltip for
+  truncated labels.
 - **The submit button is `.visually-hidden` *and* `tabindex="-1"`.** The utility at
   `core/static/core/css/app.css:1167` uses the `clip` pattern, which keeps the element **focusable** —
   without `tabindex="-1"` every row would gain a second Tab stop, a serious keyboard regression in a
   long course. It exists only to guarantee a submit path for the no-JS case; Enter already submits, so
   removing it from the tab order costs nothing.
+
+**Per-row markup cost — considered and measured.** Each row gains a `<form>`, a `{% csrf_token %}`
+hidden input, two hidden inputs, a hidden submit button and a second `{% url %}` reversal. In this
+repo courses reach ~800 units (the matematyka import loads 793), and the long-course navigation work
+exists because tree size already matters, so this is not a free change: the CSRF token alone is ~64
+bytes of value per row. The token is kept rather than dropped in favour of the cookie-reading `csrf()`
+helper, because dropping it would break the no-JS path this design newly enables. Verification
+therefore **measures** the builder page's transferred size and DOM node count for the largest
+available fixture before and after, and records the delta in the PR (see Verification).
 
 ### No-JS behaviour
 
@@ -176,81 +199,126 @@ there is exactly **one** `panel.innerHTML =` assignment in the file and that it 
 `setPanel` (which resets `scrollTop`). The focusin rewrite touches both the success and `.catch`
 branches of the panel fetch; inlining either write turns that test red.
 
+#### The in-flight gate
+
+A single module-level `renameInFlight` object (or `null`) is the whole concurrency story. It replaces
+any per-row attribute or timer-based deferral, and it exists because a rename commit and any other
+tree op both carry the same row's token and both return a full server-rendered scope snapshot — so
+letting them overlap yields either a guaranteed 409 or an out-of-order `applyFragment` that
+re-instates the pre-op tree (a deleted row reappearing, a reorder visually undone).
+
+While `renameInFlight` is set:
+
+- the delegated submit handler ignores forms whose `data-op` is **not** `rename` (the rename's own
+  submit must still be processed — it lives inside the same row, so a naive "ignore this row"
+  rule would suppress the very request it is meant to send);
+- `[data-move]` and `[data-select]` clicks, and clicks on the row's `<a>` controls (Delete, Export),
+  are `preventDefault`ed and dropped;
+- `dragstart` is ignored. Without this, grabbing the grip focuses it, which blurs the title and
+  commits the rename, while the drop handler still posts the `node_token` it read from `data-updated`
+  at `dragstart` time (`builder.js:223-224`) — a token the rename has just invalidated, i.e. a
+  guaranteed 409 with the drag silently discarded.
+
+**Consequence, accepted and specified:** interacting with any tree control while a title is dirty
+commits the rename and **drops that control's action**. The alternative cannot work for the reasons
+above. The tree re-renders with the new title and the author repeats the gesture.
+
+`renameInFlight` is cleared in **every** completion branch — 200, 409, 422 and the `.catch` — mirroring
+where `delete form.dataset.submitting` already happens (`builder.js:181`, `:185`). Clearing it only on
+the fragment swap would leave the gate stuck after a 422 or a network error, permanently disabling
+that row's controls and blocking the corrected re-submit the error table promises.
+
+#### Handlers
+
 1. **Selection moves from `click` to `focusin`.** The existing handler at line 190 calls
    `e.preventDefault()` on `[data-select]`; on a text input that suppresses caret placement, so the
    click handler must no longer claim `[data-select]`. Two guards come with the move:
-   - **Trailing 150ms debounce plus last-request-wins.** Selection previously required a deliberate
-     click; on `focusin` a keyboard user tabbing through the tree would fire one panel fetch per row
-     and thrash the panel, with responses free to land out of order. The debounce is **trailing**: the
-     timer restarts on each `focusin` and the fetch is issued only after focus settles for 150ms, so
-     tabbing through ten rows issues one fetch, not ten. A `focusout` that leaves the tree entirely
-     cancels the pending timer. Each fetch also carries a monotonically increasing request id, and a
-     response whose id is not the latest is discarded.
-   - **A suppression flag around programmatic refocus** (step 8), so restoring focus does not
+   - **Pointer focus fetches immediately; keyboard focus is debounced.** A `pointerdown` on a row
+     marks the next `focusin` as pointer-initiated, and pointer-initiated selection issues its panel
+     fetch with no delay — the click-to-select gesture must not gain 150ms of latency, and a click
+     followed quickly by a click into the panel must not cancel the fetch and leave the panel blank.
+     Keyboard-initiated focus (no pointer mark) uses a **trailing 150ms** debounce, so tabbing across
+     ten rows issues one fetch rather than ten.
+   - **Last-request-wins.** Each fetch carries a monotonically increasing request id; a response whose
+     id is not the latest is discarded, so out-of-order responses cannot leave the panel showing a row
+     the author has already moved past.
+   - **A suppression flag around programmatic refocus** (step 9), so restoring focus does not
      re-trigger a redundant panel fetch and reset the panel's scroll.
 2. **Commit via `form.requestSubmit()` — never `form.submit()`.** `form.submit()` does not fire the
    `submit` event, so `builder.js:135`'s interceptor would never run and the browser would perform a
-   full-page POST, silently losing the entire fragment-swap design. `requestSubmit()` also runs
-   constraint validation, which is what makes `required` produce the native bubble on
-   Enter-with-empty. This mirrors `commitOrCancel` at `builder.js:347`.
-3. **The Enter branch must call `e.preventDefault()`.** A text input in a form with a submit button
-   performs *native implicit submission* on Enter. Without cancelling the key's default action, the
-   interceptor would fire once for the programmatic `requestSubmit()` and again for the implicit
-   submit — two POSTs, the second with a consumed token, producing a spurious 409. The add flow does
-   this at `builder.js:370`; it is required here for the same reason.
-4. **Trim by writing back to the input, not to a local variable.** The interceptor builds
+   full-page POST, silently losing the entire fragment-swap design. This mirrors `commitOrCancel` at
+   `builder.js:347`.
+3. **`Enter` is cancelled unconditionally.** The `keydown` handler calls `e.preventDefault()` for
+   `Enter` on any `.tree__title` **before** any dirty / validity / in-flight check. A text input in a
+   form with a submit button performs *native implicit submission*, so cancelling only on the commit
+   path would mean: Enter on an unchanged title still posts (violating "unchanged never posts"), and
+   Enter during an in-flight commit posts again with a consumed token — the exact 409 the gate exists
+   to prevent. The add flow cancels the same way at `builder.js:370`.
+4. **Validity is checked *before* any state is set.** The commit path calls `form.reportValidity()`
+   (which surfaces the native bubble) and returns immediately if it is false, **without** setting
+   `renameInFlight` or `dataset.submitting`. A failed `requestSubmit()` fires no `submit` event, so
+   nothing would ever clear those flags — the row would be permanently unable to commit and would have
+   all its controls suppressed. Order is therefore: cancel default → dirty check → trim write-back →
+   validity → set flags → `requestSubmit()`.
+5. **Trim by writing back to the input, not to a local variable.** The interceptor builds
    `new FormData(form)` (`builder.js:142`), which reads the input's **live** value — so trimming into
-   a local would leave the untrimmed string in the POST body. The handler must assign
-   `input.value = input.value.trim()` *before* calling `requestSubmit()`. (The server-side strip is
-   the real guarantee; this keeps the field and the request consistent with what is persisted.)
-5. **Dirty check compares trimmed against trimmed:**
+   a local would leave the untrimmed string in the POST body. Assign `input.value = input.value.trim()`
+   before the validity check. (The server-side normalization is the real guarantee; this keeps the
+   field and the request consistent with what is persisted.)
+6. **Dirty check compares trimmed against trimmed:**
    `input.value.trim() !== input.defaultValue.trim()`. Comparing a trimmed value against a raw
    `defaultValue` would make any legacy row whose stored title has stray whitespace post a rename on a
    bare focus-and-blur, violating the "unchanged field never posts" rule.
-6. **In-flight guard, reusing `form.dataset.submitting`.** After Enter the input keeps focus and its
+7. **In-flight guard, reusing `form.dataset.submitting`.** After Enter the input keeps focus and its
    `defaultValue` still holds the old title until the swap lands, so a following click-away would see
-   a dirty field and post a *second* time with a now-consumed token. The rename commit sets
-   `form.dataset.submitting = "1"` before `requestSubmit()`; both the `focusout` and `keydown`
-   handlers bail while it is set; the existing submit handler already clears it on completion
-   (`builder.js:181`, `:185`).
-7. **Blur commits synchronously, and the rename wins its row.** This is the deliberate resolution of
-   the blur-versus-click race, and it replaces any timer-based deferral: a `setTimeout` would make the
-   outcome depend on whether another op's `fetch` round-trip beat the timer — a race with no
-   deterministic winner and a guaranteed-flaky e2e.
-   - On `focusout` of a dirty `.tree__title`, the commit is dispatched **immediately** (no deferral).
-     This is safe here because the handler only dispatches a `fetch`; unlike the add flow's
-     `closeAdd`, it removes nothing from the DOM synchronously, so the in-progress click still lands.
-   - The row is marked `data-rename-pending` for the duration. While that attribute is present, the
-     delegated submit handler and the `[data-move]` / `[data-select]` click handlers **ignore events
-     originating inside that row**, and clicks on its `<a>` controls (Delete, Export) are
-     `preventDefault`ed. The attribute vanishes with the fragment swap.
-   - **Consequence, accepted and specified:** clicking a same-row control (Duplicate, Delete, Move,
-     Export) while the title is dirty commits the rename and **drops that control's action**. The
-     alternative — letting both fire — cannot work, because both ops carry the same row token, so
-     whichever lands second necessarily 409s. Dropping it deterministically is better than a coin
-     flip. The row re-renders with the new title and the author can click the control again.
-8. **Focus restoration after a commit.** The swap destroys the input, so restoration always re-queries
-   by `data-node` after `applyFragment`, under the step-1 suppression flag:
-   - **Enter commit** → refocus the renamed row's own input, caret at the end.
-   - **Blur commit whose `focusout` `relatedTarget` was another `.tree__title`** → refocus *that*
+   a dirty field and try to post a second time. Both the `focusout` and `keydown` handlers bail while
+   it is set; the existing submit handler clears it on completion.
+8. **Blur commits synchronously.** On `focusout` of a dirty `.tree__title` the commit is dispatched
+   immediately, with no timer. This is safe because the handler only dispatches a `fetch`; unlike the
+   add flow's `closeAdd`, it removes nothing from the DOM synchronously, so an in-progress click still
+   lands (and is then dropped by the gate). A timer-based deferral was rejected: it would make the
+   outcome depend on whether another op's round-trip beat the timer — a race with no deterministic
+   winner and a guaranteed-flaky e2e.
+9. **Focus restoration.** The swap destroys the input, so restoration always re-queries after
+   `applyFragment`, using the selector `li.tree__row[data-node="<pk>"] > .tree__rowhead .tree__title`
+   — the child combinator matters because a container row's `li[data-node]` also contains its
+   descendant rows. All programmatic focus uses **`focus({ preventScroll: true })`**; without it the
+   browser scrolls the freshly-created element into view, which is precisely the document-scroll jump
+   the scroll invariant above asserts cannot happen.
+   - **200, Enter commit** → refocus the renamed row's own input, caret at the end.
+   - **200, blur commit whose `focusout` `relatedTarget` was another `.tree__title`** → refocus *that*
      row's input instead. Without this, the natural "rename row A, click row B to rename it next"
      gesture silently drops focus to `<body>` when A's response replaces the shared parent scope (or
      the whole tree, for top-level nodes). Record the target row's `data-node` at commit time.
-   - **Blur to anywhere else** → no restoration; focus has legitimately left the tree.
-9. **Escape reverts.** `input.value = input.defaultValue`, then blur; the blur handler then sees a
-   clean field and does not post.
-10. **Keep the `title` tooltip in sync.** An `input` handler mirrors `input.value` into the element's
+   - **200, blur to anywhere else** → no restoration; focus has legitimately left the tree.
+   - **409** → the scope is swapped and the typed title is discarded (the server's value wins).
+     Restoration follows the same rule as 200, so focus lands in the renamed row's input showing the
+     authoritative title, alongside the conflict notice — rather than dropping to `<body>`.
+   - **422 and network error** → no swap occurs, so the input still exists: focus and typed text are
+     left exactly as they are, and only `renameInFlight` / `dataset.submitting` are cleared. This is
+     what makes the "corrected re-submit" promise real.
+10. **Escape reverts.** `input.value = input.defaultValue`, then blur; the blur handler then sees a
+    clean field and does not post.
+11. **Keep the `title` tooltip in sync.** An `input` handler mirrors `input.value` into the element's
     `title` attribute, so the tooltip never disagrees with the visible text while editing or after a
-    rejected rename. (`aria-label` is kind-based and static, so it needs no syncing — see the markup
-    notes.)
-11. **No panel refresh.** The submit handler's panel refresh is gated by
-    `var inPanel = panel.contains(form)` (`builder.js:141`, gating the call at `:171`). A tree-row
-    rename form is not in the panel, so no refresh runs — correct, since the tree swap already
-    re-renders the row with a fresh token. The panel *heading* keeps the old title until the node is
-    reselected; an accepted cosmetic lag, recorded so it is not mistaken for a bug.
-12. **Accepted side effect:** `clearMoving()` now runs on keyboard focus rather than only on a
-    deliberate click, so Tab-traversing the tree while a Move picker is open clears the `.moving`
-    highlight. Harmless and not worth extra logic to avoid.
+    rejected rename. (`aria-label` is a static string, so it needs no syncing.)
+12. **No panel refresh — and `refreshPanel` is deleted.** The submit handler's panel refresh is gated
+    by `var inPanel = panel.contains(form)` (`builder.js:141`, gating the call at `:171`). A tree-row
+    rename form is not in the panel, so no refresh would run. More than that: once the panel's rename
+    form is gone, the *only* remaining panel form carrying `data-op` is the Move picker
+    (`data-op="reparent"`), which takes the `setPanel(neutralPanel)` branch — so `refreshPanel()`
+    becomes unreachable. Delete it, its `else` branch, and the now-obsolete comment at
+    `builder.js:117-122`, rather than leaving dead code behind.
+    The panel *heading* keeps the old title until the node is reselected; an accepted cosmetic lag,
+    recorded so it is not mistaken for a bug.
+13. **Accepted side effects.**
+    - `clearMoving()` now runs on keyboard focus rather than only on a deliberate click, so
+      Tab-traversing the tree while a Move picker is open clears the `.moving` highlight.
+    - An open inline-add row schedules `commitOrCancel` 120ms after its own blur
+      (`builder.js:373-379`). Clicking a title while an add row is open therefore lets that add commit
+      land and swap the scope, discarding an in-progress title edit. This is the same accepted class
+      as "uncommitted typing clobbered by an unrelated op" below; it is not worth cross-wiring the two
+      flows to avoid.
 
 ### Panel change — `templates/courses/manage/_node_panel.html`
 
@@ -268,9 +336,9 @@ including it — so it becomes dead code. Its `Title` and `Rename` msgids must b
 catalog tests reject.
 
 **Accepted knock-on:** the drop handler at `builder.js:304` clears the panel only
-`if (panel.querySelector("form[data-op]"))`. With the panel's rename form gone, a non-unit node's
-panel no longer matches, so a drag no longer resets it. That is intended and harmless — the panel now
-holds no token-bearing form that could go stale.
+`if (panel.querySelector("form[data-op]"))`. A non-unit node's detail panel now contains no form at
+all, so a drag no longer resets it — intended and harmless. (The Move picker still carries
+`data-op="reparent"`, so it still matches and is still cleared on drop.)
 
 ### Styling — `courses/static/courses/css/builder.css`
 
@@ -295,52 +363,56 @@ Concretely:
   This is a mechanical constraint, not a style preference.
 - `input.tree__title` keeps `width: 100%; min-width: 0; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; text-align: left; color: var(--text-primary);` and adds `font: inherit;
-  background: none; border: 0; border-radius: 0; padding: 0; cursor: text;` — the last five
-  neutralising the global form-control rule.
+  background: none; border-radius: 0; padding: 0; cursor: text;` — neutralising the global
+  form-control rule.
+- **Hover and focus must be layout-neutral.** The row has only `padding: 3px 4px` (`builder.css:33`),
+  so introducing a 1px border on hover to an element that has none at rest would shift the text and
+  grow the row, making every row twitch as the pointer travels down a long tree. Instead the input
+  carries `border: 1px solid transparent` at rest and only its *colour* changes on `:hover`; the
+  focus ring uses `outline` / `box-shadow`, which do not participate in layout.
 - `.tree__rename` (the form) becomes the flex item: `flex: 1; min-width: 0; display: flex;
   margin: 0;`. The `margin: 0` is required — a `<form>` is a block element that UA stylesheets give a
-  default margin, inside a row with only `padding: 3px 4px`. The sibling `.tree__inline`
-  (`builder.css:44`) sets `margin: 0` for exactly this reason.
-- Hover and focus states: a subtle border on `:hover`, the standard focus ring on `:focus`.
+  default margin, inside a row with almost no slack. The sibling `.tree__inline` (`builder.css:44`)
+  sets `margin: 0` for exactly this reason.
 - Visual verification: Playwright screenshots in light **and** dark mode before shipping.
 
 ## Data flow
 
 Successful rename (JS path):
 
-1. Author clicks a row title → `focusin` on `[data-select]` → trailing-debounced, last-request-wins
-   `fetch(data-panel-url)` → `setPanel`.
-2. Author types, presses Enter (`preventDefault`) or clicks away → trimmed-dirty check passes →
-   `input.value` is trimmed in place → `form.dataset.submitting = "1"`, row marked
-   `data-rename-pending` → `requestSubmit()` → the submit handler posts `node`, `token`, `title`,
-   CSRF to `courses:manage_node_rename`.
-3. `node_rename` → `builder_svc.rename_node` (strips the title) → `_check_token` → `full_clean()` →
-   `save(update_fields=["updated", "title"])`.
+1. Author clicks a row title → `pointerdown` marks the focus as pointer-initiated → `focusin` issues
+   an immediate, last-request-wins `fetch(data-panel-url)` → `setPanel`.
+2. Author types, then presses Enter (default cancelled unconditionally) or clicks away → dirty check
+   passes → `input.value` trimmed in place → `form.reportValidity()` passes → `renameInFlight` and
+   `form.dataset.submitting` are set → `requestSubmit()` → the submit handler posts `node`, `token`,
+   `title`, CSRF to `courses:manage_node_rename`.
+3. `node_rename` → `builder_svc.rename_node` (normalizes the title) → `_check_token` →
+   `full_clean()` → `save(update_fields=["updated", "title"])`.
 4. Response 200 with the parent-scope fragment (the whole tree pane when the node is top-level) →
-   `applyFragment` swaps it → the row renders the new title with a **fresh token**;
-   `dataset.submitting` and `data-rename-pending` are gone with the replaced DOM.
-5. Focus is restored by `data-node` lookup under the suppression flag — to the renamed row (Enter) or
-   to the row whose title was clicked (blur), per JS step 8.
+   `applyFragment` swaps it → the row renders the new title with a **fresh token**; `renameInFlight`
+   and `dataset.submitting` are cleared.
+5. Focus is restored with `preventScroll` under the suppression flag — to the renamed row (Enter) or
+   to the row whose title was clicked (blur), per JS step 9.
 
 ## Error handling
 
 | Situation | Behaviour |
 |---|---|
-| Enter on an empty or whitespace-only field | Trimmed write-back makes it empty; `required` + `requestSubmit()` → native constraint-validation bubble. Nothing posted. |
+| Enter on an empty or whitespace-only field | Trimmed write-back makes it empty; `reportValidity()` fails → native bubble. Nothing posted, **no flags set**. |
 | Blur on an empty / whitespace-only field | Treated as cancel: revert to the stored title, nothing posted. |
-| Whitespace-only title reaching the server (no-JS, or editor settings form) | `rename_node` strips it to `""`; `full_clean()` rejects it. |
-| Leading/trailing whitespace | Trimmed client-side into the field before posting, and stripped server-side, so `"Unit 1 "` never persists on any path. |
-| Over-length or invalid title, **JS path** | 422 + `_op_error.html` → existing `notice()`. Typed text retained; token unchanged, so a corrected re-submit succeeds. |
+| Whitespace-only title reaching the server (no-JS, or editor settings form) | `rename_node` normalizes it to `""`; `full_clean()` rejects it. |
+| Leading/trailing whitespace | Trimmed client-side into the field before posting, and stripped server-side on both the rename and add paths, so `"Unit 1 "` never persists. |
+| Over-length or invalid title, **JS path** | 422 + `_op_error.html` → existing `notice()`. No swap: typed text, focus and token all survive, so a corrected re-submit succeeds. Flags are cleared. |
 | Over-length or invalid title, **no-JS path** | `node_rename` routes to `_builder_with_notice(..., status=422)` (`views_manage.py:331-340`) — a full builder page with an inline notice. The tree re-renders from the DB, so **typed text is not retained**. This is the path over-length input actually reaches, since `maxlength` is client-side only. |
-| Stale token (node changed elsewhere) | `ConflictError` → 409 → `_conflict_scope` fragment + "This changed elsewhere — reloaded to the latest." Existing path; the swapped row carries a fresh token. |
+| Stale token (node changed elsewhere) | `ConflictError` → 409 → `_conflict_scope` fragment + "This changed elsewhere — reloaded to the latest." The typed title is discarded (server value wins) and focus is restored per JS step 9. |
 | Enter immediately followed by click-away | `dataset.submitting` guard suppresses the second commit — exactly one POST. |
-| Blur caused by clicking this row's Duplicate or Move control | The rename commits; that control's op is suppressed via `data-rename-pending` (JS step 7). No 409 is possible. |
-| Blur caused by clicking this row's Delete or Export link | Same suppression, applied by `preventDefault`ing the navigation — these are plain `<a href>`s (`_tree_node.html:18,27`) with no JS interception of their own. |
-| Blur caused by clicking another row's title | The rename commits and focus is restored to that other row's input after the swap (JS step 8). |
+| Enter on an unchanged title | Default cancelled before the dirty check, so native implicit submission cannot fire — no POST. |
+| Any tree control (Duplicate, Move, Delete, Export, drag) used while a title is dirty | The rename commits; the gate drops that control's action. No 409 is possible. |
+| Blur caused by clicking another row's title | The rename commits and focus is restored to that other row's input after the swap. |
 | Blur caused by a navigation away from the builder | The in-flight commit may be aborted by the navigation and the edit lost — same as every other in-flight builder fetch. |
 | Node deleted elsewhere | `ConflictError` → 409 path; the row disappears from the swapped scope. |
-| Network failure | Existing `catch` → "Network error — please try again." |
-| Uncommitted typing clobbered by an unrelated op | A drag/reorder that re-renders the same scope discards uncommitted text. **Accepted**, identical to the panel form's behaviour today. |
+| Network failure | Existing `catch` → "Network error — please try again."; flags cleared, no swap, typed text kept. |
+| Uncommitted typing clobbered by an unrelated op | A drag/reorder/add-commit that re-renders the same scope discards uncommitted text. **Accepted**, identical to the panel form's behaviour today. |
 | No JavaScript | Enter submits natively; `node_rename` redirects back to the builder. |
 
 ## Testing
@@ -350,25 +422,25 @@ first (a passing test that never fails proves nothing).
 
 **Backend tests**
 
-- `rename_node` strips the title: `"  Fractions  "` persists as `"Fractions"`, and a whitespace-only
-  title raises `ValidationError` rather than persisting. Cover the no-JS POST path too, since that is
-  where an unstripped title would otherwise reach the DB.
+- The shared normalization helper strips titles on **both** paths: `rename_node("  Fractions  ")`
+  persists `"Fractions"`, `add_node("  Foo  ")` persists `"Foo"`, and a whitespace-only title raises
+  `ValidationError` rather than persisting. Cover the no-JS POST path too, since that is where an
+  unstripped title would otherwise reach the DB.
 - A title-only rename of a **unit** succeeds and leaves `unit_type`, `obligatory` and `html_seed_js`
   untouched — `rename_node`'s `_UNSET` handling is load-bearing, so guard it rather than assume it.
-  Include the type-only toggle, to prove stripping did not disturb the `_UNSET` branch.
+  Include the type-only toggle, to prove normalization did not disturb the `_UNSET` branch.
 
 **Django template/view tests**
 
 - A tree row for each of part / chapter / section / **unit** renders an editable title form
   (`data-op="rename"`, hidden `node` + `token`, `input[name=title]` with the current value,
   `required`, `maxlength="200"`). The unit case is the regression this change exists to prevent.
-- The input carries a kind-based `aria-label` and a `title` tooltip equal to the node title.
+- The input carries `aria-label="Title"` and a `title` tooltip equal to the node title.
 - **No-JS path:** POST the tree-row form shape *without* `X-Requested-With`; assert 302 to the builder
   and the persisted title. Also assert the rendered row is a real `<form method="post" action=…>`.
 - **409 path from a tree row:** POST with a stale token; assert 409 and the `_conflict_scope`
-  fragment. The token's *source* changes in this design (from a panel form refreshed by
-  `refreshPanel` to a tree row refreshed only by the `[data-scope]` swap), which is exactly the
-  staleness class the comment at `builder.js:117-122` was written about, so it must be guarded.
+  fragment. The token's *source* changes in this design (from a panel form to a tree row refreshed
+  only by the `[data-scope]` swap), so it must be guarded directly.
 - `_node_panel.html` no longer renders a rename form, and `_rename_form.html` no longer exists.
 - `tests/test_tree_badge.py:23` matches `<button class="tree__title"[^>]*\btitle="([^"]*)"`. Retarget
   it to `<input class="tree__title"[^>]*\btitle="([^"]*)"`, still asserting the tooltip carries the
@@ -379,9 +451,9 @@ first (a passing test that never fails proves nothing).
 - The existing ellipsis / `min-width: 0` / `nowrap` assertions (lines 34-41) must keep passing against
   the `input.tree__title` rule.
 - New: `.tree__rename` carries `min-width: 0` and `margin: 0`.
-- New: the input rule carries `font: inherit` and explicitly resets `background` / `border` /
-  `padding`, at a selector specific enough to beat `input[type=text]` from `app.css`. This is the
-  guard for the two failure modes named in Styling above.
+- New: the input rule carries `font: inherit`, resets `background` / `padding`, and declares a
+  `transparent` rest border (the layout-neutral hover guard), at a selector specific enough to beat
+  `input[type=text]` from `app.css`.
 
 **JS invariant test** (`tests/test_builder_js_invariants.py`)
 
@@ -396,33 +468,46 @@ Drive the actual UI — never `page.evaluate` shortcuts, which ship broken UX gr
 - **Blur commits:** type, then click outside the tree → saved.
 - **Escape reverts:** type, press Escape → field shows the original, nothing posted.
 - **Unchanged field does not post:** focus and blur without typing → **no POST to
-  `manage_node_rename`** (a debounced panel GET is expected and must not be counted), and no
-  `updated` bump.
-- **Plain Enter posts exactly once** — guards the `preventDefault` requirement against native
-  implicit submission.
-- **Enter-then-blur posts exactly once** — guards the `dataset.submitting` flag.
+  `manage_node_rename`** (a panel GET is expected and must not be counted), and no `updated` bump.
+- **Enter on an unchanged title issues no POST** — guards the unconditional `preventDefault`.
+- **Plain Enter posts exactly once**, and **Enter-then-blur posts exactly once**.
+- **Enter on an empty field does not wedge the row:** clear the field, press Enter (native bubble),
+  then type a valid title and press Enter → it commits. Guards the validity-before-flags ordering.
+- **422 does not wedge the row:** force a rejected rename, then correct it and re-submit successfully
+  without reloading. Guards clearing the gate outside the swap path.
 - **Trailing whitespace:** type `"Fractions "` and commit through the real JS path → `"Fractions"`
   persists. Guards the write-back-before-`requestSubmit()` requirement, which a local-variable trim
   would silently fail.
 - **Same-row control while dirty:** type, then click Duplicate → the rename persisted, **no duplicate
-  was created**, and no conflict notice appeared. Guards the `data-rename-pending` suppression.
+  was created**, and no conflict notice appeared. Guards the gate.
+- **Cross-row op while dirty:** type in row A, then click Delete on row B → deterministic outcome per
+  the gate (B's action dropped), with no resurrected rows after the swap.
 - **Rename A, then click B's title:** A persists and focus lands in B's input after the swap.
+- **Debounce / ordering:** tabbing across N rows issues exactly one panel GET; programmatic refocus
+  after a commit issues none; a pointer click issues its GET immediately (no 150ms delay).
 - **Keyboard tab order:** tabbing from a row title reaches the next control, not a hidden "Rename"
   button.
-- **Top-level rename preserves document scroll** in a long course, guarding the whole-tree-swap
-  invariant asserted in "Scope of the returned fragment".
+- **Top-level rename preserves document scroll** in a long course — guards both the whole-tree-swap
+  invariant and the `preventScroll` requirement.
 - `tests/test_e2e_builder_tree_layout.py` locates `.tree__title` with `has_text=` in seven places
-  (lines 93, 107, 183, 205, 283, 297, 330). An `<input>` has no text content, so every one of those
-  must move to a value-based locator. Check whether the 150ms trailing debounce requires those
-  panel-state assertions to gain explicit waits.
+  (lines 93, 107, 183, 205, 283, 297, 330) — an `<input>` has no text content, so all seven must move
+  to value-based locators. **Line 93-96 needs more than a locator change:** it asserts
+  `scrollWidth > clientWidth` to prove truncation, and an `<input>` renders its text in an inner
+  editing host where those properties do not report overflow the way they do for a `<button>`. Replace
+  the measurement with one valid for an input and falsify it first, or it may go vacuously green.
+  Also confirm which panel-state assertions need explicit waits now that selection is fetch-driven.
 
 **Verification before shipping**
 
 - Full test suite green via `uv run pytest` (bare `pytest` / `ruff` / `python` are not on PATH).
 - `uv run ruff check` and `uv run ruff format --check`.
-- **i18n catalog tests**, since this change adds `{% trans %}` / `{% blocktrans %}` strings in a new
-  location and deletes `_rename_form.html`: run `makemessages`, update both `en` and `pl` `.po`
-  files, and **delete** removed msgids rather than leaving them as obsolete `#~` entries.
-- Light and dark Playwright screenshots of the builder tree at rest, on hover, and focused.
+- **i18n catalog tests**, since this change adds `{% trans %}` strings in a new location and deletes
+  `_rename_form.html`: run `makemessages`, update both `en` and `pl` `.po` files, and **delete**
+  removed msgids rather than leaving them as obsolete `#~` entries.
+- **Page-weight measurement:** builder page transferred size and DOM node count for the largest
+  available course fixture, before and after, with the delta recorded in the PR.
+- Light and dark Playwright screenshots of: the tree at rest, on hover, and focused; and the
+  **selected non-unit detail panel**, which is now heading-only and must not look broken or
+  awkwardly padded.
 - Because this worktree runs concurrently with others, it needs its **own `DATABASE_URL`** to avoid
   colliding on the shared Postgres `test_libli` database.
