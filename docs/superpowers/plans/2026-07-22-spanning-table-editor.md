@@ -33,6 +33,7 @@
 - `courses/static/courses/js/table_grid.js` — all span-aware grid algebra. Pure functions over a caller-supplied descriptor; no DOM chrome knowledge, no serialization, no toolbar.
 - `tests/test_table_grid_algebra.py` — Playwright-hosted unit tests for the above (pure functions, run in a headless page because CI has no Node).
 - `tests/test_spanning_roundtrip.py` — server-side round-trip + form tests.
+- `tests/test_cell_selector_guard.py` — source-level guard that every data-cell selector also matches `th`.
 - `tests/test_e2e_spanning_roundtrip.py` — the headline browser-driven data-loss test.
 - `tests/test_e2e_spanning_merge.py` — real-gesture merge/split e2e for both editors.
 
@@ -408,8 +409,15 @@ def _scan_spans(cells):
                 if isinstance(raw, bool) or not isinstance(raw, int) or raw < 2:
                     continue
                 if raw > cap:
+                    # Two msgids, not one interpolated with 20 or 50: a single
+                    # nounless string ("more than 20.") cannot be translated
+                    # correctly, and Polish needs the axis word to inflect.
                     raise forms.ValidationError(
-                        _("A merged cell may not span more than %(n)d.") % {"n": cap}
+                        _("A merged cell may not span more than %(n)d columns.")
+                        % {"n": cap}
+                        if key == "colspan"
+                        else _("A merged cell may not span more than %(n)d rows.")
+                        % {"n": cap}
                     )
             if (
                 TableElement._span(cell, "colspan") is not None
@@ -751,14 +759,15 @@ table goes through those <th> branches, and dropping the span there silently
 breaks the layout the editor saved.{% endcomment %}
 ```
 
-Then add `{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}` to each of the three `<th>` branches that lack it (lines 18, 20, 22 in `tableelement.html`), exactly as the `cell.header` branch on line 16 already has it. For example line 18 becomes:
+Then add `{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}` to each of the three `<th>` branches that lack it — the `<th>` tags are on **lines 19, 21 and 23** of `tableelement.html` (18/20/22 are their `{% elif %}` conditions) — exactly as the `cell.header` branch already has it. For example:
 
 ```django
           {% elif forloop.parentloop.first and data.header_row and forloop.first and data.header_col %}
             <th class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
 ```
 
-Do the same for the single combined `<th>` branch in `filltableelement.html` (line 27-29).
+Do the same for the single combined `<th>` branch in `filltableelement.html` (the `<th>`
+tag itself is on lines 28-29).
 
 - [ ] **Step 4: Verify pass + no regression**
 
@@ -779,14 +788,15 @@ git commit -m "fix(tables): keep colspan/rowspan on header-row/col th branches"
 
 **Files:**
 - Modify: `templates/courses/manage/editor/_edit_table.html:45-56`, `_edit_filltable.html:61-86`
+- Modify: `courses/element_forms.py` (add `FillTableElementForm.resolved_grid_cells`)
 - Modify: `courses/static/courses/js/table_editor.js` (lines 24-26, 169-188, 219-242)
 - Modify: `courses/static/courses/js/filltable_editor.js` (lines 31-33, 193-233, 386-420, 595-597)
-- Modify: `courses/static/courses/css/editor.css:595,600,607`; `courses/static/courses/css/courses.css:902,904`
+- Modify: `courses/static/courses/css/editor.css:595,600`; `courses/static/courses/css/courses.css:902,904`
 - Test: `tests/test_table_editor_partial.py`, `tests/test_filltable_editor_partial.py` (append), new `tests/test_cell_selector_guard.py`
 
 **Interfaces:**
 - Consumes: `form.grid_data` from Task 3
-- Produces: editor grids that carry `colspan`/`rowspan`/`<th>`; `serialize()` emitting `colspan`/`rowspan` only when > 1 and `header: true` only for `TH`
+- Produces: `FillTableElementForm.resolved_grid_cells`; editor grids that carry `colspan`/`rowspan`/`<th>`; `serialize()` emitting `colspan`/`rowspan` only when > 1 and `header: true` only for `TH`
 
 - [ ] **Step 1: Write the failing partial-render tests**
 
@@ -834,8 +844,10 @@ def test_editor_grid_does_not_promote_header_row_or_col_cells_to_th():
         )
     )
     html = _render(el)
+    # "<th" carries the whole signal. Do NOT also assert `"header" not in html`:
+    # the border preset renders <option value="header"> unconditionally, so that
+    # substring is present in every render, before and after this change.
     assert "<th" not in html
-    assert "header" not in html
 ```
 
 Append to `tests/test_filltable_editor_partial.py` (mirroring its existing `_render`
@@ -991,14 +1003,15 @@ The rule to hold: **`contenteditable="true"` appears on a `<th>` only where the 
 
 - [ ] **Step 5: Read spans back in both `serialize()`s**
 
-In `table_editor.js`, inside `serialize()`'s per-cell push, and in `filltable_editor.js` for all three kinds, add:
+**Append these three lines to each existing per-cell object — do not replace the object.**
+`table_editor.js` builds one shape (`{html, halign, valign}`); `filltable_editor.js` builds
+three different ones (`kind: "answer"` + `answer`, `kind: "image"` + `media`/`alt`,
+`kind: "static"` + `html`), and pasting a plain-table literal over them would wipe
+`kind`/`answer`/`media`. So: keep each `row.push({...})` as it is, capture it in a local,
+and add the three lines before pushing — in **all four** places (one in `table_editor.js`,
+three in `filltable_editor.js`):
 
 ```js
-          var cell = {
-            html: td.innerHTML,
-            halign: td.dataset.halign || "left",
-            valign: td.dataset.valign || "top",
-          };
           // Emit spans ONLY when > 1 and header ONLY for TH, so a table with
           // no merges and no header cells serializes byte-identically to
           // before this feature existed.
@@ -1006,6 +1019,23 @@ In `table_editor.js`, inside `serialize()`'s per-cell push, and in `filltable_ed
           if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
           if (td.tagName === "TH") cell.header = true;
           row.push(cell);
+```
+
+e.g. the fill-table's answer branch becomes:
+
+```js
+          } else if (td.hasAttribute("data-answer")) {
+            var input = td.querySelector(".filltable-editor__answer");
+            var cell = {
+              kind: "answer",
+              answer: input ? input.value : "",
+              halign: td.dataset.halign || "left",
+              valign: td.dataset.valign || "top",
+            };
+            if (td.colSpan > 1) cell.colspan = td.colSpan;
+            if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
+            if (td.tagName === "TH") cell.header = true;
+            row.push(cell);
 ```
 
 - [ ] **Step 6: Widen every `td`-scoped selector**
@@ -1076,22 +1106,32 @@ ROOT = Path(__file__).resolve().parent.parent
 # (.choicegrid td), and even `td.tagName === "TH"` -- 113 false positives
 # across these four files. Enumerating the sites keeps the guard honest AND
 # keeps it falsifiable, which a whitelist-everything regex would not be.
+# Needles are chosen to survive the widening edit itself: `.table-editor__grid
+# td` (no trailing brace) still matches after the rule becomes
+# `.table-editor__grid td, .table-editor__grid th {`.
 INVENTORY = [
-    # (file, a substring identifying the line, what must also appear on it)
+    # (file, substring identifying the site, what must appear in its WINDOW)
     ("courses/static/courses/js/table_editor.js", 'querySelectorAll("td', "th"),
     ("courses/static/courses/js/table_editor.js", 'closest("td[contenteditable]', "th"),
     ("courses/static/courses/js/filltable_editor.js", 'querySelectorAll("td', "th"),
     ("courses/static/courses/js/filltable_editor.js", 'closest("td[contenteditable]', "th"),
     ("courses/static/courses/js/filltable_editor.js", "td[data-answer] .filltable-editor__answer", "th"),
-    ("courses/static/courses/css/editor.css", ".table-editor__grid td {", "th"),
+    ("courses/static/courses/css/editor.css", ".table-editor__grid td", "th"),
     ("courses/static/courses/css/editor.css", ".table-editor__grid td:focus", "th"),
     ("courses/static/courses/css/courses.css", ".el-editor--filltable .table-editor__grid td", "th"),
     ("courses/static/courses/css/courses.css", ".filltable-editor__grid td[data-answer]", "th"),
 ]
 
-# Exempt by design: chrome selectors scoped by [data-control] (a control cell is
-# never a <th>), and element construction (document.createElement("td")).
-EXEMPT = re.compile(r"data-control|createElement")
+# Exempt by design: CONTROL-CELL chrome selectors (a control cell is never a
+# <th>) and element construction. Scoped to `td[data-control]` specifically --
+# a bare `data-control` test would also swallow
+# `querySelectorAll("td:not([data-control]), th:not([data-control])")`, i.e.
+# the correctly-widened dataCells line this guard exists to check.
+EXEMPT = re.compile(r"td\[data-control\]|createElement")
+
+# CSS selector lists may be split across lines, so a needle's `th` twin can sit
+# on the NEXT line. Check a small window rather than the single matched line.
+WINDOW = 2
 
 
 def test_every_inventoried_data_cell_selector_also_matches_th():
@@ -1103,18 +1143,19 @@ def test_every_inventoried_data_cell_selector_also_matches_th():
     corner case. Must go RED if any single inventory row is reverted."""
     problems = []
     for rel, needle, required in INVENTORY:
-        text = (ROOT / rel).read_text(encoding="utf-8")
+        lines = (ROOT / rel).read_text(encoding="utf-8").splitlines()
         hits = [
-            ln
-            for ln in text.splitlines()
-            if needle in ln and not EXEMPT.search(ln)
+            i for i, ln in enumerate(lines) if needle in ln and not EXEMPT.search(ln)
         ]
         if not hits:
             problems.append(f"{rel}: inventory line vanished: {needle!r}")
             continue
-        for ln in hits:
-            if required not in ln.lower():
-                problems.append(f"{rel}: {ln.strip()!r} does not match {required!r}")
+        for i in hits:
+            window = " ".join(lines[i : i + WINDOW]).lower()
+            if required not in window:
+                problems.append(
+                    f"{rel}:{i + 1}: {lines[i].strip()!r} does not match {required!r}"
+                )
     assert not problems, "\n".join(problems)
 ```
 
@@ -1516,12 +1557,22 @@ unguarded, so a guard on `colCount` alone would protect nothing while implying s
   }
 ```
 
-⚠️ **`colCount` has a caller outside the control strip.** The row-insert handler does
-`buildRow(grid, colCount(grid))` — `table_editor.js:250` and `filltable_editor.js:430`.
-Leaving it alone would pass the *grid* where a *descriptor* is now expected and throw on
-`grid.rows()`, on a **plain** table, where nothing is span-locked and the handle is live.
-Update it to `buildRow(grid, colCount(desc))` in both files. (Task 11 later deletes
-`buildRow` entirely in favour of `libliTableGrid.insertRow`.)
+⚠️ **`colCount` has FIVE call sites, three of them outside the control strip.** Passing
+the *grid* where a *descriptor* is now expected throws `grid.rows is not a function` — on
+a **plain** table, where nothing is span-locked and the handles are live, so this is an
+immediate regression of existing behaviour, not a spanning-only edge. All of them, by
+line:
+
+| File | Lines | Site |
+|---|---|---|
+| `table_editor.js` | 108, 123 | inside `rebuildColControls` / `refreshControlState` |
+| `table_editor.js` | 250 | `buildRow(grid, colCount(grid))` in the row-insert handler |
+| `table_editor.js` | 268 | `if (colCount(grid) < MAX_COLS)` in the **col-insert** handler |
+| `table_editor.js` | 278 | `if (colCount(grid) > 1)` in the **col-delete** handler |
+| `filltable_editor.js` | 116, 129, 430, 450, 461 | the same five |
+
+Every one becomes `colCount(desc)`. (Task 11 later deletes `buildRow` entirely in favour
+of `libliTableGrid.insertRow`.)
 
 Thread `desc` through `rebuildColControls(grid, desc)` (its loop bound becomes
 `colCount(desc)`) and rewrite `refreshControlState`:
@@ -1558,19 +1609,51 @@ Thread `desc` through `rebuildColControls(grid, desc)` (its loop bound becomes
 
 Update **every** call site to pass `desc` — enumerated, because "the four call sites" is
 wrong for either function. In `table_editor.js`: `rebuildColControls` at **191, 270, 281**;
-`refreshControlState` at **192, 252, 261, 271, 281**; `colCount` at **250** (the row-insert
-handler above). `filltable_editor.js` has the same set, offset by its extra code (search
-each name rather than trusting line numbers there).
+`refreshControlState` at **192, 252, 261, 271, 281**; `colCount` at **108, 123, 250, 268,
+278** per the table above. `filltable_editor.js` has the same set, offset by its extra code
+(search each name rather than trusting line numbers there).
 
-- [ ] **Step 7: Verify plain tables are unaffected**
+- [ ] **Step 7: Pin the slice-1 acceptance goal with a spanning-grid e2e**
+
+"Existing plain-table e2e still pass" is not sufficient cover: slice 1's stated goal is
+that **u/432's control strip lines up**, and nothing asserts that. Add to
+`tests/test_e2e_spanning_roundtrip.py`:
+
+```python
+@pytest.mark.django_db(transaction=True)
+def test_spanning_grid_gets_a_layout_width_control_strip(page, live_server):
+    """Row 0 is one colspan=3 cell, so the OLD colCount() (row 0's cell count)
+    would emit ONE handle pair for a 3-column layout, leaving every handle
+    under the wrong column. Also pins slice 1's temporary handle-lock."""
+    from courses.models import TableElement
+    from tests.test_e2e_table_editor import _login
+    from tests.test_e2e_table_editor import _make_pa_user
+    from tests.test_e2e_table_editor import _unit
+
+    _make_pa_user("strip")
+    _login(page, live_server, "strip")
+    unit = _unit("strip", "strip")
+    element = _seed(
+        unit, TableElement, [[{"colspan": 3, "html": "t"}], [{}, {}, {}]]
+    )
+
+    _reopen(page, live_server, unit, element, TABLE_ROOT)
+    assert page.locator(f"{TABLE_ROOT} [data-col-insert]").count() == 3
+    # Slice 1 only: span-aware handlers arrive in slice 2, so they are locked.
+    assert page.locator(f"{TABLE_ROOT} [data-col-insert]").first.is_disabled()
+```
+
+> Task 11 deletes the `is_disabled` assertion when it lifts the lock.
+
+- [ ] **Step 8: Verify plain tables are unaffected**
 
 ```
-DATABASE_URL=postgres://libli:libli@localhost:5432/libli_mat uv run pytest -m e2e -k "table_editor or filltable" -v
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli_mat uv run pytest -m e2e -k "table_editor or filltable or spanning" -v
 ```
 
-Expected: the existing editor e2e tests still pass — a plain table is non-spanning, so `spanLocked` is false and nothing changes for it.
+Expected: the existing editor e2e tests still pass — a plain table is non-spanning, so `spanLocked` is false and nothing changes for it — plus the new strip test.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 uv run ruff check . && uv run ruff format --check .
@@ -1708,15 +1791,26 @@ def _reopen(page, live_server, unit, element, root):
 
 
 def _save_and_report(page, root):
-    """Click Save and return True if it succeeded, False if the form came back
-    with an error. Waits for EITHER outcome instead of assuming detachment."""
-    page.locator("[data-edit-slot] .editor-form__actions button[type='submit']").click()
-    page.wait_for_function(
-        """(sel) => !document.querySelector(sel)
-                    || document.querySelector('[data-edit-slot] .field-error') !== null""",
-        arg=root,
-    )
-    return page.locator(root).count() == 0
+    """Click Save and return True iff the POST was accepted.
+
+    Reads the HTTP STATUS, because that is the only reliable signal here:
+    `element_save` answers a rejected save with 422 and editor.js swaps the
+    re-rendered form back into the slot, and NEITHER editor partial renders
+    any error markup (there is no `.field-error` node anywhere in
+    _edit_table.html / _edit_filltable.html / _host_form.html). Waiting on
+    error markup -- or on the editor detaching -- would hang for the full
+    Playwright timeout on exactly the rejected path this helper exists to
+    detect."""
+    with page.expect_response(
+        lambda r: "/build/element/save/" in r.url and r.request.method == "POST"
+    ) as info:
+        page.locator(
+            "[data-edit-slot] .editor-form__actions button[type='submit']"
+        ).click()
+    if info.value.status != 200:
+        return False
+    page.wait_for_selector(root, state="detached")
+    return True
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1785,7 +1879,12 @@ The production code already exists, so prove the test *can* fail. Temporarily co
 DATABASE_URL=postgres://libli:libli@localhost:5432/libli_mat uv run pytest -m e2e -k spanning_roundtrip -v
 ```
 
-Expected: `test_spanning_table_survives_a_zero_edit_save` FAILS on the structure comparison. Restore the lines.
+Expected: `test_spanning_table_survives_a_zero_edit_save` FAILS on
+`assert saved, "save was rejected"` — **not** on the structure comparison. Without the
+span lines, `serialize()` posts row 0 with one cell and row 1 with three and no spans:
+a ragged *non-spanning* grid, which `TableElementForm` rejects. (This also exercises
+`_save_and_report`'s 422 detection, so a hang here means that helper is wrong.) Restore
+the lines.
 
 - [ ] **Step 3: Verify green**
 
@@ -2671,7 +2770,12 @@ def test_column_delete_inside_a_colspan_shrinks_it(page, live_server):
     assert len(cells[1]) == 2
 ```
 
-- [ ] **Step 2: Verify it fails** — the handle is `disabled` (slice 1's lock), so the click does nothing.
+- [ ] **Step 2: Verify it fails**
+
+Expected RED is a **Playwright actionability timeout**, not a clean assertion failure:
+`.click()` waits for `[data-col-insert]` to become enabled and slice 1 locked it. Assert
+the lock first so the red is fast and legible:
+`expect(page.locator(f"{TABLE_ROOT} [data-col-insert]").first).to_be_disabled()`.
 
 - [ ] **Step 3: Rewire the four handlers in both editors**
 
@@ -2935,14 +3039,14 @@ def test_merge_while_focus_sits_on_an_absorbed_cell_refocuses_the_survivor(page,
 
 - [ ] **Step 3: Implement the selection state**
 
-Rename the existing `focusedCell` to `focusCell` throughout, then add:
+Rename the existing `focusedCell` declaration (`table_editor.js:201`) to `focusCell` and
+reuse it — do **not** re-declare it. Only the two range variables are new:
 
 ```js
-    // focusCell is the SINGLE authority for what the toolbar acts on. It is
-    // set on plain click/focusin and deliberately NOT moved by Shift+click:
-    // suppressing the Shift mousedown also suppresses focus movement, so
-    // document.activeElement is not a usable source.
-    var focusCell = null;
+    // focusCell (the existing declaration, renamed) is the SINGLE authority for
+    // what the toolbar acts on. It is set on plain click/focusin and
+    // deliberately NOT moved by Shift+click: suppressing the Shift mousedown
+    // also suppresses focus movement, so document.activeElement is unusable.
     var rangeAnchor = null;   // a cell node
     var rangeEnd = null;      // a LAYOUT {r, c} coordinate, not a node
 
@@ -2990,6 +3094,26 @@ Rename the existing `focusedCell` to `focusCell` throughout, then add:
       say("range-selected");
       refreshToolbarState();
     }
+```
+
+**Update the existing `focusin` handler** (`table_editor.js:219`) — three changes, all
+load-bearing, and without them the merge/split tests cannot pass:
+
+```js
+    grid.addEventListener("focusin", function (e) {
+      var td = e.target.closest("td[contenteditable], th[contenteditable]");
+      if (!td) return;
+      focusCell = td;
+      rangeAnchor = td;   // a plain click ALWAYS re-seats the anchor, so a
+                          // stale anchor from an earlier merge can never
+                          // silently re-appear in the next range
+      clearRange(false);  // ... and drops any live range
+      if (toolbar) toolbar.hidden = false;
+      refreshToolbarState();   // replaces the bare refreshAlignButtons() call:
+                               // Split and Header enablement both read
+                               // focusCell, so the toolbar must recompute
+                               // whenever focus moves
+    });
 ```
 
 Shift+click, scoped away from form controls:
@@ -3051,8 +3175,18 @@ Toolbar state, running **before** any null-focus early return:
           (libliTableGrid.colspanOf(focusCell) > 1 ||
            libliTableGrid.rowspanOf(focusCell) > 1));
       }
-      if (headerBtn) refreshHeaderButton(headerBtn);  // Task 14
+      // Task 12 already renders [data-header-toggle], so headerBtn is non-null
+      // throughout Task 13 -- but refreshHeaderButton only exists from Task 14.
+      // Ship the stub below in THIS task so refreshToolbarState cannot throw a
+      // ReferenceError (which would take paintRange, clearRange and the whole
+      // merge/split enablement down with it); Task 14 replaces its body.
+      if (headerBtn) refreshHeaderButton(headerBtn);
       refreshAlignButtons();
+    }
+
+    // Replaced wholesale in Task 14.
+    function refreshHeaderButton(btn) {
+      btn.disabled = true;
     }
 ```
 
@@ -3214,7 +3348,19 @@ def test_header_toggle_is_disabled_for_a_cell_the_header_row_option_covers(page,
     }
 ```
 
-Wire the button, and make enablement **live** — the author can tick Header row while the same cell stays focused:
+Replace Task 13's `refreshHeaderButton` stub with the real one above, and add the click
+branch to the **TOOLBAR** click listener, beside merge/split (not the grid-level listener
+— the toolbar's `mousedown` `preventDefault` is what keeps the caret in the cell):
+
+```js
+      var hdrBtn = e.target.closest("[data-header-toggle]");
+      if (hdrBtn && !hdrBtn.disabled && focusCell) {
+        toggleHeaderCell(focusCell);
+        return;
+      }
+```
+
+Then make enablement **live** — the author can tick Header row while the same cell stays focused:
 
 ```js
     if (thRow) thRow.addEventListener("change", function () { serialize(); refreshToolbarState(); });
@@ -3276,7 +3422,7 @@ def test_alt_shift_arrow_is_a_no_op_with_nothing_focused(page, live_server):
     # No click first: the keystroke must not throw and must not select.
 ```
 
-- [ ] **Step 2: Implement, listener scoped to the grid**
+- [ ] **Step 3: Implement, listener scoped to the grid**
 
 ```js
     // Registered on the GRID, not the document, so it is scoped to the editor
@@ -3312,13 +3458,13 @@ def test_alt_shift_arrow_is_a_no_op_with_nothing_focused(page, live_server):
     });
 ```
 
-- [ ] **Step 3: Re-verify the chord end to end**
+- [ ] **Step 4: Re-verify the chord end to end**
 
 Step 1 probed the chord in isolation; now confirm it still behaves with the handler
 actually bound (a `preventDefault`ed keydown can mask an OS chord in one direction but
 not the other). Same server, same gesture, plus one range built entirely by keyboard.
 
-- [ ] **Step 4: Run `makemessages` for the strings this slice introduced**
+- [ ] **Step 5: Run `makemessages` for the strings this slice introduced**
 
 ```bash
 uv run python manage.py makemessages -l en -l pl
@@ -3326,7 +3472,7 @@ uv run python manage.py makemessages -l en -l pl
 
 Check for fuzzy flags on the new msgids. (Slice 5 sweeps and translates; running it per-slice keeps the catalogue tests meaningful.)
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add -A && git commit -m "feat(editor): keyboard range selection via Alt+Shift+Arrow"
@@ -3349,7 +3495,36 @@ git add -A && git commit -m "feat(editor): keyboard range selection via Alt+Shif
 - Consumes: everything from slices 2–3
 - Produces: merge/split/header in the fill-table editor, with kinds preserved
 
-The wiring is Task 13–15's, transplanted. Three differences:
+**What to copy, and where.** `filltable_editor.js` already has its own `wire()` with the
+same shape as `table_editor.js`'s, so the transplant is mechanical — but it is ~200 lines
+and the insertion points matter:
+
+| From Task | Copy into `filltable_editor.js` | Insertion point |
+|---|---|---|
+| 6 | the `desc` descriptor literal | inside `wire()`, after `grid` is resolved (it was already added there in Task 6 — reuse it, do not build a second one) |
+| 13 | `rangeAnchor` / `rangeEnd` declarations | beside the existing `focusedCell` (rename it to `focusCell` here too) |
+| 13 | `msg`, `say`, `tooBig`, `clearRange`, `paintRange`, `SHIFT_EXEMPT` | after the existing `answerPlaceholder()` helper |
+| 13 | the `focusin` rewrite | replace the existing handler at `filltable_editor.js:386`, keeping its image-alt reveal and `refreshToolbarState()` call |
+| 13 | the `mousedown` + `click` Shift handlers | beside the existing delegated grid `click` |
+| 13 | the merge / split branches | into the existing **toolbar** `click` listener (`filltable_editor.js:478`), beside `[data-answer-toggle]` |
+| 14 | `toggleHeaderCell`, `headerLocked`, `refreshHeaderButton`, the `[data-header-toggle]` branch | same toolbar listener |
+| 15 | the `Alt+Shift+Arrow` and `Escape` keydown handlers | beside the existing grid `keydown` |
+
+Non-obvious specifics, each of which differs from the plain-table version:
+
+- **`refreshToolbarState` already exists here** (`filltable_editor.js:271`) and owns the
+  answer/image kind-button state. **Extend** it — add the Merge/Split/Header block
+  *before* its `if (!toolbar || !focusedCell) return;` early return — rather than
+  replacing it, or the kind buttons stop updating.
+- **`SHIFT_EXEMPT` must not list `input`.** The answer cell's `.filltable-editor__answer`
+  is styled full-cell, so exempting inputs would make an answer cell unselectable — and
+  this task's first test merges an answer anchor.
+- **`toggleHeaderCell`'s attribute copy** carries `data-answer` / `data-image` /
+  `data-media` / `data-alt` / `tabindex` for free (it loops `td.attributes`), but its
+  `cellStash` re-point is live here where it was inert in `table_editor.js`.
+- **`headerLocked`** reads *this* editor's `thRow` / `thCol` (already resolved in `wire()`).
+
+Three behavioural differences from the plain table:
 
 1. **`cellIsNonEmpty` also treats kind as content**, so an answer or image cell always triggers the confirm:
 
