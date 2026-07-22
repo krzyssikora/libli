@@ -940,9 +940,10 @@ Its grid currently iterates `form.instance.resolved_cells`, which reads the *sto
     def resolved_grid_cells(self):
         """grid_data's cells with image pks resolved to MediaAsset, mirroring
         FillTableElement.resolved_cells but sourced from grid_data so a
-        rejected save re-renders the SUBMITTED grid (see grid_data)."""
-        from courses.models import MediaAsset
+        rejected save re-renders the SUBMITTED grid (see grid_data).
 
+        MediaAsset is already imported at module level (element_forms.py:40),
+        so no local re-import -- matching the surrounding clean_data."""
         cells = self.grid_data["cells"]
         ids = [
             c.get("media")
@@ -1590,10 +1591,18 @@ unguarded, so a guard on `colCount` alone would protect nothing while implying s
 ⚠️ **`colCount` has FIVE call sites, three of them outside the control strip.** Passing
 the *grid* where a *descriptor* is now expected throws `grid.rows is not a function` — on
 a **plain** table, where nothing is span-locked and the handles are live, so this is an
-immediate regression of existing behaviour, not a spanning-only edge. All of them, by
-line:
+immediate regression of existing behaviour, not a spanning-only edge.
 
-| File | Lines | Site |
+> **Locate by grep, not by line number.** Task 5 already inserted lines into `serialize()`
+> and `dataCells` in both files, so every line number below — captured against the
+> *pre-Task-5* file — has shifted by several lines by the time you get here. The numbers
+> are orientation only; the authoritative command is:
+>
+> ```bash
+> grep -nE "(refreshControlState|rebuildColControls|colCount)\(grid\)" courses/static/courses/js/table_editor.js courses/static/courses/js/filltable_editor.js
+> ```
+
+| File | ~Line (pre-Task-5) | Site |
 |---|---|---|
 | `table_editor.js` | 108, 123 | inside `rebuildColControls` / `refreshControlState` |
 | `table_editor.js` | 250 | `buildRow(grid, colCount(grid))` in the row-insert handler |
@@ -1638,16 +1647,19 @@ Thread `desc` through `rebuildColControls(grid, desc)` (its loop bound becomes
 ```
 
 Update **every** call site to pass `desc` — enumerated, because "the four call sites" is
-wrong for either function. In `table_editor.js`: `rebuildColControls` at **191, 270, 281**;
-`refreshControlState` at **192, 252, 261, 271, 282** (282, *not* 281 — line 281 is the
-`rebuildColControls` call in that same col-delete branch); `colCount` at **108, 123, 250,
-268, 278** per the table above. `filltable_editor.js` has the same set, offset by its extra
-code (search each name rather than trusting line numbers there).
+wrong for either function — again by **grep, not line number**, since Task 5's insertions
+have already shifted them. Pre-Task-5 positions, for orientation only: `table_editor.js`
+`rebuildColControls` at ~191, 270, 280; `refreshControlState` at ~192, 252, 261, 271, 281
+(in the col-delete branch these are *adjacent* lines — `rebuildColControls` then
+`refreshControlState` then `serialize`); `colCount` per the table above.
+`filltable_editor.js` has the same set at its own offsets.
 
-After editing, grep both files for the stale single-argument form —
-`grep -nE "(refreshControlState|rebuildColControls|colCount)\(grid\)" courses/static/courses/js/*table*editor.js`
-— and confirm it returns nothing. One surviving site throws `grid.rows is not a function`
-on a **plain** table.
+**The grep is the checklist.** Re-run it after editing and confirm it returns nothing —
+one surviving site throws `grid.rows is not a function` on a **plain** table:
+
+```bash
+grep -nE "(refreshControlState|rebuildColControls|colCount)\(grid\)" courses/static/courses/js/table_editor.js courses/static/courses/js/filltable_editor.js
+```
 
 - [ ] **Step 7: Verify plain tables are unaffected**
 
@@ -1901,6 +1913,39 @@ def test_spanning_grid_gets_a_layout_width_control_strip(page, live_server):
 ```
 
 > Task 11 deletes the `is_disabled` assertion when it lifts the lock.
+
+And the plan's **headline byte-identity invariant**, which nothing else verifies
+end-to-end: Task 5's partial tests assert what the *template emits*, not what
+`serialize()` *writes*, and the only DB-level key-absence check
+(`test_merge_then_split_all_returns_the_original_rectangle`) runs on a table that went
+through a merge. A `>= 1` where the code should say `> 1` would ship green:
+
+```python
+@pytest.mark.django_db(transaction=True)
+def test_plain_table_stores_no_span_or_header_keys(page, live_server):
+    """A table with no merges must serialize exactly as it did before this
+    feature existed -- no colspan, no rowspan, no header key, anywhere."""
+    from courses.models import TableElement
+    from tests.test_e2e_table_editor import _login
+    from tests.test_e2e_table_editor import _make_pa_user
+    from tests.test_e2e_table_editor import _unit
+
+    _make_pa_user("plainkeys")
+    _login(page, live_server, "plainkeys")
+    unit = _unit("plainkeys", "plainkeys")
+    element = _seed(unit, TableElement, [[{"html": "a"}, {"html": "b"}],
+                                         [{"html": "c"}, {"html": "d"}]])
+
+    _reopen(page, live_server, unit, element, TABLE_ROOT)
+    assert _save_and_report(page, TABLE_ROOT), "save was rejected"
+
+    cells = TableElement.objects.get(pk=element.object_id).normalized_data["cells"]
+    for row in cells:
+        for c in row:
+            assert "colspan" not in c
+            assert "rowspan" not in c
+            assert "header" not in c
+```
 
 > **Later e2e files reuse these helpers**, importing them explicitly:
 > `from tests.test_e2e_spanning_roundtrip import FILL_ROOT, TABLE_ROOT, _reopen, _save_and_report, _seed`.
@@ -2878,8 +2923,24 @@ sync on every structural edit):
       }
 ```
 
-`[data-row-delete]` mirrors it with `deleteRow(desc, ri)`. Factor the shared tail into one
-function, since slices 3 and 4 extend it:
+`[data-row-delete]` mirrors it — written out too, because the **floor guard** is easy to
+drop when a branch is described in one sentence, and losing it opens a path to a zero-row
+grid that `normalize_data` then silently collapses to a default 2×2:
+
+```js
+      var rowDelete = e.target.closest("[data-row-delete]");
+      if (rowDelete) {
+        var rd = desc.rows().indexOf(rowDelete.closest("tr"));
+        // Floor guard, in LAYOUT terms (today's rowCount(grid) > 1).
+        if (rd >= 0 && libliTableGrid.slotMap(desc).height > 1) {
+          libliTableGrid.deleteRow(desc, rd);
+          afterStructuralEdit();
+        }
+        return;
+      }
+```
+
+Factor the shared tail into one function, since slices 3 and 4 extend it:
 
 ```js
     // Every structural edit ends the same way. Slices 3-4 add range clearing
@@ -2892,7 +2953,10 @@ function, since slices 3 and 4 extend it:
     }
 ```
 
-Delete `insertColumnAfter`, `deleteColumnAt` and `buildRow` — `libliTableGrid` now owns all four operations.
+Delete `insertColumnAfter`, `deleteColumnAt`, `buildRow` **and `rowCount`** —
+`libliTableGrid` now owns all four operations, and `rowCount`'s last three callers
+(`refreshControlState` in Task 6, plus the two row handlers here) have all moved to
+`slotMap(desc).height`. Same four in both editors.
 
 - [ ] **Step 4: Lift the lock**
 
@@ -2984,7 +3048,7 @@ After the alignment groups in the toolbar:
             title="{% trans 'Merge cells' %}" aria-label="{% trans 'Merge cells' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-merge"/></svg></button>
     <button type="button" class="rte-btn" data-split disabled
             title="{% trans 'Split cell' %}" aria-label="{% trans 'Split cell' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-split"/></svg></button>
-    <button type="button" class="rte-btn" data-header-toggle aria-pressed="false"
+    <button type="button" class="rte-btn" data-header-toggle disabled aria-pressed="false"
             title="{% trans 'Header cell' %}" aria-label="{% trans 'Header cell' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-header"/></svg></button>
 ```
 
@@ -3176,11 +3240,13 @@ def test_merge_while_focus_sits_on_an_absorbed_cell_refocuses_the_survivor(page,
 
 - [ ] **Step 3: Implement the selection state**
 
-Rename the existing `focusedCell` **declaration and all 13 of its references**
-(`table_editor.js` lines 201, 204, 208, 214, 222, 296, 298, 310, 330, 332-334, 340,
-342-343) to `focusCell`, and reuse that declaration — do **not** re-declare it. A
-whole-file find-and-replace of the identifier is the safe move here. Only the two range
-variables are new:
+**Do a whole-file find-and-replace of `focusedCell` → `focusCell`** in `table_editor.js`
+(16 occurrences: 1 declaration + 15 references, the last at line 344 in the vertical-align
+handler), and reuse that declaration — do **not** re-declare it. Working a hand-copied
+line list instead is how line 344 gets missed, which is a `ReferenceError` the first time
+an author clicks a valign button — existing behaviour, and nothing in this plan tests it.
+Checksum after the edit: `grep -c focusedCell courses/static/courses/js/table_editor.js`
+must return **0**. Only the two range variables are new:
 
 ```js
     // focusCell (the existing declaration, renamed) is the SINGLE authority for
@@ -3513,6 +3579,10 @@ Then make enablement **live** — the author can tick Header row while the same 
 
 - [ ] **Step 3: Verify green and commit**
 
+```
+DATABASE_URL=postgres://libli:libli@localhost:5432/libli_mat uv run pytest -m e2e -k spanning_merge -v
+```
+
 ```bash
 git add -A && git commit -m "feat(editor): per-cell header toggle with live enablement"
 ```
@@ -3648,8 +3718,9 @@ and the insertion points matter:
 |---|---|---|
 | 6 | the `desc` descriptor literal | inside `wire()`, after `grid` is resolved (it was already added there in Task 6 — reuse it, do not build a second one) |
 | 13 | `rangeAnchor` / `rangeEnd` declarations | beside the existing `focusedCell` (rename it to `focusCell` here too) |
-| 13 | `msg`, `say`, `tooBig`, `clearRange`, `paintRange`, `SHIFT_EXEMPT` | after the existing `answerPlaceholder()` helper |
-| 13 | the `focusin` rewrite | replace the existing handler at `filltable_editor.js:386`, keeping its image-alt reveal and `refreshToolbarState()` call |
+| 13 | `msg`, `say`, `tooBig`, `clearRange`, `paintRange`, `absorbedNonEmpty`, `SHIFT_EXEMPT` | after the existing `answerPlaceholder()` helper. **`absorbedNonEmpty` comes across unchanged** — `cellIsNonEmpty` is the only half of the pair that differs here (see below) |
+| 13 | the `focusin` rewrite | replace the existing handler at `filltable_editor.js:386`, keeping its image-alt reveal **and its `refreshAlignButtons()` call** — see the warning below |
+| 14 | the `thRow` / `thCol` `change` listeners | `filltable_editor.js:551-552`, which today read `addEventListener("change", serialize)`; they become `function () { serialize(); refreshToolbarState(); }` so the Header-cell lock re-evaluates without a re-click |
 | 13 | the `mousedown` + `click` Shift handlers | beside the existing delegated grid `click` |
 | 13 | the merge / split branches | into the existing **toolbar** `click` listener (`filltable_editor.js:478`), beside `[data-answer-toggle]` |
 | 14 | `toggleHeaderCell`, `headerLocked`, `refreshHeaderButton`, the `[data-header-toggle]` branch | same toolbar listener |
@@ -3663,15 +3734,29 @@ Non-obvious specifics, each of which differs from the plain-table version:
   *before* its early return (which reads `if (!toolbar || !focusCell) return;` once the
   `focusedCell` → `focusCell` rename above has been applied to this file too) — rather
   than replacing it, or the kind buttons stop updating.
-- **`kept.focus()` is a no-op on an answer cell here.** A fill-table answer cell is
-  `<td data-answer>` with no `contenteditable` and no `tabindex` (only image cells get
-  `tabindex="0"`), so `.focus()` does nothing, DOM focus stays on `<body>`, and the
-  grid-scoped keyboard chord becomes unreachable — precisely the failure the merge tail's
-  focus step exists to prevent. In this file, focus the cell's
-  `.filltable-editor__answer` input when present, falling back to the cell:
-  `(kept.querySelector(".filltable-editor__answer") || kept).focus();`. Assert it: after
-  `test_fill_table_merge_keeps_the_anchors_answer`, a subsequent chord press must still
-  extend a range.
+- ⚠️ **`refreshAlignButtons()` must survive the `focusin` transplant.** Task 13's
+  replacement body drops the bare `refreshAlignButtons()` call because the plain table's
+  `refreshToolbarState` ends by calling it. **This file's does not** — its
+  `refreshToolbarState` (line 271) only handles the kind buttons, and Task 16 merely adds
+  a Merge/Split/Header block to it. A faithful transplant would therefore delete the align
+  refresh with nothing taking it over, and the alignment buttons would stop tracking the
+  focused cell. Either keep `refreshAlignButtons()` in the `focusin` handler, or end this
+  file's `refreshToolbarState` with it (matching the plain table's shape) — pick one and
+  do it consistently.
+
+- **`.focus()` is a no-op on an answer cell here — at ALL FOUR sites.** A fill-table
+  answer cell is `<td data-answer>` with no `contenteditable` and no `tabindex` (only
+  image cells get `tabindex="0"`), so `.focus()` does nothing, DOM focus stays on
+  `<body>`, and the grid-scoped keyboard chord becomes unreachable — precisely the failure
+  the focus steps exist to prevent. The rule for this file: **every `X.focus()` becomes
+  `(X.querySelector(".filltable-editor__answer") || X).focus()`**, at:
+  1. `kept.focus()` in the merge tail,
+  2. `anchor.focus()` in the split branch,
+  3. `td.focus()` in the first-shift-click branch,
+  4. `next.focus()` in `toggleHeaderCell` step 6.
+
+  Assert it: after `test_fill_table_merge_keeps_the_anchors_answer`, a subsequent chord
+  press must still extend a range.
 - **`SHIFT_EXEMPT` must not list `input`.** The answer cell's `.filltable-editor__answer`
   is styled full-cell, so exempting inputs would make an answer cell unselectable — and
   this task's first test merges an answer anchor.
@@ -3774,6 +3859,17 @@ Under grandfathering, *"Tables are limited to %(r)d rows by %(c)d columns."* is 
 
 ```python
                 _("A table cannot be made larger than %(r)d rows by %(c)d columns.")
+```
+
+⚠️ **There are TWO copies of this string** after Task 2 — one in
+`TableElementForm.clean_data`, one in `FillTableElementForm.clean_data`. Reword **both**,
+or the two editors disagree, the catalogue carries both msgids, and the
+`tests/test_filltable_form.py` update below fails against whichever copy was left alone.
+Better still, hoist it to a module-level constant in `element_forms.py` so there is one
+msgid to translate:
+
+```python
+_TABLE_SIZE_ERROR = _("A table cannot be made larger than %(r)d rows by %(c)d columns.")
 ```
 
 Say the same in the help text, and **do not** promise that a narrowed over-cap table can be widened again — the client gate is deliberately the stricter absolute cap, so narrowing a grandfathered table is one-way.
