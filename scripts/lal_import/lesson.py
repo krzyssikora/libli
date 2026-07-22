@@ -321,6 +321,20 @@ def _emit_solution_region(label, content_nodes, elements, flags, consumed, state
     walked content (images/tables/math survive as their own children). INSIDE a
     spoiler (no-nest-container mode) -> inlined in place (label -> heading child,
     content walked inline), never a nested container dict, keeping depth at 1."""
+    # A reveal region wrapping a TAB GROUP drops its collapse wrapper (label ->
+    # heading) so the tabs stay native and clickable: a spoiler can't hold a
+    # container child (depth-1), so keeping it would force _flatten_tabs_inline and
+    # leave dead tabs. Same rule as <details>-with-tabs, applied here so the
+    # show_solution and reveal-table paths behave identically (040/043_tryg).
+    if not state.get("in_spoiler") and any(
+        isinstance(n, Tag)
+        and ("ks_tabs" in (n.get("class") or []) or n.find(class_="ks_tabs"))
+        for n in content_nodes
+    ):
+        if label:
+            elements.append({"type": "text", "body": f"<h4>{label}</h4>"})
+        _walk(content_nodes, elements, flags, consumed, state)
+        return
     if state.get("in_spoiler"):
         if label:
             elements.append({"type": "text", "body": f"<h4>{label}</h4>"})

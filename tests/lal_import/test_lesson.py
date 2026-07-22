@@ -1846,6 +1846,32 @@ def test_nested_fill_steps_become_one_gate_each():
     assert not any("pokaż dalej" in g["stem"] for g in gates)
 
 
+def test_show_solution_wrapping_tabs_drops_spoiler_keeps_native_tabs():
+    # Agreed rule (already applied to <details>): a reveal wrapper around a tab
+    # group is DROPPED so the tabs stay native and clickable. The
+    # show_solution/question_solution path must behave the same as <details> —
+    # otherwise the spoiler forces _flatten_tabs_inline and the tabs go dead.
+    html = (
+        '<div class="show_solution ks_button">zobacz</div>'
+        '<div class="question_solution hidden">'
+        '<div class="ks_tabs" id="tabs-1">'
+        '<ul><li><a href="#tc1" id="t1">nagranie</a></li>'
+        '<li><a href="#tc2" id="t2">krok po kroku</a></li></ul>'
+        '<div id="tc1"><p>film</p></div>'
+        '<div id="tc2"><p>opis</p></div>'
+        "</div></div>"
+    )
+    elements, _ = parse_lesson(html, "x.html")
+    assert not any(e["type"] == "spoiler" for e in elements)  # wrapper dropped
+    tabs = next(e for e in elements if e["type"] == "tabs")
+    assert [t["label"] for t in tabs["tabs"]] == ["nagranie", "krok po kroku"]
+    # each panel keeps its own content (not flattened into siblings)
+    assert any("film" in c.get("body", "") for c in tabs["tabs"][0]["elements"])
+    assert any("opis" in c.get("body", "") for c in tabs["tabs"][1]["elements"])
+    # the reveal's label survives as a heading
+    assert any(e["type"] == "text" and "zobacz" in e.get("body", "") for e in elements)
+
+
 def test_whitespace_only_block_is_dropped():
     # a whitespace-only <p> (e.g. <p>\n</p>) must NOT become an empty TextElement
     elements, _ = parse_lesson("<p>\n</p><p>Treść.</p>", "x.html")
