@@ -1315,6 +1315,87 @@ class ExtendedResponseQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
         return cleaned
 
 
+def _scan_spans(cells):
+    """Detect whether a raw, author-supplied grid is spanning, and reject an
+    out-of-range span while we are here.
+
+    Returns True iff any cell carries a real colspan/rowspan (> 1). Detection
+    goes through TableElement._span so it cannot diverge from the branch
+    normalize_data will actually take -- notably, _span does NOT coerce, so a
+    string "3" is not a span.
+
+    The RANGE check deliberately reads the RAW int instead: _span's return is
+    already clamped to the cap and so can never look out of range. Values below
+    2 are not spans at all and are ignored rather than rejected, matching both
+    _span (None) and layout_dims (counts as 1).
+
+    Coerces defensively at both levels, mirroring normalize_data: a non-list
+    `cells` is empty, a non-list row is skipped, a non-dict cell is skipped.
+    TableElementForm has its own guards ahead of this, but
+    FillTableElementForm does not -- without this, a crafted {"cells": 5}
+    would be `for r in 5` -> TypeError -> 500."""
+    rows = cells if isinstance(cells, list) else []
+    spanning = False
+    for row in rows:
+        if not isinstance(row, list):
+            continue
+        for cell in row:
+            if not isinstance(cell, dict):
+                continue
+            for key, cap in (
+                ("colspan", TableElement.MAX_COLS),
+                ("rowspan", TableElement.MAX_ROWS),
+            ):
+                raw = cell.get(key)
+                if isinstance(raw, bool) or not isinstance(raw, int) or raw < 2:
+                    continue
+                if raw > cap:
+                    # Two msgids, not one interpolated with 20 or 50: a single
+                    # nounless string ("more than 20.") cannot be translated
+                    # correctly, and Polish needs the axis word to inflect.
+                    raise forms.ValidationError(
+                        _("A merged cell may not span more than %(n)d columns.")
+                        % {"n": cap}
+                        if key == "colspan"
+                        else _("A merged cell may not span more than %(n)d rows.")
+                        % {"n": cap}
+                    )
+            if (
+                TableElement._span(cell, "colspan") is not None
+                or TableElement._span(cell, "rowspan") is not None
+            ):
+                spanning = True
+    return spanning
+
+
+def _caps_ok(form, cells):
+    """True iff the grid's LAYOUT dimensions are within the caps, or are no
+    larger than what is already stored (grandfathering).
+
+    The 26-column 130_kombinatoryka table already exceeds MAX_COLS, so an
+    absolute cap would make an existing element permanently unsaveable. The
+    caps therefore gate GROWTH, per axis, against the pre-save DB value.
+    (0, 0) for an unsaved instance -- an explicit special case, because
+    normalize_data({}) returns the default 2x2, not an empty grid."""
+    model = form._meta.model
+    # Read the caps off the FORM'S model, not TableElement: they are equal
+    # today (FillTableElement aliases them), but hardcoding one model's caps
+    # here while the error message interpolates the other's would silently
+    # disagree the moment they diverge.
+    max_cols, max_rows = model.MAX_COLS, model.MAX_ROWS
+    width, height = TableElement.layout_dims(cells)
+    if form.instance.pk is None:
+        stored_w, stored_h = 0, 0
+    else:
+        stored = model.normalize_data(form.instance.data)["cells"]
+        stored_w, stored_h = TableElement.layout_dims(stored)
+    if width > max_cols and width > stored_w:
+        return False
+    if height > max_rows and height > stored_h:
+        return False
+    return True
+
+
 class TableElementForm(forms.ModelForm):
     class Meta:
         model = TableElement
@@ -1341,15 +1422,20 @@ class TableElementForm(forms.ModelForm):
         if not isinstance(rows, list):
             raise forms.ValidationError(_("A table needs at least one cell."))
         widths = {len(r) if isinstance(r, list) else -1 for r in rows}
-        # Present-but-malformed grid IS an error (ragged / zero-width / non-list row).
+        # Present-but-malformed grid IS an error (non-list row, or EVERY row
+        # empty). Note this is not a per-row zero-width rejection: a single
+        # empty row is legal, and is exactly what a full-width multi-row merge
+        # produces.
         if -1 in widths or widths == {0}:
             raise forms.ValidationError(_("A table needs at least one cell."))
-        if len(widths) != 1:
+        # Only now decide which structural check applies. A spanning grid is
+        # ragged by construction, so the uniform-width rule cannot hold for it.
+        spanning = _scan_spans(rows)
+        if not spanning and len(widths) != 1:
             raise forms.ValidationError(
                 _("All table rows must have the same number of cells.")
             )
-        n_rows, n_cols = len(rows), next(iter(widths))
-        if n_rows > TableElement.MAX_ROWS or n_cols > TableElement.MAX_COLS:
+        if not _caps_ok(self, rows):
             raise forms.ValidationError(
                 _("Tables are limited to %(r)d rows by %(c)d columns.")
                 % {"r": TableElement.MAX_ROWS, "c": TableElement.MAX_COLS}
@@ -1380,10 +1466,13 @@ class FillTableElementForm(_CourseScopedMediaForm):
         from courses.filltable import is_blank_answer
 
         data = self.cleaned_data.get("data")
+        raw_cells = data.get("cells") if isinstance(data, dict) else None
+        # Raw scan FIRST: rejects an out-of-range span before normalize_data
+        # clamps it out of sight. Coerces malformed input rather than raising.
+        _scan_spans(raw_cells)
         nd = FillTableElement.normalize_data(data if isinstance(data, dict) else {})
         cells = nd["cells"]
-        n_rows, n_cols = len(cells), len(cells[0])
-        if n_rows > FillTableElement.MAX_ROWS or n_cols > FillTableElement.MAX_COLS:
+        if not _caps_ok(self, cells):
             raise forms.ValidationError(
                 _("Tables are limited to %(r)d rows by %(c)d columns.")
                 % {"r": FillTableElement.MAX_ROWS, "c": FillTableElement.MAX_COLS}
