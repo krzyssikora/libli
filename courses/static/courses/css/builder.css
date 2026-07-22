@@ -96,8 +96,6 @@
 .builder__panel .panel h2 { font-size: 1.15rem; font-weight: 700; }
 .builder__panel .panel h3 { margin-top: var(--space-6); font-size: 1rem; font-weight: 700; }
 .builder__panel .panel__meta { color: var(--text-secondary); }
-.builder__panel .form--inline { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
-.builder__panel .form--inline > label { width: 100%; margin: 0; }
 .builder__panel .panel__seam { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: var(--space-5);
   /* Pinned to the bottom of the panel's scroll range. Containing block is the injected
      .panel wrapper, which spans the full panel content. Mirrors .unit-foot (courses.css:558). */

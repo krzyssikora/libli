@@ -18,9 +18,9 @@ UNIT_BADGE_RE = re.compile(
     r'(?: title="([^"]*)")?>'
     r"([^<]*)</span>"
 )
-# The title button's hover-title (edit #3). [^>]* spans the tag's line break
+# The title input's hover-title (edit #3). [^>]* spans the tag's line break
 # because it also matches newlines (any char except '>').
-TITLE_BTN_RE = re.compile(r'<button class="tree__title"[^>]*\btitle="([^"]*)"')
+TITLE_INPUT_RE = re.compile(r'<input class="tree__title"[^>]*\btitle="([^"]*)"')
 
 
 def _render_unit(unit_type, title="Intro", lang=None):
@@ -72,9 +72,9 @@ def test_unit_badge_keeps_accent_colour_class():
 
 
 @pytest.mark.django_db
-def test_title_button_has_hover_title():
-    m = TITLE_BTN_RE.search(_render_unit("lesson", title="Intro"))
-    assert m, "title button title attr not found"
+def test_title_input_has_hover_title():
+    m = TITLE_INPUT_RE.search(_render_unit("lesson", title="Intro"))
+    assert m, "title input title attr not found"
     assert m.group(1) == "Intro"
 
 
