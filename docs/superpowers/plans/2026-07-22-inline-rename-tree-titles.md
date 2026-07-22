@@ -17,9 +17,9 @@ will mislead you.
 | After task | What is temporarily broken | Restored by |
 |---|---|---|
 | 2 (narrow response) | The **panel's** rename form still exists and still posts as a fragment, but now receives the `<data>` body, which `applyFragment` silently no-ops — so a panel rename persists in the DB while the tree label goes stale until reload. | Task 3 (deletes that form) |
-| 3 (markup) | Clicking a title no longer selects a node — the click handler still calls `preventDefault()` on `[data-select]`, which the input no longer carries, so no panel loads. Renaming works only via Enter (full-page no-JS POST). Separately, `refreshPanel` (deleted only in Task 5) still looks up `[data-select]`, finds nothing, and degrades to `setPanel("")`. | Task 5 |
-| 5 (selection) | Selection works again, but no rename ever commits from the JS path: no commit handlers exist yet. | Task 6 |
-| 6 (commit) | Renames POST and persist, but the response is a no-op — `applyFragment` receives a `<data>` element with no `data-scope` and does nothing, so the row's label and token are stale until reload. | Task 7 |
+| 3 (markup) | Clicking a title no longer selects a node — the click handler still calls `preventDefault()` on `[data-select]`, which the input no longer carries, so no panel loads. Renaming **does** work: the form carries `data-op="rename"`, so native implicit submission on Enter is caught by the existing interceptor (`builder.js:135`) and POSTed via fetch — but the response is the Task 2 `<data>` body, which `applyFragment` no-ops, so the row's label and token go stale until reload. Separately, `refreshPanel` (deleted only in Task 5) still looks up `[data-select]`, finds nothing, and degrades to `setPanel("")`. | Tasks 5 and 7 |
+| 5 (selection) | Selection works again. Commit behaviour is **unchanged** from Task 3 — Enter still commits via implicit submission and the row still goes stale. Blur-to-save, Escape and the trim/validity rules do not exist yet. | Tasks 6 and 7 |
+| 6 (commit) | Enter/blur/Escape all behave per spec, but the response is still a no-op — `applyFragment` receives a `<data>` element with no `data-scope` and does nothing, so the row's label and token remain stale until reload. | Task 7 |
 | 7 (apply) | Nothing. The feature is functional end-to-end; Task 8 proves it. | — |
 
 ## Global Constraints
@@ -156,7 +156,7 @@ def test_type_only_toggle_still_preserves_title(client):
 uv run pytest tests/test_manage_node_ops.py -k "test_rename_strips_surrounding_whitespace or test_rename_rejects_whitespace_only_title or test_add_strips_surrounding_whitespace or test_strip_happens_before_length_validation" -v
 ```
 
-Expected: all four FAIL — `test_rename_strips_surrounding_whitespace` (title is `"  Fractions  "`), `test_rename_rejects_whitespace_only_title` (200, title `"   "`), `test_add_strips_surrounding_whitespace`, `test_strip_happens_before_length_validation`. The names are given in full rather than as a loose `-k "strip or …"`, which would also select pre-existing green tests and muddy the expected-failure list.
+Expected: all four FAIL — `test_rename_strips_surrounding_whitespace` (title is `"  Fractions  "`), `test_rename_rejects_whitespace_only_title` (200, title `"   "`), `test_add_strips_surrounding_whitespace`, `test_strip_happens_before_length_validation`. The names are given in full rather than as a loose `-k "strip or ..."`, which would also select pre-existing green tests and muddy the expected-failure list. Step 1 adds a **fifth** test, `test_type_only_toggle_still_preserves_title` — it is an already-green guard on the `_UNSET` branch, deliberately excluded from this filter, and must pass both before and after.
 
 - [ ] **Step 3: Add the helper and call it from both writers**
 
@@ -392,7 +392,7 @@ row instead; builder.js will patch it in place."
 Append to `tests/test_manage_builder.py` (match the existing imports/fixtures in that file; it already logs in an owner and requests the builder page):
 
 Add `import re` to the **existing import block at the top** of `tests/test_manage_builder.py`
-(alongside `import pytest`, keeping the file's one-import-per-line isort ordering) — appending it with
+as the **first line, followed by a blank line, above `import pytest`** -- `re` is stdlib and needs its own import group; putting it beside the third-party `import pytest` produces the very `I001` this is meant to avoid (ruff runs isort with `force-single-line`) — appending it with
 the rest of this block would trip `ruff`'s `E402`/`I001` at Task 9, six tasks later, on a file you
 have stopped thinking about. Append only the constant, helper and tests.
 
@@ -635,19 +635,6 @@ renaming for the first time; previously they required a trip to the editor."
 **Leave `test_tree_title_truncates_with_ellipsis` unchanged** -- its `\.tree__title\s*\{` regex still matches inside `input.tree__title { ... }`, so there is nothing to edit there. Append only the two new tests to `tests/test_builder_styles.py`:
 
 ```python
-def test_tree_title_truncates_with_ellipsis():
-    css = _css()
-    assert re.search(r"\.tree__title\s*\{[^}]*text-overflow:\s*ellipsis", css), (
-        ".tree__title must truncate with an ellipsis"
-    )
-    assert re.search(r"\.tree__title\s*\{[^}]*min-width:\s*0", css), (
-        ".tree__title needs min-width:0 to shrink below content width"
-    )
-    assert re.search(r"\.tree__title\s*\{[^}]*white-space:\s*nowrap", css), (
-        ".tree__title needs white-space:nowrap for single-line truncation"
-    )
-
-
 def test_tree_title_input_neutralises_the_global_form_control_rule():
     # app.css:136 styles input[type=text] with a sunken background, a strong border and
     # padding. It ties input.tree__title on specificity (0,1,1) and is only beaten by
@@ -746,7 +733,7 @@ free. Hover/focus are layout-neutral so rows don't twitch under the pointer."
 ### Task 5: Selection moves from click to focusin
 
 **Files:**
-- Modify: `courses/static/courses/js/builder.js` (delete `refreshPanel` ~117-132 and its call site ~171-174; remove the `[data-select]` branch ~190-200; add the focusin machinery)
+- Modify: `courses/static/courses/js/builder.js` (delete `refreshPanel` -- comment 117-122, body 123-132 -- and its call site 171-174; remove the `[data-select]` branch 191-200; add the focusin machinery)
 - Test: `tests/test_builder_js_invariants.py` (must stay green)
 
 **Interfaces:**
@@ -1006,7 +993,7 @@ Append to the inline-rename block:
 - [ ] **Step 2: Clear the in-flight state on every completion branch**
 
 `builder.js` contains **three** `delete form.dataset.submitting` occurrences. Only the two inside the
-submit handler are in scope: the `.then` tail (~line 181) and the `.catch` (~line 186). **Do not touch
+submit handler are in scope: the `.then` tail (line 181) and the `.catch` (line 185). **Do not touch
 the third**, inside `closeAdd()` (~line 328) for the inline-add flow — it has no `.tree__title` child,
 so the lookup would be dead code there.
 
@@ -1029,7 +1016,26 @@ node --check courses/static/courses/js/builder.js
 
 Expected: no output (exit 0).
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Prove the shared-tail edit did not regress the other builder ops**
+
+Step 2 edits the `.then`/`.catch` tails of the interceptor that **every** `data-op` form uses — add,
+reorder, duplicate, reparent. A parse check proves nothing about them:
+
+```bash
+uv run pytest tests/test_manage_node_ops.py tests/test_builder_js_invariants.py -v
+uv run pytest -m e2e tests/test_e2e_builder_ws2.py tests/test_e2e_builder_reorder.py -v
+```
+
+Expected: all PASS. Run the e2e set in the **foreground**.
+
+- [ ] **Step 5: Falsify the ordering**
+
+Move `input.readOnly = true` **above** `form.reportValidity()` in `commitRename`. A readonly input is
+barred from constraint validation, so `required` stops firing: Task 7's smoke test still passes, but
+the empty-Enter case would POST an empty title. Confirm you can observe that (an empty title reaching
+the server), then restore the order. This is the one ordering in Task 6 with no other guard.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add courses/static/courses/js/builder.js
@@ -1211,7 +1217,8 @@ a chapter no longer breaks the next drop or add under it."
 
 **Files:**
 - Create: `tests/test_e2e_inline_rename.py`
-- Modify: `tests/test_e2e_builder_tree_layout.py` (seven `.tree__title` locators; the truncation assertion; one docstring)
+- Modify: `tests/test_e2e_builder_tree_layout.py` (seven `.tree__title` locators; the truncation assertion; two `refreshPanel` docstring mentions)
+- Modify: `tests/test_e2e_builder.py`, `tests/test_e2e_builder_authoring.py`, `tests/test_e2e_builder_reorder.py`, `tests/test_e2e_builder_ws2.py` (14 `text=` waits — see Step 2b)
 
 **Interfaces:**
 - Consumes: everything above.
@@ -1253,6 +1260,33 @@ It asserts `scrollWidth > clientWidth` to prove truncation. An `<input>` renders
 
 If the engine reports `scrollWidth === clientWidth` for a text control, the comparison goes **hard RED**, not vacuously green — and the short-title falsification would then pass trivially while the real case stays broken, so do not read a RED here as "the assertion works". In that case switch to comparing the input's rendered box width against the measured width of its full text (a hidden span with the same computed font), and falsify *that*.
 
+- [ ] **Step 2b: Migrate the `text=` waits in the OTHER four builder e2e modules**
+
+This is the change most likely to ship broken, because nothing in the default test run would catch
+it. Playwright's `text=` engine matches an `<input>` by its value **only** for `type=button` and
+`type=submit` — a `type=text` input is never matched. So every
+`page.wait_for_selector("text=<node title>")` that waits for a tree row silently stops matching the
+moment Task 3 lands, and those tests fail on a timeout that looks like a product bug. There are 14,
+in four modules the plan does not otherwise touch:
+
+| File | Lines |
+|---|---|
+| `tests/test_e2e_builder.py` | 75, 83, 119, 187 |
+| `tests/test_e2e_builder_authoring.py` | 70, 85, 121, 132, 188, 198 |
+| `tests/test_e2e_builder_reorder.py` | 103 |
+| `tests/test_e2e_builder_ws2.py` | 66, 135, 245 |
+
+Rewrite each as a value-attribute wait against the tree title, e.g.
+
+```python
+page.wait_for_selector("text=Foundations")
+# becomes
+page.wait_for_selector('.tree__title[value="Foundations"]')
+```
+
+Check each one in context first: a few may be waiting for text that is **not** a tree row title (a
+notice, a panel heading), in which case leave them alone. Only the tree-row waits change.
+
 - [ ] **Step 3: Update the stale docstring**
 
 `test_notice_bar_is_visible_and_opaque_while_panel_scrolled` explains that the 409 path "calls `refreshPanel()`". That function is deleted; restate the rationale in terms of the `_conflict_scope` swap. There are **two** `refreshPanel` mentions in that file — fix both. The test passes either way, so nothing else would surface them.
@@ -1278,6 +1312,7 @@ Marked e2e (excluded from the default run; run with -m e2e).
 """
 
 import os
+import re
 
 import pytest
 from playwright.sync_api import expect
@@ -1370,11 +1405,12 @@ Panel-GET counting therefore uses this shared predicate (the trailing `$` exclud
 `/node/<pk>/export/`, and `\d+` excludes `/node/rename/`):
 
 ```python
-import re as _re
-
 def _is_panel_get(r):
-    return r.method == "GET" and _re.search(r"/build/node/\d+/$", r.url) is not None
+    return r.method == "GET" and re.search(r"/build/node/\d+/$", r.url) is not None
 ```
+
+(`re` is imported at the top of the skeleton -- a module-level import placed after function
+definitions would be `E402`.)
 
 ```python
 @pytest.mark.django_db(transaction=True)
@@ -1416,8 +1452,13 @@ def test_field_is_readonly_during_the_round_trip(page, live_server):
     title.click()
     title.press("Control+a")
     page.keyboard.type("Renamed")
-    title.press("Enter")
+    with page.expect_request("**/build/node/rename/"):
+        title.press("Enter")
+    # readOnly is set BEFORE requestSubmit(), so waiting only on it can win the race
+    # before the route handler has fired -- gate["release"] would still be None and the
+    # test would die with AttributeError instead of a meaningful failure.
     page.wait_for_function("el => el.readOnly === true", arg=title)
+    assert gate["release"] is not None
     # page.keyboard.type performs NO editability check and silently no-ops on a
     # readonly field. locator.fill()/type()/pressSequentially() run an *editable*
     # actionability check: they would hang and throw a timeout here, and would SUCCEED
@@ -1569,8 +1610,12 @@ would not exercise the token refresh at all. `_simulate_drag` **already dispatch
 - [ ] **Step 5: Run the e2e suite in the foreground**
 
 ```bash
-uv run pytest -m e2e tests/test_e2e_inline_rename.py tests/test_e2e_builder_tree_layout.py -v
+uv run pytest -m e2e tests/test_e2e_builder*.py tests/test_e2e_inline_rename.py -v
 ```
+
+Run the **whole builder e2e set**, not just the two modules this task edits directly: Step 2b touches
+four further modules, and `uv run pytest` in Task 9 deselects every e2e test (`addopts` excludes the
+marker), so this command is the only thing standing between a `text=`-wait regression and the PR.
 
 Expected: all PASS, with a collected count matching the number of tests written — **`-m e2e` is
 mandatory** (`pyproject.toml:48` excludes the marker by default), and a run that collects 0 tests
@@ -1594,6 +1639,8 @@ since locator typing runs an editability check that inverts RED and GREEN."
 
 **Files:**
 - Modify: `locale/en/LC_MESSAGES/django.po`, `locale/pl/LC_MESSAGES/django.po`
+- Modify: `docs/help/course-admin/builder.md`, `docs/help/course-admin/builder.pl.md`
+- Regenerate: `core/static/core/img/help/builder-tree.en.png`, `core/static/core/img/help/builder-tree.pl.png`
 
 - [ ] **Step 1: Refresh the catalogs**
 
@@ -1630,19 +1677,34 @@ Run these **in order**: seed → serve both → measure → tear down.
 **1. Take the baseline safely.** Do **not** `git checkout master` in this worktree — a parallel session
 has previously switched branches under an agent mid-task, and this worktree is explicitly flagged as
 running concurrently with others. Create a throwaway checkout instead, on a Windows-safe path (this
-host runs Windows; `/tmp` only resolves under Git Bash and lands in the MSYS root):
+host runs Windows; `/tmp` only resolves under Git Bash and lands in the MSYS root). It must be
+**`--detach`ed**: `master` is already checked out in the main repo, and `git worktree add` refuses a
+branch that is checked out elsewhere (`fatal: 'master' is already checked out at ...`).
 
 ```bash
 BASE="$LOCALAPPDATA/Temp/claude/libli-perf-baseline"
-git -C C:/Users/krzys/Documents/Python/own/libli worktree add "$BASE" master
+git -C C:/Users/krzys/Documents/Python/own/libli worktree add --detach "$BASE" master
 ```
 
-**2. Seed once.** Both measurements read the same `perf` course from the same dev database.
+**2. Seed once, into a database of its own.** Do **not** reuse the `DATABASE_URL` from Global
+Constraints — that one isolates the *pytest* database, and seeding 840 nodes into it (or leaving them
+behind if teardown is skipped) would pollute the test runs. Export a separate one and use it for the
+seed, both servers, and the teardown:
 
 ```bash
-uv run python manage.py shell -c "
-from tests.factories import CourseFactory, ContentNodeFactory, UserFactory
-o = UserFactory(username='perf', is_staff=True)
+export PERF_DATABASE_URL=postgres://postgres:postgres@localhost:5432/libli_perf
+```
+
+Both measurements then read the same `perf` course from that same database.
+
+```bash
+DATABASE_URL=$PERF_DATABASE_URL uv run python manage.py shell -c "
+from django.contrib.auth.models import Group
+from institution.roles import PLATFORM_ADMIN, seed_roles
+from tests.factories import CourseFactory, ContentNodeFactory, TEST_PASSWORD, make_verified_user
+seed_roles()
+o = make_verified_user(username='perfadmin', email='perfadmin@t.example.com', password=TEST_PASSWORD)
+o.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
 c = CourseFactory(slug='perf', owner=o)
 for i in range(40):
     ch = ContentNodeFactory(course=c, kind='chapter', parent=None, title=f'Ch {i}')
@@ -1652,16 +1714,27 @@ print(c.slug)
 "
 ```
 
-That is 800 units + 40 chapters. Seed the owner as a platform admin (reuse `_make_pa_user` from
-Task 8) so the page is actually reachable.
-
-**3. Serve both checkouts against the same database**, on distinct ports:
+That is 800 units + 40 chapters, owned by **`perfadmin`** — one identity throughout, created here as
+a verified platform admin (a bare `UserFactory` is not authorized for the manage surface). Its
+password is `tests.factories.TEST_PASSWORD`; export it for the curl step:
 
 ```bash
-# this branch
-DATABASE_URL=$DATABASE_URL uv run python manage.py runserver 8010
-# the baseline, from $BASE, same DATABASE_URL
-DATABASE_URL=$DATABASE_URL uv run python manage.py runserver 8011
+export PW=$(DATABASE_URL=$PERF_DATABASE_URL uv run python -c "from tests.factories import TEST_PASSWORD; print(TEST_PASSWORD)")
+```
+
+**3. Serve both checkouts against that database**, on distinct ports. `runserver` **blocks**, so each
+goes in its own shell (or backgrounded); and a freshly-added worktree has no synced environment, so
+prepare `$BASE` first:
+
+```bash
+# prepare the baseline checkout (own venv; copy whatever env file this repo uses)
+(cd "$BASE" && cp C:/Users/krzys/Documents/Python/own/libli/.env . 2>/dev/null; uv sync)
+
+# shell 1 -- this branch, from the pipeline worktree
+DATABASE_URL=$PERF_DATABASE_URL uv run python manage.py runserver 8010
+
+# shell 2 -- the baseline, from $BASE
+cd "$BASE" && DATABASE_URL=$PERF_DATABASE_URL uv run python manage.py runserver 8011
 ```
 
 **4. Measure.** `manage_builder` is `@login_required` and permission-gated, so an unauthenticated
@@ -1685,7 +1758,7 @@ transferred bytes** from those two numbers, and **DOM node count**
 
 ```bash
 git -C C:/Users/krzys/Documents/Python/own/libli worktree remove --force "$BASE"
-uv run python manage.py shell -c "
+DATABASE_URL=$PERF_DATABASE_URL uv run python manage.py shell -c "
 from courses.models import Course; Course.objects.filter(slug='perf').delete()"
 ```
 
@@ -1697,6 +1770,25 @@ the no-JS path and is a decision for the author, not the implementer.
 - [ ] **Step 4: Visual verification**
 
 Playwright screenshots in **light and dark**: the tree at rest, on hover, and focused; plus the **selected non-unit detail panel**, now heading-only, which must not look broken or awkwardly padded. Self-critique before accepting.
+
+- [ ] **Step 4b: Regenerate the committed help screenshots**
+
+`core/static/core/img/help/builder-tree.en.png` and `builder-tree.pl.png` are **checked-in** images
+produced by `tests/capture_help_screenshots.py` (the `"builder-tree"` entry, clipped to
+`section.builder`) and shown on the `builder` help topic. This change alters exactly what they depict
+— every row title becomes a text field with a hover border — so without regeneration the help page
+ships a picture of the old button-based tree.
+
+Re-run the `builder-tree` capture for **both** locales, confirm the dims guard still passes, and
+commit the two regenerated PNGs.
+
+- [ ] **Step 4c: Document the new capability in the builder help topic**
+
+`docs/help/course-admin/builder.md` and its Polish twin `builder.pl.md` say nothing about renaming,
+yet this change makes in-tree renaming a primary gesture and is the first time a **unit** can be
+renamed without opening the editor. Add a short "Renaming" paragraph to both, kept in sync: click a
+title, type, then Enter or click away to save; Escape reverts. Mention that it works for every level
+of the tree.
 
 - [ ] **Step 5: Screen-reader spot-check**
 
@@ -1715,8 +1807,12 @@ Expected: all green. Note pytest's verdict line does not survive the Bash pipe �
 - [ ] **Step 7: Commit**
 
 ```bash
-git add locale/
-git commit -m "chore(i18n): refresh catalogs for the inline rename markup"
+git add locale/ docs/help/course-admin/builder.md docs/help/course-admin/builder.pl.md         core/static/core/img/help/builder-tree.en.png core/static/core/img/help/builder-tree.pl.png
+git commit -m "docs(builder): document inline renaming; refresh catalogs and help shots
+
+The builder-tree help screenshots depicted the old button-based titles, and
+neither help topic mentioned renaming -- which is now a primary tree gesture
+and the only way to rename a unit without opening the editor."
 ```
 
 ---
