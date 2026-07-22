@@ -124,6 +124,10 @@
   <script src="{% static 'courses/js/math.js' %}" defer></script>
   <script src="{% static 'courses/js/media_picker.js' %}" defer></script>
   <script src="{% static 'courses/js/text_toolbar.js' %}" defer></script>
+  {% comment %}Shared span-aware grid algebra. MUST be a defer script like the two
+  editors below it: source order only guarantees execution order among defer
+  scripts.{% endcomment %}
+  <script src="{% static 'courses/js/table_grid.js' %}" defer></script>
   <script src="{% static 'courses/js/table_editor.js' %}" defer></script>
   <script src="{% static 'courses/js/filltable_editor.js' %}" defer></script>
   <script src="{% static 'courses/js/gallery_editor.js' %}" defer></script>

@@ -36,9 +36,11 @@
 
   function rowCount(grid) { return dataRows(grid).length; }
 
-  function colCount(grid) {
-    var rows = dataRows(grid);
-    return rows.length ? dataCells(rows[0]).length : 0;
+  // Layout column count. The old body read row 0's CELL count, which is wrong
+  // the moment a span exists: a row-0 colspan makes the control strip too short
+  // and every handle lands under the wrong column.
+  function colCount(desc) {
+    return window.libliTableGrid.layoutWidth(desc);
   }
 
   function tableContainer(grid) {
@@ -112,10 +114,10 @@
     });
   }
 
-  function rebuildColControls(grid) {
+  function rebuildColControls(grid, desc) {
     var old = grid.querySelector("tr[data-control-row]");
     if (old) old.remove();
-    var cols = colCount(grid);
+    var cols = colCount(desc);
     if (!cols) return;
     var tr = document.createElement("tr");
     tr.setAttribute("data-control-row", "");
@@ -126,21 +128,32 @@
     tableContainer(grid).appendChild(tr);
   }
 
-  function refreshControlState(grid) {
-    var rows = rowCount(grid);
-    var cols = colCount(grid);
+  function refreshControlState(grid, desc) {
+    var sm = window.libliTableGrid.slotMap(desc);
+    var rows = sm.height;
+    var cols = sm.width;
+    var locked = spanLocked(desc);
+    // Insert is capped; delete keeps today's FLOOR guard, restated in layout
+    // terms -- "one layout column left" is not "one cell left in row 0".
     Array.prototype.forEach.call(grid.querySelectorAll("[data-row-delete]"), function (b) {
-      b.disabled = rows <= 1;
+      b.disabled = rows <= 1 || locked;
     });
     Array.prototype.forEach.call(grid.querySelectorAll("[data-row-insert]"), function (b) {
-      b.disabled = rows >= MAX_ROWS;
+      b.disabled = rows >= MAX_ROWS || locked;
     });
     Array.prototype.forEach.call(grid.querySelectorAll("[data-col-delete]"), function (b) {
-      b.disabled = cols <= 1;
+      b.disabled = cols <= 1 || locked;
     });
     Array.prototype.forEach.call(grid.querySelectorAll("[data-col-insert]"), function (b) {
-      b.disabled = cols >= MAX_COLS;
+      b.disabled = cols >= MAX_COLS || locked;
     });
+  }
+
+  // SLICE 1 ONLY -- deleted in slice 2 once the handlers are span-aware.
+  // The handles still use cell-index insertion, which would corrupt a spanning
+  // grid that (before slice 1) could not be saved at all.
+  function spanLocked(desc) {
+    return window.libliTableGrid.isSpanning(desc);
   }
 
   function insertColumnAfter(grid, idx) {
@@ -185,6 +198,22 @@
     var promptField = editor.querySelector("[data-prompt]");
     var imageAlt = editor.querySelector("[data-image-alt]");
     if (!hidden || !grid) return; // defensive: markup changed
+
+    // Descriptor handed to table_grid.js. `rows`/`cells` are this editor's own
+    // helpers, so there is exactly one definition of "data cell" per editor and
+    // the module inherits it.
+    var desc = {
+      rows: function () { return dataRows(grid); },
+      cells: function (tr) { return Array.prototype.slice.call(dataCells(tr)); },
+      makeCell: newCell,
+      makeRow: function () {
+        var tr = document.createElement("tr");
+        tr.appendChild(rowCtl(grid));
+        return tr;
+      },
+      maxCols: MAX_COLS,
+      maxRows: MAX_ROWS,
+    };
 
     // Per-node stash of the content the OTHER kind held, so an accidental
     // static<->answer toggle round-trip does not lose the author's work.
@@ -247,8 +276,8 @@
     }
 
     ensureRowControls(grid);
-    rebuildColControls(grid);
-    refreshControlState(grid);
+    rebuildColControls(grid, desc);
+    refreshControlState(grid, desc);
 
     // Serialize on init ONLY when the hidden field is empty: covers the add
     // path (captures the default 2x2) and the edit path (captures the
@@ -443,10 +472,10 @@
       if (rowInsert) {
         if (rowCount(grid) < MAX_ROWS) {
           var tr = rowInsert.closest("tr");
-          var newRow = buildRow(grid, colCount(grid));
+          var newRow = buildRow(grid, colCount(desc));
           tr.parentNode.insertBefore(newRow, tr.nextSibling);
           cellStash.clear();
-          refreshControlState(grid);
+          refreshControlState(grid, desc);
           serialize();
         }
         return;
@@ -456,29 +485,29 @@
         if (rowCount(grid) > 1) {
           rowDelete.closest("tr").remove();
           cellStash.clear();
-          refreshControlState(grid);
+          refreshControlState(grid, desc);
           serialize();
         }
         return;
       }
       var colInsert = e.target.closest("[data-col-insert]");
       if (colInsert) {
-        if (colCount(grid) < MAX_COLS) {
+        if (colCount(desc) < MAX_COLS) {
           insertColumnAfter(grid, parseInt(colInsert.dataset.colIndex, 10));
           cellStash.clear();
-          rebuildColControls(grid);
-          refreshControlState(grid);
+          rebuildColControls(grid, desc);
+          refreshControlState(grid, desc);
           serialize();
         }
         return;
       }
       var colDelete = e.target.closest("[data-col-delete]");
       if (colDelete) {
-        if (colCount(grid) > 1) {
+        if (colCount(desc) > 1) {
           deleteColumnAt(grid, parseInt(colDelete.dataset.colIndex, 10));
           cellStash.clear();
-          rebuildColControls(grid);
-          refreshControlState(grid);
+          rebuildColControls(grid, desc);
+          refreshControlState(grid, desc);
           serialize();
         }
         return;
