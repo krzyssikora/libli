@@ -137,6 +137,19 @@ layout-inconsistent grid on any table with a rowspan — 8 of the 24 corpus tabl
 including `060_ciagi` with 4. Named test: insert a column through the covered rows of a
 `rowspan=3` cell.
 
+⚠️ **The skip predicate is the strict straddle test, not "occupies the slot"** — the two
+diverge at `layoutCol == c` and the difference corrupts the grid. Consider a cell anchored
+at `(0, 2)` with `colspan=1, rowspan=3`, and `insertColumn(grid, 2)`. The numeric rule
+says the span does not grow and row 0 gets a fresh cell before it. If rows 1–2 were
+skipped merely because their slot 2 is *occupied* by that cell, they would gain nothing
+while row 0 gained a cell — a layout-inconsistent grid, and precisely the state the
+"editor only ever posts a layout-consistent grid" invariant (and the `normalize_data`
+branch-flip safety argument resting on it) requires never to occur. When a covering cell
+is anchored *at* `layoutCol`, every covered row gets a real new cell like any other.
+`insertRow` mirrors this exactly: a cell anchored *at* `layoutRow` must not suppress new
+cells in the inserted row. Named test: insert a column at the anchor column of a
+`colspan=1 rowspan=3` cell → all three rows gain a cell and the layout stays consistent.
+
 **`width` and `height`, defined for overflowing stored spans.** Slice 1 rebuilds the
 column strip from `slotMap().width` and the caps compare against these numbers, so the
 definitions are observable before any op runs.
@@ -197,7 +210,7 @@ Every function takes the `grid` descriptor above as its first argument.
 |---|---|
 | `slotMap(grid)` | Standard HTML table cell-mapping: `{ map, width, height }` where `map[r][c]` is the cell occupying that layout slot (or `null`), accounting for colspan and rowspan. The primitive everything else builds on. |
 | `layoutWidth(grid)` | Layout column count. Replaces `colCount()`, which reads row 0's **cell** count and is wrong once a span exists. |
-| `insertColumn(grid, layoutCol)` | Insert a layout column at `layoutCol`; straddling colspans grow by 1; **only uncovered slots get a real new cell** — a row whose target slot is occupied by a cell anchored in an *earlier* row (rowspan > 1) gets nothing, and that covering cell's colspan grows exactly once, at its anchor. |
+| `insertColumn(grid, layoutCol)` | Insert a layout column at `layoutCol`; straddling colspans grow by 1; **a row is skipped only when a cell anchored in an *earlier* row *straddles* the insertion point** (strict `c < layoutCol < c + colspan`), in which case that covering cell's colspan grows exactly once, at its anchor. |
 | `deleteColumn(grid, layoutCol)` | Delete a layout column; straddling colspans shrink by 1; an anchor in that column moves right; a cell whose last covered column goes is removed. |
 | `insertRow(grid, layoutRow)` | Insert a row **at** `layoutRow` (same *at*-convention as `insertColumn`, deliberately not an "after" index); straddling rowspans grow by 1; only uncovered slots get real new cells (via `grid.makeCell`). |
 | `deleteRow(grid, layoutRow)` | Like `deleteColumn`, **plus anchor relocation** — see the rule below; it is not a pure transpose. |
@@ -236,7 +249,12 @@ deleting the anchor row of a `rowspan > 1` cell must physically relocate that ce
 into the next row it covers. The rule:
 
 1. For each cell anchored in the deleted row with `rowspan > 1`: take its node, decrement
-   its rowspan by 1, and move it into row `idx + 1`.
+   its rowspan by 1, and move it into row `idx + 1`. **Terminal case:** when the deleted
+   row is the *last* row, there is no row `idx + 1` — this is reachable via an overflowing
+   stored rowspan (hand-edited JSON), which the degenerate-input policy promises to
+   degrade rather than throw on. Such a cell is simply removed with its row, no
+   relocation attempted, since after clipping it covers no surviving row. Folded into the
+   existing "delete the final row under an overflowing rowspan" test.
 2. Its insertion position in that row is computed from the *target row's* slot map:
    before the first data cell whose layout column is greater than the moved cell's layout
    column, and always before the trailing control cell. If no such cell exists, it goes
@@ -378,7 +396,10 @@ responsibilities pinned so the split cannot drift:
 
 > `courses/element_forms.py: _scan_spans(cells) -> bool` — returns whether the grid is
 > spanning (detection, via `_span`), raising `ValidationError` for a **raw** span value
-> out of per-axis range (read as a raw int, guarded for bool/non-int). Skips non-dict
+> out of per-axis range (read as a raw int, guarded for bool/non-int). The range is
+> `2 <= n <= cap`: a value below 2 is **not a span**, so it is ignored rather than
+> rejected — matching `_span` (which returns `None`) and `layout_dims` (which counts it
+> as 1), so a crafted `colspan: 0` or `-3` cannot be read two ways. Skips non-dict
 > cells. Does **not** compute layout dims, apply the caps, or consult `self.instance` —
 > grandfathering needs the instance and stays in each form's `clean_data`, which calls
 > `layout_dims` itself.
@@ -541,8 +562,10 @@ confirm the result is visibly wrong rather than silently corrupt.
   and their Polish translations are already committed. The confirmed chord is then an
   input to slices 4 and 5, so the help text and msgids are written once. If it fails,
   fall back to `Ctrl+Alt+Arrow`.
-- `Escape` clears the range. The handler acts — and stops propagation — **only when a
-  range is active**, so a stray Escape still reaches the media-picker and math-input
+- `Escape` clears `rangeEnd` and the highlight but **leaves `rangeAnchor` at
+  `focusCell`**, so the next Shift+click forms a range from where the author actually is
+  rather than from a stale anchor. The handler acts — and stops propagation — **only when
+  a range is active**, so a stray Escape still reaches the media-picker and math-input
   modals that share the editor page. So does any structural edit (row/column insert or
   delete, merge, split) — the same discipline as the fill-table editor's existing
   `cellStash.clear()` on structural edits (`table_editor.js` has no stash).
@@ -564,9 +587,21 @@ After a `.rte-sep`, three buttons using new monochrome `currentColor` sprite sym
 `editor.html` (`ed-merge`, `ed-split`, `ed-header`), matching the existing
 `ed-answer` / `ed-image` line style:
 
-- **Merge** — enabled only when `canMerge` is true.
+- **Merge** — enabled only when `canMerge` is true. When a range is legal in shape but
+  **too large** (wider than `MAX_COLS` or taller than `MAX_ROWS` — reachable by selecting
+  all 26 columns of the grandfathered table), the button carries a `title` saying the
+  selection exceeds the size limit, rather than greying out unexplained. That string is
+  a `data-msg-*`, added to slice 3's msgids and mentioned in the help pages beside the
+  reworded caps message.
 - **Split** — enabled only when `focusCell` has a colspan or rowspan > 1. No range
   needed.
+
+⚠️ `filltable_editor.js`'s existing `refreshToolbarState` opens with
+`if (!toolbar || !focusedCell) return;`. The new Merge/Split/Header enablement must run
+**before**, or independently of, that early return — otherwise a delete that sets
+`focusCell` to `null` leaves the three buttons in whatever state they last had (e.g.
+Merge still enabled). "Toolbar hidden" is a different mechanism and does not substitute.
+Same requirement in the `refreshToolbarState` that slice 3 adds to `table_editor.js`.
 - **Header cell** — a toggle mirroring the existing "Answer cell" `is-on` pattern,
   flipping `focusCell` between `<td>` and `<th>`. See below: it is *not* a plain
   attribute flip, and it is disabled for cells already covered by the header toggles.
@@ -672,6 +707,15 @@ means: static HTML that is not blank, **or any answer cell, or any image cell**.
 leaves the grid untouched. This is what satisfies the constraint that a merge never
 silently loses an accepted answer or an image `media` pk.
 
+**Interaction with `header_col`, accepted:** because `header_col` promotes each row's
+*positionally first* cell, a vertical or full-width merge that removes a row's first cell
+silently promotes the **next** cell in that row to `<th>` at student-render time — and
+the author sees nothing, since the editor deliberately does not render `header_col` cells
+as `<th>`. This is accepted rather than engineered around (detecting and blocking it would
+mean the editor tracking a render rule it otherwise ignores), and the help text mentions
+it. Test: merge column 0 across two rows of a `header_col` table and assert what the
+render template emits for the now-first cell of the affected row.
+
 **Tail sequence** (the same discipline the Header toggle's step 6 spells out, required
 here too): re-point `focusCell`, clear the range and `cellStash` (fill-table only),
 `rebuildColControls`,
@@ -744,8 +788,16 @@ obsolete — these are additions only, but the i18n catalog tests still run.
 0. **The headline data-loss test, first — and it must be browser-driven.** The stated
    motivation is that saving a spanning table *untouched* strips its spans, so that is
    the falsifying RED test for slice 1: load a spanning fixture, open the editor page in
-   a real browser, click **Save** with **zero** other gestures, assert
-   `normalize_data(before) == normalize_data(after)`. Run for both a spanning `table` and
+   a real browser, click **Save** with **zero** other gestures, then assert the grid's
+   **structure** survived: per-cell `colspan` / `rowspan` / `header` / `kind`, plus each
+   row's length. Deliberately **not** a whole-grid `normalize_data` equality — every
+   cell's `html` makes a round trip through `contenteditable`'s `innerHTML`
+   re-serialization and the server sanitiser, and imported LAL markup (math, entities,
+   attribute order, whitespace) can legitimately return non-identical while every span
+   and header flag is perfectly preserved; a whole-grid equality would be a permanent,
+   misleading RED that an implementer "fixes" by weakening the test. For the same reason
+   the fixtures use plain-text cell content, leaving structure as the only signal.
+   Run for both a spanning `table` and
    a spanning `fill_table`, each fixture carrying a `header: true` cell **and** a rowspan
    (48 `header: true` cells exist across the corpus, so this is not a corner case). The
    `fill_table` fixture must also carry **at least one non-blank answer cell** — and
