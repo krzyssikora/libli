@@ -8,6 +8,19 @@
 
 **Tech Stack:** Django 5.2 templates + views, vanilla ES5-style JS (no build step, no framework), plain CSS with design tokens, pytest + pytest-django, Playwright for e2e.
 
+## Expected intermediate states — the tree is briefly broken on purpose
+
+Tasks 3-7 change markup and JS in sequence, and the builder is **not** fully functional in between.
+This is expected; do not "fix" it or assume you broke something. Manual smoke-testing mid-sequence
+will mislead you.
+
+| After task | What is temporarily broken | Restored by |
+|---|---|---|
+| 3 (markup) | Clicking a title no longer selects a node — the click handler still calls `preventDefault()` on `[data-select]`, which the input no longer carries, so no panel loads. Renaming works only via Enter (full-page no-JS POST). | Task 5 |
+| 5 (selection) | Selection works again, but no rename ever commits from the JS path: no commit handlers exist yet. | Task 6 |
+| 6 (commit) | Renames POST and persist, but the response is a no-op — `applyFragment` receives a `<data>` element with no `data-scope` and does nothing, so the row's label and token are stale until reload. | Task 7 |
+| 7 (apply) | Nothing. The feature is functional end-to-end; Task 8 proves it. | — |
+
 ## Global Constraints
 
 - Read the spec before starting: `docs/superpowers/specs/2026-07-22-inline-rename-tree-titles-design.md`. It carries the reasoning behind every non-obvious rule here.
@@ -262,8 +275,13 @@ def test_tree_rename_fragment_escapes_the_title(client):
     )
     assert resp.status_code == 200
     body = resp.content.decode()
-    assert "<b>bold</b>" not in body
-    assert "&quot;quoted&quot;" in body or "&#x27;" in body or "&amp;" in body
+    # Assert the EXACT escaped attribute. A loose `"&amp;" in body` disjunct would be
+    # trivially true (Django always escapes the literal &), and would pass even if the
+    # value attribute were emitted with raw double quotes -- which would break the
+    # <data> tag outright.
+    assert (
+        'value="A &quot;quoted&quot; &amp; &lt;b&gt;bold&lt;/b&gt;"' in body
+    )
 
 
 @pytest.mark.django_db
@@ -287,6 +305,8 @@ uv run pytest tests/test_manage_node_ops.py -k "narrow_fragment or fragment_esca
 ```
 
 Expected: FAIL — the body currently contains `data-scope` and no `data-rename-for`. (`test_no_js_rename_still_redirects_to_the_builder` should already PASS; it is a regression guard.)
+
+Falsification for the escaping test: render the title with `|safe` in `_rename_result.html` and require RED.
 
 - [ ] **Step 3: Create the fragment template**
 
@@ -370,7 +390,27 @@ row instead; builder.js will patch it in place."
 
 Append to `tests/test_manage_builder.py` (match the existing imports/fixtures in that file; it already logs in an owner and requests the builder page):
 
+**Assertions must be scoped to the rename form.** Every tree row *already* emits a byte-identical
+`<input type="hidden" name="node" value="…">` and `<input type="hidden" name="token" value="…">` from
+`_move_buttons.html:5-6`, and `_add_affordance.html:15` already emits `required`. Asserting those
+against the whole page would pass even if the rename form shipped with no hidden fields at all — a
+vacuous test. So extract the form block first and assert inside it, attribute by attribute (which also
+avoids coupling to attribute order).
+
 ```python
+import re
+
+RENAME_FORM_RE = re.compile(
+    r'<form class="tree__rename".*?</form>', re.DOTALL
+)
+
+
+def _rename_form(html):
+    m = RENAME_FORM_RE.search(html)
+    assert m, "no .tree__rename form found in the builder page"
+    return m.group(0)
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "kind,unit_type",
@@ -382,21 +422,22 @@ def test_every_tree_row_title_is_an_editable_form(client, kind, unit_type):
     node = ContentNodeFactory(
         course=course, kind=kind, unit_type=unit_type, parent=None, title="Fractions"
     )
-    html = client.get(
-        reverse("courses:manage_builder", kwargs={"slug": "c1"})
-    ).content.decode()
-    assert 'class="tree__rename"' in html
-    assert 'data-op="rename"' in html
-    assert f'<input type="hidden" name="node" value="{node.pk}">' in html
-    assert f'value="{node.updated.isoformat()}"' in html
-    assert 'class="tree__title" type="text" name="title" value="Fractions"' in html
-    assert "required" in html
-    assert 'maxlength="200"' in html
-    assert 'autocomplete="off"' in html
-    assert 'spellcheck="false"' in html
+    resp = client.get(reverse("courses:manage_builder", kwargs={"slug": "c1"}))
+    assert resp.status_code == 200
+    form = _rename_form(resp.content.decode())
+    assert 'data-op="rename"' in form
+    assert f'name="node" value="{node.pk}"' in form
+    assert f'name="token" value="{node.updated.isoformat()}"' in form
+    assert 'class="tree__title"' in form
+    assert 'name="title"' in form
+    assert 'value="Fractions"' in form
+    assert "required" in form
+    assert 'maxlength="200"' in form
+    assert 'autocomplete="off"' in form
+    assert 'spellcheck="false"' in form
     # data-select had exactly two readers (the click branch and refreshPanel); both are
     # removed by this change, so it must not be carried on ~800 rows for nothing.
-    assert "data-select" not in html
+    assert "data-select" not in resp.content.decode()
 
 
 @pytest.mark.django_db
@@ -404,11 +445,11 @@ def test_tree_title_has_a_static_accessible_name_and_a_title_tooltip(client):
     owner = make_login(client, "owner")
     course = CourseFactory(slug="c1", owner=owner)
     ContentNodeFactory(course=course, kind="part", parent=None, title="Fractions")
-    html = client.get(
-        reverse("courses:manage_builder", kwargs={"slug": "c1"})
-    ).content.decode()
-    assert 'aria-label="Title"' in html
-    assert 'title="Fractions"' in html
+    resp = client.get(reverse("courses:manage_builder", kwargs={"slug": "c1"}))
+    assert resp.status_code == 200
+    form = _rename_form(resp.content.decode())
+    assert 'aria-label="Title"' in form
+    assert 'title="Fractions"' in form
 
 
 @pytest.mark.django_db
@@ -416,12 +457,12 @@ def test_hidden_rename_submit_is_out_of_the_tab_order(client):
     owner = make_login(client, "owner")
     course = CourseFactory(slug="c1", owner=owner)
     ContentNodeFactory(course=course, kind="part", parent=None, title="Fractions")
-    html = client.get(
-        reverse("courses:manage_builder", kwargs={"slug": "c1"})
-    ).content.decode()
+    resp = client.get(reverse("courses:manage_builder", kwargs={"slug": "c1"}))
+    assert resp.status_code == 200
+    form = _rename_form(resp.content.decode())
     # .visually-hidden uses the clip pattern, which keeps the element FOCUSABLE --
     # without tabindex="-1" every row would gain a second tab stop.
-    assert 'class="visually-hidden" type="submit" tabindex="-1"' in html
+    assert 'class="visually-hidden" type="submit" tabindex="-1"' in form
 
 
 @pytest.mark.django_db
@@ -429,11 +470,12 @@ def test_node_panel_no_longer_offers_a_rename_form(client):
     owner = make_login(client, "owner")
     course = CourseFactory(slug="c1", owner=owner)
     node = ContentNodeFactory(course=course, kind="part", parent=None, title="P")
-    html = client.get(
+    resp = client.get(
         reverse("courses:manage_node_panel", kwargs={"slug": "c1", "pk": node.pk}),
         HTTP_X_REQUESTED_WITH="fetch",
-    ).content.decode()
-    assert 'data-op="rename"' not in html
+    )
+    assert resp.status_code == 200
+    assert 'data-op="rename"' not in resp.content.decode()
 
 
 def test_rename_form_partial_is_deleted():
@@ -528,6 +570,11 @@ TITLE_BTN_RE = re.compile(r'<input class="tree__title"[^>]*\btitle="([^"]*)"')
 ```
 
 The `\b` before `title=` is what stops `name="title"` from false-matching; keep it.
+
+Rename the surrounding identifiers in the same edit, or the file is left describing markup that no
+longer exists: the constant `TITLE_BTN_RE` → `TITLE_INPUT_RE`, the test
+`test_title_button_has_hover_title` (~line 74) → `test_title_input_has_hover_title`, and its assertion
+message `"title button title attr not found"` → `"title input title attr not found"`.
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
@@ -749,9 +796,14 @@ Insert immediately before the `// --- WS2 drag-and-drop ---` comment:
   var panelTimer = null;   // pending keyboard-debounce timer
   var pointerFocus = false;
 
+  // pointerdown is scoped to the tree; the RELEASE listeners are on document, because a
+  // pointerup landing outside .builder (drag-select out of the pane, release over
+  // browser chrome, an HTML5 drag started from .ica--grip) would otherwise latch
+  // pointerFocus true -- and the next KEYBOARD Tab would then fetch immediately,
+  // silently defeating the debounce.
   root.addEventListener("pointerdown", function () { pointerFocus = true; });
-  root.addEventListener("pointerup", function () { pointerFocus = false; });
-  root.addEventListener("pointercancel", function () { pointerFocus = false; });
+  document.addEventListener("pointerup", function () { pointerFocus = false; });
+  document.addEventListener("pointercancel", function () { pointerFocus = false; });
 
   function loadPanel(url) {
     var id = ++panelReq;
@@ -785,6 +837,21 @@ Insert immediately before the `// --- WS2 drag-and-drop ---` comment:
     if (byPointer) loadPanel(url);
     else panelTimer = setTimeout(function () { panelTimer = null; loadPanel(url); }, 150);
   });
+
+  // Focus leaving the builder entirely fires no further focusin on root, so a pending
+  // timer would still elapse and swap the panel for a row the author has left.
+  root.addEventListener("focusout", function (e) {
+    if (panelTimer && (!e.relatedTarget || !root.contains(e.relatedTarget))) {
+      clearTimeout(panelTimer);
+      panelTimer = null;
+    }
+  });
+```
+
+Also reset the latch in the existing `dragend` handler, since an HTML5 drag consumes the pointerup:
+
+```js
+  root.addEventListener("dragend", function () { clearDropMarks(); drag = null; pointerFocus = false; });
 ```
 
 - [ ] **Step 4: Verify the JS invariant test still passes**
@@ -795,13 +862,16 @@ uv run pytest tests/test_builder_js_invariants.py -v
 
 Expected: PASS — exactly one `panel.innerHTML =` assignment, inside `setPanel`. `loadPanel` routes both branches through `setPanel`; if you inlined either write this goes RED.
 
-- [ ] **Step 5: Confirm `data-select` and `refreshPanel` are gone**
+- [ ] **Step 5: Confirm `data-select` and `refreshPanel` are gone from the source**
 
 ```bash
-grep -rn "data-select\|refreshPanel" courses/ templates/ tests/
+grep -rn "data-select\|refreshPanel" courses/ templates/
 ```
 
-Expected: no output.
+Expected: **no output.** The grep deliberately excludes `tests/`, where two legitimate references
+remain: the `assert "data-select" not in ...` guard added in Task 3, and the `refreshPanel` mentions
+in `tests/test_e2e_builder_tree_layout.py` (both of which Task 8, Step 3 rewrites — check for **two**
+occurrences there, not one).
 
 - [ ] **Step 6: Commit**
 
@@ -986,6 +1056,13 @@ In the submit handler's `if (r.status === 200 || r.status === 409)` block, branc
 
 A rename's **409** deliberately still goes through `applyFragment`: there the tree genuinely diverged and `_conflict_scope` must be applied, or the stale row is never reloaded.
 
+**This is the one path where the in-place invariant is deliberately broken, and it has a real cost:**
+`_conflict_scope` (`views_manage.py:519`) re-renders the whole parent scope, so the `<li>` the author
+is typing in is replaced — focus drops to `<body>` and the typed title is discarded, with only the
+generic conflict notice as feedback. That is correct (the server's state won and the tree must be
+reloaded to truth) and is **accepted**, but it is a genuine loss and is listed as such in the
+Self-Review. Task 8 covers it.
+
 - [ ] **Step 2: Implement `applyRename`**
 
 Add it beside `applyFragment`:
@@ -1051,10 +1128,45 @@ node --check courses/static/courses/js/builder.js
 
 Expected: exit 0.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Smoke-test end to end, in a real browser**
+
+`node --check` only proves the file parses, and `test_builder_js_invariants.py` only counts
+`panel.innerHTML` assignments — so Tasks 5-7 have shipped three commits of behaviour change with no
+executable proof. Pull one minimal e2e forward from Task 8 and get it green before committing;
+everything after this point is elaboration on a path already known to work.
+
+Create `tests/test_e2e_inline_rename.py` with the module skeleton given in Task 8, Step 4, plus this
+single test:
+
+```python
+def test_enter_commits_a_unit_rename(page, live_server):
+    course, nodes = _seed_course()
+    _login_and_open_builder(page, live_server, course)
+    title = page.locator('.tree__title[value="Unit 1"]')
+    title.click()
+    title.press("Control+a")
+    page.keyboard.type("Renamed unit")
+    with page.expect_response(
+        lambda r: "rename" in r.url and r.request.method == "POST"
+    ):
+        title.press("Enter")
+    expect(page.locator('.tree__title[value="Renamed unit"]')).to_have_count(1)
+    nodes["unit1"].refresh_from_db()
+    assert nodes["unit1"].title == "Renamed unit"
+```
+
+Run it in the **foreground**:
 
 ```bash
-git add courses/static/courses/js/builder.js
+uv run pytest tests/test_e2e_inline_rename.py -v
+```
+
+Expected: PASS. If it fails, the bug is in Tasks 5-7, not in the test.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add courses/static/courses/js/builder.js tests/test_e2e_inline_rename.py
 git commit -m "feat(builder): apply the rename response in place
 
 Patches the row rather than swapping a scope: title, tooltip, defaultValue,
@@ -1079,13 +1191,21 @@ a chapter no longer breaks the next drop or add under it."
 
 - [ ] **Step 1: Migrate the existing locators**
 
-`.tree__title` appears with `has_text=` at lines 93, 107, 183, 205, 283, 297, 330 of `tests/test_e2e_builder_tree_layout.py`. An `<input>` has no text content, so each becomes a value-attribute selector:
+`.tree__title` appears with `has_text=` at seven places in `tests/test_e2e_builder_tree_layout.py`. An
+`<input>` has no text content, so each becomes a value-attribute selector — but **`has_text` is a
+substring match and `[value="…"]` is exact**, so they are not interchangeable. Per line:
 
-```python
-page.locator('.tree__title[value="Unit 40"]')
-```
+| Line | Current | Replacement | Why |
+|---|---|---|---|
+| 93, 107 | `has_text="deliberately very long"` | `.tree__title[value*="deliberately very long"]` | `LONG_TITLE` (line 17) is `"A deliberately very long unit title that must truncate " * 3` — an **exact** selector matches nothing and the test dies on a timeout that looks like a product bug. |
+| 183 | `has_text="Unit 40"` | `.tree__title[value="Unit 40"]` | Exact is fine and correct. |
+| 205, 283, 297, 330 | `has_text="Unit 1"` / `"Unit 2"` | `.tree__title[value="Unit 1"]` / `[value="Unit 2"]` | Exact is **stricter** than the original: `has_text="Unit 1"` also matched `Unit 10`, `Unit 12`, … and relied on `.first`. Exact matching removes that ambiguity — keep `.first` off, and if a test then finds zero elements, check the seeded titles rather than reverting to `*=`. |
 
-This matches the **server-rendered attribute**, so it must be read before the user types into that field.
+On the attribute vs. property distinction: typing mutates only the `value` **IDL property**, never the
+content attribute, so these locators are stable while the author types. What *does* update the
+attribute is `input.defaultValue = title` in `applyRename` (Task 7), which reflects to it. So an
+attribute selector tracks the server-rendered title and must be re-derived **after a committed
+rename**, not after typing.
 
 - [ ] **Step 2: Fix the truncation assertion at lines 93-96**
 
@@ -1095,11 +1215,65 @@ If the engine reports `scrollWidth === clientWidth` for a text control, the comp
 
 - [ ] **Step 3: Update the stale docstring**
 
-`test_notice_bar_is_visible_and_opaque_while_panel_scrolled` explains that the 409 path "calls `refreshPanel()`". That function is deleted; restate the rationale in terms of the `_conflict_scope` swap. The test passes either way, so nothing else would surface it.
+`test_notice_bar_is_visible_and_opaque_while_panel_scrolled` explains that the 409 path "calls `refreshPanel()`". That function is deleted; restate the rationale in terms of the `_conflict_scope` swap. There are **two** `refreshPanel` mentions in that file — fix both. The test passes either way, so nothing else would surface them.
 
 - [ ] **Step 4: Write the new e2e suite**
 
-Create `tests/test_e2e_inline_rename.py`, following the fixtures and markers of the existing e2e modules. Drive the **real UI** — never `page.evaluate` shortcuts, which ship broken UX green. Cover:
+`tests/test_e2e_inline_rename.py` was created in Task 7, Step 4 with the skeleton below and one test.
+Fill in the rest here. Drive the **real UI** — never `page.evaluate` shortcuts, which ship broken UX
+green.
+
+**Module skeleton** (mirror the conventions in `tests/test_e2e_builder_ws2.py`; check that file for the
+exact fixture names and marker in use and match them rather than inventing new ones):
+
+```python
+import pytest
+from playwright.sync_api import expect
+
+from courses.models import ContentNode
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
+from tests.factories import TEST_PASSWORD
+from tests.factories import UserFactory
+
+pytestmark = pytest.mark.e2e
+
+
+def _seed_course():
+    """A course shaped for the token-refresh cases: a chapter that CONTAINS a nested
+    section with its own add row, so a naive descendant query for parent_token finds
+    the grandchild's and the test goes RED."""
+    owner = UserFactory(username="owner", is_staff=True)
+    course = CourseFactory(slug="c1", owner=owner)
+    chapter = ContentNodeFactory(course=course, kind="chapter", parent=None, title="Chapter 1")
+    section = ContentNodeFactory(course=course, kind="section", parent=chapter, title="Section 1")
+    unit1 = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=section, title="Unit 1"
+    )
+    unit2 = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=section, title="Unit 2"
+    )
+    return course, {
+        "owner": owner, "chapter": chapter, "section": section,
+        "unit1": unit1, "unit2": unit2,
+    }
+
+
+def _login_and_open_builder(page, live_server, course):
+    page.goto(f"{live_server.url}/accounts/login/")
+    page.fill("#id_username", "owner")
+    page.fill("#id_password", TEST_PASSWORD)
+    page.click("button[type=submit]")
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/builder/")
+    page.wait_for_selector(".tree__title")
+```
+
+Never hard-code a password literal — use `tests.factories.TEST_PASSWORD`, or GitGuardian flags it.
+
+Write the remaining scenarios by analogy with the Task 7 smoke test. **Every scenario below marked
+(F) must carry an explicit falsification** — break the named thing, require RED, restore:
+
+Cover:
 
 **Core**
 - Click a **unit** title, type, press Enter → the tree label updates *and* the DB value changes.
@@ -1116,13 +1290,33 @@ Create `tests/test_e2e_inline_rename.py`, following the fixtures and markers of 
 - **Window blur does not commit:** type, blur the window (not the field) → no POST; field stays dirty. Playwright has no gesture that blurs the browser window: use a **second page in the same context plus `bring_to_front()`**, and confirm `document.hasFocus()` actually reports `False` under the run mode used — it differs between headed and headless Chromium. If it does not, skip with that reason rather than leaving the test falsely green.
 
 **Token refresh — the reason Task 7 exists.** Every one of these must **wait for the rename POST's response** (`expect_response` on `manage_node_rename`) before firing the follow-up op. The token patch happens when the response lands, so firing "immediately" races the round trip — which the design explicitly accepts as a 409 — making the test flaky by construction and its failure indistinguishable from the bug it guards.
-- Rename a **unit**, await the response, then click Duplicate on that row → succeeds, **no** conflict notice. Falsify by skipping the duplicate form's token refresh.
-- Same for the reorder arrows (every row has them) and for a drag of the just-renamed row.
-- **Rename a chapter, await, then drag a unit into it** → no conflict notice. Guards the child scope's `data-updated`.
+- **(F)** Rename a **unit**, await the response, then click Duplicate on that row → succeeds, **no** conflict notice. Falsify by skipping the duplicate form's token refresh.
+- **(F)** Same for the reorder arrows (every row has them).
+
+**Drag scenarios need the repo's dispatchEvent helper, not `drag_to`.** Playwright's `drag_to` uses
+pointer events internally and does **not** fire the `dragstart`/`dragover`/`drop` DOM events
+`builder.js` listens for — it produces a silently-green "nothing happened" test. Reuse
+`_simulate_drag` from `tests/test_e2e_builder_ws2.py:256` (synthetic `DragEvent` + `dataTransfer`),
+and note the **`dragover` sweep is required**: `scope.dataset.dropToken` is only populated by the
+`dragover` handler, so a `drop` without a preceding `dragover` posts no `parent_token` and the test
+would not exercise the token refresh at all. See the clientY sweep pattern in `tests/test_e2e_tabs.py:282`.
+- **(F)** Drag of the just-renamed row (guards the `<li>`'s `data-updated`, read at `dragstart`).
+- **(F)** **Rename a chapter, await, then drag a unit into it** → no conflict notice. Guards the child scope's `data-updated`.
 - **Rename a chapter, await, then add a lesson under it** → succeeds, no conflict notice, typed child title not discarded. Guards the child scope's `parent_token`. **The fixture chapter must itself contain a nested section with its own add row**, so a naive descendant query (which would find the *grandchild's* `parent_token`) fails RED — and additionally assert the nested section's own add still works afterwards, which is what catches a mis-stamped token.
 - **Rename the same row twice without reloading:** commit via Enter, wait, then type a different title and Enter again → both succeed, no conflict, DB holds the second title. This is the only test exercising the rename form's *own* refreshed token together with the `defaultValue` reset. Falsify by skipping that refresh.
 
 **Errors**
+- **(F)** **409 reloads the row and discards the edit:** force a stale token (post a rename from a
+  second client, or route-fulfil a 409 carrying a `_conflict_scope` body), then commit from the stale
+  row → the conflict notice appears, the row shows the **server's** current title, and the typed text
+  is gone. This is the accepted cost of the one path that still swaps a scope; the test exists so the
+  behaviour is pinned rather than discovered.
+- **(F)** **An open add row's deferred commit clobbers a fresh rename edit:** type into an inline-add
+  row, then click a tree title in the same scope and start typing. 120ms after the blur,
+  `commitOrCancel` (`builder.js:373-379`) posts `node_add`, whose 200 is a `[data-scope]` fragment
+  that `applyFragment` swaps — destroying the rename input mid-edit and dropping focus to `<body>`.
+  Assert that outcome. It is **accepted** (same class as any foreign swap; cross-wiring the two flows
+  to avoid it would reintroduce the coordination machinery this design removed) and the test pins it.
 - **422 does not wedge the row.** The row's guards make a 422 **unreachable by typing** — `required` plus the unconditional Enter-cancel block an empty title, `maxlength="200"` truncates over-length input including pasted text, and `ContentNode.clean()` validates nothing else about the title. So both 422 tests use **route interception**: fulfil the first `manage_node_rename` request with a 422 and an `_op_error.html` body, assert the notice appeared and that the typed text, focus and cleared `readOnly` all survived; then unroute so the corrected re-submit reaches the real server. Do **not** use `page.evaluate` to strip `maxlength`.
 
 **Navigation / a11y**
@@ -1170,14 +1364,48 @@ uv run python manage.py makemessages -l en -l pl
 - [ ] **Step 2: Run the i18n tests**
 
 ```bash
-uv run pytest tests/test_i18n_ws4.py -v
+uv run pytest tests/test_i18n_ws4.py tests/test_i18n_auth.py tests/test_i18n_notes.py tests/test_tags_i18n.py -v
 ```
 
-Expected: PASS, with no `#~` entries in either catalog.
+Expected: PASS. Note `test_i18n_ws4.py` alone would give **false assurance** — it only checks that a
+fixed list of WS4 msgids is translated and never reads the `.po` files. The obsolete-`#~` guards live
+in `tests/test_i18n_auth.py:70`, `tests/test_i18n_notes.py:56` and `tests/test_tags_i18n.py:10`.
 
-- [ ] **Step 3: Measure page weight**
+`compilemessages` is **not** required here: this change adds and removes no msgid — `Title` and
+`Rename` already exist (`editor/_unit_settings.html:12`; translated at `locale/pl/…/django.po:556`
+and `:4154`) — so only source-location comments change and the `.mo` files stay valid.
 
-The row gains a `<form>`, a `{% csrf_token %}`, two hidden inputs, a hidden submit and a second `{% url %}` reversal. Courses here reach ~800 units, so measure rather than assume: record the builder page's transferred size and DOM node count for the largest available fixture, before and after. (The CSRF token is kept rather than dropped in favour of the cookie-reading `csrf()` helper, because dropping it would break the no-JS path this design newly enables.) Record the delta for the PR body.
+- [ ] **Step 3: Measure page weight against a budget**
+
+The row gains a `<form>`, a `{% csrf_token %}`, two hidden inputs, a hidden submit and a second
+`{% url %}` reversal — offset slightly by dropping `data-select`. Courses here reach ~800 units, so
+measure rather than assume. (The CSRF token is kept rather than dropped in favour of the
+cookie-reading `csrf()` helper, because dropping it would break the no-JS path this design newly
+enables.)
+
+Seed a large course in a shell and measure the builder page before and after:
+
+```bash
+uv run python manage.py shell -c "
+from tests.factories import CourseFactory, ContentNodeFactory, UserFactory
+o = UserFactory(username='perf', is_staff=True)
+c = CourseFactory(slug='perf', owner=o)
+for i in range(40):
+    ch = ContentNodeFactory(course=c, kind='chapter', parent=None, title=f'Ch {i}')
+    for j in range(20):
+        ContentNodeFactory(course=c, kind='unit', unit_type='lesson', parent=ch, title=f'U {i}.{j}')
+print(c.slug)
+"
+```
+
+That is 800 units + 40 chapters. Fetch `/manage/courses/perf/builder/` and record **transferred bytes**
+(gzipped, from DevTools' Network panel or `curl -s --compressed -o /dev/null -w '%{size_download}'`)
+and **DOM node count** (`document.getElementsByTagName('*').length`), on `master` and on this branch.
+
+**Budget:** flag it in the PR body if gzipped transferred size grows by more than **15%**, or if the
+per-row DOM node growth exceeds **6 nodes**. If either is exceeded, do not silently proceed — stop and
+report, since the fallback (dropping `{% csrf_token %}` and reading the cookie instead) trades away
+the no-JS path and is a decision for the author, not the implementer.
 
 - [ ] **Step 4: Visual verification**
 
@@ -1215,3 +1443,12 @@ git commit -m "chore(i18n): refresh catalogs for the inline rename markup"
 **Type/name consistency.** `_clean_title` (Task 1) is referenced only in Task 1. `_rename_result.html`'s `data-rename-for` / `data-updated` / `value` (Task 2) are exactly the attributes `applyRename` reads (Task 7). `revert`/`commitRename`/`titleForm` (Task 6) are used consistently. `form.tree__rename`, `input.tree__title`, `li.tree__row[data-node]`, `form.tree__add[data-add-scope]` match the markup in Task 3 and the existing templates.
 
 **Deliberately accepted, not gaps** (do not "fix" these during implementation): the touch soft-keyboard cost; a foreign swap clobbering a half-typed title and its stale-display residual; a same-row op racing the round trip and 409-ing; the panel heading lagging until reselect; the AT role change; per-row markup growth; starting a rename discarding an open Move picker; `spellcheck` disabled; ancestor scope tokens untouched; Escape doing nothing mid-flight.
+
+Two more, added after review because they are real losses that were previously implicit rather than
+stated — both are pinned by tests in Task 8 so they cannot regress unnoticed:
+
+- **A 409 discards the typed title and drops focus to `<body>`.** It is the one path that still swaps a
+  scope, deliberately: the tree genuinely diverged and must be reloaded to server truth.
+- **An open inline-add row's 120ms deferred commit destroys a rename input the author just focused.**
+  Cross-wiring the two flows to prevent it would reintroduce exactly the coordination machinery the
+  narrow-response design removed, for a rarer case.
