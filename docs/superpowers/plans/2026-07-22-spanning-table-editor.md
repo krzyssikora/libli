@@ -1438,9 +1438,12 @@ Create `courses/static/courses/js/table_grid.js`:
   // WHO ENFORCES THE CAPS: only canMerge, which refuses an over-sized range
   // (never clamps it). insertColumn/insertRow deliberately do NOT consult the
   // caps -- the callers gate those on refreshControlState, which also owns the
-  // grandfathering rule the module has no way to know about. Every function
-  // bounds-checks its own index arguments and returns without mutating on an
-  // out-of-range one.
+  // grandfathering rule the module has no way to know about.
+  //
+  // BOUNDS: deleteColumn, insertRow and deleteRow return without mutating on an
+  // out-of-range index. insertColumn deliberately does NOT -- an index below 0
+  // prepends and one past the width appends, which is what makes
+  // insertColumn(grid, width) the documented "append at the right edge" form.
   //
   // `rows` is a FUNCTION, symmetrical with `cells`: insertRow/deleteRow change
   // the row list, and a materialized array would be stale exactly when the
@@ -3717,7 +3720,8 @@ and the insertion points matter:
 | From Task | Copy into `filltable_editor.js` | Insertion point |
 |---|---|---|
 | 6 | the `desc` descriptor literal | inside `wire()`, after `grid` is resolved (it was already added there in Task 6 — reuse it, do not build a second one) |
-| 13 | `rangeAnchor` / `rangeEnd` declarations | beside the existing `focusedCell` (rename it to `focusCell` here too) |
+| — | **whole-file find-and-replace `focusedCell` → `focusCell`** (see the warning below) | do this FIRST, before transplanting anything |
+| 13 | `rangeAnchor` / `rangeEnd` declarations | beside the (now renamed) `focusCell` declaration at line 246 |
 | 13 | `msg`, `say`, `tooBig`, `clearRange`, `paintRange`, `absorbedNonEmpty`, `SHIFT_EXEMPT` | after the existing `answerPlaceholder()` helper. **`absorbedNonEmpty` comes across unchanged** — `cellIsNonEmpty` is the only half of the pair that differs here (see below) |
 | 13 | the `focusin` rewrite | replace the existing handler at `filltable_editor.js:386`, keeping its image-alt reveal **and its `refreshAlignButtons()` call** — see the warning below |
 | 14 | the `thRow` / `thCol` `change` listeners | `filltable_editor.js:551-552`, which today read `addEventListener("change", serialize)`; they become `function () { serialize(); refreshToolbarState(); }` so the Header-cell lock re-evaluates without a re-click |
@@ -3727,13 +3731,36 @@ and the insertion points matter:
 | 15 | the `Alt+Shift+Arrow` and `Escape` keydown handlers | beside the existing grid `keydown` |
 | 13 | the two lines Task 13 added to `afterStructuralEdit` (`clearRange(false)`, `refreshToolbarState()`) | the `afterStructuralEdit` this file gained in Task 11 — Task 13 extended only the plain-table copy, so without this a fill-table merge leaves the `.is-range` highlight painted and Merge enabled against removed nodes |
 
+⚠️ **Do the rename as a whole-file find-and-replace, exactly as Task 13 did.**
+`filltable_editor.js` has **27** occurrences of `focusedCell` — nearly twice
+`table_editor.js`'s 16 — and they reach further: `refreshAlignButtons`,
+`refreshToolbarState`, `toggleAnswerCell`, the toolbar branches, the **global
+`window.libliFillTablePickImage` closure** (lines 331/334) and the **`imageAlt` input
+listener** (543-545). The last two are the image-picker callback and the alt-text field:
+code paths *nothing in this plan tests*, so a missed occurrence there is a `ReferenceError`
+that ships silently. Checksum after the edit:
+`grep -c focusedCell courses/static/courses/js/filltable_editor.js` must return **0**.
+
 Non-obvious specifics, each of which differs from the plain-table version:
 
 - **`refreshToolbarState` already exists here** (`filltable_editor.js:271`) and owns the
-  answer/image kind-button state. **Extend** it — add the Merge/Split/Header block
-  *before* its early return (which reads `if (!toolbar || !focusCell) return;` once the
-  `focusedCell` → `focusCell` rename above has been applied to this file too) — rather
-  than replacing it, or the kind buttons stop updating.
+  answer/image kind-button state. **Extend** it rather than replacing it, or the kind
+  buttons stop updating — and **split its guard rather than hoisting the block above it**.
+  Its early return is `if (!toolbar || !focusCell) return;`; simply inserting the new block
+  before that line would strip the null-`toolbar` protection that
+  `toolbar.querySelector("[data-merge]")` depends on (this file guards `if (toolbar) {…}`
+  around its toolbar listeners at line 474, so null is a case its author took seriously).
+  The order becomes:
+
+  ```js
+    function refreshToolbarState() {
+      if (!toolbar) return;              // was part of the combined guard
+      /* Merge / Split / Header enablement here -- must run even when
+         focusCell is null, or a delete leaves Merge enabled. */
+      if (!focusCell) return;            // the rest of the original body
+      /* ...existing answer/image kind-button code... */
+    }
+  ```
 - ⚠️ **`refreshAlignButtons()` must survive the `focusin` transplant.** Task 13's
   replacement body drops the bare `refreshAlignButtons()` call because the plain table's
   `refreshToolbarState` ends by calling it. **This file's does not** — its
