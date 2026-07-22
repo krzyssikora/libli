@@ -567,3 +567,105 @@ def test_settings_form_without_unit_type_preserves_type(client):
     unit.refresh_from_db()
     assert unit.title == "New title"
     assert unit.unit_type == "lesson"  # preserved, not blanked
+
+
+@pytest.mark.django_db
+def test_rename_strips_surrounding_whitespace(client):
+    _, course = _setup(client)
+    node = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Old"
+    )
+    resp = client.post(
+        reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
+        {"node": node.pk, "token": _tok(node), "title": "  Fractions  "},
+        **FETCH,
+    )
+    assert resp.status_code == 200
+    node.refresh_from_db()
+    assert node.title == "Fractions"
+
+
+@pytest.mark.django_db
+def test_rename_rejects_whitespace_only_title(client):
+    _, course = _setup(client)
+    node = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Old"
+    )
+    resp = client.post(
+        reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
+        {"node": node.pk, "token": _tok(node), "title": "   "},
+        **FETCH,
+    )
+    assert resp.status_code == 422
+    node.refresh_from_db()
+    assert node.title == "Old"
+
+
+@pytest.mark.django_db
+def test_add_strips_surrounding_whitespace(client):
+    _, course = _setup(client)
+    resp = client.post(
+        reverse("courses:manage_node_add", kwargs={"slug": "c1"}),
+        {
+            "parent": "top",
+            "parent_token": course.updated.isoformat(),
+            "kind": "part",
+            "title": "  Foo  ",
+        },
+        **FETCH,
+    )
+    assert resp.status_code == 200
+    assert ContentNode.objects.filter(course=course, title="Foo").exists()
+
+
+@pytest.mark.django_db
+def test_strip_happens_before_length_validation(client):
+    # A 200-char title wrapped in spaces must persist intact: only possible if the
+    # strip runs BEFORE full_clean()'s max_length check. Service/POST-level only --
+    # maxlength="200" in the browser counts the untrimmed string, so this case is
+    # unreachable by typing into the tree input.
+    _, course = _setup(client)
+    node = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Old"
+    )
+    exact = "x" * 200
+    resp = client.post(
+        reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
+        {"node": node.pk, "token": _tok(node), "title": "  " + exact + "  "},
+        **FETCH,
+    )
+    assert resp.status_code == 200
+    node.refresh_from_db()
+    assert node.title == exact
+
+    too_long = "y" * 201
+    resp = client.post(
+        reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
+        {"node": node.pk, "token": _tok(node), "title": too_long},
+        **FETCH,
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.django_db
+def test_type_only_toggle_still_preserves_title(client):
+    # Guards the _UNSET branch: normalization must not turn "leave the title alone"
+    # into "set the title to ''".
+    _, course = _setup(client)
+    unit = ContentNodeFactory(
+        course=course, kind="unit", unit_type="lesson", parent=None, title="Keep me"
+    )
+    resp = client.post(
+        reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
+        {
+            "node": unit.pk,
+            "token": _tok(unit),
+            "type_only": "1",
+            "unit_type": "quiz",
+        },
+        **FETCH,
+    )
+    assert resp.status_code == 200
+    unit.refresh_from_db()
+    assert unit.unit_type == "quiz"
+    assert unit.title == "Keep me"
