@@ -150,9 +150,9 @@ Every function takes the `grid` descriptor above as its first argument.
 | `layoutWidth(grid)` | Layout column count. Replaces `colCount()`, which reads row 0's **cell** count and is wrong once a span exists. |
 | `insertColumn(grid, layoutCol)` | Insert a layout column at `layoutCol`; straddling colspans grow by 1. |
 | `deleteColumn(grid, layoutCol)` | Delete a layout column; straddling colspans shrink by 1; an anchor in that column moves right; a cell whose last covered column goes is removed. |
-| `insertRow(grid, afterIdx)` | Insert a row; straddling rowspans grow by 1; only uncovered slots get real new cells (via `grid.makeCell`). |
-| `deleteRow(grid, idx)` | Transpose of `deleteColumn`. |
-| `rangeCells(grid, a, b)` | The rectangle between two cells, **normalised** to a fixpoint (below). Returns `{ cells, anchor, r0, c0, r1, c1 }`. |
+| `insertRow(grid, layoutRow)` | Insert a row **at** `layoutRow` (same *at*-convention as `insertColumn`, deliberately not an "after" index); straddling rowspans grow by 1; only uncovered slots get real new cells (via `grid.makeCell`). |
+| `deleteRow(grid, layoutRow)` | Like `deleteColumn`, **plus anchor relocation** — see the rule below; it is not a pure transpose. |
+| `rangeCells(grid, a, b)` | The rectangle between two cells, **normalised** to a fixpoint (below). Returns `{ cells, anchor, r0, c0, r1, c1 }`, where `anchor` is the cell occupying `(r0, c0)` **after** normalisation — which fixpoint expansion can make a different cell from the one the author first clicked. `merge` keeps *this* cell's content, not `rangeAnchor`. |
 | `canMerge(grid, a, b)` | True when the normalised range covers ≥ 2 cells. |
 | `merge(grid, a, b)` | Top-left gains the covering colspan/rowspan; every other cell in the range is removed from its row. |
 | `split(grid, cell)` | Remove the cell's spans; re-insert empty cells (via `grid.makeCell`) into the correct position in each freed row. |
@@ -171,10 +171,15 @@ the span entirely. `insertColumn(grid, width)` appends at the right edge and is 
 **Handler → API mapping.** The existing buttons are labelled "Insert column right" and
 carry `data-col-index`, while the new API inserts *at* a layout column. The translation
 is `insertColumn(grid, i + 1)` and `deleteColumn(grid, i)`, where `i` is now the
-**layout** column of the pressed handle. Consequence, stated so it is not rediscovered:
-pressing "insert right" on a column that is a colspan's *last* covered slot yields
-`layoutCol == c + s`, so the span does **not** grow — a new cell appears after it. Row
-handles map the same way.
+**layout** column of the pressed handle; `insertColumn(grid, width)` appends. Consequence,
+stated so it is not rediscovered: pressing "insert right" on a column that is a colspan's
+*last* covered slot yields `layoutCol == c + s`, so the span does **not** grow — a new
+cell appears after it.
+
+Rows map **identically**, which is why `insertRow` takes an *at*-index rather than an
+"after" one: "insert below" on row handle `i` is `insertRow(grid, i + 1)`, and
+`insertRow(grid, height)` appends. Naming the row parameter `afterIdx` while columns use
+an at-convention is exactly the off-by-one this spelling-out exists to prevent.
 
 **`deleteRow` anchor relocation.** This is the one genuinely hard step, and it is *not*
 a transpose of `deleteColumn`: deleting a column never moves a node between rows, whereas
@@ -245,6 +250,13 @@ new height rather than only shrinking straddling spans.
   cell selector remains in either JS file **or** either CSS file, so a future edit cannot
   silently reintroduce one.
 
+  The guard's rule is "**any selector that can match a _data_ cell must also match
+  `th`**", with two named exemptions, or it becomes a whitelist-everything no-op: chrome
+  selectors scoped by `[data-control]`, and element construction
+  (`document.createElement("td")`, 8 sites). The guard must go RED when any single
+  inventory row above is reverted — that is what makes it a real test rather than a
+  grep in prose.
+
 ### Render templates: the `<th>` gap (in scope, slice 1)
 
 `tableelement.html` and `filltableelement.html` emit `colspan`/`rowspan` on the
@@ -270,20 +282,49 @@ round-trip — is rejected before `normalize_data` is ever reached. This must be
 > the **layout** width/height (from a server-side slot walk) instead of per-row cell
 > counts. Non-spanning grids keep today's check verbatim.
 
+Two details, because this scan runs on **raw author-supplied JSON**, before
+`normalize_data`: it must test `TableElement._span(c, key) is not None` rather than a
+bare `> 1` (`_span` deliberately coerces, so a string `"colspan": "3"` would slip past a
+naive int comparison and the ragged grid would be wrongly rejected), and it must **skip
+non-dict cells** (today's code only reads `len(r)`, so a crafted POST with a non-dict
+cell survives to `normalize_data`; a naive `c.get(...)` scan would raise
+`AttributeError` → 500). Tested with a string span and with a non-dict cell.
+
 `FillTableElementForm.clean_data` has no raggedness check, but derives
 `n_cols = len(cells[0])` — meaningless once row 0 is a single full-width merged cell, so
 the 20-column cap silently lapses. It gets the same layout-based computation.
 
 **Caps are grandfathered, not absolute.** `130_kombinatoryka/240_kombinatoryka` has a
 measured layout width of **26** against `MAX_COLS = 20`. Expressing the caps in layout
-terms would make that existing element unsaveable. So the caps gate **growth**: a save is
-rejected only if it exceeds the cap *and* is larger than the grid's stored dimensions.
+terms would make that existing element unsaveable. So the caps gate **growth**, with the
+baseline pinned precisely: the stored dimensions are the layout width/height of
+`normalize_data(self.instance.data)` — the pre-save DB value, never `cleaned_data`, which
+would make the rule circular — defaulting to `(0, 0)` for an unsaved instance, so a
+brand-new 21-column table is rejected normally. **Each axis is compared independently**
+(`new_axis > cap and new_axis > stored_axis`), so a 26x10 grid narrowed to 24 columns but
+grown to 12 rows is judged per-axis rather than passed wholesale.
 `refreshControlState` correspondingly disables insert when at or over the cap, which
 leaves that table's column strip insert-disabled — correct, and it stays editable
 otherwise.
 
-**`_span` clamp.** `TableElement._span` clamps **both** keys to `MAX_COLS` (20). Now that
-the editor can author a rowspan, `rowspan` clamps to `MAX_ROWS` (50) instead. Own test.
+**`_span` must stop clamping silently — both axes.** `TableElement._span`
+(`courses/models.py:838`) currently does `min(n, MAX_COLS)` for *both* keys. Two defects
+follow, and the second is one this work would newly create:
+
+- `rowspan` is clamped against the *column* cap. It should use `MAX_ROWS` (50).
+- A full-width merge on the grandfathered 26-column table posts `colspan: 26`; the
+  relaxed form accepts it (26 is not larger than the stored width) and `_span` silently
+  rewrites it to 20 — producing exactly the layout-**inconsistent** grid the
+  "editor only ever posts a layout-consistent grid" invariant exists to prevent. The
+  corpus maximum colspan today is 12, so this is reachable only once authors have a merge
+  button.
+
+**Decision: refuse, never silently clamp.** `canMerge` returns false for a range wider
+than `MAX_COLS` or taller than `MAX_ROWS`, and the forms reject an out-of-range span
+rather than truncating it. `_span`'s clamp becomes redundant defence-in-depth against
+the correct per-axis cap (`MAX_COLS` for colspan, `MAX_ROWS` for rowspan). Named test:
+merge all 26 columns of the 26-wide grid → the merge is refused, and a hand-posted
+`colspan: 26` is rejected — never silently stored as 20.
 
 `normalize_data` is otherwise untouched.
 
@@ -416,8 +457,28 @@ unimplementable without a new `header: false` sentinel — a model change this s
 not want.
 
 **Decision:** the Header-cell toggle is **disabled** (with a `title` explaining why) for
-any cell in row 0 of a `header_row` table or column 0 of a `header_col` table. Elsewhere
-it is enabled and its `is-on` state is simply "this cell's tag is `TH`".
+any cell the toggles already promote. Elsewhere it is enabled and its `is-on` state is
+simply "this cell's tag is `TH`".
+
+"Already promoted" must be defined exactly as the render templates define it, or the
+editor and the renderer disagree about which cells are covered:
+
+- `header_row` → **row 0** (`forloop.parentloop.first`). Unambiguous.
+- `header_col` → the **positionally first cell of each row** (`forloop.first`), i.e.
+  `cells(tr)[0]` — *not* layout column 0. On a ragged spanning grid these genuinely
+  diverge: a row whose layout column 0 is occupied by a rowspan anchored above starts its
+  cell list at layout column 1 or later. Today's templates promote the positionally first
+  cell, so **the editor matches that** — adopting a layout-column definition would
+  silently change how existing content renders, which this work must not do. A
+  partial-render test pins it: a `header_col` table where a row-0 rowspan occupies row
+  1's layout column 0.
+
+**Enablement is live.** `header_row` / `header_col` are checkboxes the author can flip
+while the same cell stays focused — the very scenario noted above. The JS reads the
+existing `[data-th-row]` / `[data-th-col]` inputs inside the editor root, and both get a
+`change` listener that calls `refreshToolbarState()`, so the button's `disabled`,
+`aria-pressed` and `title` never go stale. Tested: enable **Header row** while focus sits
+in row 0 → the button becomes disabled without a re-click.
 
 This is also why the *editor* grid does not render `header_row` / `header_col` cells as
 `<th>`: if it did, `serialize()` would start writing `header: true` for cells that never
@@ -427,7 +488,10 @@ had it, breaking the byte-identity constraint for every existing header-row tabl
 
 The column control strip is rebuilt from `slotMap().width` — one button pair per
 **layout** column, so it lines up with a ragged grid. Row handles are unchanged.
-`refreshControlState` gates on layout width/height against `MAX_COLS` / `MAX_ROWS`.
+`refreshControlState` gates on layout width/height: insert is disabled at or above
+`MAX_COLS` / `MAX_ROWS` (per the grandfathering rule), and **delete stays disabled at
+layout width 1 or height 1** — today's floor guard, which must be restated in layout
+terms because "one layout column left" is not the same as "one cell left in row 0".
 
 ### Merge
 
@@ -442,7 +506,10 @@ silently loses an accepted answer or an image `media` pk.
 
 **Tail sequence** (the same discipline the Header toggle's step 6 spells out, required
 here too): re-point `focusCell`, clear the range and `cellStash`, `rebuildColControls`,
-`refreshControlState`, `refreshToolbarState`, `serialize()`. Skipping `serialize()` loses
+`refreshControlState`, `refreshToolbarState`, `serialize()`. Note that
+`refreshToolbarState` exists **only in `filltable_editor.js`** today — `table_editor.js`
+has `refreshAlignButtons` and no toolbar-state function, so slice 3 adds one there
+(wrapping `refreshAlignButtons` plus the new Merge/Split/Header enablement). Skipping `serialize()` loses
 the merge on save; skipping the control rebuild leaves the strip at the old layout width.
 **Split runs the identical sequence.**
 
@@ -456,9 +523,17 @@ dialog.
 
 The anchor's spans are removed and the freed slots return as **each editor's default
 empty cell** (`grid.makeCell`) — a plain contenteditable cell for `TableElement`, which
-has no cell kinds, and a static cell for the fill-table — inserted at the correct
-position in each affected row (for a rowspan, into rows the anchor no longer covers).
-Discarded content is not resurrected.
+has no cell kinds, and a static cell for the fill-table. Discarded content is not
+resurrected.
+
+**Insertion position uses the same rule as `deleteRow`'s relocation**, because "the
+correct position" in a ragged row is exactly as non-obvious here — and worse, in both
+axes at once: splitting a `colspan=3 rowspan=2` cell frees 2 slots to the anchor's right
+in its own row and 3 slots in the row below. For **each** freed layout slot, insert
+`makeCell()` before the first data cell in that row whose layout column exceeds the
+freed slot's column, always before the trailing control cell; if there is no such cell,
+append it last among the data cells. Named test: split a `colspan=3 rowspan=2` cell
+anchored mid-row in a ragged grid, asserting the sibling index of every new cell.
 
 ### Fill-table specifics
 
@@ -502,10 +577,18 @@ obsolete — these are additions only, but the i18n catalog tests still run.
    `serialize()` fills it from the live DOM on init, so a POST-based test never exercises
    the code under test and would pass today — a textbook vacuous test.
 
-   The two fixtures fail **differently** at RED, and an implementer should expect that
-   rather than suspect the harness: the `table` fixture fails with the *"All table rows
-   must have the same number of cells"* form error (the ragged-rows rejection above),
-   while the `fill_table` fixture saves "successfully" and silently strips its spans.
+   **The assertion must be two-part, or the `table` half is vacuous by construction:** a
+   rejected save writes nothing, so `after == before` is trivially satisfied and the test
+   would be GREEN before a line of code is written — the precise failure mode the
+   project's *falsify tests, don't run them* lesson warns about. So test 0 asserts
+   **first that the save succeeded** (redirected, no form error rendered) and only then
+   compares `normalize_data`.
+
+   With that addition the two fixtures go RED for **different reasons**, and an
+   implementer should expect that rather than suspect the harness: the `table` fixture
+   fails the *success* assertion (the *"All table rows must have the same number of
+   cells"* rejection above), while the `fill_table` fixture passes it and fails the
+   *equality* assertion, having silently stripped its spans.
 1. **Python partial-render + model tests** (default run, no browser):
    editor templates emit `colspan` / `rowspan` and `<th contenteditable>` for a spanning
    instance; **render** templates emit spans on the `header_row` / `header_col` `<th>`
@@ -519,7 +602,12 @@ obsolete — these are additions only, but the i18n catalog tests still run.
    `-m "not e2e"` command never runs them — so slice 2's TDD loop uses
    `DATABASE_URL=… uv run pytest -m e2e -k table_grid` as its RED/GREEN command. Coverage
    includes the bounds invariant (`deleteRow` of the final row under an overflowing
-   rowspan) and the degenerate-input policy.
+   rowspan) and the degenerate-input policy. Decision 4 defines **four** distinct
+   column-side behaviours, each of which silently destroys author content if implemented
+   wrongly, so each gets its own named test asserting the resulting cell list *and* span
+   values (not merely the layout width): insert-inside grows the span; delete-inside
+   shrinks it; deleting a span's anchor column moves the anchor right; deleting the last
+   column a span covers removes the cell.
 3. **Real-gesture e2e in both editors** (clicks and keystrokes, no `page.evaluate`
    shortcuts): Shift+click a range → Merge → Save → reopen → the span survived; Split
    restores empty cells; `Alt+Shift+Arrow` builds a range; a column insert through a
@@ -575,13 +663,22 @@ Dependency order; each independently reviewable.
    that previously could not be saved at all. Slice 1 therefore **disables row/column
    insert/delete whenever any cell carries a span** — a few lines, removed again in slice
    2 when the handles become span-aware.
-2. **`table_grid.js`** — slot map + span-aware insert/delete/merge/split; both editors'
-   column strips switch to layout columns.
+   Disabling the handles closes the *corruption* window but not the *layout* one:
+   `rebuildColControls` would still emit `colCount()` button pairs, which for any table
+   with a row-0 colspan is fewer than the layout width, leaving every handle under the
+   wrong column — and slice 1's own live goal is that u/432's strip lines up. So the
+   **read-only** half of `table_grid.js` (`slotMap` / `layoutWidth`) lands in slice 1 and
+   drives the strip; only the mutating ops wait for slice 2.
+2. **`table_grid.js`** — the mutating half: span-aware insert/delete/merge/split, and the
+   removal of slice 1's blanket handle-disable. (`slotMap`/`layoutWidth` and the layout-
+   column strips already landed in slice 1.)
 3. **`table_editor.js`** — selection, Merge / Split / Header cell toolbar.
 4. **`filltable_editor.js`** — the same, plus kind preservation and the confirm rules.
-5. **Help pages x4** and **i18n**: the three button labels, the disabled-Header `title`,
-   the live-region text and the merge confirm are new translatable msgids — run
-   `makemessages` for en + pl, supply the Polish translations, check for fuzzy flags and
+5. **Help pages x4** and the **i18n sweep**. Slices 3 and 4 each run `makemessages` for
+   the msgids *they* introduce, so no slice lands with an out-of-date catalogue and the
+   catalog tests stay meaningful per-slice; slice 5 then sweeps, supplies the Polish
+   translations for all of them (the three button labels, the disabled-Header `title`,
+   the live-region text, the merge confirm), checks for fuzzy flags and runs
    `compilemessages`. Then live verification on u/432, then the **frontend-design** pass
    over the new buttons, icons and range highlight (screenshot light + dark and
    self-critique before shipping).
