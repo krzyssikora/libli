@@ -545,6 +545,57 @@ def test_merge_leaves_a_legal_empty_row(grid_page):
     assert kept == [2, True]
 
 
+def test_merge_survivor_is_the_post_fixpoint_anchor_not_the_clicked_cell(grid_page):
+    """X sits at the true top-left (0,0). Clicking two PLAIN cells that never
+    touch X -- 'a' at (1,0) and 'b' at (1,2) -- still resolves the anchor to X,
+    because a rowspan=2 cell straddling column 1 is inside the naive rectangle
+    from the start and its anchor sits at (0,1); pulling that anchor into
+    range drags r0 from 1 up to 0, which lands squarely on X's slot.
+
+    Layout (3 wide, 2 tall), traced by hand against slotMap:
+        row0:  x(0,0)   M = rowspan2 (0,1)-(1,1)   d(0,2)
+        row1:  a(1,0)   [covered by M]              b(1,2)
+
+    Selecting a..b starts at r0=1,c0=0,r1=1,c1=2 (both in row 1).
+      pass 1: M at (1,1) is anchored at (0,1) -- its anchor.r=0 < r0=1, so
+              r0 expands to 0. M's own span [0,1] is already inside
+              c0..c1=0..2, so nothing else changes yet.
+      pass 2: re-scanning rows 0..1, cols 0..2 finds nothing new -> fixpoint
+              at [0, 0, 1, 2].
+    x occupies (0,0) -- the new top-left -- despite neither 'a' nor 'b' ever
+    referencing it. merge() must keep x's content and discard a and b.
+    """
+    rows = (
+        "<tr><td id='x'></td><td rowspan='2'></td><td></td>"
+        "<td data-control></td></tr>"
+        "<tr><td id='a'></td><td id='b'></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             var x = document.getElementById('x');
+             var a = document.getElementById('a');
+             var b = document.getElementById('b');
+             var rg = libliTableGrid.rangeCells(g, a, b);
+             var anchorIsX = rg.anchor === x;
+             libliTableGrid.merge(g, a, b);
+             return {
+               dims: [rg.r0, rg.c0, rg.r1, rg.c1],
+               anchorIsX: anchorIsX,
+               xShape: (x.colSpan || 1) + 'x' + (x.rowSpan || 1),
+               xStillThere: document.body.contains(x),
+               aGone: document.getElementById('a') === null,
+               bGone: document.getElementById('b') === null,
+             };
+           }"""
+    result = grid_page.evaluate(template % rows)  # noqa: UP031
+    assert result["dims"] == [0, 0, 1, 2]
+    assert result["anchorIsX"] is True
+    assert result["xShape"] == "3x2"
+    assert result["xStillThere"] is True
+    assert result["aGone"] is True
+    assert result["bGone"] is True
+
+
 def test_split_restores_cells_at_the_right_sibling_indexes(grid_page):
     # colspan=3 rowspan=2 anchored mid-row in a ragged grid: 2 slots free to
     # its right in row 0, 3 in row 1.
