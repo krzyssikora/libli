@@ -35,7 +35,20 @@
 .tree__badge { font-size: .6rem; text-transform: uppercase; letter-spacing: .03em; border: 1px solid currentColor; border-radius: 8px; padding: 0 6px; }
 .tree__badge--part, .tree__badge--chapter, .tree__badge--section { color: var(--primary); }
 .tree__badge--unit { color: var(--accent); }
-.tree__title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: none; cursor: pointer; text-align: left; color: var(--text-primary); padding: 0; }
+/* The title is an <input> (inline rename). Two hazards, both handled here:
+   1. app.css:136 styles input[type=text] at specificity (0,1,1) -- the same as
+      input.tree__title -- so this only wins because builder.css loads after app.css
+      via {% block extra_css %}. Every inherited property is therefore reset explicitly.
+   2. An <input> does not inherit font-family/font-size, hence font: inherit.
+   Hover/focus are layout-neutral: a transparent rest border becomes coloured on hover
+   (a border appearing from nothing would shift text and grow the row), and focus uses
+   outline, which does not participate in layout. */
+.tree__rename { flex: 1; min-width: 0; display: flex; margin: 0; }
+input.tree__title { width: 100%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-align: left; color: var(--text-primary); font: inherit; background: none;
+  border: 1px solid transparent; border-radius: 0; padding: 0; cursor: text; }
+input.tree__title:hover { border-color: var(--border-default); }
+input.tree__title:focus { outline: 2px solid var(--primary); outline-offset: 1px; border-color: transparent; }
 .tree__empty { list-style: none; color: var(--text-secondary); font-style: italic; padding: 3px 4px; }
 
 /* #6 control cluster — always visible, subtle, brighten on hover/focus */
