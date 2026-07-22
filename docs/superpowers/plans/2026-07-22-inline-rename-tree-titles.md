@@ -26,7 +26,13 @@ will mislead you.
 
 - Read the spec before starting: `docs/superpowers/specs/2026-07-22-inline-rename-tree-titles-design.md`. It carries the reasoning behind every non-obvious rule here.
 - **Tooling:** bare `pytest` / `ruff` / `python` are **not** on PATH. Always `uv run pytest`, `uv run ruff check`, `uv run ruff format --check`.
-- **This worktree runs concurrently with others.** Export a unique `DATABASE_URL` before running tests, or you will collide with another worktree on the Postgres `test_libli` database. Example: `export DATABASE_URL=postgres://postgres:postgres@localhost:5432/libli_rename`.
+- **This worktree runs concurrently with others.** Export a unique `DATABASE_URL` before running tests, or you will collide with another worktree on the Postgres `test_libli` database. Use the role from the main checkout's `.env` — `libli:libli`, **not** `postgres:postgres`, which
+  fails password auth here:
+  `export DATABASE_URL=postgres://libli:libli@localhost:5432/libli_rename`.
+  The worktree has no `.env` of its own, so the exported variable is what takes effect.
+- **Test files in this repo are CRLF.** Appending with a LF heredoc will make `ruff format --check`
+  flag the whole file. Either write CRLF-aware, or run `uv run ruff format <file>` afterwards and
+  confirm with `git diff --stat` that only your added lines changed.
 - **Falsify every test before accepting it.** Break the thing the test guards and require RED. A passing test that never fails proves nothing. Where a step names a specific falsification, perform it.
 - **JS style:** `builder.js` is a single IIFE using `var`, `function`, and `Array.prototype.slice.call`. Match it. No `let`/`const`/arrow functions/optional chaining — and note `form.querySelector(...)?.readOnly = false` is a *syntax error* regardless.
 - **Django template comments** must be `{% comment %}…{% endcomment %}` for anything multi-line; `{# #}` is single-line only or it renders visibly.
