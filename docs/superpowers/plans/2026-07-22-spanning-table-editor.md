@@ -2796,7 +2796,16 @@ against the DB), so subsequent cases may be written more tersely.
 Drives actual clicks and keystrokes throughout -- no page.evaluate shortcuts.
 Helpers come from test_e2e_spanning_roundtrip (NOT test_e2e_table_editor, whose
 _reopen/_save hard-code the plain-table root and assume the editor detaches on
-save, which is false for a rejected one)."""
+save, which is false for a rejected one).
+
+⚠️ DIALOGS: Playwright AUTO-DISMISSES window.confirm when no `dialog` listener
+is attached, so an un-handled merge confirm returns false and the merge is
+silently cancelled -- the test then fails on a later assertion with no hint
+why. Any merge whose absorbed cells are non-empty must either register
+`page.on("dialog", lambda d: d.accept())` first, or seed blank cells so the
+confirm never fires. Note the fill-table's rule is stricter: cellIsNonEmpty
+returns true for ANY answer or image cell regardless of displayed text, so a
+fill-table merge that absorbs one ALWAYS needs the handler."""
 
 import os
 
@@ -3189,10 +3198,17 @@ def test_merge_then_split_all_returns_the_original_rectangle(page, live_server):
     _make_pa_user("flip")
     _login(page, live_server, "flip")
     unit = _unit("flip", "flip")
+    # Only the ANCHOR carries content: the absorbed cells must be blank, or
+    # absorbedNonEmpty fires the confirm and Playwright auto-dismisses it (see
+    # the dialog note in this file's header), silently cancelling the merge.
     element = _seed(
         unit,
         TableElement,
-        [[{"html": f"{r}{c}"} for c in range(3)] for r in range(3)],
+        [
+            [{"html": "keep"}, {"html": ""}, {"html": ""}],
+            [{"html": ""}, {"html": ""}, {"html": ""}],
+            [{"html": ""}, {"html": ""}, {"html": ""}],
+        ],
     )
     before = _cells(TableElement, element)
 
@@ -3817,6 +3833,9 @@ Three behavioural differences from the plain table:
 def test_fill_table_merge_keeps_the_anchors_answer(page, live_server):
     # Anchor is an ANSWER cell; merge it with a static neighbour; the stored
     # cell must still be kind "answer" with its accepted answer intact.
+    # NOTE: register page.on("dialog", lambda d: d.accept()) whenever an
+    # absorbed cell is an answer or image cell -- cellIsNonEmpty is true for
+    # those regardless of displayed text, so the confirm always fires.
 
 
 @pytest.mark.django_db(transaction=True)
