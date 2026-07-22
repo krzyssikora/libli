@@ -304,3 +304,26 @@ def test_delete_column_removes_a_cell_whose_last_column_goes(grid_page):
            }"""
     gone = grid_page.evaluate(template % rows)  # noqa: UP031
     assert gone is True
+
+
+def test_delete_column_decrements_a_rowspan_cell_only_once(grid_page):
+    # A colspan=2 rowspan=2 cell anchored at 0: it covers layout columns 0-1
+    # in both rows. Deleting layout column 0 should decrement its colspan ONCE,
+    # not once per row (which would over-shrink or corrupt the span).
+    rows = (
+        "<tr><td id='m' colspan='2' rowspan='2'></td><td></td>"
+        "<td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.deleteColumn(g, 0);
+             var m = document.getElementById('m');
+             return {shapes: shape(g), colSpan: m.colSpan, rowSpan: m.rowSpan};
+           }"""
+    result = grid_page.evaluate(template % rows)  # noqa: UP031
+    assert result == {
+        "shapes": ["1x2,1x1", "1x1"],
+        "colSpan": 1,
+        "rowSpan": 2,
+    }
