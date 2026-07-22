@@ -1437,8 +1437,13 @@ def test_sibling_tokens_are_refreshed_so_duplicate_still_works(page, live_server
     # a 409) and the test would be flaky by construction.
     with page.expect_response(lambda r: "rename" in r.url and r.request.method == "POST"):
         title.press("Enter")
-    row = page.locator('li.tree__row:has(.tree__title[value="Renamed"])')
-    row.locator('form[data-op="duplicate"] button[type="submit"]').click()
+    # Anchor by pk and scope to the row's OWN head. `li.tree__row:has(...)` would match
+    # the chapter and section ancestors too, and a bare descendant selector under those
+    # also finds Unit 2's duplicate button -- two elements, so .click() raises a
+    # strict-mode violation before the feature is exercised at all. (Same hazard as
+    # tests/test_e2e_transfer.py:151-158.)
+    row = page.locator(f'li.tree__row[data-node="{nodes["unit1"].pk}"]')
+    row.locator(':scope > .tree__rowhead form[data-op="duplicate"] button[type="submit"]').click()
     expect(page.locator(".op-error")).to_have_count(0)
     expect(page.locator('.tree__title[value="Renamed"]')).to_have_count(2)
 
@@ -1531,12 +1536,13 @@ def test_tabbing_across_a_row_issues_one_panel_fetch(page, live_server):
     gets = []
     page.on("request", lambda r: gets.append(r.url) if _is_panel_get(r) else None)
 
+    # Start tabbing IMMEDIATELY -- do not settle, do not clear. Unit 1's debounced
+    # fetch must still be PENDING when traversal begins: that pending timer is the
+    # whole point. Draining it first (a 400ms wait + gets.clear()) makes the test
+    # vacuous -- the falsified build would record the same single GET and pass, and so
+    # would a build with no debounce at all. The only timing requirement is that the
+    # first Tab lands within 150ms of this focus, which is not tight.
     page.locator('.tree__title[value="Unit 1"]').focus()
-    # Programmatic focus takes the KEYBOARD branch, which only schedules a fetch 150ms
-    # out -- clearing immediately would discard nothing. Wait it out so the start row's
-    # fetch is deterministically issued, then drop it.
-    page.wait_for_timeout(400)
-    gets.clear()
 
     # The REAL tab order is title -> cluster controls -> next row's title, and the
     # number of stops VARIES: _move_buttons renders the up arrow `disabled` on the
@@ -1553,6 +1559,8 @@ def test_tabbing_across_a_row_issues_one_panel_fetch(page, live_server):
     assert page.evaluate("document.activeElement.value") == "Unit 2"
 
     page.wait_for_timeout(400)          # let the 150ms debounce settle
+    # Exactly one: Unit 2's. Unit 1's pending timer was cancelled by the first cluster
+    # focusin. Falsified (clear scoped to .tree__title focusins), this records 2.
     assert len(gets) == 1, gets
 ```
 
@@ -1574,7 +1582,9 @@ Cover, in addition:
 
 **Token refresh — the reason Task 7 exists.** Every one of these must **wait for the rename POST's response** (`expect_response` on `manage_node_rename`) before firing the follow-up op. The token patch happens when the response lands, so firing "immediately" races the round trip — which the design explicitly accepts as a 409 — making the test flaky by construction and its failure indistinguishable from the bug it guards.
 - **(F)** Rename a **unit**, await the response, then click Duplicate on that row → succeeds, **no** conflict notice. Falsify by skipping the duplicate form's token refresh.
-- **(F)** Same for the reorder arrows (every row has them).
+- **(F)** Same for the reorder arrows (every row has them). Use the same pk-anchored,
+  `:scope > .tree__rowhead` locator as the duplicate test above — a bare descendant selector under a
+  `:has()`-matched row picks up sibling rows' controls and raises a strict-mode violation.
 
 **Drag scenarios need the repo's dispatchEvent helper, not `drag_to`.** Playwright's `drag_to` uses
 pointer events internally and does **not** fire the `dragstart`/`dragover`/`drop` DOM events
