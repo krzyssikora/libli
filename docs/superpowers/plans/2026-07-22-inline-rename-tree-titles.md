@@ -1569,7 +1569,20 @@ Cover, in addition:
 **Core**
 - Click a **unit** title, type, press Enter → the tree label updates *and* the DB value changes.
 - Same for a **chapter**, proving the interaction is kind-agnostic.
-- **Focus and caret survive an Enter commit:** place the caret **mid-string** before Enter, then assert the input is still focused *and* `selectionStart` is unchanged. Asserting focus alone would pass even if the response reassigned `value` (which jumps the caret to the end even for an identical string). This is the observable proof that no scope swap happened.
+- **(F)** **Focus and caret survive an Enter commit.** The order is load-bearing: **type a change
+  first**, *then* reposition the caret mid-string (`setSelectionRange` via `page.evaluate`, or arrow
+  keys), record `selectionStart`, press Enter **inside**
+  `page.expect_response(lambda r: "/build/node/rename/" in r.url and r.request.method == "POST")` so
+  the assertions run after `applyRename` has executed, and only then assert the input is still
+  focused and `selectionStart` is unchanged.
+  Without the edit the field is clean, `commitRename` bails on
+  `trimmed === input.defaultValue.trim()`, nothing posts, and focus/`selectionStart` are trivially
+  unchanged in **every** build — including one that reassigns `value` unconditionally or swaps the
+  whole scope. This is the only test pinning the two guarded value writes (Task 6's
+  `if (input.value !== trimmed)` and Task 7's `if (input.value !== title)`), which the plan calls
+  load-bearing in both places, so a vacuous version here ships both unprotected.
+  Two falsifications: drop each guard in turn and require the `selectionStart` assertion to go RED.
+  This is also the observable proof that no scope swap happened.
 - **Blur commits:** type, then click outside the tree → saved.
 - **Escape reverts and keeps focus.**
 - **Tooltip tracks typing, then reverts:** extend `_seed_course` with a fifth node carrying a deliberately long title (copy the `LONG_TITLE` constant idea from `tests/test_e2e_builder_tree_layout.py:17`; keep it under the 200-char field limit), since the four seeded nodes are all short and nothing would truncate. Type into that long title and — **before** Escape — assert `title` equals the *typed* value; then Escape and assert it equals the reverted value. Without the mid-typing assertion, omitting the `input` handler entirely still passes the Escape half. Two falsifications: delete the `input` handler (first assertion RED); drop `revert()`'s title sync (second RED).
