@@ -16,7 +16,8 @@ will mislead you.
 
 | After task | What is temporarily broken | Restored by |
 |---|---|---|
-| 3 (markup) | Clicking a title no longer selects a node — the click handler still calls `preventDefault()` on `[data-select]`, which the input no longer carries, so no panel loads. Renaming works only via Enter (full-page no-JS POST). | Task 5 |
+| 2 (narrow response) | The **panel's** rename form still exists and still posts as a fragment, but now receives the `<data>` body, which `applyFragment` silently no-ops — so a panel rename persists in the DB while the tree label goes stale until reload. | Task 3 (deletes that form) |
+| 3 (markup) | Clicking a title no longer selects a node — the click handler still calls `preventDefault()` on `[data-select]`, which the input no longer carries, so no panel loads. Renaming works only via Enter (full-page no-JS POST). Separately, `refreshPanel` (deleted only in Task 5) still looks up `[data-select]`, finds nothing, and degrades to `setPanel("")`. | Task 5 |
 | 5 (selection) | Selection works again, but no rename ever commits from the JS path: no commit handlers exist yet. | Task 6 |
 | 6 (commit) | Renames POST and persist, but the response is a no-op — `applyFragment` receives a `<data>` element with no `data-scope` and does nothing, so the row's label and token are stale until reload. | Task 7 |
 | 7 (apply) | Nothing. The feature is functional end-to-end; Task 8 proves it. | — |
@@ -152,10 +153,10 @@ def test_type_only_toggle_still_preserves_title(client):
 - [ ] **Step 2: Run the tests to verify they fail**
 
 ```bash
-uv run pytest tests/test_manage_node_ops.py -k "strip or whitespace_only or length_validation" -v
+uv run pytest tests/test_manage_node_ops.py -k "test_rename_strips_surrounding_whitespace or test_rename_rejects_whitespace_only_title or test_add_strips_surrounding_whitespace or test_strip_happens_before_length_validation" -v
 ```
 
-Expected: `test_rename_strips_surrounding_whitespace` FAILS (title is `"  Fractions  "`), `test_rename_rejects_whitespace_only_title` FAILS (200, title `"   "`), `test_add_strips_surrounding_whitespace` FAILS, `test_strip_happens_before_length_validation` FAILS.
+Expected: all four FAIL — `test_rename_strips_surrounding_whitespace` (title is `"  Fractions  "`), `test_rename_rejects_whitespace_only_title` (200, title `"   "`), `test_add_strips_surrounding_whitespace`, `test_strip_happens_before_length_validation`. The names are given in full rather than as a loose `-k "strip or …"`, which would also select pre-existing green tests and muddy the expected-failure list.
 
 - [ ] **Step 3: Add the helper and call it from both writers**
 
@@ -390,6 +391,11 @@ row instead; builder.js will patch it in place."
 
 Append to `tests/test_manage_builder.py` (match the existing imports/fixtures in that file; it already logs in an owner and requests the builder page):
 
+Add `import re` to the **existing import block at the top** of `tests/test_manage_builder.py`
+(alongside `import pytest`, keeping the file's one-import-per-line isort ordering) — appending it with
+the rest of this block would trip `ruff`'s `E402`/`I001` at Task 9, six tasks later, on a file you
+have stopped thinking about. Append only the constant, helper and tests.
+
 **Assertions must be scoped to the rename form.** Every tree row *already* emits a byte-identical
 `<input type="hidden" name="node" value="…">` and `<input type="hidden" name="token" value="…">` from
 `_move_buttons.html:5-6`, and `_add_affordance.html:15` already emits `required`. Asserting those
@@ -398,8 +404,6 @@ vacuous test. So extract the form block first and assert inside it, attribute by
 avoids coupling to attribute order).
 
 ```python
-import re
-
 RENAME_FORM_RE = re.compile(
     r'<form class="tree__rename".*?</form>', re.DOTALL
 )
@@ -461,8 +465,13 @@ def test_hidden_rename_submit_is_out_of_the_tab_order(client):
     assert resp.status_code == 200
     form = _rename_form(resp.content.decode())
     # .visually-hidden uses the clip pattern, which keeps the element FOCUSABLE --
-    # without tabindex="-1" every row would gain a second tab stop.
-    assert 'class="visually-hidden" type="submit" tabindex="-1"' in form
+    # without tabindex="-1" every row would gain a second tab stop. Asserted per
+    # attribute so a harmless reorder doesn't fail a test that is about tab order.
+    btn = re.search(r"<button[^>]*>", form)
+    assert btn, "the rename form must contain a submit button"
+    assert 'class="visually-hidden"' in btn.group(0)
+    assert 'type="submit"' in btn.group(0)
+    assert 'tabindex="-1"' in btn.group(0)
 
 
 @pytest.mark.django_db
@@ -927,7 +936,12 @@ Append to the inline-rename block:
     // Compare trimmed against trimmed: a legacy row whose stored title has stray
     // whitespace would otherwise post a rename on a bare focus-and-blur.
     if (trimmed === input.defaultValue.trim()) return;
-    input.value = trimmed;           // FormData reads the LIVE value
+    // Write the trim back -- FormData reads the LIVE value, so trimming into a local
+    // would leave the untrimmed string in the POST body. GUARDED, because the HTML
+    // value setter jumps the caret to the end and drops the selection even when
+    // assigning an identical string; an unconditional write here would destroy the
+    // mid-string caret before the POST is even issued, and Task 8 asserts it survives.
+    if (input.value !== trimmed) input.value = trimmed;
     input.title = input.value;
     if (!form.reportValidity()) return;   // native bubble; no state set, so no wedge
     form.dataset.submitting = "1";
@@ -986,7 +1000,13 @@ Append to the inline-rename block:
 
 - [ ] **Step 2: Clear the in-flight state on every completion branch**
 
-In the submit handler, both `delete form.dataset.submitting` sites must also clear `readOnly`. The flag lives on the *form* but `readOnly` lives on a child input that only rename forms have, so the lookup must be defensive. Replace each `delete form.dataset.submitting;` with:
+`builder.js` contains **three** `delete form.dataset.submitting` occurrences. Only the two inside the
+submit handler are in scope: the `.then` tail (~line 181) and the `.catch` (~line 186). **Do not touch
+the third**, inside `closeAdd()` (~line 328) for the inline-add flow — it has no `.tree__title` child,
+so the lookup would be dead code there.
+
+The flag lives on the *form* but `readOnly` lives on a child input that only rename forms have, so the
+lookup must be defensive. In those two places only, replace `delete form.dataset.submitting;` with:
 
 ```js
         delete form.dataset.submitting;
@@ -1139,9 +1159,10 @@ Create `tests/test_e2e_inline_rename.py` with the module skeleton given in Task 
 single test:
 
 ```python
+@pytest.mark.django_db(transaction=True)
 def test_enter_commits_a_unit_rename(page, live_server):
     course, nodes = _seed_course()
-    _login_and_open_builder(page, live_server, course)
+    _open_builder(page, live_server, course, "owner")
     title = page.locator('.tree__title[value="Unit 1"]')
     title.click()
     title.press("Control+a")
@@ -1155,13 +1176,16 @@ def test_enter_commits_a_unit_rename(page, live_server):
     assert nodes["unit1"].title == "Renamed unit"
 ```
 
-Run it in the **foreground**:
+Run it in the **foreground**, and note the `-m e2e` — `pyproject.toml:48` sets
+`addopts = "-q -m 'not e2e'"`, so without it every test in this module is **deselected** and pytest
+reports success having run nothing:
 
 ```bash
-uv run pytest tests/test_e2e_inline_rename.py -v
+uv run pytest -m e2e tests/test_e2e_inline_rename.py -v
 ```
 
-Expected: PASS. If it fails, the bug is in Tasks 5-7, not in the test.
+Expected: **1 passed** — check the collected count, not just the exit status, so "0 selected" cannot
+be misread as green. If it fails, the bug is in Tasks 5-7, not in the test.
 
 - [ ] **Step 5: Commit**
 
@@ -1195,11 +1219,16 @@ a chapter no longer breaks the next drop or add under it."
 `<input>` has no text content, so each becomes a value-attribute selector — but **`has_text` is a
 substring match and `[value="…"]` is exact**, so they are not interchangeable. Per line:
 
-| Line | Current | Replacement | Why |
+All seven call sites currently end in `.first`. Whether to keep it differs per line, so the full
+replacement expression is given — dropping `.first` where more than one element matches raises a
+Playwright strict-mode violation.
+
+| Line | Current | Full replacement | Why |
 |---|---|---|---|
-| 93, 107 | `has_text="deliberately very long"` | `.tree__title[value*="deliberately very long"]` | `LONG_TITLE` (line 17) is `"A deliberately very long unit title that must truncate " * 3` — an **exact** selector matches nothing and the test dies on a timeout that looks like a product bug. |
-| 183 | `has_text="Unit 40"` | `.tree__title[value="Unit 40"]` | Exact is fine and correct. |
-| 205, 283, 297, 330 | `has_text="Unit 1"` / `"Unit 2"` | `.tree__title[value="Unit 1"]` / `[value="Unit 2"]` | Exact is **stricter** than the original: `has_text="Unit 1"` also matched `Unit 10`, `Unit 12`, … and relied on `.first`. Exact matching removes that ambiguity — keep `.first` off, and if a test then finds zero elements, check the seeded titles rather than reverting to `*=`. |
+| 93, 107 | `page.locator(".tree__title", has_text="deliberately very long").first` | `page.locator('.tree__title[value*="deliberately very long"]').first` | `LONG_TITLE` (line 17) is `"A deliberately very long unit title that must truncate " * 3`, so an **exact** selector matches nothing and the test dies on a timeout that looks like a product bug. **Keep `.first`** — `*=` is a substring match and may hit several rows. |
+| 183 | `page.locator(".tree__title", has_text="Unit 40").first` | `page.locator('.tree__title[value="Unit 40"]')` | Exact and unique. **Drop `.first`.** |
+| 205, 283, 330 | `page.locator(".tree__title", has_text="Unit 1").first` | `page.locator('.tree__title[value="Unit 1"]')` | Exact is **stricter** than the original, which also matched `Unit 10`, `Unit 12`, … and leaned on `.first`. **Drop `.first`.** If a test then finds zero elements, check the seeded titles rather than reverting to `*=`. |
+| 297 | `page.locator(".tree__title", has_text="Unit 2").first` | `page.locator('.tree__title[value="Unit 2"]')` | Same as above. **Drop `.first`.** |
 
 On the attribute vs. property distinction: typing mutates only the `value` **IDL property**, never the
 content attribute, so these locators are stable while the author types. What *does* update the
@@ -1226,24 +1255,64 @@ green.
 **Module skeleton** (mirror the conventions in `tests/test_e2e_builder_ws2.py`; check that file for the
 exact fixture names and marker in use and match them rather than inventing new ones):
 
+This skeleton is copied from `tests/test_e2e_builder_ws2.py:1-41` rather than invented — the login is
+allauth's (there is no `#id_username`), the actor needs verification **and** the `PLATFORM_ADMIN`
+group (a bare `UserFactory` is not authorized for the manage surface, and its password is
+`"password123"`, not `TEST_PASSWORD`), and the builder route is `/build/`, not `/builder/`.
+
 ```python
+"""Playwright e2e for inline renaming of builder tree node titles.
+
+Marked e2e (excluded from the default run; run with -m e2e).
+"""
+
+import os
+
 import pytest
 from playwright.sync_api import expect
 
-from courses.models import ContentNode
-from tests.factories import ContentNodeFactory
-from tests.factories import CourseFactory
 from tests.factories import TEST_PASSWORD
-from tests.factories import UserFactory
+from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
 
 
-def _seed_course():
+@pytest.fixture(scope="session", autouse=True)
+def _allow_sync_orm_under_playwright():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+def _make_pa_user(username):
+    from django.contrib.auth.models import Group
+
+    from institution.roles import PLATFORM_ADMIN
+    from institution.roles import seed_roles
+
+    seed_roles()
+    u = make_verified_user(
+        username=username, email=f"{username}@t.example.com", password=TEST_PASSWORD
+    )
+    u.groups.add(Group.objects.get(name=PLATFORM_ADMIN))
+    return u
+
+
+def _login(page, live_server, username):
+    page.goto(f"{live_server.url}/accounts/login/")
+    form = page.locator("form[action*='login']")
+    form.locator("input[name='login']").fill(username)
+    form.locator("input[name='password']").fill(TEST_PASSWORD)
+    form.locator("button[type='submit']").click()
+
+
+def _seed_course(username="owner"):
     """A course shaped for the token-refresh cases: a chapter that CONTAINS a nested
     section with its own add row, so a naive descendant query for parent_token finds
-    the grandchild's and the test goes RED."""
-    owner = UserFactory(username="owner", is_staff=True)
+    the GRANDCHILD's and the test goes RED."""
+    from tests.factories import ContentNodeFactory
+    from tests.factories import CourseFactory
+
+    owner = _make_pa_user(username)
     course = CourseFactory(slug="c1", owner=owner)
     chapter = ContentNodeFactory(course=course, kind="chapter", parent=None, title="Chapter 1")
     section = ContentNodeFactory(course=course, kind="section", parent=chapter, title="Section 1")
@@ -1259,21 +1328,130 @@ def _seed_course():
     }
 
 
-def _login_and_open_builder(page, live_server, course):
-    page.goto(f"{live_server.url}/accounts/login/")
-    page.fill("#id_username", "owner")
-    page.fill("#id_password", TEST_PASSWORD)
-    page.click("button[type=submit]")
-    page.goto(f"{live_server.url}/manage/courses/{course.slug}/builder/")
+def _open_builder(page, live_server, course, username):
+    _login(page, live_server, username)
+    page.goto(f"{live_server.url}/manage/courses/{course.slug}/build/")
     page.wait_for_selector(".tree__title")
 ```
 
+**Every test in the module must be decorated `@pytest.mark.django_db(transaction=True)`** — including
+the Task 7 smoke test. Without the marker the test errors on DB access; without `transaction=True` the
+factory-seeded course is invisible to the live server and `refresh_from_db()` cannot observe the
+server's write.
+
 Never hard-code a password literal — use `tests.factories.TEST_PASSWORD`, or GitGuardian flags it.
 
-Write the remaining scenarios by analogy with the Task 7 smoke test. **Every scenario below marked
-(F) must carry an explicit falsification** — break the named thing, require RED, restore:
+**Four tests use Playwright APIs the rest of the plan never exercises, so they are written out in
+full.** The remaining scenarios are ordinary click/type/assert and can be written by analogy with the
+Task 7 smoke test. **Every scenario marked (F) must carry an explicit falsification** — break the
+named thing, require RED, restore.
 
-Cover:
+```python
+@pytest.mark.django_db(transaction=True)
+def test_sibling_tokens_are_refreshed_so_duplicate_still_works(page, live_server):
+    # (F) falsify: skip the duplicate form's token refresh in applyRename.
+    course, nodes = _seed_course()
+    _open_builder(page, live_server, course, "owner")
+    title = page.locator('.tree__title[value="Unit 1"]')
+    title.click()
+    title.press("Control+a")
+    page.keyboard.type("Renamed")
+    # MUST await the response: the token patch happens when it lands, so firing the
+    # follow-up op immediately would race the round trip (which the design accepts as
+    # a 409) and the test would be flaky by construction.
+    with page.expect_response(lambda r: "rename" in r.url and r.request.method == "POST"):
+        title.press("Enter")
+    row = page.locator('li.tree__row:has(.tree__title[value="Renamed"])')
+    row.locator('form[data-op="duplicate"] button[type="submit"]').click()
+    expect(page.locator(".op-error")).to_have_count(0)
+    expect(page.locator('.tree__title[value="Renamed"]')).to_have_count(2)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_field_is_readonly_during_the_round_trip(page, live_server):
+    # (F) falsify: remove `input.readOnly = true` from commitRename.
+    course, nodes = _seed_course()
+    _open_builder(page, live_server, course, "owner")
+
+    # Hold the response open so the in-flight window is observable.
+    gate = {"release": None}
+    def _handler(route):
+        gate["release"] = route
+    page.route("**/manage/node/rename**", _handler)  # adjust glob to the real URL
+
+    title = page.locator('.tree__title[value="Unit 1"]')
+    title.click()
+    title.press("Control+a")
+    page.keyboard.type("Renamed")
+    title.press("Enter")
+    expect(title).to_have_js_property("readOnly", True)
+    # page.keyboard.type performs NO editability check and silently no-ops on a
+    # readonly field. locator.fill()/type()/pressSequentially() run an *editable*
+    # actionability check: they would hang and throw a timeout here, and would SUCCEED
+    # once readOnly is removed -- inverting the test's RED and GREEN.
+    page.keyboard.type("XYZ")
+    assert title.input_value() == "Renamed"
+    gate["release"].continue_()
+    expect(title).to_have_js_property("readOnly", False)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_422_does_not_wedge_the_row(page, live_server):
+    # (F) falsify: stop clearing readOnly on the non-200 branch.
+    # A 422 is UNREACHABLE by typing (required blocks empty, maxlength truncates
+    # over-length, ContentNode.clean validates nothing else), so it is forced here.
+    course, nodes = _seed_course()
+    _open_builder(page, live_server, course, "owner")
+
+    state = {"n": 0}
+    def _handler(route):
+        state["n"] += 1
+        if state["n"] == 1:
+            route.fulfill(
+                status=422,
+                content_type="text/html; charset=utf-8",
+                body='<div class="op-error" role="alert">Nope.</div>',
+            )
+        else:
+            route.continue_()
+    page.route("**/manage/node/rename**", _handler)
+
+    title = page.locator('.tree__title[value="Unit 1"]')
+    title.click()
+    title.press("Control+a")
+    page.keyboard.type("Rejected")
+    title.press("Enter")
+    expect(page.locator(".op-error")).to_be_visible()
+    assert title.input_value() == "Rejected"        # typed text survives
+    expect(title).to_have_js_property("readOnly", False)   # not wedged
+    expect(title).to_be_focused()
+    # Correcting and re-submitting must now reach the real server and succeed.
+    title.press("Control+a")
+    page.keyboard.type("Corrected")
+    with page.expect_response(lambda r: "rename" in r.url and r.request.method == "POST"):
+        title.press("Enter")
+    nodes["unit1"].refresh_from_db()
+    assert nodes["unit1"].title == "Corrected"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_tabbing_across_a_row_issues_one_panel_fetch(page, live_server):
+    # (F) falsify: scope the panelTimer clear to .tree__title focusins only.
+    course, nodes = _seed_course()
+    _open_builder(page, live_server, course, "owner")
+    gets = []
+    page.on("request", lambda r: gets.append(r.url) if "panel" in r.url else None)
+
+    page.locator('.tree__title[value="Unit 1"]').focus()
+    # The REAL tab order is title -> ~6 cluster controls -> next row's title. Written
+    # as "Tab twice between titles" this would not exercise the actual path.
+    for _ in range(8):
+        page.keyboard.press("Tab")
+    page.wait_for_timeout(400)          # let the 150ms debounce settle
+    assert len(gets) == 1, gets
+```
+
+Adjust the `page.route` globs to the real rename URL for the seeded course. Cover, in addition:
 
 **Core**
 - Click a **unit** title, type, press Enter → the tree label updates *and* the DB value changes.
@@ -1306,11 +1484,23 @@ would not exercise the token refresh at all. See the clientY sweep pattern in `t
 - **Rename the same row twice without reloading:** commit via Enter, wait, then type a different title and Enter again → both succeed, no conflict, DB holds the second title. This is the only test exercising the rename form's *own* refreshed token together with the `defaultValue` reset. Falsify by skipping that refresh.
 
 **Errors**
-- **(F)** **409 reloads the row and discards the edit:** force a stale token (post a rename from a
-  second client, or route-fulfil a 409 carrying a `_conflict_scope` body), then commit from the stale
-  row → the conflict notice appears, the row shows the **server's** current title, and the typed text
-  is gone. This is the accepted cost of the one path that still swaps a scope; the test exists so the
-  behaviour is pinned rather than discovered.
+- **(F)** **409 reloads the row and discards the edit.** Force the stale token **server-side via the
+  ORM**, after the page has rendered — do not route-fulfil, since a hand-written body would not be the
+  real `_conflict_scope` `[data-scope]` fragment the assertions depend on, and "post from a second
+  client" would need its own session and CSRF handling:
+
+  ```python
+  node = nodes["unit1"]
+  node.title = "Changed elsewhere"
+  node.save(update_fields=["title", "updated"])   # bumps `updated`; page token is now stale
+  ```
+
+  Then type into the still-rendered row and press Enter. Assert: the conflict notice
+  (`.op-error`) is visible; the row now shows `[value="Changed elsewhere"]` (the server's title, not
+  the typed one); and focus has dropped — `page.evaluate("document.activeElement.tagName")` is
+  `"BODY"`. This is the accepted cost of the one path that still swaps a scope; the test pins it
+  rather than leaving it to be discovered. Falsify by routing the 409 through `applyRename` instead
+  of `applyFragment` — the row would keep the stale title.
 - **(F)** **An open add row's deferred commit clobbers a fresh rename edit:** type into an inline-add
   row, then click a tree title in the same scope and start typing. 120ms after the blur,
   `commitOrCancel` (`builder.js:373-379`) posts `node_add`, whose 200 is a `[data-scope]` fragment
@@ -1329,10 +1519,12 @@ would not exercise the token refresh at all. See the clientY sweep pattern in `t
 - [ ] **Step 5: Run the e2e suite in the foreground**
 
 ```bash
-uv run pytest tests/test_e2e_inline_rename.py tests/test_e2e_builder_tree_layout.py -v
+uv run pytest -m e2e tests/test_e2e_inline_rename.py tests/test_e2e_builder_tree_layout.py -v
 ```
 
-Expected: all PASS.
+Expected: all PASS, with a collected count matching the number of tests written — **`-m e2e` is
+mandatory** (`pyproject.toml:48` excludes the marker by default), and a run that collects 0 tests
+exits successfully, so verify the count rather than the exit status.
 
 - [ ] **Step 6: Commit**
 
@@ -1383,7 +1575,25 @@ measure rather than assume. (The CSRF token is kept rather than dropped in favou
 cookie-reading `csrf()` helper, because dropping it would break the no-JS path this design newly
 enables.)
 
-Seed a large course in a shell and measure the builder page before and after:
+**Take the baseline safely.** Do **not** `git checkout master` in this worktree — a parallel session
+has previously switched branches under an agent mid-task, and this worktree is explicitly flagged as
+running concurrently with others. Create a throwaway checkout instead:
+
+```bash
+git -C C:/Users/krzys/Documents/Python/own/libli worktree add /tmp/libli-perf-baseline master
+```
+
+Seed the course **once** (both measurements read the same `perf` course from the same dev database),
+measure this branch and the baseline checkout against it, then remove the throwaway worktree and
+delete the seeded course:
+
+```bash
+git -C C:/Users/krzys/Documents/Python/own/libli worktree remove --force /tmp/libli-perf-baseline
+uv run python manage.py shell -c "
+from courses.models import Course; Course.objects.filter(slug='perf').delete()"
+```
+
+Seed and measure:
 
 ```bash
 uv run python manage.py shell -c "
@@ -1438,7 +1648,7 @@ git commit -m "chore(i18n): refresh catalogs for the inline rename markup"
 
 **Spec coverage.** Backend normalization → Task 1. Narrow response → Task 2. Template/markup, panel change, partial deletion → Task 3. Styling (cascade, font, layout-neutral hover) → Task 4. JS selection/debounce/`refreshPanel` → Task 5. Commit path (Enter/blur/Escape/trim/validity/`readOnly`) → Task 6. In-place application and the four-item token inventory → Task 7. All e2e and existing-test migration → Task 8. i18n, page weight, screenshots, screen-reader → Task 9. The no-JS path is covered by a test in Task 2 and by the markup in Task 3.
 
-**Placeholders.** None: every code step carries the actual code, every command its expected output, every test its falsification.
+**Placeholders.** Every code step in Tasks 1-7 and 9 carries actual code, every command its expected output, every test its falsification. Task 8 is the deliberate exception: it ships the module skeleton, the Task 7 smoke test, and full code for the four scenarios with genuine Playwright-API risk (token refresh, readonly-in-flight, route-intercepted 422, debounce request-counting); the remaining ~20 scenarios are specified as prose because they are ordinary click/type/assert written by analogy. Each carries either an `(F)` falsification marker or an explicit falsification sentence.
 
 **Type/name consistency.** `_clean_title` (Task 1) is referenced only in Task 1. `_rename_result.html`'s `data-rename-for` / `data-updated` / `value` (Task 2) are exactly the attributes `applyRename` reads (Task 7). `revert`/`commitRename`/`titleForm` (Task 6) are used consistently. `form.tree__rename`, `input.tree__title`, `li.tree__row[data-node]`, `form.tree__add[data-add-scope]` match the markup in Task 3 and the existing templates.
 
