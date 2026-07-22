@@ -33,6 +33,20 @@ INVENTORY = [
         'closest("td[contenteditable]',
         "th",
     ),
+    # The focusin selector's `closest(` call is line-wrapped (Task 5 wrapped
+    # it for readability), so it never lands on the same line as any needle
+    # beginning with `closest("td[contenteditable]` -- that needle is only
+    # ever satisfied here by the unrelated single-line keydown/input calls,
+    # leaving this site's own three `th` variants completely unguarded. Match
+    # the wrapped argument line's full literal string instead: any one of its
+    # three `th[...]` variants going missing makes this exact substring
+    # vanish, which the "vanished" branch below already reports as a failure.
+    (
+        "courses/static/courses/js/filltable_editor.js",
+        '"td[contenteditable], th[contenteditable], td[data-answer], '
+        'th[data-answer], td[data-image], th[data-image]"',
+        "th",
+    ),
     (
         "courses/static/courses/js/filltable_editor.js",
         "td[data-answer] .filltable-editor__answer",

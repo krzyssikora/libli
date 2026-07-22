@@ -1,3 +1,4 @@
+import json
 import re
 from pathlib import Path
 
@@ -140,3 +141,53 @@ def test_filltable_editor_answer_header_cell_is_th_without_contenteditable():
     # An answer cell is an <input>; making its TH contenteditable would let the
     # static-content handlers fire on it.
     assert not re.search(r"<th[^>]*data-answer[^>]*contenteditable", html)
+
+
+def test_resolved_grid_cells_resolves_the_submitted_image_not_the_stored_one():
+    """resolved_grid_cells exists so that after a REJECTED save the editor
+    re-renders the grid the author SUBMITTED (grid_data), not what is on disk
+    (self.instance). Every other test in this file builds the form UNBOUND,
+    where grid_data falls through to self.instance.normalized_data -- the same
+    result the old `form.instance.resolved_cells` path gave, so none of them
+    would notice resolved_grid_cells reverting to read the instance instead of
+    grid_data. Pin the real contract: bind the form to a payload naming a
+    DIFFERENT MediaAsset than the stored instance, force it invalid (no
+    answer cell, so clean_data's "at least one answer cell" check fires and
+    grid_data takes the submitted branch), and assert the submitted asset
+    wins."""
+    course = make_course()
+    stored_asset = make_image_asset(course, "stored.png")
+    submitted_asset = make_image_asset(course, "submitted.png")
+    instance = FillTableElement(
+        data=FillTableElement.normalize_data(
+            {
+                "cells": [
+                    [
+                        {"kind": "image", "media": stored_asset.pk, "alt": "stored"},
+                        {"kind": "answer", "answer": "1"},
+                    ]
+                ]
+            }
+        )
+    )
+    instance.save()
+    submitted = {
+        "cells": [
+            [
+                {"kind": "image", "media": submitted_asset.pk, "alt": "submitted"},
+                # No answer cell at all -> clean_data rejects with "Mark at
+                # least one answer cell", so the form is invalid and grid_data
+                # takes the SUBMITTED-payload branch rather than falling back
+                # to self.instance.
+                {"kind": "static", "html": ""},
+            ]
+        ]
+    }
+    form = FORM_FOR_TYPE["filltable"](
+        data={"data": json.dumps(submitted)}, instance=instance, course=course
+    )
+    assert not form.is_valid(), form.errors  # must take the grid_data submitted-branch
+    resolved = form.resolved_grid_cells
+    assert resolved[0][0]["kind"] == "image"
+    # submitted pk wins, not stored_asset
+    assert resolved[0][0]["media"] == submitted_asset
