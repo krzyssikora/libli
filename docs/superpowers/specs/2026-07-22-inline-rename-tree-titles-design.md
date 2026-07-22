@@ -276,12 +276,27 @@ test red.
    `defaultValue` — the old title — into the field, and the arriving response would then set
    `defaultValue` to the newly committed title, leaving the field displaying the old title and reading
    dirty, so the next blur would silently post the old title back and undo the rename. Escape during a
-   round trip therefore does nothing; the round trip is a few tens of milliseconds. Genuinely-newer
-   text is still not lost, via step 9's derived recommit.
+   round trip therefore does nothing; the round trip is a few tens of milliseconds.
+
+6a. **The input is `readOnly` while a commit is in flight.** Set `input.readOnly = true` immediately
+   after `dataset.submitting`, and clear it in **every** completion branch alongside that flag
+   (200 / 409 / 422 / `.catch`).
+
+   This is what makes the response handler simple and total: the author physically cannot type,
+   delete, or empty the field between the POST and its response, so the field the response lands on is
+   byte-for-byte what was posted. Without it, every mid-flight edit becomes a recovery problem — text
+   typed after Enter and then blurred away, a field emptied mid-flight and left blank forever, a
+   second Enter swallowed with no feedback. With it, none of those states is reachable.
+
+   Ordering matters: `readOnly` is set **after** `reportValidity()` (step 4), because a `readonly`
+   input is barred from constraint validation and `required` would stop firing. Readonly fields are
+   still submitted, so the POST body is unaffected, and the field remains focusable with a visible
+   caret — for the few tens of milliseconds involved the author sees no difference beyond keystrokes
+   not registering.
 8. **Blur commits synchronously, with four bail-outs first.** The `focusout` ordering is:
-   1. **Bail if a commit is already in flight** — `form.dataset.submitting`. Newer text is not lost:
-      step 9's response handler re-evaluates and recommits if the field ends up dirty, unfocused and
-      the window still focused.
+   1. **Bail if a commit is already in flight** — `form.dataset.submitting`. Nothing is lost by this:
+      step 6a's `readOnly` means the field cannot have changed since the POST, so there is never newer
+      text for this blur to save.
    2. **Bail if the window itself lost focus** — `relatedTarget === null && !document.hasFocus()`.
       Chromium fires `focusout` when the browser window or tab loses focus, so without this,
       alt-tabbing mid-edit persists half-typed text. Leave the field dirty for a later real blur.
@@ -305,21 +320,22 @@ test red.
    throw inside the `.then` and be converted by the outer `.catch` into a spurious "Network error"
    notice.
 
-   Every write below — the token inventory *and* the value/`defaultValue`/`title` assignments *and*
-   the recommit's dirtiness check — targets the **freshly located row's** elements, i.e.
-   `row.querySelector(":scope > .tree__rowhead .tree__title")` and that input's form. Not the
-   submitted `form` or the event-target `input` that steps 3–8 refer to: if a foreign swap landed
-   mid-flight those are detached nodes with their own stale `value`, `defaultValue` and focus state,
-   and writing to them would update nothing the user can see while the tokens went to the live row.
+   **Locating the row — and when to do nothing at all.** First: **if `!form.isConnected`, this is a
+   silent no-op** that still clears `dataset.submitting` and `readOnly`. A foreign `applyFragment` can
+   land between the POST and its response, replacing the whole row; the markup it swapped in is
+   already server-rendered, so patching is unnecessary — and actively harmful. A swapped-in render can
+   *predate* this rename's DB commit, so its input would hold the **old** title; writing our committed
+   title into its `defaultValue` while leaving the displayed old `value` alone would leave the row
+   showing a stale name and reading dirty against it. Skipping is both simpler and safer.
 
-   **Locating the row.** Take the pk from the response's `data-rename-for` and look the row up fresh:
-   `root.querySelector('li.tree__row[data-node="<pk>"]')` — **not** `form.closest(".tree__row")`, so
-   that a row swapped in by a foreign op since the POST is still found. **A missing row is a silent
-   no-op** (still clearing `dataset.submitting`): a foreign `applyFragment` can land between the POST
-   and its response, and the row it swapped in is already server-rendered with the new title and
-   token, so there is nothing to patch. Without this guard the attribute writes throw inside the
-   `.then`, and the outer `.catch` (`builder.js:183`) turns a *successful* rename into a spurious
-   "Network error — please try again." notice.
+   Otherwise the form is still in the document, which is itself the proof that no swap replaced it, so
+   every write targets the submitted form's own row: `row = form.closest("li.tree__row")` and the
+   input that steps 3–8 already refer to. There is no fresh-lookup-by-pk step and no possibility of
+   patching a different node's elements.
+
+   The `isConnected` guard also keeps the attribute writes from throwing inside the `.then`, where the
+   outer `.catch` (`builder.js:183`) would turn a *successful* rename into a spurious "Network error —
+   please try again." notice.
 
    **The governing invariant: every DOM carrier of this node's `updated` must be refreshed.** A rename
    bumps `node.updated`, and that value is rendered into more places than the rowhead. Missing any one
@@ -352,12 +368,11 @@ test red.
 
    **Values, and why `value` is conditional.** In this order:
 
-   1. Assign `input.value` **only when the input is unfocused *and* `input.value.trim()` already
-      equals the committed title** — i.e. only to normalise exact whitespace when the visible text
-      already matches. Never otherwise: after an Enter commit the field keeps focus and stays
-      editable, so an unconditional assignment would clobber anything typed during the round trip, and
-      the HTML `value` setter jumps the caret to the end and drops the selection *even when assigning
-      an identical string*, destroying the caret position this design exists to preserve.
+   1. Assign `input.value` **only when it differs from the committed title** — i.e. only when the
+      server normalised something the client had not. Skipping the equal case is what preserves the
+      caret: the HTML `value` setter jumps the caret to the end and drops the selection *even when
+      assigning an identical string*. (Thanks to step 6a's `readOnly`, the field cannot have been
+      edited during the round trip, so "differs" can only mean server-side normalisation.)
    2. Set `defaultValue` to the committed title. This is what makes the field clean again so a
       subsequent blur does not re-post — and, if the author typed more in flight, what leaves the
       field correctly reading *dirty* against it.
@@ -365,33 +380,18 @@ test red.
       actually displayed. This matches the ordering `revert()` uses, and matters on exactly the
       truncated long titles where the tooltip is the only way to read the name.
 
-   **The in-flight recommit — derived from state, not a flag.** Step 7's guard makes `focusout` bail
-   while `dataset.submitting` is set, which alone would silently discard this sequence: type → Enter →
-   type two more characters → click away. The blur is swallowed and no later blur is coming.
+   **There is no recommit, because nothing can change during the round trip.** See step 6a: the input
+   is `readOnly` from the moment a commit is dispatched until its response lands, so when the response
+   arrives the field necessarily still holds exactly what was posted. That removes an entire class of
+   in-flight edit-recovery problems rather than solving them.
 
-   The fix needs no bookkeeping flag, because the DOM already says everything required. After applying
-   the values above, **recommit once if all of these hold**:
-
-   - the field is **dirty** against its just-updated `defaultValue`, and its trimmed value is
-     non-empty — so there is genuinely newer text to save;
-   - the field is **not focused** — if the author is still in it, their own next Enter or blur will
-     commit, and firing now would post mid-word;
-   - `document.hasFocus()` is **true** — so the blur was a real in-page click-away and not the window
-     losing focus, which step 8's first bail-out deliberately refuses to treat as a commit.
-
-   An earlier draft used a `dataset.recommit` flag set by the bailing `focusout`. It was dropped: the
-   flag had to be cleared on five separate paths, could be set by a window-blur bail (re-introducing
-   exactly the loss bail-out 1 prevents), and needed its own detached-form guard. The derived
-   condition has none of those failure modes.
-
-   **Ordering against the handler's flag clear.** `delete form.dataset.submitting` sits at the *tail*
-   of the existing `.then`, after the `status === 200` block. A recommit issued from inside that block
-   would set `dataset.submitting = "1"` and then have the tail immediately delete it, leaving the
-   second POST in flight **unguarded** — a blur or Enter during it would post again with a consumed
-   token and 409. So the rename branch only sets a local `needsRecommit` boolean; the handler invokes
-   the commit path **after** its tail `delete`. It cannot loop: the second commit either lands clean or
-   fails through the normal 409/422 paths, and its own response re-evaluates the same condition
-   against a then-clean field.
+   Two earlier drafts tried to *recover* mid-flight edits instead — first a `dataset.recommit` flag,
+   then a condition derived from DOM state (dirty ∧ unfocused ∧ `document.hasFocus()`). Both are
+   recorded here as rejected, because each looked reasonable and each generated a fresh crop of
+   correctness bugs: a flag that had to be cleared on five paths and could be set by a window-blur
+   bail; a derived condition that silently reposted the *stale* title after a foreign swap, stranded a
+   blanked field permanently, and swallowed an Enter-during-flight with no recovery. Preventing the
+   edit is smaller and provably correct; recovering it is neither.
 
    **Ancestor scopes are deliberately not touched:** `rename_node` saves only the node
    (`save(update_fields=…)`) and, unlike `add_node`, never calls `course.save()`, so no *ancestor*
@@ -523,9 +523,9 @@ Concretely:
 | Stale token (node changed elsewhere) | `ConflictError` → 409 → `_conflict_scope` fragment + "This changed elsewhere — reloaded to the latest." This branch **does** swap a scope (the tree genuinely diverged), discarding the typed title; that is correct, and it is the only rename path that replaces DOM. |
 | Node deleted elsewhere | Same 409 path; `_conflict_scope` falls back to the `"top"` scope (`views_manage.py:519-528`) and the row is simply absent. |
 | Enter immediately followed by click-away | `dataset.submitting` suppresses the second commit — exactly one POST. |
-| Enter, then more typing, then click-away, all within the round trip | The blur bails on `dataset.submitting`; the response handler then sees a dirty, unfocused field with the window focused and recommits once. Nothing is lost. |
+| Any keystroke — typing, delete, a second Enter — while a commit is in flight | The input is `readOnly` for the round trip, so the edit never happens. No text to lose, no field left blank, no swallowed commit to recover. |
 | Escape pressed while a commit is in flight | Nothing happens (the `keydown` bail covers Escape). Reverting mid-flight would leave the field stale-but-dirty and silently undo the rename on the next blur. |
-| A foreign swap detaches the row while its rename is in flight | The response's row lookup finds either the fresh server-rendered row or nothing; a missing row is a silent no-op. The recommit operates on the located row, so it can never post from a detached form. |
+| A foreign swap detaches the row while its rename is in flight | `!form.isConnected` → silent no-op; flags and `readOnly` still cleared. The swapped-in markup is already server-rendered, and patching it could write a committed title onto a render that predates the commit. |
 | Enter on an unchanged title | Default cancelled before the dirty check, so native implicit submission cannot fire — no POST. |
 | Window/tab loses focus mid-edit | No commit; the field stays dirty. |
 | Another op replaced this row's scope before the blur was delivered | `!form.isConnected` bail; the edit is discarded rather than posting a superseded token. |
@@ -603,15 +603,11 @@ Drive the actual UI — never `page.evaluate` shortcuts, which ship broken UX gr
   focus alone would pass even if the response reassigned `value` (which jumps the caret to the end
   even for an identical string), so the mid-string caret is the real guard on step 9's conditional
   assignment — and the observable proof that no scope swap happened, i.e. the core of this design.
-- **Typing during the round trip is not clobbered:** press Enter, keep typing before the response
-  lands, and assert the extra characters survive and the field is left dirty (so a later blur commits
-  them).
-- **Enter, then type more, then click away** → the extra characters are **saved**, not lost, and the
-  second commit is itself guarded (a blur during it posts nothing extra). Guards both the derived
-  recommit and its ordering after the handler's tail `delete form.dataset.submitting`. Falsify by
-  making the `focusout` bail a plain return with no recommit.
-- **Alt-tab during a commit does not recommit half-typed text:** press Enter, type more, then blur the
-  *window* → no second POST. Guards the `document.hasFocus()` term in the recommit condition.
+- **The field is read-only during the round trip:** with the response delayed (Playwright route
+  interception), press Enter, then type — assert the value is unchanged — then let the response land
+  and assert the field is editable again. Falsify by removing the `readOnly` assignment. Also assert
+  `readOnly` is cleared on a **422**, not only on success, or a rejected rename would leave the row
+  permanently uneditable.
 - **Tab to a row, then click a different row within 150ms** → the panel ends up showing the clicked
   row, not the tabbed one. Guards clearing the pending debounce timer on every `focusin`.
 - **Rename the same row twice without reloading:** commit via Enter, wait for the response, then type
@@ -647,6 +643,10 @@ Drive the actual UI — never `page.evaluate` shortcuts, which ship broken UX gr
   descendant query (which would find the *grandchild's* `parent_token`) fails RED. Additionally assert
   the nested section's own add still works afterwards — that is what catches the mis-stamped token.
 - **Window blur does not commit:** type, blur the window (not the field) → no POST; field stays dirty.
+  Playwright has no user gesture that blurs the browser window, so use a **second page in the same
+  context plus `bring_to_front()`**, and confirm `document.hasFocus()` actually reports `False` under
+  the run mode used — it differs between headed and headless Chromium. If it does not, the test is not
+  exercising bail-out 2 and must be skipped with that reason rather than left falsely green.
 - **Debounce / ordering:** tabbing across N rows issues exactly one panel GET; a pointer click issues
   its GET immediately.
 - **Keyboard tab order:** tabbing from a row title reaches the next control, not a hidden "Rename".
