@@ -188,7 +188,7 @@ def test_spanning_fill_table_survives_a_zero_edit_save(page, live_server):
 def test_spanning_grid_gets_a_layout_width_control_strip(page, live_server):
     """Row 0 is one colspan=3 cell, so the OLD colCount() (row 0's CELL count)
     would emit ONE handle pair for a 3-column layout, leaving every handle
-    under the wrong column. Also pins slice 1's temporary handle-lock."""
+    under the wrong column."""
     from courses.models import TableElement
     from tests.test_e2e_table_editor import _login
     from tests.test_e2e_table_editor import _make_pa_user
@@ -201,8 +201,6 @@ def test_spanning_grid_gets_a_layout_width_control_strip(page, live_server):
 
     _reopen(page, live_server, unit, element, TABLE_ROOT)
     assert page.locator(f"{TABLE_ROOT} [data-col-insert]").count() == 3
-    # Slice 1 only: span-aware handlers arrive in slice 2, so they are locked.
-    assert page.locator(f"{TABLE_ROOT} [data-col-insert]").first.is_disabled()
 
 
 @pytest.mark.django_db(transaction=True)

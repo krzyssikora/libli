@@ -28,8 +28,6 @@
     return tr.querySelectorAll("td:not([data-control]), th:not([data-control])");
   }
 
-  function rowCount(grid) { return dataRows(grid).length; }
-
   // Layout column count. The old body read row 0's CELL count, which is wrong
   // the moment a span exists: a row-0 colspan makes the control strip too short
   // and every handle lands under the wrong column.
@@ -94,13 +92,6 @@
     return td;
   }
 
-  function buildRow(grid, cols) {
-    var tr = document.createElement("tr");
-    for (var i = 0; i < cols; i++) tr.appendChild(newCell());
-    tr.appendChild(rowCtl(grid));
-    return tr;
-  }
-
   function ensureRowControls(grid) {
     dataRows(grid).forEach(function (tr) {
       if (!tr.querySelector("td[data-control]")) tr.appendChild(rowCtl(grid));
@@ -127,44 +118,19 @@
     var sm = window.libliTableGrid.slotMap(desc);
     var rows = sm.height;
     var cols = sm.width;
-    var locked = spanLocked(desc);
     // Insert is capped; delete keeps today's FLOOR guard, restated in layout
     // terms -- "one layout column left" is not "one cell left in row 0".
     Array.prototype.forEach.call(grid.querySelectorAll("[data-row-delete]"), function (b) {
-      b.disabled = rows <= 1 || locked;
+      b.disabled = rows <= 1;
     });
     Array.prototype.forEach.call(grid.querySelectorAll("[data-row-insert]"), function (b) {
-      b.disabled = rows >= MAX_ROWS || locked;
+      b.disabled = rows >= MAX_ROWS;
     });
     Array.prototype.forEach.call(grid.querySelectorAll("[data-col-delete]"), function (b) {
-      b.disabled = cols <= 1 || locked;
+      b.disabled = cols <= 1;
     });
     Array.prototype.forEach.call(grid.querySelectorAll("[data-col-insert]"), function (b) {
-      b.disabled = cols >= MAX_COLS || locked;
-    });
-  }
-
-  // SLICE 1 ONLY -- deleted in slice 2 once the handlers are span-aware.
-  // The handles still use cell-index insertion, which would corrupt a spanning
-  // grid that (before slice 1) could not be saved at all.
-  function spanLocked(desc) {
-    return window.libliTableGrid.isSpanning(desc);
-  }
-
-  function insertColumnAfter(grid, idx) {
-    dataRows(grid).forEach(function (tr) {
-      var cells = dataCells(tr);
-      var ref = cells[idx];
-      var td = newCell();
-      if (ref) tr.insertBefore(td, ref.nextSibling);
-      else tr.insertBefore(td, tr.firstChild);
-    });
-  }
-
-  function deleteColumnAt(grid, idx) {
-    dataRows(grid).forEach(function (tr) {
-      var cells = dataCells(tr);
-      if (cells[idx]) cells[idx].remove();
+      b.disabled = cols >= MAX_COLS;
     });
   }
 
@@ -280,45 +246,55 @@
       serialize();
     });
 
+    // Every structural edit ends the same way. Slices 3-4 add range clearing
+    // and toolbar refresh here.
+    function afterStructuralEdit() {
+      rebuildColControls(grid, desc);
+      refreshControlState(grid, desc);
+      serialize();
+    }
+
     // Row/column insert+delete handles (delegated).
     grid.addEventListener("click", function (e) {
       var rowInsert = e.target.closest("[data-row-insert]");
       if (rowInsert) {
-        if (rowCount(grid) < MAX_ROWS) {
-          var tr = rowInsert.closest("tr");
-          var newRow = buildRow(grid, colCount(desc));
-          tr.parentNode.insertBefore(newRow, tr.nextSibling);
-          refreshControlState(grid, desc);
-          serialize();
+        // rowCtl() carries no index, so read the row's position from desc.
+        var ri = desc.rows().indexOf(rowInsert.closest("tr"));
+        if (ri >= 0 && window.libliTableGrid.slotMap(desc).height < MAX_ROWS) {
+          libliTableGrid.insertRow(desc, ri + 1); // "insert below" == at ri+1
+          afterStructuralEdit();
         }
         return;
       }
       var rowDelete = e.target.closest("[data-row-delete]");
       if (rowDelete) {
-        if (rowCount(grid) > 1) {
-          rowDelete.closest("tr").remove();
-          refreshControlState(grid, desc);
-          serialize();
+        var rd = desc.rows().indexOf(rowDelete.closest("tr"));
+        // Floor guard, in LAYOUT terms (today's rowCount(grid) > 1).
+        if (rd >= 0 && window.libliTableGrid.slotMap(desc).height > 1) {
+          libliTableGrid.deleteRow(desc, rd);
+          afterStructuralEdit();
         }
         return;
       }
       var colInsert = e.target.closest("[data-col-insert]");
       if (colInsert) {
-        if (colCount(desc) < MAX_COLS) {
-          insertColumnAfter(grid, parseInt(colInsert.dataset.colIndex, 10));
-          rebuildColControls(grid, desc);
-          refreshControlState(grid, desc);
-          serialize();
+        // "Insert column right" of layout column i is an insert AT i + 1.
+        // insertColumn(grid, width) appends. Consequence worth knowing: on a
+        // colspan's LAST covered slot this yields layoutCol == c + s, so the
+        // span does not grow -- a new cell appears after it.
+        var i = parseInt(colInsert.dataset.colIndex, 10);
+        if (colCount(desc) < MAX_COLS) { // colCount is the layoutWidth wrapper
+                                          // Task 6 introduced -- keep ONE spelling
+          libliTableGrid.insertColumn(desc, i + 1);
+          afterStructuralEdit();
         }
         return;
       }
       var colDelete = e.target.closest("[data-col-delete]");
       if (colDelete) {
         if (colCount(desc) > 1) {
-          deleteColumnAt(grid, parseInt(colDelete.dataset.colIndex, 10));
-          rebuildColControls(grid, desc);
-          refreshControlState(grid, desc);
-          serialize();
+          libliTableGrid.deleteColumn(desc, parseInt(colDelete.dataset.colIndex, 10));
+          afterStructuralEdit();
         }
         return;
       }
