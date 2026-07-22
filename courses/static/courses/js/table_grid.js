@@ -103,6 +103,72 @@
     return false;
   }
 
+  // Insert `td` into `tr` at LAYOUT column `layoutCol`.
+  //
+  // A ragged row's positional index diverges from its layout column, so
+  // `tr.insertBefore(cell, cells(tr)[layoutCol])` is wrong: with a rowspan
+  // anchored above, row 1's cells may start at layout column 1 or later.
+  // Rule: before the first data cell whose layout column is >= layoutCol,
+  // always before the trailing control cell; else last among the data cells.
+  function insertCellAt(grid, sm, r, layoutCol) {
+    var tr = grid.rows()[r];
+    var cells = grid.cells(tr);
+    var td = grid.makeCell();
+    var ref = null;
+    for (var k = 0; k < cells.length; k++) {
+      var a = anchorOf(sm, cells[k]);
+      if (a && a.r === r && a.c >= layoutCol) { ref = cells[k]; break; }
+    }
+    if (ref) tr.insertBefore(td, ref);
+    else if (cells.length) cells[cells.length - 1].after(td);
+    else tr.insertBefore(td, tr.firstChild); // before the control cell
+    return td;
+  }
+
+  // A cell STRADDLES layoutCol iff it occupies both the slot before it and the
+  // slot at it -- i.e. strict `c < layoutCol < c + colspan`. Used by INSERT.
+  function straddlerAt(sm, r, layoutCol) {
+    if (layoutCol <= 0 || layoutCol >= sm.width) return null;
+    var before = sm.map[r][layoutCol - 1];
+    var at = sm.map[r][layoutCol];
+    return before && before === at ? before : null;
+  }
+
+  function insertColumn(grid, layoutCol) {
+    var sm = slotMap(grid);
+    var grown = [];
+    for (var r = 0; r < sm.height; r++) {
+      var straddler = straddlerAt(sm, r, layoutCol);
+      if (straddler) {
+        // Grow exactly ONCE, at the anchor -- a rowspan cell straddles in
+        // every row it covers, and the covered rows gain no new cell.
+        if (grown.indexOf(straddler) === -1) {
+          setSpan(straddler, "colspan", colspanOf(straddler) + 1);
+          grown.push(straddler);
+        }
+        continue;
+      }
+      insertCellAt(grid, sm, r, layoutCol);
+    }
+  }
+
+  // Delete uses the COVERING predicate: any cell occupying the column, whether
+  // or not it straddles. A cell anchored AT layoutCol must still decrement, or
+  // it keeps claiming a column that no longer exists.
+  function deleteColumn(grid, layoutCol) {
+    var sm = slotMap(grid);
+    if (layoutCol < 0 || layoutCol >= sm.width) return;
+    var seen = [];
+    for (var r = 0; r < sm.height; r++) {
+      var cell = sm.map[r][layoutCol];
+      if (!cell || seen.indexOf(cell) !== -1) continue;
+      seen.push(cell);
+      var next = colspanOf(cell) - 1;
+      if (next <= 0) cell.remove();
+      else setSpan(cell, "colspan", next);
+    }
+  }
+
   window.libliTableGrid = {
     slotMap: slotMap,
     layoutWidth: layoutWidth,
@@ -111,5 +177,8 @@
     colspanOf: colspanOf,
     rowspanOf: rowspanOf,
     setSpan: setSpan,
+    insertColumn: insertColumn,
+    deleteColumn: deleteColumn,
+    insertCellAt: insertCellAt,
   };
 })();
