@@ -124,6 +124,31 @@ inherits it. Structural ops insert relative to the row's data cells and **before
 trailing control cell; `insertRow` inserts before `tr[data-control-row]` by inserting
 relative to a sibling data row, never by appending to the table.
 
+The rowspan-covered rule for `insertColumn` is the mirror of `insertRow`'s, and it is the
+one an obvious implementation gets wrong: "insert a cell into every data row" produces a
+layout-inconsistent grid on any table with a rowspan — 8 of the 24 corpus tables,
+including `060_ciagi` with 4. Named test: insert a column through the covered rows of a
+`rowspan=3` cell.
+
+**`width` and `height`, defined for overflowing stored spans.** The bounds invariant is
+asserted only *after* ops, so stored or hand-edited data can already violate it — and
+slice 1 rebuilds the column strip from `slotMap().width` while the caps compare against
+these numbers, so the definition is observable before any op runs.
+`height = grid.rows.length` (a rowspan reaching past the last row is clipped for mapping
+purposes, not counted as extra height); `width = max over cells of (c + colspan)`.
+`layout_dims` uses the identical definition. Degenerate test: a rowspan that reaches past
+the last row.
+
+**Empty data rows are legal.** Merging a full-width range across two rows leaves the
+second row with **no data cells at all** — a `<tr>` holding only its control cell,
+serialized as `[]` — and imported content can already contain such rows. Pinned rather
+than left undefined: the editor still renders that row's control cell (so it can be
+deleted or have rows inserted around it), `slotMap` counts it as a full layout row of
+`null` slots, and the relaxed form must **not** treat a zero-length row as malformed on
+the *spanning* branch (the `widths == {0}` guard keeps applying on the non-spanning
+branch, unchanged). Named test: full-width 2-row merge → save → reopen → the span is
+intact and the empty row survives.
+
 **Range normalisation runs to a fixpoint.** Expanding the rectangle to swallow one
 clipped merged cell can newly clip a *different* merged cell on another edge, so a
 single pass can return an illegal rectangle — and `merge` on an illegal rectangle would
@@ -135,7 +160,12 @@ clipped on opposite edges, forcing two expansion rounds.
 **Degenerate-input policy.** `normalize_data` permits grids that are not layout-
 consistent (two cells claiming one slot; a row that does not reach the layout width).
 `slotMap` is **last-writer-wins** on a collision, leaves unreached slots `null`, and
-treats `null` as unoccupied. Structural ops are a no-op on a row that does not reach the
+treats `null` as unoccupied. Consequence that must be handled rather than crashed on: the
+normalised rectangle's top-left slot can itself be `null`, making `rangeCells`' `anchor`
+null and leaving `merge` with no cell to grow — which would either throw or, worse,
+remove the absorbed cells with no survivor. **If `anchor` is `null`, `canMerge` is false
+and `merge` is a no-op** (the Merge button stays disabled). Covered in the
+degenerate-input test set. Structural ops are a no-op on a row that does not reach the
 target layout column. All 24 corpus tables were verified layout-consistent at spec time,
 so **no repair pass is built** — this policy exists only so a hand-edited JSON or a
 future import degrades predictably instead of throwing.
@@ -148,7 +178,7 @@ Every function takes the `grid` descriptor above as its first argument.
 |---|---|
 | `slotMap(grid)` | Standard HTML table cell-mapping: `{ map, width, height }` where `map[r][c]` is the cell occupying that layout slot (or `null`), accounting for colspan and rowspan. The primitive everything else builds on. |
 | `layoutWidth(grid)` | Layout column count. Replaces `colCount()`, which reads row 0's **cell** count and is wrong once a span exists. |
-| `insertColumn(grid, layoutCol)` | Insert a layout column at `layoutCol`; straddling colspans grow by 1. |
+| `insertColumn(grid, layoutCol)` | Insert a layout column at `layoutCol`; straddling colspans grow by 1; **only uncovered slots get a real new cell** — a row whose target slot is occupied by a cell anchored in an *earlier* row (rowspan > 1) gets nothing, and that covering cell's colspan grows exactly once, at its anchor. |
 | `deleteColumn(grid, layoutCol)` | Delete a layout column; straddling colspans shrink by 1; an anchor in that column moves right; a cell whose last covered column goes is removed. |
 | `insertRow(grid, layoutRow)` | Insert a row **at** `layoutRow` (same *at*-convention as `insertColumn`, deliberately not an "after" index); straddling rowspans grow by 1; only uncovered slots get real new cells (via `grid.makeCell`). |
 | `deleteRow(grid, layoutRow)` | Like `deleteColumn`, **plus anchor relocation** — see the rule below; it is not a pure transpose. |
@@ -282,13 +312,43 @@ round-trip — is rejected before `normalize_data` is ever reached. This must be
 > the **layout** width/height (from a server-side slot walk) instead of per-row cell
 > counts. Non-spanning grids keep today's check verbatim.
 
-Two details, because this scan runs on **raw author-supplied JSON**, before
-`normalize_data`: it must test `TableElement._span(c, key) is not None` rather than a
-bare `> 1` (`_span` deliberately coerces, so a string `"colspan": "3"` would slip past a
-naive int comparison and the ragged grid would be wrongly rejected), and it must **skip
-non-dict cells** (today's code only reads `len(r)`, so a crafted POST with a non-dict
-cell survives to `normalize_data`; a naive `c.get(...)` scan would raise
-`AttributeError` → 500). Tested with a string span and with a non-dict cell.
+**Detection vs. range are two different checks, and they must not share a helper.**
+
+*Detection* ("is this grid spanning?") uses `TableElement._span(c, key) is not None`, for
+two reasons: a bare `c.get("colspan") > 1` raises `TypeError` on a string value → 500,
+and `_span` is the very definition `normalize_data` uses to pick its branch, so detection
+cannot diverge from the branch actually taken. Note what `_span` does **not** do: it does
+not coerce (`isinstance(n, bool) or not isinstance(n, int) → None`), so a string
+`"colspan": "3"` is *not* a span — such a grid is treated as non-spanning and its ragged
+rows are still rejected, consistently with how `normalize_data` would have handled it.
+The scan also **skips non-dict cells** (today's code only reads `len(r)`, so a crafted
+POST with a non-dict cell survives to `normalize_data`; a naive `c.get(...)` would raise
+`AttributeError` → 500). Named tests: a string span → treated as non-spanning → the
+ragged rejection still fires and there is no 500; a non-dict cell → no 500.
+
+*Range* ("is this span within the caps?") must read the **raw** `c.get(key)` int, guarded
+for bool/non-int — **never** `_span`'s return value, which is already clamped to the cap
+and would therefore always look in-range. Using `_span` here would silently reinstate the
+truncation the decision below forbids.
+
+**Guard ordering.** The existing `clean_data` has two guards ahead of the uniform-width
+one. They stay first and unchanged: a non-list `cells` and a non-list/zero-width row are
+still rejected as malformed. Only *after* those does the span scan choose between the
+uniform-width check and the layout check. Hoisting the span branch above them would lose
+a genuine malformed-input rejection.
+
+**Where each check runs differs per form**, because the two forms are structurally
+different — this is not one uniform recipe:
+
+- `TableElementForm.clean_data` validates **raw** `cleaned_data["data"]`, so both the
+  detection scan and the range check live there as described.
+- `FillTableElementForm.clean_data` calls `normalize_data` on its first line and
+  validates the *normalised* cells, where every cell is already a dict and every span has
+  already been through `_span`. Applying the raw-JSON caveats there would be dead code,
+  and the range check would be **impossible** — normalisation has already clamped. So the
+  fill-table form performs its span range check on the raw `cleaned_data["data"]`
+  *before* normalising. Both forms therefore call one shared pre-normalisation validator
+  rather than each growing its own copy.
 
 `FillTableElementForm.clean_data` has no raggedness check, but derives
 `n_cols = len(cells[0])` — meaningless once row 0 is a single full-width merged cell, so
@@ -297,10 +357,12 @@ the 20-column cap silently lapses. It gets the same layout-based computation.
 **Caps are grandfathered, not absolute.** `130_kombinatoryka/240_kombinatoryka` has a
 measured layout width of **26** against `MAX_COLS = 20`. Expressing the caps in layout
 terms would make that existing element unsaveable. So the caps gate **growth**, with the
-baseline pinned precisely: the stored dimensions are the layout width/height of
+baseline pinned precisely: the stored dimensions are `layout_dims` of
 `normalize_data(self.instance.data)` — the pre-save DB value, never `cleaned_data`, which
-would make the rule circular — defaulting to `(0, 0)` for an unsaved instance, so a
-brand-new 21-column table is rejected normally. **Each axis is compared independently**
+would make the rule circular — and **`(0, 0)` when `self.instance.pk is None`**, as an
+explicit special case rather than a property of the expression (`normalize_data({})`
+returns the default **2x2**, not an empty grid). Either way a brand-new 21-column table
+is rejected normally. **Each axis is compared independently**
 (`new_axis > cap and new_axis > stored_axis`), so a 26x10 grid narrowed to 24 columns but
 grown to 12 rows is judged per-axis rather than passed wholesale.
 `refreshControlState` correspondingly disables insert when at or over the cap, which
@@ -321,10 +383,22 @@ follow, and the second is one this work would newly create:
 
 **Decision: refuse, never silently clamp.** `canMerge` returns false for a range wider
 than `MAX_COLS` or taller than `MAX_ROWS`, and the forms reject an out-of-range span
-rather than truncating it. `_span`'s clamp becomes redundant defence-in-depth against
-the correct per-axis cap (`MAX_COLS` for colspan, `MAX_ROWS` for rowspan). Named test:
-merge all 26 columns of the 26-wide grid → the merge is refused, and a hand-posted
-`colspan: 26` is rejected — never silently stored as 20.
+rather than truncating it — reading the **raw** posted int, per the range-check rule
+above, since `_span`'s clamped return can never be out of range. `_span` keeps its clamp
+only as defence-in-depth for non-form write paths, fixed to the correct per-axis cap
+(`MAX_COLS` for colspan, `MAX_ROWS` for rowspan). Named tests: merge all 26 columns of
+the 26-wide grid → the merge is refused; a hand-posted `colspan: 26` → `ValidationError`,
+and nothing is stored as 20.
+
+**The layout walk needs one home.** Both forms and the grandfathering baseline need
+layout dimensions, and if the server's number ever disagreed with the editor's
+`layoutWidth()` the caps could reject a grid the editor believes legal — an author-facing
+dead end. So it is one named function: **`TableElement.layout_dims(cells) -> (width,
+height)`** in `courses/models.py`, called by both forms and by the baseline computation.
+Its degenerate-input behaviour matches `slotMap`'s verbatim (last-writer-wins on a
+collision, unreached slots unoccupied), pinned by a shared-expectation test that runs the
+same fixture grids through `layout_dims` and through `slotMap` and asserts equal
+dimensions.
 
 `normalize_data` is otherwise untouched.
 
@@ -350,6 +424,17 @@ a course-scoped permission check, and the failure mode is one course's table ren
 badly — not a security or integrity issue. Enforcing consistency server-side would mean
 reimplementing the slot map in `normalize_data`, which is a non-goal.
 
+**The bound-invalid re-render must not diverge from the hidden field.** The editor
+templates render the grid from `form.instance.normalized_data` — the *stored* value —
+while on a rejected save the hidden field carries the *submitted* JSON, and `serialize()`
+deliberately skips init when that field is non-empty. Today that divergence is nearly
+unreachable; this work adds new server-side rejections (out-of-range span, over-cap
+growth, the relaxed structural checks) that an author hits from an ordinary merge
+gesture, and they would then see the *pre-merge* grid while the field still holds the
+merged JSON — so the next Save silently re-posts the rejected shape. Fix: on a
+bound-invalid re-render, render the grid from the **submitted** JSON. Named test: an
+over-cap merge → rejected save → the visible grid and the hidden field agree.
+
 **Browser undo.** The grid is `contenteditable`, so a Ctrl+Z after a merge can partially
 resurrect DOM that `table_grid.js` removed, leaving spans that no longer match the cells
 — which would post a non-layout-consistent grid and defeat the invariant above.
@@ -374,6 +459,11 @@ confirm the result is visibly wrong rather than silently corrupt.
 - **Shift+click** sets the range end. `mousedown` with `shiftKey` inside the grid is
   `preventDefault`ed so `contenteditable` does not start a text selection; the `click`
   handler computes `rangeCells` and marks each covered cell `is-range`.
+  The suppression is **scoped away from form controls** — skipped when
+  `e.target.closest("input, textarea, select, button, [data-control]")` — because the
+  fill-table's answer cells contain a real `<input>`, where Shift+click is a legitimate
+  text-selection gesture a blanket suppression would kill. A Shift+click landing on
+  chrome or inside an input leaves `rangeEnd` untouched.
 - **Alt+Shift+ArrowRight / ArrowDown / ArrowLeft / ArrowUp**, `preventDefault`ed, is the
   keyboard equivalent. `Alt+Shift` is chosen because plain and `Ctrl` arrows are taken by
   caret and word movement inside `contenteditable`. Semantics, precisely: **move
@@ -383,9 +473,12 @@ confirm the result is visibly wrong rather than silently corrupt.
   range that comes to clip a merged cell re-expands on every keystroke. With no range
   yet, the first press seeds `rangeEnd` from `focusCell`.
   ⚠️ On Windows, `Alt+Shift` is the OS keyboard-layout-switch chord — directly relevant
-  for a PL/EN author — and `Alt+Arrow` is browser history navigation. Live verification
-  must confirm the chord neither switches layout nor navigates; if it does, fall back to
-  `Ctrl+Alt+Arrow` and update the help text to match.
+  for a PL/EN author — and `Alt+Arrow` is browser history navigation. The chord must be
+  probed in a real browser **at the end of slice 3**, as soon as the keyboard handler
+  first exists — *not* in slice 5's live verification, which runs after four help files
+  and their Polish translations are already committed. The confirmed chord is then an
+  input to slices 4 and 5, so the help text and msgids are written once. If it fails,
+  fall back to `Ctrl+Alt+Arrow`.
 - `Escape` clears the range. The handler acts — and stops propagation — **only when a
   range is active**, so a stray Escape still reaches the media-picker and math-input
   modals that share the editor page. So does any structural edit (row/column insert or
@@ -554,8 +647,16 @@ Four files, text only:
   section.
 
 Each gains a short passage covering: Shift+click to select a range, `Alt+Shift+Arrow` as
-the keyboard equivalent, the Merge / Split / Header cell buttons, and the fact that
-merging keeps only the top-left cell's content.
+the keyboard equivalent (or whatever slice 3's chord probe confirms), the Merge / Split /
+Header cell buttons, the fact that merging keeps only the top-left cell's content, and —
+the one behaviour authors will otherwise file a bug about — **why Header cell is greyed
+out** when "Header row" / "Header column" is ticked, worded to match the button's own
+`title` so help and UI agree.
+
+The existing caps message, *"Tables are limited to %(r)d rows by %(c)d columns."*, is now
+misleading under grandfathering (a 26-wide table *is* saveable, and the cap really gates
+growth). Reword it to say the limit applies to *making a table larger*, which makes it a
+changed msgid — so it joins slice 5's Polish translation list.
 
 No new screenshots: the existing help images are page-level editor overviews
 (`content-editor.en.png`), not element-toolbar close-ups, so they do not go stale.
@@ -594,6 +695,18 @@ obsolete — these are additions only, but the i18n catalog tests still run.
    instance; **render** templates emit spans on the `header_row` / `header_col` `<th>`
    branches; a plain table's editor markup is unchanged; `_span` clamps `rowspan` to
    `MAX_ROWS`; the source-level check that no `td`-only cell selector remains.
+
+   Two negative-space tests the relaxation's safety argument rests on, neither of which
+   any other listed test would catch:
+   - **A ragged grid with no spans is still rejected** — and so is one whose only span
+     key is `colspan: 1`. A branch predicate written a shade too broadly ("any cell has a
+     `colspan` key") would disable raggedness validation for *every* table while leaving
+     the whole suite green.
+   - **Grandfathering has positive cases, not only refusals.** The reason it exists is
+     that the 26-wide table stays saveable, so: a stored 26-wide grid saves unchanged;
+     narrowed to 24 it still saves; widened to 27 it is rejected; and growth past
+     `MAX_ROWS` is rejected independently of the column axis (per-axis comparison). Get
+     the comparison backwards and that element can never be saved again — with CI green.
 2. **Grid-algebra tests for `table_grid.js`.** Its functions are pure, so they run in a
    headless page via `add_script_tag` + `evaluate` — grid in, grid out — marked `e2e`
    (there is no Node in CI; the e2e job has browsers). Explicitly: these are
@@ -619,7 +732,10 @@ obsolete — these are additions only, but the i18n catalog tests still run.
    contents unchanged, no span or header keys remain (the `normalize_data` flip is a
    no-op, per the invariant above).
 6. **Header toggle:** toggling header on an answer cell preserves its typed answer and
-   its `cellStash` entry; the toggle is disabled on a `header_row` table's row 0.
+   its `cellStash` entry; the toggle is disabled on a `header_row` table's row 0; and —
+   the subtle half of the "already promoted" definition — in a `header_col` table where a
+   row-0 rowspan occupies row 1's layout column 0, the toggle is disabled on row 1's
+   *positionally first* cell (layout column 1) and enabled elsewhere.
 
 Every slice is TDD: a falsifying RED test first (memory: *falsify tests, don't run
 them*). Run pytest **without** forcing `DJANGO_SETTINGS_MODULE`:
