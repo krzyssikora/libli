@@ -137,7 +137,16 @@ layout-inconsistent grid on any table with a rowspan — 8 of the 24 corpus tabl
 including `060_ciagi` with 4. Named test: insert a column through the covered rows of a
 `rowspan=3` cell.
 
-⚠️ **The skip predicate is the strict straddle test, not "occupies the slot"** — the two
+⚠️ **Delete uses the covering predicate; insert uses the strict straddle predicate.** The
+two are deliberately different, and conflating them corrupts the grid in opposite
+directions. Deleting `layoutCol == c` of a `colspan=3` cell is *not* straddling, so if
+delete reused the strict test the shrink would not fire and the cell would still claim 3
+columns in a grid one column narrower — layout-inconsistent. "The anchor moves right" in
+decision 4 describes the cell's resulting layout *position*; it is **not** an alternative
+to the decrement, which always happens. (`deleteRow`'s step 1 already says "decrement its
+rowspan by 1" explicitly; this is the same rule for the column axis.)
+
+⚠️ **For insert, the skip predicate is the strict straddle test, not "occupies the slot"** — the two
 diverge at `layoutCol == c` and the difference corrupts the grid. Consider a cell anchored
 at `(0, 2)` with `colspan=1, rowspan=3`, and `insertColumn(grid, 2)`. The numeric rule
 says the span does not grow and row 0 gets a fresh cell before it. If rows 1–2 were
@@ -211,7 +220,7 @@ Every function takes the `grid` descriptor above as its first argument.
 | `slotMap(grid)` | Standard HTML table cell-mapping: `{ map, width, height }` where `map[r][c]` is the cell occupying that layout slot (or `null`), accounting for colspan and rowspan. The primitive everything else builds on. |
 | `layoutWidth(grid)` | Layout column count. Replaces `colCount()`, which reads row 0's **cell** count and is wrong once a span exists. |
 | `insertColumn(grid, layoutCol)` | Insert a layout column at `layoutCol`; straddling colspans grow by 1; **a row is skipped only when a cell anchored in an *earlier* row *straddles* the insertion point** (strict `c < layoutCol < c + colspan`), in which case that covering cell's colspan grows exactly once, at its anchor. |
-| `deleteColumn(grid, layoutCol)` | Delete a layout column; straddling colspans shrink by 1; an anchor in that column moves right; a cell whose last covered column goes is removed. |
+| `deleteColumn(grid, layoutCol)` | Delete a layout column. Arithmetic is over the **covering** predicate, *not* the strict straddle one: any cell whose covered range `[c, c + colspan)` contains `layoutCol` has its colspan decremented by 1, and is removed outright when that reaches 0. Cells anchored strictly left or right are untouched. |
 | `insertRow(grid, layoutRow)` | Insert a row **at** `layoutRow` (same *at*-convention as `insertColumn`, deliberately not an "after" index); straddling rowspans grow by 1; only uncovered slots get real new cells (via `grid.makeCell`). |
 | `deleteRow(grid, layoutRow)` | Like `deleteColumn`, **plus anchor relocation** — see the rule below; it is not a pure transpose. |
 | `rangeCells(grid, a, b)` | The rectangle between two cells, **normalised** to a fixpoint (below). Returns `{ cells, anchor, r0, c0, r1, c1 }`, where `anchor` is the cell occupying `(r0, c0)` **after** normalisation — which fixpoint expansion can make a different cell from the one the author first clicked. `merge` keeps *this* cell's content, not `rangeAnchor`. |
@@ -362,7 +371,8 @@ rows are still rejected, consistently with how `normalize_data` would have handl
 The scan also **skips non-dict cells** (today's code only reads `len(r)`, so a crafted
 POST with a non-dict cell survives to `normalize_data`; a naive `c.get(...)` would raise
 `AttributeError` → 500). Named tests: a string span → treated as non-spanning → the
-ragged rejection still fires and there is no 500; a non-dict cell → no 500.
+ragged rejection still fires and there is no 500; a non-dict cell → no 500; and, posted to
+the **fill-table** form specifically, a non-list `cells` and a non-list row → no 500.
 
 *Range* ("is this span within the caps?") must read the **raw** `c.get(key)` int, guarded
 for bool/non-int — **never** `_span`'s return value, which is already clamped to the cap
@@ -399,8 +409,13 @@ responsibilities pinned so the split cannot drift:
 > out of per-axis range (read as a raw int, guarded for bool/non-int). The range is
 > `2 <= n <= cap`: a value below 2 is **not a span**, so it is ignored rather than
 > rejected — matching `_span` (which returns `None`) and `layout_dims` (which counts it
-> as 1), so a crafted `colspan: 0` or `-3` cannot be read two ways. Skips non-dict
-> cells. Does **not** compute layout dims, apply the caps, or consult `self.instance` —
+> as 1), so a crafted `colspan: 0` or `-3` cannot be read two ways. **Coerces defensively
+> at both levels, mirroring `normalize_data`:** a non-list `cells` is treated as empty and
+> a non-list row is skipped, as well as skipping non-dict cells. This matters only for the
+> fill-table form: `TableElementForm`'s pre-existing non-list guards run *before* the
+> scan, but `FillTableElementForm` has none — it hands anything to `normalize_data`, which
+> coerces. Calling `_scan_spans` on its raw payload first would otherwise turn a crafted
+> `{"cells": 5}` into `for r in 5` → `TypeError` → **500**. Does **not** compute layout dims, apply the caps, or consult `self.instance` —
 > grandfathering needs the instance and stays in each form's `clean_data`, which calls
 > `layout_dims` itself.
 
@@ -501,9 +516,33 @@ deliberately skips init when that field is non-empty. Today that divergence is n
 unreachable; this work adds new server-side rejections (out-of-range span, over-cap
 growth, the relaxed structural checks) that an author hits from an ordinary merge
 gesture, and they would then see the *pre-merge* grid while the field still holds the
-merged JSON — so the next Save silently re-posts the rejected shape. Fix: on a
-bound-invalid re-render, render the grid from the **submitted** JSON. Named test: an
-over-cap merge → rejected save → the visible grid and the hidden field agree.
+merged JSON — so the next Save silently re-posts the rejected shape.
+
+**Fix, with the seam named** (the templates cannot do this themselves: they open with
+`{% with d=form.instance.normalized_data %}`, and the submitted value exists only as an
+unparsed JSON *string* in `form.data.data`, which Django templates cannot `json.loads`).
+Each form grows a property:
+
+> `grid_data` — when the form is **bound and invalid** and `self.data.get("data")` parses
+> to a dict, return `normalize_data(that dict)`; otherwise return
+> `self.instance.normalized_data`. The fallback therefore covers an absent, unparseable
+> or non-dict payload, and the add path (where it yields the default 2x2).
+
+Both editor templates bind `d` from `form.grid_data`. **The whole binding moves, not just
+`cells`** — `header_row`, `header_col`, `border` and the fill-table's `prompt`/
+`case_sensitive` render from the same `d` and are read back by `serialize()`, so
+re-sourcing only the grid would leave a rejected Header-row toggle showing its *stored*
+state while the hidden field holds the submitted one, and the author's next keystroke
+would silently revert it — the same bug one level down.
+
+Named test: a merge that is rejected for a reason **other than an out-of-range span** —
+e.g. a fill-table merge that absorbs the last answer cell, tripping the blank/no-answer
+guard — then assert the visible grid *and* one re-rendered control (Header row) agree with
+the hidden field. The out-of-range-span rejection is deliberately **not** the test case:
+`grid_data` runs the payload through `normalize_data`, so `_span`'s retained clamp would
+display `colspan="20"` for a submitted `26` and the two could not agree by construction.
+That case is knowingly clamped on re-render — acceptable, since the author is being told
+to reduce that span anyway.
 
 **Browser undo.** The grid is `contenteditable`, so a Ctrl+Z after a merge can partially
 resurrect DOM that `table_grid.js` removed, leaving spans that no longer match the cells
@@ -554,7 +593,9 @@ confirm the result is visibly wrong rather than silently corrupt.
   (`rangeCells`) — so pressing ArrowLeft after ArrowRight *shrinks* the range back toward
   the anchor rather than extending past it, an arrow at the grid edge is a no-op, and a
   range that comes to clip a merged cell re-expands on every keystroke. With no range
-  yet, the first press seeds `rangeEnd` from `focusCell`.
+  yet, the first press seeds `rangeEnd` from `focusCell`'s anchor slot **and applies the
+  move in the same keystroke**, so one press already selects two slots — seeding without
+  moving would yield a one-cell range, i.e. a keystroke with no visible effect.
   ⚠️ On Windows, `Alt+Shift` is the OS keyboard-layout-switch chord — directly relevant
   for a PL/EN author — and `Alt+Arrow` is browser history navigation. The chord must be
   probed in a real browser **at the end of slice 3**, as soon as the keyboard handler
@@ -717,14 +758,23 @@ it. Test: merge column 0 across two rows of a `header_col` table and assert what
 render template emits for the now-first cell of the affected row.
 
 **Tail sequence** (the same discipline the Header toggle's step 6 spells out, required
-here too): re-point `focusCell`, clear the range and `cellStash` (fill-table only),
-`rebuildColControls`,
+here too): re-point `focusCell` **and focus it**, clear the range and `cellStash`
+(fill-table only), `rebuildColControls`,
 `refreshControlState`, `refreshToolbarState`, `serialize()`. Note that
 `refreshToolbarState` exists **only in `filltable_editor.js`** today — `table_editor.js`
 has `refreshAlignButtons` and no toolbar-state function, so slice 3 adds one there
 (wrapping `refreshAlignButtons` plus the new Merge/Split/Header enablement). Skipping `serialize()` loses
 the merge on save; skipping the control rebuild leaves the strip at the old layout width.
 **Split runs the identical sequence.**
+
+The **focus** step leads the sequence (matching the Header toggle's step 6) and is not
+decoration: the toolbar's `mousedown` handler `preventDefault`s so the button never takes
+focus, so when the author's `focusCell` was an *absorbed* cell, merge detaches the focused
+node and DOM focus falls to `<body>`. Since the `Alt+Shift+Arrow` listener is registered
+**on the grid**, keyboard range selection would then silently stop working after every
+such merge until the author clicked a cell again. The existing "merge while focus sits on
+an absorbed cell" test therefore also asserts that a subsequent `Alt+Shift+Arrow` still
+extends a range.
 
 The message is deliberately **count-free** — "Merging will discard the content of the
 other selected cells." A count-bearing string would need `ngettext`, and Polish has three
@@ -815,13 +865,13 @@ obsolete — these are additions only, but the i18n catalog tests still run.
    would be GREEN before a line of code is written — the precise failure mode the
    project's *falsify tests, don't run them* lesson warns about. So test 0 asserts
    **first that the save succeeded** (redirected, no form error rendered) and only then
-   compares `normalize_data`.
+   compares the extracted **structure** described above.
 
    With that addition the two fixtures go RED for **different reasons**, and an
    implementer should expect that rather than suspect the harness: the `table` fixture
    fails the *success* assertion (the *"All table rows must have the same number of
    cells"* rejection above), while the `fill_table` fixture passes it and fails the
-   *equality* assertion, having silently stripped its spans.
+   *structure* assertion, having silently stripped its spans.
 1. **Python partial-render + model tests** (default run, no browser):
    editor templates emit `colspan` / `rowspan` and `<th contenteditable>` for a spanning
    instance; **render** templates emit spans on the `header_row` / `header_col` `<th>`
