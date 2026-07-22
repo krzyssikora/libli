@@ -307,8 +307,18 @@ new height rather than only shrinking straddling spans.
 ### Round-trip fidelity (must land before any UI)
 
 - `_edit_table.html` / `_edit_filltable.html` emit `colspan` / `rowspan` on editor cells
-  and render a cell carrying `header: true` as `<th contenteditable="true">` with the
-  same `data-halign` / `data-valign` / `class` / kind attributes a `<td>` would get.
+  and render a cell carrying `header: true` as a `<th>` **produced by the same kind branch
+  its `<td>` would have taken** — identical `data-halign` / `data-valign` / `class` and
+  kind attributes, differing only in tag name. Concretely: `contenteditable="true"`
+  appears on a `<th>` only where the corresponding `<td>` would carry it — every cell in
+  `TableElement`, but in the fill-table **static cells only**. An answer header cell is
+  `<th data-answer>` wrapping its `<input>`, and an image header cell is
+  `<th data-image data-media data-alt tabindex="0">`; neither is `contenteditable`.
+  Emitting `contenteditable` unconditionally would make a header answer cell editable text
+  *around* its real `<input>`, and — since the selector inventory widens the
+  `keydown`/`input` handlers scoped on `td[contenteditable]` to accept `th` — those
+  static-content handlers would then fire on an answer cell, precisely the kind confusion
+  the "kinds are preserved" constraint exists to prevent.
   **Precedence: the cell's own `header` flag wins, always** — mirroring the render
   templates, where `{% if cell.header %}` is deliberately the *first* branch, ahead of
   the `header_row` / `header_col` ones. Otherwise a cell that is both in row 0 of a
@@ -893,8 +903,9 @@ obsolete — these are additions only, but the i18n catalog tests still run.
    cells"* rejection above), while the `fill_table` fixture passes it and fails the
    *structure* assertion, having silently stripped its spans.
 1. **Python partial-render + model tests** (default run, no browser):
-   editor templates emit `colspan` / `rowspan` and `<th contenteditable>` for a spanning
-   instance; **render** templates emit spans on the `header_row` / `header_col` `<th>`
+   editor templates emit `colspan` / `rowspan` for a spanning instance, and emit the
+   `<th>` variant **per kind**: a static header cell as `<th contenteditable>`, a
+   fill-table answer header cell as `<th data-answer>` *without* `contenteditable`; **render** templates emit spans on the `header_row` / `header_col` `<th>`
    branches; a plain table's editor markup is unchanged; `_span` clamps `rowspan` to
    `MAX_ROWS`; the source-level check that no `td`-only cell selector remains.
 
