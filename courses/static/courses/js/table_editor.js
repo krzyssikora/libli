@@ -22,7 +22,10 @@
   }
 
   function dataCells(tr) {
-    return tr.querySelectorAll("td[contenteditable]");
+    // A "data cell" is any non-chrome cell, TD or TH. A <th> that only half
+    // the selectors match would be un-focusable, un-alignable and invisible to
+    // serialization.
+    return tr.querySelectorAll("td:not([data-control]), th:not([data-control])");
   }
 
   function rowCount(grid) { return dataRows(grid).length; }
@@ -171,11 +174,18 @@
       dataRows(grid).forEach(function (tr) {
         var row = [];
         Array.prototype.forEach.call(dataCells(tr), function (td) {
-          row.push({
+          var cell = {
             html: td.innerHTML,
             halign: td.dataset.halign || "left",
             valign: td.dataset.valign || "top",
-          });
+          };
+          // Emit spans ONLY when > 1 and header ONLY for TH, so a table with
+          // no merges and no header cells serializes byte-identically to
+          // before this feature existed.
+          if (td.colSpan > 1) cell.colspan = td.colSpan;
+          if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
+          if (td.tagName === "TH") cell.header = true;
+          row.push(cell);
         });
         cells.push(row);
       });
@@ -217,7 +227,7 @@
     }
 
     grid.addEventListener("focusin", function (e) {
-      var td = e.target.closest("td[contenteditable]");
+      var td = e.target.closest("td[contenteditable], th[contenteditable]");
       if (!td) return;
       focusedCell = td;
       if (toolbar) toolbar.hidden = false;
@@ -227,7 +237,7 @@
     // Enter inserts a <br> instead of a new block element, so a cell's only
     // intra-content separator is <br> (matches CELL_TAGS).
     grid.addEventListener("keydown", function (e) {
-      var td = e.target.closest("td[contenteditable]");
+      var td = e.target.closest("td[contenteditable], th[contenteditable]");
       if (!td) return;
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
@@ -237,7 +247,7 @@
     });
 
     grid.addEventListener("input", function (e) {
-      if (!e.target.closest("td[contenteditable]")) return;
+      if (!e.target.closest("td[contenteditable], th[contenteditable]")) return;
       serialize();
     });
 

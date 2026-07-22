@@ -899,11 +899,11 @@ summary.unit-tree__head:focus-visible { outline: 2px solid var(--primary); outli
    reads as faint hairlines. Strengthen the cell borders for the fill-in-table
    editor so the table is clearly legible in dark mode (light is unaffected —
    border-strong is only marginally darker than border-default there). */
-.el-editor--filltable .table-editor__grid td { border-color: var(--border-strong); }
+.el-editor--filltable .table-editor__grid td,
+.el-editor--filltable .table-editor__grid th { border-color: var(--border-strong); }
 
-.filltable-editor__grid td[data-answer] {
-  background: var(--surface-sunken);
-}
+.filltable-editor__grid td[data-answer],
+.filltable-editor__grid th[data-answer] { background: var(--surface-sunken); }
 
 /* Answer input: shaded + full-cell so an answer cell reads as visually
    distinct from a static contenteditable cell at a glance, mirroring the

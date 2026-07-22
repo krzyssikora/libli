@@ -42,13 +42,25 @@ row/column handles client-side and cannot call {% templatetag openblock %} trans
     </span>
   </div>
 
+  {% comment %}Cells carry their spans so the browser lays the EDITING grid out
+  with the same geometry the student sees, and serialize() can read them back.
+  A cell's own `header` flag wins over the header_row/header_col toggles --
+  mirroring the render templates, where the cell.header branch comes first. The
+  toggles themselves deliberately do NOT promote cells to <th> here: if they
+  did, serialize() would start writing header:true for cells that never had it
+  and break byte-identity for every existing header-row table.{% endcomment %}
   <div class="table-editor__grid" data-table-grid>
     <table>
       {% for row in d.cells %}
       <tr>
         {% for cell in row %}
+        {% if cell.header %}
+        <th contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
+        {% else %}
         <td contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
-            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}">{{ cell.html|safe }}</td>
+            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</td>
+        {% endif %}
         {% endfor %}
       </tr>
       {% endfor %}

@@ -1559,6 +1559,38 @@ class FillTableElementForm(_CourseScopedMediaForm):
                     return self._meta.model.normalize_data(parsed)
         return self.instance.normalized_data
 
+    @property
+    def resolved_grid_cells(self):
+        """grid_data's cells with image pks resolved to MediaAsset, mirroring
+        FillTableElement.resolved_cells but sourced from grid_data so a
+        rejected save re-renders the SUBMITTED grid (see grid_data).
+
+        MediaAsset is already imported at module level (element_forms.py:40),
+        so no local re-import -- matching the surrounding clean_data."""
+        cells = self.grid_data["cells"]
+        ids = [
+            c.get("media")
+            for row in cells
+            for c in row
+            if c.get("kind") == "image" and isinstance(c.get("media"), int)
+        ]
+        assets = MediaAsset.objects.in_bulk(ids) if ids else {}
+        out = []
+        for row in cells:
+            out_row = []
+            for c in row:
+                if c.get("kind") == "image":
+                    asset = assets.get(c.get("media"))
+                    out_row.append(
+                        {**c, "media": asset}
+                        if asset
+                        else {**c, "kind": "static", "html": ""}
+                    )
+                else:
+                    out_row.append(c)
+            out.append(out_row)
+        return out
+
 
 class GalleryElementForm(_CourseScopedMediaForm):
     """Image gallery/carousel. `data` JSON holds {desc_pos, images:[{media,desc}]};

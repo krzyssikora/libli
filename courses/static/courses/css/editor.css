@@ -592,12 +592,12 @@ button.asset-cell:hover { border-color: var(--primary); }
 
 .table-editor__grid { overflow-x: auto; }
 .table-editor__grid table { border-collapse: collapse; width: 100%; }
-.table-editor__grid td {
+.table-editor__grid td, .table-editor__grid th {
   min-width: 4rem; padding: var(--space-2);
   border: 1px solid var(--border-default);
   vertical-align: top;
 }
-.table-editor__grid td:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
+.table-editor__grid td:focus, .table-editor__grid th:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
 
 /* Row/column insert-delete handles. table_editor.js injects them into extra control
    cells (td[data-control] per row, plus a trailing tr[data-control-row] for columns).

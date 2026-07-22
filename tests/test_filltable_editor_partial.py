@@ -120,3 +120,23 @@ def test_grid_handle_icons_resolve_to_sprite_symbols():
     used = set(re.findall(r'"(ed-[\w-]+)"', FILLTABLE_JS.read_text(encoding="utf-8")))
     assert used, "expected filltable_editor.js to reference ed-* sprite symbols"
     assert used <= _sprite_symbols()
+
+
+def test_filltable_editor_answer_header_cell_is_th_without_contenteditable():
+    el = FillTableElement(
+        data=FillTableElement.normalize_data(
+            {
+                "cells": [
+                    [
+                        {"kind": "answer", "answer": "a", "header": True},
+                        {"kind": "static", "html": ""},
+                    ]
+                ]
+            }
+        )
+    )
+    html = _render(el)
+    assert "<th" in html and "data-answer" in html
+    # An answer cell is an <input>; making its TH contenteditable would let the
+    # static-content handlers fire on it.
+    assert not re.search(r"<th[^>]*data-answer[^>]*contenteditable", html)

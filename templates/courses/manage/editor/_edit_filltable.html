@@ -60,24 +60,50 @@ the answer-input placeholder, and the two submit-guard messages.{% endcomment %}
 
   <div class="table-editor__grid filltable-editor__grid" data-table-grid>
     <table>
-      {% for row in form.instance.resolved_cells %}
+      {% for row in form.resolved_grid_cells %}
       <tr>
         {% for cell in row %}
+        {% comment %}Each kind gets a <th> twin differing ONLY in tag name. Note
+        which branches carry contenteditable: static cells do, answer and image
+        cells do NOT (an answer cell is an <input>, and making its container
+        editable would let the static-content keydown/input handlers -- now
+        widened to accept th -- fire on it).{% endcomment %}
         {% if cell.kind == "answer" %}
-        <td data-answer class="ta-{{ cell.halign }} va-{{ cell.valign }}"
-            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}">
-          <input type="text" class="filltable-editor__answer" value="{{ cell.answer }}"
-                 placeholder="{% trans 'Accepted answer' %}">
-        </td>
+          {% if cell.header %}
+          <th data-answer class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>
+            <input type="text" class="filltable-editor__answer" value="{{ cell.answer }}"
+                   placeholder="{% trans 'Accepted answer' %}">
+          </th>
+          {% else %}
+          <td data-answer class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>
+            <input type="text" class="filltable-editor__answer" value="{{ cell.answer }}"
+                   placeholder="{% trans 'Accepted answer' %}">
+          </td>
+          {% endif %}
         {% elif cell.kind == "image" %}
-        <td data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}" tabindex="0"
-            class="ta-{{ cell.halign }} va-{{ cell.valign }}"
-            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}">
-          <img class="filltable-editor__img" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
-        </td>
+          {% if cell.header %}
+          <th data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}" tabindex="0"
+              class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>
+            <img class="filltable-editor__img" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
+          </th>
+          {% else %}
+          <td data-image data-media="{{ cell.media.pk }}" data-alt="{{ cell.alt }}" tabindex="0"
+              class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>
+            <img class="filltable-editor__img" src="{{ cell.media.file.url }}" alt="{{ cell.alt }}">
+          </td>
+          {% endif %}
         {% else %}
-        <td contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
-            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}">{{ cell.html|safe }}</td>
+          {% if cell.header %}
+          <th contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
+          {% else %}
+          <td contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+              data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</td>
+          {% endif %}
         {% endif %}
         {% endfor %}
       </tr>

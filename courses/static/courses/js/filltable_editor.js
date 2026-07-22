@@ -24,12 +24,14 @@
     });
   }
 
-  // A "data cell" is any non-chrome <td>: either a static contenteditable cell
-  // or an answer cell (td[data-answer], which has NO contenteditable attr).
-  // Row/column counting and insert/delete MUST see both kinds, or an answer
-  // column would be silently skipped during resize.
+  // A "data cell" is any non-chrome cell, TD or TH: static (contenteditable),
+  // answer (td/th[data-answer], NO contenteditable attr), or image. Row/column
+  // counting and insert/delete MUST see all kinds, or an answer column would
+  // be silently skipped during resize -- and a <th> matched by only half the
+  // selectors would be un-focusable, un-alignable and invisible to
+  // serialization.
   function dataCells(tr) {
-    return tr.querySelectorAll("td:not([data-control])");
+    return tr.querySelectorAll("td:not([data-control]), th:not([data-control])");
   }
 
   function rowCount(grid) { return dataRows(grid).length; }
@@ -196,28 +198,40 @@
         var row = [];
         Array.prototype.forEach.call(dataCells(tr), function (td) {
           if (td.hasAttribute("data-image")) {
-            row.push({
+            var cell = {
               kind: "image",
               media: parseInt(td.dataset.media, 10),
               alt: td.dataset.alt || "",
               halign: td.dataset.halign || "left",
               valign: td.dataset.valign || "top",
-            });
+            };
+            if (td.colSpan > 1) cell.colspan = td.colSpan;
+            if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
+            if (td.tagName === "TH") cell.header = true;
+            row.push(cell);
           } else if (td.hasAttribute("data-answer")) {
             var input = td.querySelector(".filltable-editor__answer");
-            row.push({
+            var cell = {
               kind: "answer",
               answer: input ? input.value : "",
               halign: td.dataset.halign || "left",
               valign: td.dataset.valign || "top",
-            });
+            };
+            if (td.colSpan > 1) cell.colspan = td.colSpan;
+            if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
+            if (td.tagName === "TH") cell.header = true;
+            row.push(cell);
           } else {
-            row.push({
+            var cell = {
               kind: "static",
               html: td.innerHTML,
               halign: td.dataset.halign || "left",
               valign: td.dataset.valign || "top",
-            });
+            };
+            if (td.colSpan > 1) cell.colspan = td.colSpan;
+            if (td.rowSpan > 1) cell.rowspan = td.rowSpan;
+            if (td.tagName === "TH") cell.header = true;
+            row.push(cell);
           }
         });
         cells.push(row);
@@ -384,7 +398,9 @@
     }
 
     grid.addEventListener("focusin", function (e) {
-      var td = e.target.closest("td[contenteditable], td[data-answer], td[data-image]");
+      var td = e.target.closest(
+        "td[contenteditable], th[contenteditable], td[data-answer], th[data-answer], td[data-image], th[data-image]"
+      );
       if (!td) return;
       focusedCell = td;
       if (toolbar) toolbar.hidden = false;
@@ -400,7 +416,7 @@
     // intra-content separator is <br> (matches CELL_TAGS). Answer cells are
     // plain <input> elements, so this never applies to them.
     grid.addEventListener("keydown", function (e) {
-      var td = e.target.closest("td[contenteditable]");
+      var td = e.target.closest("td[contenteditable], th[contenteditable]");
       if (!td) return;
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
@@ -413,7 +429,7 @@
     // inputs — including ones created later by the Answer-cell toggle,
     // without needing a per-input listener.
     grid.addEventListener("input", function (e) {
-      if (e.target.closest("td[contenteditable]")) { serialize(); return; }
+      if (e.target.closest("td[contenteditable], th[contenteditable]")) { serialize(); return; }
       if (e.target.classList && e.target.classList.contains("filltable-editor__answer")) {
         serialize();
       }
@@ -593,7 +609,9 @@
     if (editor.__filltableSerialize) editor.__filltableSerialize();
     clearAnswerError(editor);
     var answerInputs = Array.prototype.slice.call(
-      grid.querySelectorAll("td[data-answer] .filltable-editor__answer")
+      grid.querySelectorAll(
+        "td[data-answer] .filltable-editor__answer, th[data-answer] .filltable-editor__answer"
+      )
     );
     if (answerInputs.length === 0) {
       e.preventDefault();
