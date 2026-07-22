@@ -218,8 +218,6 @@ target layout column. All 24 corpus tables were verified layout-consistent at sp
 so **no repair pass is built** — this policy exists only so a hand-edited JSON or a
 future import degrades predictably instead of throwing.
 
-| Function | Contract |
-|---|---|
 Every function takes the `grid` descriptor above as its first argument.
 
 | Function | Contract |
