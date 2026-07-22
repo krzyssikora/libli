@@ -238,8 +238,11 @@ test red.
      mark is **consumed by the very next `focusin` whatever its target**, and also cleared on
      `pointerup` / `pointercancel`; without a defined lifecycle a `pointerdown` that never yields a
      `focusin` (badge, grip, right-click, aborted drag) would misclassify the next keyboard focus.
-   - **Last-request-wins.** Each fetch carries a monotonically increasing request id; a response whose
-     id is not the latest is discarded.
+   - **Last-request-wins, on both branches.** Each fetch carries a monotonically increasing request
+     id; a response whose id is not the latest is discarded. The id check gates the **`.catch` branch
+     too**, not just the success branch — that branch calls `setPanel('…Network error — please
+     reload.…')`, so an ungated slow *failure* from an earlier row would otherwise blow away a later
+     row's successfully loaded panel with an error box.
 2. **Commit via `form.requestSubmit()` — never `form.submit()`.** `form.submit()` does not fire the
    `submit` event, so `builder.js:135`'s interceptor would never run and the browser would perform a
    full-page POST. Mirrors `commitOrCancel` at `builder.js:347`.
@@ -263,7 +266,9 @@ test red.
 7. **`form.dataset.submitting` guards Enter-then-blur.** After Enter the input keeps focus and its
    `defaultValue` still holds the old title until the response lands, so a following click-away would
    see a dirty field and post again. Both `focusout` and `keydown` bail while the flag is set; the
-   submit handler clears it in every completion branch (`builder.js:181`, `:185`).
+   submit handler clears it in every completion branch (`builder.js:181`, `:185`). A `focusout` that
+   bails additionally sets `form.dataset.recommit = "1"` so genuinely-newer text is not lost — see
+   step 9's in-flight recommit.
 8. **Blur commits synchronously, with three bail-outs first.** The `focusout` ordering is:
    1. **Bail if the window itself lost focus** — `relatedTarget === null && !document.hasFocus()`.
       Chromium fires `focusout` when the browser window or tab loses focus, so without this,
@@ -319,15 +324,30 @@ test red.
      token — stamping this node's timestamp onto an unrelated node's add form (wedging that node's
      adds until reload) while leaving the intended one stale.
 
-   **Values, and why `value` is conditional.** Always set the input's `defaultValue` to the committed
-   title (this is what makes the field clean again, so a subsequent blur does not re-post), then set
-   `input.title = input.value`. Assign `input.value` itself **only when the input is not focused.**
-   After an Enter commit the field keeps focus and stays editable, so an unconditional assignment
-   would clobber anything typed during the round trip — and the HTML `value` setter moves the caret to
-   the end and drops the selection *even when assigning an identical string*, so it would also destroy
-   the caret position this design exists to preserve. If the author did type more in flight, the newer
-   text simply stays and the field reads dirty against the new `defaultValue`, so their next blur
-   commits it — which is correct.
+   **Values, and why `value` is conditional.** In this order:
+
+   1. Assign `input.value` **only when the input is unfocused *and* `input.value.trim()` already
+      equals the committed title** — i.e. only to normalise exact whitespace when the visible text
+      already matches. Never otherwise: after an Enter commit the field keeps focus and stays
+      editable, so an unconditional assignment would clobber anything typed during the round trip, and
+      the HTML `value` setter jumps the caret to the end and drops the selection *even when assigning
+      an identical string*, destroying the caret position this design exists to preserve.
+   2. Set `defaultValue` to the committed title. This is what makes the field clean again so a
+      subsequent blur does not re-post — and, if the author typed more in flight, what leaves the
+      field correctly reading *dirty* against it.
+   3. Set `input.title = input.value` — **after** step 1, not before, so the tooltip reflects what is
+      actually displayed. This matches the ordering `revert()` uses, and matters on exactly the
+      truncated long titles where the tooltip is the only way to read the name.
+
+   **The in-flight recommit.** Step 7's guard makes `focusout` bail while `dataset.submitting` is set,
+   which alone would silently discard this sequence: type → Enter → type two more characters → click
+   away. The blur is swallowed, and no later blur is coming. So the bail is not a plain return: it
+   sets `form.dataset.recommit = "1"`. When the response lands, after applying the values above, the
+   branch clears that flag and — if the field is now dirty against the new `defaultValue` and its
+   trimmed value is non-empty — runs the commit path **once** more. Bounded to a single extra hop, it
+   cannot loop: the second commit either succeeds (leaving a clean field) or fails through the normal
+   409/422 paths. `dataset.recommit` is cleared on 409, 422 and the `.catch` as well, alongside
+   `dataset.submitting`.
 
    **Ancestor scopes are deliberately not touched:** `rename_node` saves only the node
    (`save(update_fields=…)`) and, unlike `add_node`, never calls `course.save()`, so no *ancestor*
@@ -508,6 +528,10 @@ first (a passing test that never fails proves nothing).
 - `_node_panel.html` no longer renders a rename form, and `_rename_form.html` no longer exists.
 - `tests/test_tree_badge.py:23` matches `<button class="tree__title"[^>]*\btitle="([^"]*)"`. Retarget
   to `<input class="tree__title"[^>]*\btitle="([^"]*)"`, still asserting the tooltip.
+- `tests/test_e2e_builder_tree_layout.py`'s `test_notice_bar_is_visible_and_opaque_while_panel_scrolled`
+  carries a docstring explaining that the 409 path "calls `refreshPanel()`". Step 13 deletes
+  `refreshPanel`, so restate that rationale in terms of the `_conflict_scope` swap. The test still
+  passes either way, so nothing else would surface the stale comment.
 
 **CSS tests** (`tests/test_builder_styles.py`)
 
@@ -535,6 +559,14 @@ Drive the actual UI — never `page.evaluate` shortcuts, which ship broken UX gr
 - **Typing during the round trip is not clobbered:** press Enter, keep typing before the response
   lands, and assert the extra characters survive and the field is left dirty (so a later blur commits
   them).
+- **Enter, then type more, then click away** → the extra characters are **saved**, not lost. Guards
+  the in-flight recommit; falsify by making the `focusout` bail a plain return.
+- **Rename the same row twice without reloading:** commit via Enter, wait for the response, then type
+  a different title and press Enter again → both succeed, no conflict notice, and the DB holds the
+  second title. This is the only test exercising the rename form's *own* refreshed `token` together
+  with the `defaultValue` reset; an implementation that refreshes the sibling forms' tokens but not
+  its own passes every other listed e2e and fails here. Falsify by skipping the rename form's own
+  `input[name=token]` refresh.
 - **Blur commits:** type, then click outside the tree → saved.
 - **Escape reverts and keeps focus:** the value reverts *and* the input still has focus.
 - **Escape restores the tooltip:** type into a long title, press Escape, assert the `title` attribute
@@ -571,9 +603,15 @@ Drive the actual UI — never `page.evaluate` shortcuts, which ship broken UX gr
   **server-rendered attribute**, so it must be read before the user types into that field.
   **Line 93-96 needs more than a locator change:** it asserts `scrollWidth > clientWidth` to prove
   truncation, and an `<input>` renders text in an inner editing host where those properties may not
-  report overflow the way they do for a `<button>`. Take the measurement on the **unfocused** input,
-  and falsify it (give the row a short title, require RED) — this is the assertion most likely to go
-  vacuously green.
+  report overflow the way they do for a `<button>`. Take the measurement on the **unfocused** input
+  and falsify it (give the row a short title, require RED).
+  If the engine reports `scrollWidth === clientWidth` for a text control, the comparison goes **hard
+  RED**, not vacuously green — and the short-title falsification would then pass trivially while the
+  real case stays broken, so do not read a RED here as "the assertion works". In that case switch to a
+  measurement that does hold for an input: compare the input's rendered box width against the measured
+  width of its full text (e.g. via a hidden span with the same computed font), or assert the CSS rule
+  plus an unchanged `.tree__rowhead` width. Pick whichever reports correctly in Chromium and falsify
+  *that* one.
 
 **Verification before shipping**
 
