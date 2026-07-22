@@ -158,10 +158,14 @@
           notice(tmp.textContent.trim());
         }
         delete form.dataset.submitting;
+        var ti = form.querySelector("input.tree__title");
+        if (ti) ti.readOnly = false;
       });
     }).catch(function () {
       notice(msg("network", "Network error — please try again."));
       delete form.dataset.submitting;
+      var ti = form.querySelector("input.tree__title");
+      if (ti) ti.readOnly = false;
     });
   });
 
@@ -238,6 +242,85 @@
       clearTimeout(panelTimer);
       panelTimer = null;
     }
+  });
+
+  // ---- Inline rename: commit ---------------------------------------------------
+  function titleForm(input) { return input.closest("form.tree__rename"); }
+
+  // Programmatic value assignment fires NO input event, so the tooltip must be synced
+  // by hand here or it keeps showing abandoned text -- exactly on the truncated long
+  // titles where the tooltip is the only way to read the name.
+  function revert(input) {
+    input.value = input.defaultValue;
+    input.title = input.value;
+  }
+
+  function commitRename(input) {
+    var form = titleForm(input);
+    if (!form || form.dataset.submitting) return;
+    var trimmed = input.value.trim();
+    // Compare trimmed against trimmed: a legacy row whose stored title has stray
+    // whitespace would otherwise post a rename on a bare focus-and-blur.
+    if (trimmed === input.defaultValue.trim()) return;
+    // Write the trim back -- FormData reads the LIVE value, so trimming into a local
+    // would leave the untrimmed string in the POST body. GUARDED, because the HTML
+    // value setter jumps the caret to the end and drops the selection even when
+    // assigning an identical string; an unconditional write here would destroy the
+    // mid-string caret before the POST is even issued.
+    if (input.value !== trimmed) input.value = trimmed;
+    input.title = input.value;
+    if (!form.reportValidity()) return;   // native bubble; no state set, so no wedge
+    form.dataset.submitting = "1";
+    input.readOnly = true;           // AFTER validity: readonly is barred from it
+    form.requestSubmit();
+  }
+
+  root.addEventListener("keydown", function (e) {
+    var input = e.target.closest("input.tree__title");
+    if (!input) return;
+    if (e.key === "Enter") {
+      // Unconditional, before any check: a text input in a form with a submit button
+      // implicitly submits on Enter, which would post even an unchanged title and
+      // would double-post alongside requestSubmit().
+      e.preventDefault();
+      if (titleForm(input).dataset.submitting) return;
+      commitRename(input);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      if (titleForm(input).dataset.submitting) return;
+      // Revert WITHOUT blurring: dropping focus to <body> would force someone who
+      // abandoned an edit 300 rows down to Tab from the top of the document again.
+      revert(input);
+    }
+  });
+
+  root.addEventListener("focusout", function (e) {
+    var input = e.target.closest("input.tree__title");
+    if (!input) return;
+    var form = titleForm(input);
+    if (!form) return;
+    // 1. A commit is already in flight. Nothing is lost -- readOnly means the field
+    //    cannot have changed since the POST.
+    if (form.dataset.submitting) return;
+    // 2. The WINDOW lost focus, not the field. Chromium fires focusout when the tab
+    //    or window is deactivated; committing here would persist half-typed text.
+    if (e.relatedTarget === null && !document.hasFocus()) return;
+    // 3. The form was detached by another op's applyFragment; committing would post a
+    //    token that swap already superseded (cf. the add flow's isConnected guard).
+    if (!form.isConnected) return;
+    // 4. Emptied field = cancel. This MUST precede the dirty check inside
+    //    commitRename: an emptied field IS dirty, so we would otherwise post "" and
+    //    surface a 422 on an ambiguous gesture. Enter deliberately does not share
+    //    this branch -- it relies on required + reportValidity's native bubble.
+    if (!input.value.trim()) { revert(input); return; }
+    commitRename(input);
+  });
+
+  // Keep the tooltip honest while typing. Delegated like every other handler here,
+  // because applyFragment replaces whole scopes on other ops.
+  root.addEventListener("input", function (e) {
+    var input = e.target.closest("input.tree__title");
+    if (input) input.title = input.value;
   });
 
   // --- WS2 drag-and-drop ----------------------------------------------------
