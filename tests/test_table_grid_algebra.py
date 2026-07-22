@@ -441,3 +441,144 @@ def test_delete_row_clamps_an_overflowing_stored_rowspan(grid_page):
     shape, row_span = grid_page.evaluate(js)
     assert row_span == 1
     assert shape == ["1x1,1x1"]
+
+
+def test_range_expands_to_contain_a_clipped_merged_cell(grid_page):
+    rows = (
+        "<tr><td id='a'></td><td colspan='2'></td><td data-control></td></tr>"
+        "<tr><td></td><td id='b'></td><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             var rg = libliTableGrid.rangeCells(
+               g, document.getElementById('a'), document.getElementById('b'));
+             return [rg.r0, rg.c0, rg.r1, rg.c1];
+           }"""
+    dims = grid_page.evaluate(template % rows)  # noqa: UP031
+    # Selecting (0,0)..(1,1) clips the colspan=2 at (0,1), so c1 expands to 2.
+    assert dims == [0, 0, 1, 2]
+
+
+def test_range_normalisation_runs_to_a_fixpoint(grid_page):
+    """Expanding for one merged cell must newly clip a SECOND one, forcing a
+    second pass. A single-pass implementation returns an illegal rectangle, and
+    merge() on an illegal rectangle removes cells that still project outside it.
+
+    Layout (4 wide, 3 tall), traced by hand against slotMap:
+        row0:  a(0,0)   M1 = colspan2 (0,1)-(0,2)   D(0,3)
+        row1:  E(1,0)   f(1,1)   M2 = rowspan2 (1,2)-(2,2)   H(1,3)
+        row2:  I(2,0)   J(2,1)   [covered by M2]   L(2,3)
+
+    Selecting f..a starts at r0=0,c0=0,r1=1,c1=1.
+      pass 1: M1 at (0,1) reaches column 2  -> c1 = 2
+      pass 2: that pulls in M2 at (1,2), which reaches row 2 -> r1 = 2
+      pass 3: nothing changes -> fixpoint at [0, 0, 2, 2]
+    """
+    rows = (
+        "<tr><td id='a'></td><td colspan='2'></td><td></td>"
+        "<td data-control></td></tr>"
+        "<tr><td></td><td id='f'></td><td rowspan='2'></td><td></td>"
+        "<td data-control></td></tr>"
+        "<tr><td></td><td></td><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             var rg = libliTableGrid.rangeCells(
+               g, document.getElementById('f'), document.getElementById('a'));
+             return [rg.r0, rg.c0, rg.r1, rg.c1];
+           }"""
+    dims = grid_page.evaluate(template % rows)  # noqa: UP031
+    assert dims == [0, 0, 2, 2]
+
+
+def test_can_merge_is_false_for_a_single_cell(grid_page):
+    template = """() => {
+                 var g = mk(`%s`);
+                 var c = g.cells(g.rows()[0])[0];
+                 return libliTableGrid.canMerge(g, c, c);
+               }"""
+    assert grid_page.evaluate(template % ROW_3) is False  # noqa: UP031
+
+
+def test_can_merge_is_false_when_the_range_exceeds_max_cols(grid_page):
+    # 26 columns against maxCols 20: refused, never clamped.
+    cells = "".join("<td></td>" for _ in range(26))
+    rows = "<tr>%s<td data-control></td></tr>" % cells  # noqa: UP031
+    template = """() => {
+                 var g = mk(`%s`);
+                 var cs = g.cells(g.rows()[0]);
+                 return libliTableGrid.canMerge(g, cs[0], cs[25]);
+               }"""
+    assert grid_page.evaluate(template % rows) is False  # noqa: UP031
+
+
+def test_merge_gives_the_anchor_the_covering_spans_and_removes_the_rest(grid_page):
+    rows = (
+        "<tr><td id='a'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td id='b'></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.merge(g, document.getElementById('a'),
+                                     document.getElementById('b'));
+             return shape(g);
+           }"""
+    result = grid_page.evaluate(template % rows)  # noqa: UP031
+    assert result == ["2x2", ""]
+
+
+def test_merge_leaves_a_legal_empty_row(grid_page):
+    # A full-width 2-row merge empties row 1 entirely -- legal, and the row
+    # keeps its control cell so it can still be deleted.
+    rows = (
+        "<tr><td id='a'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td id='b'></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.merge(g, document.getElementById('a'),
+                                     document.getElementById('b'));
+             return [g.rows().length,
+                     !!g.rows()[1].querySelector('td[data-control]')];
+           }"""
+    kept = grid_page.evaluate(template % rows)  # noqa: UP031
+    assert kept == [2, True]
+
+
+def test_split_restores_cells_at_the_right_sibling_indexes(grid_page):
+    # colspan=3 rowspan=2 anchored mid-row in a ragged grid: 2 slots free to
+    # its right in row 0, 3 in row 1.
+    rows = (
+        "<tr><td></td><td id='m' colspan='3' rowspan='2'></td><td></td>"
+        "<td data-control></td></tr>"
+        "<tr><td></td><td id='tail'></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.split(g, document.getElementById('m'));
+             return [shape(g),
+                     g.cells(g.rows()[1]).indexOf(document.getElementById('tail'))];
+           }"""
+    result = grid_page.evaluate(template % rows)  # noqa: UP031
+    shape, tail_index = result
+    assert shape == ["1x1,1x1,1x1,1x1,1x1", "1x1,1x1,1x1,1x1,1x1"]
+    # 'tail' sat at layout column 4, so three new cells went in before it.
+    assert tail_index == 4
+
+
+def test_merge_is_a_no_op_when_the_anchor_slot_is_null(grid_page):
+    # A degenerate grid whose top-left slot is unoccupied: merge must not
+    # remove the absorbed cells with no survivor.
+    rows = (
+        "<tr><td data-control></td></tr>"
+        "<tr><td></td><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             var cs = g.cells(g.rows()[1]);
+             var before = shape(g).join('|');
+             libliTableGrid.merge(g, {r: 0, c: 0}, cs[1]);
+             return shape(g).join('|') === before;
+           }"""
+    ok = grid_page.evaluate(template % rows)  # noqa: UP031
+    assert ok is True

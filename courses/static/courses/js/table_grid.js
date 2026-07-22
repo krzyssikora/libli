@@ -270,6 +270,105 @@
     clampRowspans(grid);
   }
 
+  // `x` is a cell node or a layout {r, c} coordinate. rangeEnd is a coordinate
+  // because "one slot right" is undefined against a multi-slot node.
+  function slotOf(sm, x) {
+    if (!x) return null;
+    if (x.nodeType === 1) return anchorOf(sm, x);
+    if (x.r == null || x.c == null) return null;
+    if (x.r < 0 || x.r >= sm.height || x.c < 0 || x.c >= sm.width) return null;
+    return { r: x.r, c: x.c };
+  }
+
+  function rangeCells(grid, a, b) {
+    var sm = slotMap(grid);
+    var pa = slotOf(sm, a);
+    var pb = slotOf(sm, b);
+    if (!pa || !pb) return null;
+    var r0 = Math.min(pa.r, pb.r), r1 = Math.max(pa.r, pb.r);
+    var c0 = Math.min(pa.c, pb.c), c1 = Math.max(pa.c, pb.c);
+
+    // Expand to a FIXPOINT: swallowing one clipped merged cell can newly clip
+    // a different one on another edge. Terminates because the rectangle only
+    // grows and is bounded by the grid.
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (var r = r0; r <= r1; r++) {
+        for (var c = c0; c <= c1; c++) {
+          var cell = sm.map[r] && sm.map[r][c];
+          if (!cell) continue;
+          var an = anchorOf(sm, cell);
+          if (!an) continue;
+          var er = an.r + rowspanOf(cell) - 1;
+          var ec = an.c + colspanOf(cell) - 1;
+          if (an.r < r0) { r0 = an.r; changed = true; }
+          if (an.c < c0) { c0 = an.c; changed = true; }
+          if (er > r1) { r1 = er; changed = true; }
+          if (ec > c1) { c1 = ec; changed = true; }
+        }
+      }
+    }
+
+    var cells = [];
+    for (var rr = r0; rr <= r1; rr++) {
+      for (var cc = c0; cc <= c1; cc++) {
+        var x = sm.map[rr] && sm.map[rr][cc];
+        if (x && cells.indexOf(x) === -1) cells.push(x);
+      }
+    }
+    return {
+      cells: cells,
+      // The cell at (r0, c0) AFTER normalisation -- fixpoint expansion can
+      // make this a different cell from the one the author first clicked.
+      anchor: (sm.map[r0] && sm.map[r0][c0]) || null,
+      r0: r0, c0: c0, r1: r1, c1: c1,
+    };
+  }
+
+  function canMerge(grid, a, b) {
+    var rg = rangeCells(grid, a, b);
+    if (!rg || !rg.anchor) return false;          // null anchor -> refuse
+    if (rg.cells.length < 2) return false;
+    if (rg.c1 - rg.c0 + 1 > grid.maxCols) return false;  // refuse, never clamp
+    if (rg.r1 - rg.r0 + 1 > grid.maxRows) return false;
+    return true;
+  }
+
+  function merge(grid, a, b) {
+    if (!canMerge(grid, a, b)) return null;
+    var rg = rangeCells(grid, a, b);
+    var keep = rg.anchor;
+    for (var i = 0; i < rg.cells.length; i++) {
+      if (rg.cells[i] !== keep) rg.cells[i].remove();
+    }
+    setSpan(keep, "colspan", rg.c1 - rg.c0 + 1);
+    setSpan(keep, "rowspan", rg.r1 - rg.r0 + 1);
+    return keep;
+  }
+
+  function split(grid, cell) {
+    var sm = slotMap(grid);
+    var a = anchorOf(sm, cell);
+    if (!a) return;
+    var cs = colspanOf(cell);
+    var rs = rowspanOf(cell);
+    if (cs <= 1 && rs <= 1) return;
+    setSpan(cell, "colspan", 1);
+    setSpan(cell, "rowspan", 1);
+    // Re-slot after each insertion: the grid is at most 50x20, so the repeated
+    // slotMap is cheap and far easier to reason about than an incremental map.
+    for (var dr = 0; dr < rs; dr++) {
+      for (var dc = 0; dc < cs; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        var r = a.r + dr;
+        var live = slotMap(grid);
+        if (r >= live.height) continue;
+        insertCellAt(grid, live, r, a.c + dc);
+      }
+    }
+  }
+
   window.libliTableGrid = {
     slotMap: slotMap,
     layoutWidth: layoutWidth,
@@ -284,5 +383,9 @@
     insertRow: insertRow,
     deleteRow: deleteRow,
     clampRowspans: clampRowspans,
+    rangeCells: rangeCells,
+    canMerge: canMerge,
+    merge: merge,
+    split: split,
   };
 })();
