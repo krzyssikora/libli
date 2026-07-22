@@ -31,6 +31,12 @@ will mislead you.
 - **JS style:** `builder.js` is a single IIFE using `var`, `function`, and `Array.prototype.slice.call`. Match it. No `let`/`const`/arrow functions/optional chaining — and note `form.querySelector(...)?.readOnly = false` is a *syntax error* regardless.
 - **Django template comments** must be `{% comment %}…{% endcomment %}` for anything multi-line; `{# #}` is single-line only or it renders visibly.
 - **i18n:** any module-level translatable string uses `gettext_lazy`. Do not leave obsolete `#~` entries in `.po` files — the catalog tests reject them.
+- **`ContentNodeFactory` defaults `unit_type="lesson"` and creates via `objects.create()` (no
+  `full_clean`).** Any **non-unit** node built with it must pass `unit_type=None`, or it persists in
+  a state `ContentNode.clean()` rejects ("Only units may have a unit_type.", `models.py:246`) and the
+  next `rename_node` returns **422** instead of 200 — silently turning several tests below into
+  permanent failures and one into a vacuous pass. The repo documents this trap at
+  `tests/test_e2e_transfer.py:128-133` and works around it at `tests/test_e2e_builder_ws2.py:54-56`.
 - Commit after each task. Do not push; the pipeline handles that.
 
 ---
@@ -57,7 +63,9 @@ Append to `tests/test_manage_node_ops.py`:
 @pytest.mark.django_db
 def test_rename_strips_surrounding_whitespace(client):
     _, course = _setup(client)
-    node = ContentNodeFactory(course=course, kind="part", parent=None, title="Old")
+    node = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Old"
+    )
     resp = client.post(
         reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
         {"node": node.pk, "token": _tok(node), "title": "  Fractions  "},
@@ -71,7 +79,9 @@ def test_rename_strips_surrounding_whitespace(client):
 @pytest.mark.django_db
 def test_rename_rejects_whitespace_only_title(client):
     _, course = _setup(client)
-    node = ContentNodeFactory(course=course, kind="part", parent=None, title="Old")
+    node = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Old"
+    )
     resp = client.post(
         reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
         {"node": node.pk, "token": _tok(node), "title": "   "},
@@ -106,7 +116,9 @@ def test_strip_happens_before_length_validation(client):
     # maxlength="200" in the browser counts the untrimmed string, so this case is
     # unreachable by typing into the tree input.
     _, course = _setup(client)
-    node = ContentNodeFactory(course=course, kind="part", parent=None, title="Old")
+    node = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Old"
+    )
     exact = "x" * 200
     resp = client.post(
         reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
@@ -156,7 +168,7 @@ def test_type_only_toggle_still_preserves_title(client):
 uv run pytest tests/test_manage_node_ops.py -k "test_rename_strips_surrounding_whitespace or test_rename_rejects_whitespace_only_title or test_add_strips_surrounding_whitespace or test_strip_happens_before_length_validation" -v
 ```
 
-Expected: all four FAIL — `test_rename_strips_surrounding_whitespace` (title is `"  Fractions  "`), `test_rename_rejects_whitespace_only_title` (200, title `"   "`), `test_add_strips_surrounding_whitespace`, `test_strip_happens_before_length_validation`. The names are given in full rather than as a loose `-k "strip or ..."`, which would also select pre-existing green tests and muddy the expected-failure list. Step 1 adds a **fifth** test, `test_type_only_toggle_still_preserves_title` — it is an already-green guard on the `_UNSET` branch, deliberately excluded from this filter, and must pass both before and after.
+Expected: all four FAIL — `test_rename_strips_surrounding_whitespace` (title is `"  Fractions  "`), `test_rename_rejects_whitespace_only_title` (returns 200 and persists `"   "`; note this one is only a *meaningful* RED because the node is built with `unit_type=None` — a factory-default non-unit would 422 for an unrelated reason and the test would pass vacuously both before and after), `test_add_strips_surrounding_whitespace`, `test_strip_happens_before_length_validation`. The names are given in full rather than as a loose `-k "strip or ..."`, which would also select pre-existing green tests and muddy the expected-failure list. Step 1 adds a **fifth** test, `test_type_only_toggle_still_preserves_title` — it is an already-green guard on the `_UNSET` branch, deliberately excluded from this filter, and must pass both before and after.
 
 - [ ] **Step 3: Add the helper and call it from both writers**
 
@@ -250,7 +262,9 @@ def test_tree_rename_returns_narrow_fragment_not_a_scope(client):
     # The pivot of the design: a tree-row rename must NOT return a [data-scope]
     # tree fragment, or the JS would swap away the input being typed in.
     _, course = _setup(client)
-    node = ContentNodeFactory(course=course, kind="part", parent=None, title="Old")
+    node = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Old"
+    )
     resp = client.post(
         reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
         {"node": node.pk, "token": _tok(node), "title": "New"},
@@ -268,7 +282,9 @@ def test_tree_rename_returns_narrow_fragment_not_a_scope(client):
 @pytest.mark.django_db
 def test_tree_rename_fragment_escapes_the_title(client):
     _, course = _setup(client)
-    node = ContentNodeFactory(course=course, kind="part", parent=None, title="Old")
+    node = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Old"
+    )
     resp = client.post(
         reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
         {"node": node.pk, "token": _tok(node), "title": 'A "quoted" & <b>bold</b>'},
@@ -288,7 +304,9 @@ def test_tree_rename_fragment_escapes_the_title(client):
 @pytest.mark.django_db
 def test_no_js_rename_still_redirects_to_the_builder(client):
     _, course = _setup(client)
-    node = ContentNodeFactory(course=course, kind="part", parent=None, title="Old")
+    node = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Old"
+    )
     resp = client.post(  # no FETCH header
         reverse("courses:manage_node_rename", kwargs={"slug": "c1"}),
         {"node": node.pk, "token": _tok(node), "title": "New"},
@@ -418,6 +436,11 @@ def _rename_form(html):
 
 
 @pytest.mark.django_db
+# unit_type MUST be None for non-units: ContentNodeFactory defaults it to "lesson"
+# and creates via objects.create() (no full_clean), so a kind="part" row would persist
+# with a unit_type and then 422 on rename -- ContentNode.clean() raises "Only units may
+# have a unit_type." (models.py:246). The repo documents this trap at
+# tests/test_e2e_transfer.py:128-133.
 @pytest.mark.parametrize(
     "kind,unit_type",
     [("part", None), ("chapter", None), ("section", None), ("unit", "lesson")],
@@ -450,7 +473,9 @@ def test_every_tree_row_title_is_an_editable_form(client, kind, unit_type):
 def test_tree_title_has_a_static_accessible_name_and_a_title_tooltip(client):
     owner = make_login(client, "owner")
     course = CourseFactory(slug="c1", owner=owner)
-    ContentNodeFactory(course=course, kind="part", parent=None, title="Fractions")
+    ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Fractions"
+    )
     resp = client.get(reverse("courses:manage_builder", kwargs={"slug": "c1"}))
     assert resp.status_code == 200
     form = _rename_form(resp.content.decode())
@@ -462,7 +487,9 @@ def test_tree_title_has_a_static_accessible_name_and_a_title_tooltip(client):
 def test_hidden_rename_submit_is_out_of_the_tab_order(client):
     owner = make_login(client, "owner")
     course = CourseFactory(slug="c1", owner=owner)
-    ContentNodeFactory(course=course, kind="part", parent=None, title="Fractions")
+    ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="Fractions"
+    )
     resp = client.get(reverse("courses:manage_builder", kwargs={"slug": "c1"}))
     assert resp.status_code == 200
     form = _rename_form(resp.content.decode())
@@ -480,7 +507,9 @@ def test_hidden_rename_submit_is_out_of_the_tab_order(client):
 def test_node_panel_no_longer_offers_a_rename_form(client):
     owner = make_login(client, "owner")
     course = CourseFactory(slug="c1", owner=owner)
-    node = ContentNodeFactory(course=course, kind="part", parent=None, title="P")
+    node = ContentNodeFactory(
+        course=course, kind="part", unit_type=None, parent=None, title="P"
+    )
     resp = client.get(
         reverse("courses:manage_node_panel", kwargs={"slug": "c1", "pk": node.pk}),
         HTTP_X_REQUESTED_WITH="fetch",
@@ -1291,6 +1320,7 @@ assignment. The full replacement **including the trailing call** is given per li
 | 183 | `page.locator(".tree__title", has_text="Unit 40").first.click()` | `page.locator('.tree__title[value="Unit 40"]').click()` | Exact and unique. **Drop `.first`, keep `.click()`.** |
 | 205, 283, 330 | `page.locator(".tree__title", has_text="Unit 1").first.click()` | `page.locator('.tree__title[value="Unit 1"]').click()` | Exact is **stricter** than the original, which also matched `Unit 10`, `Unit 12`, … and leaned on `.first`. **Drop `.first`, keep `.click()`.** If a test then finds zero elements, check the seeded titles rather than reverting to `*=`. |
 | 297 | `page.locator(".tree__title", has_text="Unit 2").first.click()` | `page.locator('.tree__title[value="Unit 2"]').click()` | Same as above. **Drop `.first`, keep `.click()`.** |
+| 358-360 | `page.locator(".builder__tree form[data-op] button[type='submit']:not([disabled])").first.click()` | `page.locator(".builder__tree form[data-op=\"reorder\"] button[type='submit']:not([disabled])").first.click()` | **Not a `.tree__title` locator, but broken by this change all the same.** Every row now contains `form.tree__rename[data-op="rename"]` with a non-disabled submit, and that form precedes `.tree__cluster` in document order — so `.first` would select the rename form's `.visually-hidden` button. It is `position:absolute` and fully clipped, so Playwright sees a non-empty box but the hit-target check never resolves and `.click()` hangs for the full timeout. Narrowing to `data-op="reorder"` also keeps the surrounding comment's "first-row up arrow is disabled" rationale true. |
 
 On the attribute vs. property distinction: typing mutates only the `value` **IDL property**, never the
 content attribute, so these locators are stable while the author types. What *does* update the
@@ -1371,14 +1401,24 @@ def _login(page, live_server, username):
 def _seed_course(username="owner"):
     """A course shaped for the token-refresh cases: a chapter that CONTAINS a nested
     section with its own add row, so a naive descendant query for parent_token finds
-    the GRANDCHILD's and the test goes RED."""
+    the GRANDCHILD's and the test goes RED.
+
+    Every non-unit node passes unit_type=None -- the factory defaults it to "lesson",
+    which ContentNode.clean() rejects for non-units, so a chapter built without it
+    422s on rename and the chapter-centric scenarios below fail looking like
+    applyRename bugs. Keep this in mind if you add the optional n_units parameter.
+    """
     from tests.factories import ContentNodeFactory
     from tests.factories import CourseFactory
 
     owner = _make_pa_user(username)
     course = CourseFactory(slug="c1", owner=owner)
-    chapter = ContentNodeFactory(course=course, kind="chapter", parent=None, title="Chapter 1")
-    section = ContentNodeFactory(course=course, kind="section", parent=chapter, title="Section 1")
+    chapter = ContentNodeFactory(
+        course=course, kind="chapter", unit_type=None, parent=None, title="Chapter 1"
+    )
+    section = ContentNodeFactory(
+        course=course, kind="section", unit_type=None, parent=chapter, title="Section 1"
+    )
     unit1 = ContentNodeFactory(
         course=course, kind="unit", unit_type="lesson", parent=section, title="Unit 1"
     )
