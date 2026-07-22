@@ -26,7 +26,7 @@ indices into normalize_data(data)["cells"].{% endcomment %}
               <th class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{% include "courses/elements/_filltable_cell.html" %}</th>
             {% elif forloop.parentloop.first and data.header_row or forloop.first and data.header_col %}
               <th class="ta-{{ cell.halign }} va-{{ cell.valign }}"
-                  {% if forloop.parentloop.first and data.header_row %}scope="col"{% elif forloop.first and data.header_col %}scope="row"{% endif %}>{% include "courses/elements/_filltable_cell.html" %}</th>
+                  {% if forloop.parentloop.first and data.header_row %}scope="col"{% elif forloop.first and data.header_col %}scope="row"{% endif %}{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{% include "courses/elements/_filltable_cell.html" %}</th>
             {% else %}
               <td class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{% include "courses/elements/_filltable_cell.html" %}</td>
             {% endif %}

@@ -1,6 +1,10 @@
 {% comment %}Student-facing table. Normalised `data` is passed from render();
 cell html is already sanitised at save() and emitted with |safe. Math stays as
 raw \(...\) text — typeset client-side by math.js over .el--table.{% endcomment %}
+{% comment %}Spans must appear on EVERY branch that can emit a cell, not just the
+per-cell `header` and plain `<td>` ones: a merge inside a header_row/header_col
+table goes through those <th> branches, and dropping the span there silently
+breaks the layout the editor saved.{% endcomment %}
 <div class="el el--table el--table--border-{{ data.border }}"
      {% if data.header_row %}data-header-row{% endif %}
      {% if data.header_col %}data-header-col{% endif %}>
@@ -16,11 +20,11 @@ raw \(...\) text — typeset client-side by math.js over .el--table.{% endcommen
           {% if cell.header %}
             <th class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
           {% elif forloop.parentloop.first and data.header_row and forloop.first and data.header_col %}
-            <th class="ta-{{ cell.halign }} va-{{ cell.valign }}">{{ cell.html|safe }}</th>
+            <th class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
           {% elif forloop.parentloop.first and data.header_row %}
-            <th scope="col" class="ta-{{ cell.halign }} va-{{ cell.valign }}">{{ cell.html|safe }}</th>
+            <th scope="col" class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
           {% elif forloop.first and data.header_col %}
-            <th scope="row" class="ta-{{ cell.halign }} va-{{ cell.valign }}">{{ cell.html|safe }}</th>
+            <th scope="row" class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
           {% else %}
             <td class="ta-{{ cell.halign }} va-{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</td>
           {% endif %}

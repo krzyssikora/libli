@@ -2,6 +2,8 @@
 dimensions, form validation relaxation, caps grandfathering, and the
 bound-invalid re-render seam."""
 
+import re
+
 import pytest
 
 from courses.element_forms import FillTableElementForm
@@ -223,3 +225,69 @@ def test_grid_data_falls_back_when_payload_is_unparseable():
     form = TableElementForm(data={"data": "{not json"}, instance=stored)
     assert not form.is_valid()
     assert form.grid_data["cells"][0][0]["html"] == "old"
+
+
+def test_header_row_th_keeps_its_span_in_the_student_render():
+    # 250_pole_trojkata has header_row=True, so a merge in row 0 goes through
+    # the header_row <th> branch -- which drops the span today.
+    el = TableElement(
+        data=TableElement.normalize_data(
+            {
+                "header_row": True,
+                "cells": [[{"colspan": 3, "html": "hi"}], [{}, {}, {}]],
+            }
+        )
+    )
+    html = el.render()
+    assert 'colspan="3"' in html
+
+
+def test_header_col_th_keeps_its_span_in_the_student_render():
+    el = TableElement(
+        data=TableElement.normalize_data(
+            {"header_col": True, "cells": [[{"rowspan": 2, "html": "hi"}, {}], [{}]]}
+        )
+    )
+    assert 'rowspan="2"' in el.render()
+
+
+def test_merging_away_a_header_col_rows_first_cell_promotes_the_next_one():
+    # ACCEPTED behaviour, pinned so it cannot change silently: header_col
+    # promotes each row's POSITIONALLY FIRST cell, so a merge that removes
+    # row 1's first cell makes the next one a <th> in the student view --
+    # invisible to the author, since the editor does not render header_col
+    # cells as <th>. The help text mentions this.
+    el = TableElement(
+        data=TableElement.normalize_data(
+            {
+                "header_col": True,
+                # (0,0) now spans both rows, so row 1 begins with what used to
+                # be its SECOND cell.
+                "cells": [
+                    [{"rowspan": 2, "html": "m"}, {"html": "b"}],
+                    [{"html": "c"}],
+                ],
+            }
+        )
+    )
+    html = el.render()
+    # Assert on the SPECIFIC cell: "<th" alone is true before the merge too
+    # (row 0's first cell is already a header), and a bare `"c" in html` matches
+    # class names and attributes. Row 1's only cell must be a <th>, not a <td>.
+    assert re.search(r"<th[^>]*>\s*c\s*</th>", html)
+    assert not re.search(r"<td[^>]*>\s*c\s*</td>", html)
+
+
+def test_fill_table_header_row_th_keeps_its_span():
+    el = FillTableElement(
+        data=FillTableElement.normalize_data(
+            {
+                "header_row": True,
+                "cells": [
+                    [{"kind": "static", "colspan": 2, "html": "hi"}],
+                    [{"kind": "answer", "answer": "a"}, {"kind": "static", "html": ""}],
+                ],
+            }
+        )
+    )
+    assert 'colspan="2"' in el.render()
