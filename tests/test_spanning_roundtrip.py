@@ -251,6 +251,23 @@ def test_header_col_th_keeps_its_span_in_the_student_render():
     assert 'rowspan="2"' in el.render()
 
 
+def test_combined_header_row_and_col_th_keeps_its_span():
+    # The FOURTH <th> branch: cell (0,0) when BOTH toggles are on hits the
+    # combined `header_row and header_col` condition, which is a different
+    # branch from the header_row-only and header_col-only ones tested above.
+    el = TableElement(
+        data=TableElement.normalize_data(
+            {
+                "header_row": True,
+                "header_col": True,
+                "cells": [[{"colspan": 2, "html": "hi"}], [{}, {}]],
+            }
+        )
+    )
+    html = el.render()
+    assert re.search(r'<th[^>]*colspan="2"', html)
+
+
 def test_merging_away_a_header_col_rows_first_cell_promotes_the_next_one():
     # ACCEPTED behaviour, pinned so it cannot change silently: header_col
     # promotes each row's POSITIONALLY FIRST cell, so a merge that removes
