@@ -515,9 +515,10 @@ Concretely:
 3. `node_rename` → `rename_node` (normalizes the title) → `_check_token` → `full_clean()` →
    `save(update_fields=["updated", "title"])` → renders `_rename_result.html`.
 4. The submit handler's rename branch parses `<data data-rename-for>` and updates the row **in place**,
-   per step 9's inventory: input `defaultValue`/`title` (and `value` only if unfocused), the three
-   `input[name=token]`s in the rowhead, the row's `data-updated`, and — on non-unit rows — the child
-   scope's `data-updated` and its add form's `parent_token`. `dataset.submitting` is cleared.
+   per step 9's inventory: input `defaultValue`/`title` (and `value` only when it differs from the
+   committed title), every `input[name=token]` in the rowhead (rename + reorder, plus duplicate on
+   unit rows), the row's `data-updated`, and — on non-unit rows — the child scope's `data-updated` and
+   its add form's `parent_token`. `dataset.submitting` and `readOnly` are cleared.
    **No DOM is replaced**; focus, caret and scroll are untouched.
 
 ## Error handling
@@ -622,8 +623,8 @@ Drive the actual UI — never `page.evaluate` shortcuts, which ship broken UX gr
   assignment is removed, inverting the test's RED and GREEN relative to what it is meant to prove.
   `page.keyboard.type()` performs no editability check and silently no-ops on a readonly field.
   Assert `readOnly` is `false` afterwards via `to_have_js_property` before re-typing. Also assert
-  `readOnly` is cleared on a **422**, not only on success, or a rejected rename would leave the row
-  permanently uneditable.
+  `readOnly` is cleared on a **422** (via the route interception described in the 422 test below),
+  not only on success, or a rejected rename would leave the row permanently uneditable.
 - **Tab to a row, then click a different row within 150ms** → the panel ends up showing the clicked
   row, not the tabbed one. Guards clearing the pending debounce timer on every `focusin`.
 - **Rename the same row twice without reloading:** commit via Enter, wait for the response, then type
@@ -647,18 +648,30 @@ Drive the actual UI — never `page.evaluate` shortcuts, which ship broken UX gr
   (a readonly input is barred from constraint validation), POST the empty title, and merely 422. That
   inversion is this test's falsification: swap the `readOnly` and `reportValidity()` order and require
   RED.
-- **422 does not wedge the row:** force a rejected rename, then correct and re-submit successfully
-  without reloading — and the typed text was still there to correct.
+- **422 does not wedge the row:** the row's own guards make a 422 **unreachable by typing** —
+  `required` plus the unconditional Enter-cancel block an empty title, `maxlength="200"` truncates
+  over-length input including pasted text, and `ContentNode.clean()` validates nothing else about the
+  title. So both 422 tests are driven by **Playwright route interception**: fulfil the first
+  `manage_node_rename` request with a 422 and an `_op_error.html` body, assert the notice appeared,
+  the typed text and focus survived, and `readOnly` was cleared; then unroute so the corrected
+  re-submit reaches the real server and succeeds. Do **not** reach for `page.evaluate` to strip
+  `maxlength` — that would bypass the real UI.
 - **Trailing whitespace:** type `"Fractions "`, commit through the real JS path → `"Fractions"`
   persists. Guards write-back-before-`requestSubmit()`.
-- **Sibling tokens are refreshed:** rename a **unit** row, then immediately click Duplicate on that
-  same row → it succeeds with **no** conflict notice. This is the test that proves step 9 updated the
-  duplicate form's token, and it fails loudly if only the rename form's token was refreshed. Repeat
-  for the reorder arrows (every row has them) and for a drag of the just-renamed row.
-- **Rename a chapter, then drag a unit into it** → no conflict notice. Guards the child scope's
-  `data-updated` refresh.
-- **Rename a chapter, then add a lesson under it** → succeeds, no conflict notice, typed child title
-  not discarded. Guards the child scope's `parent_token` refresh. Together with the drag case above,
+- **Sibling tokens are refreshed:** rename a **unit** row, **wait for the rename POST's response**
+  (`expect_response` on `manage_node_rename`), then click Duplicate on that same row → it succeeds
+  with **no** conflict notice. This is the test that proves step 9 updated the duplicate form's token,
+  and it fails loudly if only the rename form's token was refreshed. Repeat for the reorder arrows
+  (every row has them) and for a drag of the just-renamed row.
+
+  **Every follow-up-op test below must wait for that response first.** The token patch happens when
+  the response lands, so firing the second op "immediately" would race the round trip — which the
+  spec explicitly accepts as a 409 (see "Accepted side effects"). A test written without the wait is
+  flaky by construction, and its failure is indistinguishable from the bug it exists to catch.
+- **Rename a chapter, await the response, then drag a unit into it** → no conflict notice. Guards the
+  child scope's `data-updated` refresh.
+- **Rename a chapter, await the response, then add a lesson under it** → succeeds, no conflict notice,
+  typed child title not discarded. Guards the child scope's `parent_token` refresh. Together with the drag case above,
   these are the two tests that would have caught the original rowhead-only inventory.
   **The fixture chapter must itself contain a nested section with its own add row**, so that a naive
   descendant query (which would find the *grandchild's* `parent_token`) fails RED. Additionally assert
