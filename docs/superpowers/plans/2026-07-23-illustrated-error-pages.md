@@ -973,7 +973,7 @@ git commit -m "i18n(error-pages): Polish copy, catalog cleanup, and both-locale 
 
 **Interfaces:**
 - Consumes: everything above.
-- Produces: seven screenshots written to the scratchpad — **verification artifacts, not committed**.
+- Produces: **eight** screenshots written to the system temp dir — the seven matrix shots plus `403-light-1280x900-menu-open.png`. **Verification artifacts, not committed.**
 
 - [ ] **Step 1: Write the screenshot module**
 
@@ -1116,15 +1116,16 @@ def test_shoot_403(page, live_server, name, theme, width, height):
 - [ ] **Step 2: Run the shots**
 
 Run: `uv run pytest tests/test_e2e_error_pages.py -m e2e -v`
-Expected: 7 passed, seven PNGs under `<system temp dir>/libli-error-page-shots/`. The run prints nothing about the path — resolve it with `uv run python -c "import tempfile,pathlib;print(pathlib.Path(tempfile.gettempdir())/'libli-error-page-shots')"` before reading them in Step 3.
+Expected: **7 tests passed, but eight PNGs** under `<system temp dir>/libli-error-page-shots/` — the seven matrix shots plus `403-light-1280x900-menu-open.png`, which is a second `page.screenshot` inside the existing `403-light-1280x900` test rather than a test of its own. The run prints nothing about the path — resolve it with `uv run python -c "import tempfile,pathlib;print(pathlib.Path(tempfile.gettempdir())/'libli-error-page-shots')"` before reading them in Step 3.
 
 **Run this in the foreground only.** Backgrounding an e2e sweep in this project has produced runaway browser processes.
 
 If `page`/`live_server` fixtures are unavailable, check that `pytest-playwright` is installed and that browsers are present (`uv run playwright install chromium`).
 
-- [ ] **Step 3: Look at all seven and self-critique**
+- [ ] **Step 3: Look at all eight and self-critique**
 
-Read each PNG and check, explicitly:
+Read each PNG and check, explicitly — **including the menu-open shot**, which exists precisely to
+cover the one thing no automated test can (see the dropdown bullet below):
 
 - the watermark reads as **atmosphere, not a picture** — and never fights the text for contrast, in either theme;
 - **no hard horizontal rule** where the desk band begins (the smoothstep ramp's whole job);
