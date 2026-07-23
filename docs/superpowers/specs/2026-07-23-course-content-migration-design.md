@@ -196,18 +196,35 @@ itself:
   the next one. `--start-at` necessarily implies the target is non-empty, so it bypasses the
   double-run guard by design.
 
-  Resume-by-index is chosen over detecting already-present parts by title: titles are not guaranteed
-  unique (82 of the source's chapters share a `__PLACEHOLDER` pattern), so title matching would be
-  fragile in exactly the situation it is needed.
+  Resume-by-index is chosen over detecting already-present parts by title because an index is a
+  stronger invariant than a string match in general: nothing in the schema makes sibling titles
+  unique, so a title-keyed resume would be silently wrong the first time two parts shared a name, and
+  it would fail in exactly the half-finished state where it is needed. (This corpus is known to carry
+  duplicate-pattern titles one level down — 82 of its 111 chapters are `__PLACEHOLDER` — which shows
+  the pattern is real here; whether the 21 *parts* themselves collide is not established, and the
+  choice does not depend on it.)
 
-  **`--start-at N` must verify the index it is given, not trust it.** Because it deliberately bypasses
-  the double-run guard, an operator who mistypes `N` — or reads a stale report, or points at the wrong
+  **One index space: the 0-based `order`.** `ContentNode.order` is assigned by `OrderField.pre_save`,
+  which starts the first sibling at **0** (`except ObjectDoesNotExist: value = 0`), so the 21 parts
+  carry `order` 0–20 and their archives are named `00-…zip` … `20-…zip`. Every index in this
+  design — the archive filename, the "last part committed" the import phase reports, the `--start-at`
+  argument, and the side table's part indices — is that same `order` value. A 1-based resume number
+  would be off by one against the filenames an operator is literally reading in the bundle directory,
+  which is precisely the mistype the invariant below exists to catch.
+
+  So `--start-at K` grafts the parts with `order >= K`.
+
+  **`--start-at K` must verify the index it is given, not trust it.** Because it deliberately bypasses
+  the double-run guard, an operator who mistypes `K` — or reads a stale report, or points at the wrong
   bundle — would silently skip a part (a permanent content gap in the middle of the course) or graft
-  one twice, which is precisely the failure class that guard exists to prevent. So before grafting,
-  the command asserts the target course currently holds exactly `N - 1` top-level nodes and aborts
-  with a clear message on mismatch. The operator supplies the intent; the command checks the fact.
-- **Dry run.** A mode that reports what *would* be grafted — per-part node and media counts — while
-  writing nothing.
+  one twice, which is exactly the failure class that guard exists to prevent. So before grafting, the
+  command asserts the target course currently holds **exactly `K` top-level nodes** (parts `0 … K-1`,
+  all already committed) and aborts with a clear message on mismatch. The operator supplies the
+  intent; the command checks the fact.
+- **Dry run.** A mode that reports what *would* be grafted — per-part node, element and media counts
+  against their caps — while writing nothing. (The element count matters most: at a ~955 average
+  against a 20,000 cap it has the widest headroom, but it is also the count a single outsized part
+  would blow first.)
 - **The source is never mutated.** The export phase only reads.
 
 ### Verification
@@ -240,7 +257,9 @@ the opposite of what the preceding paragraph establishes.
 The correlation must therefore be made where the source primary keys are still in hand: the export
 phase already receives `media_assets` as `(mid, asset, is_placeholder)` triples, so it writes a
 **bundle-level side table** — one small JSON file beside the archives — mapping each source
-`MediaAsset.pk` to the list of part indices whose archive contains it. Verification reads that table:
+`MediaAsset.pk` to the list of part indices whose archive contains it. Those indices are the same
+0-based `order` values used in the archive filenames (see "One index space" below), so a side-table
+entry `[3, 7]` reads directly against `03-…zip` and `07-…zip`. Verification reads that table:
 entries with more than one part index are genuine cross-part sharing and explain a positive delta;
 a delta that the table does not account for is an implementation fault. The side table lives outside
 the archives and is never imported.
