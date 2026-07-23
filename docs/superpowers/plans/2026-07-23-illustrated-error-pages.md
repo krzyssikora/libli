@@ -16,7 +16,9 @@
 - **Lint rules that bite the test files below.** `pyproject.toml` selects `["E", "F", "I", "UP", "B", "S"]` with `[tool.ruff.lint.isort] force-single-line = true`. Two consequences, both non-obvious:
   1. **One name per import line.** `from tests.factories import make_course, make_login` is an `I001` error. Write each name on its own line, sorted. Ruff sorts *nested* (in-function) import blocks too.
   2. **No module-level import below the top block** (`E402`). When a later task appends to an existing test file, put any new `import` **inside the function that needs it** — this is exactly what the sibling `tests/test_auth_styles.py` does with `import re`. (Hoisting it into an earlier task's top block instead trades `E402` for `F401` unused-import.)
-- **Run `uv run ruff check <files>` before every commit**, not just at the end. Lint is the only gate that catches the two rules above, and discovering them after five commits forces a fixup.
+  3. **No `"ascii".encode()`** (`UP012`) — ruff demands a `b"…"` literal when the string is pure ASCII. `.encode()` is correct *only* for non-ASCII text (Polish diacritics). The precedent `test_i18n_catalog.py` only ever encodes non-ASCII, which is why it never trips this.
+  4. **88-column limit** (`E501`). Watch trailing inline comments on already-long call lines.
+- **Run `uv run ruff check <files>` AND `uv run ruff format <files>` before every commit**, not just at the end. Lint is the only gate that catches the rules above, and discovering them after five commits forces a fixup. `ruff format` in particular will collapse column-aligned inline comments to a single two-space gap and re-wrap long calls — let it, rather than fighting it in review.
 - **Test DB:** this worktree's `.env` already names `libli_errpages`. **Verify it, never overwrite it** — `.env` is untracked, so a clobber is unrecoverable.
 - **`templates/500.html` is out of scope.** Do not touch it. Its `Back to home` is an untranslated literal and stays.
 - **No raw hex in `error.css`.** Colours are tokens only (`test_error_page_styles.py` asserts this).
@@ -159,6 +161,7 @@ ERROR_CSS = ROOT / "core" / "static" / "core" / "css" / "error.css"
 def test_error_css_defines_the_error_page_vocabulary():
     css = ERROR_CSS.read_text(encoding="utf-8")
     for cls in (
+        "body.error-page",
         ".error-page__main",
         ".error-page__inner",
         ".error-page__code",
@@ -345,12 +348,16 @@ body.error-page .app-header { z-index: 2; }
   overflow-wrap: anywhere;
 }
 .error-page__note {
-  margin: 0 0 var(--space-6);
+  margin: 0 0 var(--space-4);
   font-size: .9375rem; line-height: 1.6;
   color: var(--text-secondary);
 }
+/* margin-top here, not margin-bottom on the preceding block: the 403 has no
+   __note (its advice is folded into the lead), so hanging the actions row's
+   leading space off __note would give 404 the spec's var(--space-6) and 403
+   only var(--space-4). Owning it here keeps both pages identical. */
 .error-page__actions {
-  margin: 0;
+  margin: var(--space-6) 0 0;
   display: flex; flex-wrap: wrap; gap: var(--space-3);
 }
 ```
@@ -401,7 +408,9 @@ def test_404_renders_the_illustrated_page(client):
     assert resp.status_code == 404
     body = resp.content
     assert b"Nothing here" in body
-    assert "We appreciate your eagerness to discover".encode() in body
+    # b"..." not "...".encode() -- this string is ASCII, and ruff's UP012 rejects
+    # a redundant encode. Reserve .encode() for the Polish assertions in Task 5.
+    assert b"We appreciate your eagerness to discover" in body
     assert b"report it to your administrator" in body
     assert b"couldn" not in body.split(b"<main")[1], "old copy still present"
 
@@ -720,7 +729,9 @@ def test_404_renders_in_polish(client):
     _speak_polish(client)
     resp = client.get("/no-such-page/", HTTP_ACCEPT_LANGUAGE="pl")
     body = resp.content
-    assert "Nic tu nie ma".encode() in body
+    # b"..." for the ASCII string (ruff UP012); .encode() only where there are
+    # Polish diacritics.
+    assert b"Nic tu nie ma" in body
     assert "Doceniamy zapał do odkrywania".encode() in body
     assert "Próbowano otworzyć:".encode() in body
     assert b"Nothing here" not in body
@@ -730,16 +741,23 @@ def test_404_renders_in_polish(client):
 def test_403_renders_in_polish(client):
     from django.urls import reverse
 
-    make_login(client, "outsider")          # login first...
-    _speak_polish(client)                   # ...then set the language
-    course = make_course()
+    from tests.factories import UserFactory
+
+    user = make_login(client, "outsider")  # login first...
+    _speak_polish(client)  # ...then set the language (login cycles the session)
+    # Same no-access shape as tests/test_error_pages.py::_no_access -- a bare
+    # make_course() is UNOWNED, which pins none of the four negatives.
+    course = make_course(owner=UserFactory())
+    assert not user.is_staff and not user.is_superuser
+    assert course.owner is not None and course.owner != user
+
     resp = client.get(
         reverse("courses:course_outline", args=[course.slug]),
         HTTP_ACCEPT_LANGUAGE="pl",
     )
     assert resp.status_code == 403
     body = resp.content
-    assert "Nie dla ciebie".encode() in body
+    assert b"Nie dla ciebie" in body
     assert "nie ma uprawnień".encode() in body
     assert b"Not for you" not in body
 
@@ -786,10 +804,12 @@ Expected: the two render tests FAIL (no PL translations yet); all seven `test_ev
 - [ ] **Step 3: Regenerate both catalogs**
 
 ```bash
-uv run python manage.py makemessages -l pl -l en
+uv run python manage.py makemessages -l pl -l en --no-obsolete
 ```
 
 `-l pl -l en`, **both**. `docs/development/conventions.md` documents `-l pl` only; following that literally would never touch `locale/en/LC_MESSAGES/django.po`, leaving the retired msgids live there and making the new EN guard pass vacuously against a file nobody regenerated.
+
+`--no-obsolete` makes msgmerge drop `#~` blocks instead of writing them, removing a whole manual deletion pass and the risk of missing one. Everything below still applies — obsolete blocks are only *one* of the three things that break the tests.
 
 - [ ] **Step 4: Fill in the Polish, and clear the fuzzy flag**
 
@@ -807,10 +827,39 @@ In `locale/pl/LC_MESSAGES/django.po`, set these seven msgstrs:
 
 Copy rules, non-negotiable: **`link`, never `odnośnik`** (the catalog uses `link` throughout and `odnośnik` appears zero times); informal `ty`; **no gendered past-tense forms** — hence the impersonal `otworzyła się` and `Próbowano otworzyć:` rather than `trafiłeś`/`trafiłaś`.
 
-Then do the cleanup, in both `locale/pl` and `locale/en`:
+**Locating the long msgids:** xgettext wraps the three long entries across continuation lines —
+`msgid ""` followed by `"We appreciate your eagerness to discover, but there's nothing at this "` /
+`"address. Check the address you entered, or go back to the main page."`. Searching for the table's
+single-line form finds nothing; search by the first fragment.
 
-- **Delete** every `#~` obsolete block (the three retired msgids). The tests assert `#~` is absent — leaving them commented out is not the same as removing them.
-- **Strip every `#, fuzzy` flag.** One is near-certain: the retired `Back to home` already carries the PL msgstr `Powrót do strony głównej`, byte-identical to the new `Back to main page`, so `makemessages` will resurrect it as a fuzzy match. **A fuzzy entry is ignored at runtime**, so leaving it produces the maddening failure of a red test with a perfectly correct translation sitting in the file.
+Then do the cleanup. **This was run for real, so the counts below are observed, not predicted:**
+
+- **`makemessages` produces exactly two fuzzy entries in `locale/pl`, and clearing the flag is never the whole job:**
+
+  | fuzzy entry | msgmerge pre-filled it from | pre-filled msgstr | correct msgstr |
+  |---|---|---|---|
+  | `Back to main page` | the retired `Back to home` | `Powrót do strony głównej` | `Powrót do strony głównej` ✓ *already right* |
+  | `Nothing here` | the **unrelated** live `Nothing to clear here.` | `Nie ma tu nic do wyczyszczenia.` | `Nic tu nie ma` ✗ **must be overwritten** |
+
+  The second is the dangerous one and inverts the usual framing: the hazard is not only "a correct
+  translation ignored at runtime" but "a **wrong** translation silently promoted to live by stripping
+  the flag". **Overwrite all seven msgstrs from the table above regardless of what msgmerge pre-filled**,
+  then clear the flags.
+
+- **Delete the `#| msgid …` / `#| msgstr …` lines that accompany each fuzzy entry.** Django runs
+  `msgmerge --previous`, which records the old msgid in a `#|` comment. Removing the `#, fuzzy` line
+  leaves `#| msgid "Back to home"` behind — and that comment *contains the substring*
+  `msgid "Back to home"`, so `test_retired_msgids_are_gone[pl]` fails with a message that actively
+  misleads (the real msgid **is** gone; only the merge comment remains). This was the single failure
+  in an otherwise-green full-suite run of this plan.
+
+- **Obsolete `#~` blocks:** with `--no-obsolete` there should be none. Without it, expect **two** in
+  `locale/pl` (`You don't have permission to view this page.`, `We couldn't find that page.`) and
+  **zero** in `locale/en` — msgmerge drops obsolete entries whose msgstr is empty, and the EN catalog
+  is empty by convention. Note this is **two**, not three: `Back to home` is never obsoleted, because
+  msgmerge consumes it as the fuzzy source for `Back to main page`. It disappears only via the `#|`
+  cleanup above. Do not go hunting for a third block that does not exist.
+
 - Leave the EN msgstrs empty (Django falls back to the msgid) unless the file's existing convention differs — match whatever the surrounding entries do.
 
 - [ ] **Step 5: Compile, and fix the doc that caused the trap**
@@ -821,7 +870,33 @@ uv run python manage.py compilemessages
 
 Both `.mo` files are tracked in git and are part of this diff.
 
-In `docs/development/conventions.md` line 48, change `makemessages -l pl` to `makemessages -l pl -l en`, and note that both catalogs are tracked. Routing around the doc for this change alone would leave the next contributor to walk into the same trap — and the new EN guard would keep passing vacuously for them.
+In `docs/development/conventions.md`, replace the fenced block under "## Internationalization" —
+
+```bash
+uv run python manage.py makemessages -l pl
+# …translate locale/pl/LC_MESSAGES/django.po…
+uv run python manage.py compilemessages
+```
+
+— with:
+
+```bash
+uv run python manage.py makemessages -l pl -l en --no-obsolete
+# …translate locale/pl/LC_MESSAGES/django.po…
+uv run python manage.py compilemessages
+```
+
+and add this bullet immediately after the existing "Fuzzy-match gotcha" bullet:
+
+```markdown
+- **Both locales, every time:** `locale/en` and `locale/pl` are both tracked
+  (`.po` *and* compiled `.mo`). Running `makemessages -l pl` alone leaves the
+  English catalog stale, so retired msgids stay live there and new ones never
+  appear. `--no-obsolete` drops `#~` blocks rather than writing them; the tests
+  assert both catalogs are free of `#~` and `#, fuzzy`.
+```
+
+Routing around the doc for this change alone would leave the next contributor to walk into the same trap — and the new EN guard would keep passing vacuously for them.
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
@@ -952,7 +1027,9 @@ def test_shoot_403(page, live_server, name, theme, width, height):
     # dark shot would come out light.
     user.theme = theme
     user.save(update_fields=["theme"])
-    course = make_course(owner=UserFactory())   # explicit: a bare make_course() is UNOWNED
+    # Explicit owner: a bare make_course() is UNOWNED. (Kept on its own line --
+    # as a trailing comment this call is 91 chars and trips ruff's E501 at 88.)
+    course = make_course(owner=UserFactory())
     assert course.owner is not None and course.owner != user and not user.is_staff
 
     page.set_viewport_size({"width": width, "height": height})
@@ -1017,7 +1094,7 @@ git commit -m "test(error-pages): Playwright shots across both watermark regimes
 
 **Placeholders.** None — every step carries the literal file content, command, or table it needs.
 
-**Type/name consistency.** Class names in `error.css` (T2) match the markup in T3/T4 and the assertions in T1/T2. `_no_access` is defined once in T4 and reused only within that file; T5's Polish 403 test rebuilds the same shape inline rather than importing it across modules. `{% url 'landing' %}` is used consistently in both templates and nowhere is `home` used.
+**Type/name consistency.** Class names in `error.css` (T2) match the markup in T3/T4 and the assertions in T1/T2. `_no_access` is defined once in T4 and reused within that file; T5's Polish 403 test and T6's shots rebuild the **same shape** inline — `make_course(owner=UserFactory())` plus the non-staff/non-owner assertions — rather than importing a helper across modules, and all three now agree (an earlier draft let T5 and T6 use a bare, unowned `make_course()`, which pinned none of the four negatives). `{% url 'landing' %}` is used consistently in both templates and nowhere is `home` used.
 
 **Corrected in review:** an earlier draft skipped test 8's stylesheet-link and body-class assertions, arguing that a missing `{% block extra_css %}` could not pass the render tests. That was wrong — those tests assert only prose substrings, so dropping either block would have left the whole suite green while the page silently lost its watermark, centring and type scale. Both are now asserted explicitly, on the rendered response, in T3 (404) and T4 (403).
 
