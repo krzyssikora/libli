@@ -18,9 +18,7 @@ import os
 
 import pytest
 
-from tests.test_e2e_spanning_roundtrip import (
-    FILL_ROOT,  # noqa: F401 -- used by later cases in this file
-)
+from tests.test_e2e_spanning_roundtrip import FILL_ROOT
 from tests.test_e2e_spanning_roundtrip import TABLE_ROOT
 from tests.test_e2e_spanning_roundtrip import _reopen
 from tests.test_e2e_spanning_roundtrip import _save_and_report
@@ -429,3 +427,152 @@ def test_alt_shift_arrow_is_a_no_op_with_nothing_focused(page, live_server):
     page.keyboard.press("Alt+Shift+ArrowRight")
     assert page.locator(f"{TABLE_ROOT} .is-range").count() == 0
     assert errors == [], f"keydown handler threw: {errors}"
+
+
+# ---------------------------------------------------------------------------
+# Task 16: the fill-table's own transplant of the merge/split/header UI, plus
+# its kind-preservation rules (an answer or image cell's kind/content must
+# survive a merge/split/header round-trip untouched).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_fill_table_merge_keeps_the_anchors_answer(page, live_server):
+    """Anchor is an ANSWER cell; merge it with a blank static neighbour: the
+    stored cell must still be kind "answer" with its accepted answer intact
+    -- libliTableGrid.merge mutates the anchor node in place and never
+    touches its attributes, so the kind comes across for free. Also proves
+    the .focus() answer-input fallback: a subsequent Alt+Shift+Arrow chord
+    still extends a range from the merged (kept) cell."""
+    from courses.models import FillTableElement
+    from tests.test_e2e_table_editor import _login
+    from tests.test_e2e_table_editor import _make_pa_user
+    from tests.test_e2e_table_editor import _unit
+
+    _make_pa_user("fmerge_ans")
+    _login(page, live_server, "fmerge_ans")
+    unit = _unit("fmerge_ans", "fmerge-ans")
+    element = _seed(
+        unit,
+        FillTableElement,
+        [
+            [{"kind": "answer", "answer": "42"}, {"kind": "static", "html": ""}],
+            [{"kind": "static", "html": ""}, {"kind": "answer", "answer": "7"}],
+        ],
+    )
+
+    _reopen(page, live_server, unit, element, FILL_ROOT)
+    # The absorbed cell here is blank static, so cellIsNonEmpty is false and
+    # no confirm should fire -- but register the handler anyway so a future
+    # regression in cellIsNonEmpty (e.g. treating a blank answer as empty)
+    # fails LOUDLY on the colspan assertion below instead of silently via an
+    # auto-dismissed dialog cancelling the merge.
+    page.on("dialog", lambda d: d.accept())
+    _cell(page, FILL_ROOT, 0, 0).click()
+    _cell(page, FILL_ROOT, 0, 1).click(modifiers=["Shift"])
+    page.locator(f"{FILL_ROOT} [data-merge]").click()
+
+    kept = page.locator(f"{FILL_ROOT} [data-table-grid] td[data-answer][colspan='2']")
+    assert kept.count() == 1
+    assert kept.locator(".filltable-editor__answer").input_value() == "42"
+
+    # .focus() is a no-op on a <td data-answer> -- if the merge tail hadn't
+    # fallen back to the answer input, DOM focus would still sit on <body>
+    # (outside the grid), the keydown would never bubble to the grid's
+    # listener, and .is-range would stay at 0. ArrowRight alone would re-land
+    # on the SAME cell (the anchor's own colspan=2 already covers both (0,0)
+    # and (0,1)), so use ArrowDown instead -- it grows the range into row 1's
+    # two separate cells, giving an unambiguous "the range actually extended"
+    # signal rather than a merely-nonzero one.
+    page.keyboard.press("Alt+Shift+ArrowDown")
+    assert page.locator(f"{FILL_ROOT} .is-range").count() == 3
+
+    assert _save_and_report(page, FILL_ROOT), "save was rejected"
+    cells = _cells(FillTableElement, element)
+    assert cells[0][0]["kind"] == "answer"
+    assert cells[0][0]["answer"] == "42"
+    assert cells[0][0]["colspan"] == 2
+    assert len(cells[0]) == 1  # the merged cell absorbed the blank neighbour
+    assert len(cells[1]) == 2  # row 1 untouched
+
+
+@pytest.mark.django_db(transaction=True)
+def test_fill_table_merge_over_an_image_cell_asks_first(page, live_server):
+    """cellIsNonEmpty treats ANY image cell as non-empty regardless of
+    displayed text, so merging over one always fires window.confirm.
+    Dismiss it -> the image cell's media pk survives untouched."""
+    from courses.models import FillTableElement
+    from tests.factories import make_image_asset
+    from tests.test_e2e_table_editor import _login
+    from tests.test_e2e_table_editor import _make_pa_user
+    from tests.test_e2e_table_editor import _unit
+
+    _make_pa_user("fmerge_img")
+    _login(page, live_server, "fmerge_img")
+    unit = _unit("fmerge_img", "fmerge-img")
+    asset = make_image_asset(unit.course, "g.png")
+    element = _seed(
+        unit,
+        FillTableElement,
+        [
+            [
+                {"kind": "static", "html": "keep"},
+                {"kind": "image", "media": asset.pk, "alt": "graph"},
+            ],
+            [{"kind": "static", "html": ""}, {"kind": "answer", "answer": "1"}],
+        ],
+    )
+
+    _reopen(page, live_server, unit, element, FILL_ROOT)
+    page.once("dialog", lambda d: d.dismiss())
+    _cell(page, FILL_ROOT, 0, 0).click()
+    _cell(page, FILL_ROOT, 0, 1).click(modifiers=["Shift"])
+    page.locator(f"{FILL_ROOT} [data-merge]").click()
+    # Dismissed confirm -> no merge happened, so the image cell must still be
+    # sitting there untouched (both in-page and after a round-trip save).
+    assert page.locator(f"{FILL_ROOT} [data-table-grid] td[data-image]").count() == 1
+    assert _save_and_report(page, FILL_ROOT), "save was rejected"
+    cells = _cells(FillTableElement, element)
+    assert "colspan" not in cells[0][0]
+    assert cells[0][1]["kind"] == "image"
+    assert cells[0][1]["media"] == asset.pk
+
+
+@pytest.mark.django_db(transaction=True)
+def test_header_toggle_on_an_answer_cell_preserves_the_typed_answer(page, live_server):
+    """Type into an answer cell, toggle header, and assert the input still
+    holds the typed text -- childNodes were MOVED, not re-serialized. Then
+    toggle the (now-th) cell back to static via the Answer-cell button and
+    assert the stash restored the right html -- proving toggleHeaderCell's
+    cellStash re-point (LIVE here, a no-op guard in table_editor.js) follows
+    the node across the td<->th swap."""
+    from courses.models import FillTableElement
+    from tests.test_e2e_table_editor import _login
+    from tests.test_e2e_table_editor import _make_pa_user
+    from tests.test_e2e_table_editor import _unit
+
+    _make_pa_user("fhdr_ans")
+    _login(page, live_server, "fhdr_ans")
+    unit = _unit("fhdr_ans", "fhdr-ans")
+    element = _seed(
+        unit,
+        FillTableElement,
+        [[{"kind": "static", "html": "orig"}, {"kind": "answer", "answer": "7"}]],
+    )
+
+    _reopen(page, live_server, unit, element, FILL_ROOT)
+    _cell(page, FILL_ROOT, 0, 0).click()
+    page.locator(f"{FILL_ROOT} [data-answer-toggle]").click()  # static -> answer
+
+    answer_cell = _cell(page, FILL_ROOT, 0, 0)
+    answer_cell.locator(".filltable-editor__answer").fill("typed-answer")
+
+    page.locator(f"{FILL_ROOT} [data-header-toggle]").click()  # td -> th (NEW node)
+    th = _cell(page, FILL_ROOT, 0, 0)  # positional locator re-resolves to it
+    assert th.evaluate("el => el.tagName") == "TH"
+    assert th.locator(".filltable-editor__answer").input_value() == "typed-answer"
+
+    page.locator(f"{FILL_ROOT} [data-answer-toggle]").click()  # answer -> static
+    static_cell = _cell(page, FILL_ROOT, 0, 0)
+    assert static_cell.get_attribute("data-answer") is None
+    assert static_cell.inner_text().strip() == "orig"

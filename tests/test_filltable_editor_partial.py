@@ -193,6 +193,28 @@ def test_resolved_grid_cells_resolves_the_submitted_image_not_the_stored_one():
     assert resolved[0][0]["media"] == submitted_asset
 
 
+def test_filltable_editor_exposes_merge_split_and_header_controls():
+    """Cheap render-level check that Task 16's toolbar actually shipped --
+    the twin of test_table_editor_exposes_merge_split_and_header_controls in
+    tests/test_table_editor_partial.py."""
+    html = _render(FillTableElement())
+    for attr in ("data-merge", "data-split", "data-header-toggle"):
+        assert attr in html
+    # Client-built markup cannot call {% trans %}, so every string rides on a
+    # data-msg-* attribute (the established convention in this editor).
+    for msg in (
+        "data-msg-merge-confirm",
+        "data-msg-merge-too-big",
+        "data-msg-header-locked",
+        "data-msg-range-selected",
+        "data-msg-merge",
+        "data-msg-header",
+        "data-msg-range-cleared",
+    ):
+        assert msg in html
+    assert 'aria-live="polite"' in html
+
+
 def test_unresolvable_image_cell_drops_spans_in_both_render_and_editor():
     """resolved_cells (student render) and resolved_grid_cells (editor) share
     one fallback for an image cell whose media pk cannot be resolved: drop the
