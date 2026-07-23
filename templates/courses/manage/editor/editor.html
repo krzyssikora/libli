@@ -40,12 +40,17 @@
     "Answer cell", with a photo glyph (sun + mountain) so the two are not
     confusable.{% endcomment %}
     <symbol id="ed-image" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="6" cy="6.5" r="1" fill="currentColor"/><path d="M4 11l2.5-3 2 2 2-2.5 2 2.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
-    {% comment %}Merge: two cells collapsing into one (arrows pointing inward at a
-    shared seam). Split: the inverse. Header: a table outline with a filled top
-    band. All three are single-colour line icons per the project's icon
-    convention -- never multicolour glyphs.{% endcomment %}
-    <symbol id="ed-merge" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.5v7" stroke="currentColor" stroke-width="1.3" stroke-dasharray="1.5 1.5"/><path d="M5 8h1.8M11 8H9.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
-    <symbol id="ed-split" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.5v7" stroke="currentColor" stroke-width="1.3"/><path d="M4.6 8h2M11.4 8h-2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+    {% comment %}Merge and Split are inverse operations, so their icons must differ
+    at the 15px they actually render at. They carry TWO independent cues, not one:
+    arrowheads (converging on the seam vs diverging from it) and the seam itself
+    (dashed, because the merge is about to remove it, vs solid, because the split
+    is about to draw it). An earlier pair differing only in dash pattern and two
+    plain ticks was indistinguishable at size -- and the split glyph read as a
+    plus sign in a box, i.e. "add". Header: a table outline with a filled top
+    band. All are single-colour line icons per the project's icon convention --
+    never multicolour glyphs.{% endcomment %}
+    <symbol id="ed-merge" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.6v6.8" stroke="currentColor" stroke-width="1.2" stroke-dasharray="1.4 1.4"/><path d="M4 8h2.2M5.1 6.9 6.2 8 5.1 9.1M12 8H9.8M10.9 6.9 9.8 8l1.1 1.1" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ed-split" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 4.6v6.8" stroke="currentColor" stroke-width="1.3"/><path d="M6.6 8H4.2M5.5 6.9 4.2 8l1.3 1.1M9.4 8h2.4M10.5 6.9 11.8 8l-1.3 1.1" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round"/></symbol>
     <symbol id="ed-header" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M2.5 6.8h11" stroke="currentColor" stroke-width="1.3"/><path d="M3.6 5.2h8.8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".55"/></symbol>
   </svg>
   {% include "courses/manage/_icon_sprite.html" %}

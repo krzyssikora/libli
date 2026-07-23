@@ -218,6 +218,15 @@ body.editor-page .app-main { max-width: 102rem; }
   color: var(--text-primary); cursor: pointer; font-weight: 700; }
 .rte-btn--text { width: auto; padding: 0 var(--space-2); font-size: .85rem; }
 .rte-btn:hover { background: var(--surface-base); }
+/* Unavailable actions. Merge/Split/Header cell ship `disabled` in the markup, so
+   this is the FIRST state an author sees on those three -- without it they render
+   at full strength and a toolbar with Merge off is pixel-identical to one with
+   Merge on. Fading the whole button (border, ground and currentColor icon
+   together) keeps the monochrome line-icon convention intact and needs no new
+   token, so it reads the same way in both themes. The hover reset matters as much
+   as the fade: without it a dead button still lights up under the pointer. */
+.rte-btn:disabled { opacity: .38; cursor: not-allowed; }
+.rte-btn:disabled:hover { background: var(--surface-sunken); }
 .rte-btn.is-on { background: var(--primary); color: var(--text-inverse); border-color: var(--primary); }
 .rte-btn .ic { width: 15px; height: 15px; display: block; }
 .rte-sep { width: 1px; align-self: stretch; background: var(--border-default); margin: 2px 3px; }
@@ -599,19 +608,27 @@ button.asset-cell:hover { border-color: var(--primary); }
 }
 .table-editor__grid td:focus, .table-editor__grid th:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
 
-/* Selected merge range. Outline + tint rather than a background swap, so a
-   cell's own alignment/border styling still reads through. The dark variant
-   keys off [data-theme="dark"] -- this app themes with a root ATTRIBUTE
-   (core/static/core/css/tokens.css), not prefers-color-scheme. A media query
-   here would tint wrongly whenever the OS is dark but the app is light, and
-   miss the case where the author toggles the app dark on a light OS. */
+/* Selected merge range. A TINT ONLY, deliberately with no per-cell outline: a
+   range is one region, and ringing each cell separately renders a 2x3 selection
+   as six outlined boxes with doubled seams between them. The tint alone carries
+   the region; the grid's own borders keep showing that the cells are still
+   distinct until the merge happens.
+   The anchor keeps the ring, because it is the only cell whose content survives
+   a merge and the author should see which one that is BEFORE confirming. No new
+   class is needed for it: the anchor is the cell holding DOM focus throughout a
+   Shift+click or Alt+Shift+Arrow range, so the td:focus/th:focus rule above
+   already marks it -- which is also why .is-range must not set `outline`, or it
+   would override that ring and hide the anchor.
+   Tint rather than a background swap keeps a cell's own styling readable. The
+   dark variant keys off [data-theme="dark"] -- this app themes with a root
+   ATTRIBUTE (core/static/core/css/tokens.css), not prefers-color-scheme. A media
+   query here would tint wrongly whenever the OS is dark but the app is light,
+   and miss the case where the author toggles the app dark on a light OS. */
 .table-editor__grid .is-range {
-  outline: 2px solid var(--primary);
-  outline-offset: -2px;
-  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
 }
 [data-theme="dark"] .table-editor__grid .is-range {
-  background: color-mix(in srgb, var(--primary) 22%, transparent);
+  background: color-mix(in srgb, var(--primary) 26%, transparent);
 }
 
 /* Row/column insert-delete handles. table_editor.js injects them into extra control
