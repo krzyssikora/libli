@@ -82,8 +82,8 @@ Each carries its reason in the `DIVERGENT` list, so a reader learns *why* rather
 | `wire` | the container itself; its nested helpers are classified individually, so comparing the two bodies (368 vs 528 lines *after normalisation*) would be meaningless |
 | `serialize` | fill-table emits three cell kinds (static / answer / image), the plain table one |
 | `refreshToolbarState` | fill-table adds an `if (!focusCell) return` gate *after* the merge/split/header block, so the kind-specific refresh (disabling `[data-cmd]` on answer/image cells, the answer-toggle state, hiding the alt input) is skipped when nothing is focused; that gate also moves its `refreshAlignButtons()` call behind it |
-| `toggleHeaderCell` | fill-table must re-key the live `cellStash` Map from old node to new |
-| `cellIsNonEmpty` | fill-table counts answer and image cells as non-empty regardless of text |
+| `toggleHeaderCell` | two differences: fill-table re-keys the live `cellStash` Map from old node to new, and focuses the cell's answer input rather than the cell — `.focus()` is a no-op on a `<td data-answer>`, which would strand the Alt+Shift+Arrow chord |
+| `cellIsNonEmpty` | **both** files are image-aware, by different mechanisms: the plain table queries for a nested `<img>`, fill-table checks the `data-image` attribute. Fill-table additionally treats answer cells as always non-empty |
 | `afterStructuralEdit` | fill-table additionally calls `cellStash.clear()` first, so a stashed cell cannot be restored into the wrong node after the grid is reshaped |
 
 ### Normalisation: comments are stripped before comparison
@@ -155,7 +155,8 @@ normalised line, so the fix is immediate rather than a hunt.
 ## Testing
 
 The guard is the deliverable, so proving it *can fail* is the substance of the work, not a formality.
-Four falsifications, each reverted afterwards:
+Five falsifications, each reverted afterwards — one per independent check, so no check ships
+unproven:
 
 1. **A twin drifts** — change one line inside `paintRange` in `filltable_editor.js` only. The guard
    must fail, naming `paintRange` and the differing line.
@@ -166,6 +167,11 @@ Four falsifications, each reverted afterwards:
    the three comment-only cases that motivated it would be indistinguishable from real drift.
 4. **The extractor is not vacuous** — the count assertion from Error handling (1) must itself go red
    when the function-matching regex is broken.
+5. **A stale classification is caught** — rename one twin (say `tooBig`) in one file only, leaving its
+   name in `TWINS`. The guard must fail, naming the entry that no longer exists in both files. This
+   proves the *backward* completeness check fires; falsifications 1–4 exercise twin equality, the
+   forward check and the count assertion, and would all still pass with the backward check deleted
+   entirely — which is exactly the silent-orphan hole it was added to close.
 
 Falsification 3 matters as much as 1. A guard that fires on comment edits would be reverted within a
 week by whoever gets tired of it, which is a slower path to the same unguarded state.
