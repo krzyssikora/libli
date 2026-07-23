@@ -62,7 +62,7 @@ unambiguous:
 ```
 manage.py migrate_course_content export --source-slug <slug> --bundle-dir <dir> [--allow-problems]
 manage.py migrate_course_content import --target-slug <slug> --bundle-dir <dir> --as-user <email>
-                                        [--dry-run] [--force] [--start-at N]
+                                        [--dry-run] [--force] [--start-at K]
 manage.py migrate_course_content verify --target-slug <slug> --bundle-dir <dir>
 ```
 
@@ -192,7 +192,7 @@ itself:
 - **Resume by index, because of the above.** A partial failure is a likely outcome over 21 grafts
   against a real database, and the double-run override is the wrong recovery lever — re-running with
   it would iterate the bundle from the start and graft parts 1–11 a *second* time. The import phase
-  therefore reports the index of the last part committed, and accepts `--start-at N` to resume from
+  therefore reports the `order` of the last part committed, and accepts `--start-at K` to resume from
   the next one. `--start-at` necessarily implies the target is non-empty, so it bypasses the
   double-run guard by design.
 
@@ -326,16 +326,18 @@ Required coverage:
   silently skipping.
 - **Dry-run drives the real validator** (`open_archive` + `validate_archive_document` per archive) and
   writes nothing, so every cap is exercised rather than a hand-picked subset.
-- **`--start-at N` aborts when the target does not hold exactly `N - 1` top-level nodes**, so a
-  mistyped index cannot silently skip or duplicate a part.
+- **`--start-at K` aborts when the target does not hold exactly `K` top-level nodes**, so a mistyped
+  index cannot silently skip or duplicate a part. Cover the off-by-one explicitly: with parts
+  `0 … 10` committed, `--start-at 11` proceeds and `--start-at 10` and `--start-at 12` both abort.
 - **The bundle side table correlates shared media by source pk**, and verification uses it to explain
   a positive media delta — a test should cover an asset referenced from two parts arriving as two
   target rows *and* being accounted for, rather than reported as a fault.
 - **A corrupt or oversized archive in the bundle names that specific archive** in the import phase's
   error, rather than escaping as a raw traceback — the promise made in Error handling, and the
   failure mode most likely to occur across 21 real archives.
-- **Resume by index:** a run that fails at part N leaves parts 1..N-1 committed, and `--start-at N`
-  grafts the remainder without duplicating them. Test the whole sequence, not just the flag.
+- **Resume by index:** a run that fails while grafting the part with `order == K` leaves parts
+  `0 … K-1` committed, and `--start-at K` grafts the remainder without duplicating them. Test the
+  whole sequence, not just the flag.
 - **The `HtmlElement` round-trip described above** — as a regression guard on the not-sanitized
   policy, not as a mitigation.
 
