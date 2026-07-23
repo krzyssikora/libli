@@ -21,9 +21,9 @@
   most of them onto one argument per line. This is expected and is not a defect to puzzle over.
   **Run `uv run ruff format .` after pasting and before every commit**, then `ruff format --check`
   to confirm. Do not hand-reflow the snippets to guess ruff's output.
-- `MediaAsset` is imported in the command's top-of-file block from Task 1 onward even though only
-  `verify` (Task 3) uses it — declaring it once up front avoids a `NameError` surfacing three tasks
-  later.
+- **Import each name in the task that first uses it, not earlier.** `ruff`'s `F401` fails the commit
+  gate on an unused import, so hoisting `MediaAsset` into Task 1 to "avoid a later NameError" breaks
+  Tasks 1 and 2 instead. Task 3 adds it when `verify` needs it.
 - **Stage explicitly by path.** Never `git add -A` / `git add .`.
 - No model changes, no migration. If one seems needed, stop and surface it.
 - **Every task is TDD:** write the failing test, verify it fails *for the stated reason*, implement, verify green.
@@ -188,6 +188,55 @@ def test_export_rejects_an_unknown_source_slug(tmp_path):
         )
 
 
+def test_export_aborts_on_problems_and_allow_problems_overrides(tmp_path, monkeypatch):
+    """The spec's central content-loss guard: build_export's 4th return value.
+
+    Exporting 21 parts while silently accepting placeholdered media is the
+    precise failure this whole effort exists to avoid, so the abort is default
+    and the override must be explicit. build_export is monkeypatched because
+    provoking a real `problems` entry depends on filesystem state; what is
+    under test is the command's reaction, not the engine's detection.
+    """
+    from courses.management.commands import migrate_course_content as mod
+
+    _mk_source(parts=("Only",))
+    real = mod.build_export
+
+    def fake(course, node=None, **kw):
+        manifest, document, media_assets, _problems = real(course, node=node, **kw)
+        return manifest, document, media_assets, ["missing media: x.png"]
+
+    monkeypatch.setattr(mod, "build_export", fake)
+
+    bundle = tmp_path / "bundle"
+    with pytest.raises(CommandError, match="problem"):
+        call_command(
+            "migrate_course_content", "export",
+            "--source-slug", "src", "--bundle-dir", str(bundle),
+        )
+    assert not list(bundle.glob("*.zip")) if bundle.exists() else True
+
+    # The override lets the same export through.
+    call_command(
+        "migrate_course_content", "export",
+        "--source-slug", "src", "--bundle-dir", str(bundle),
+        "--allow-problems",
+    )
+    assert len(list(bundle.glob("*.zip"))) == 1
+
+
+def test_export_rerun_overwrites_rather_than_duplicating(tmp_path):
+    _mk_source(parts=("Alpha", "Beta"))
+    bundle = tmp_path / "bundle"
+    for _ in range(2):
+        call_command(
+            "migrate_course_content", "export",
+            "--source-slug", "src", "--bundle-dir", str(bundle),
+        )
+    # Deterministic names mean the second run replaces the first's archives.
+    assert len(list(bundle.glob("*.zip"))) == 2
+
+
 def test_export_refuses_import_only_flags(tmp_path):
     _mk_source()
     with pytest.raises(CommandError, match="not valid for"):
@@ -231,7 +280,6 @@ from django.core.management.base import CommandError
 
 from courses.models import ContentNode
 from courses.models import Course
-from courses.models import MediaAsset
 from courses.transfer.export import build_export
 from courses.transfer.export import write_archive_from
 
@@ -349,12 +397,13 @@ class Command(BaseCommand):
 uv run pytest tests/test_migrate_course_content.py -vv
 ```
 
-Expected: 4 passed.
+Expected: 6 passed (4 original + the problems-guard and export-rerun tests).
 
 - [ ] **Step 5: Falsify the two guards this task introduces**
 
 1. **Flag scoping** — delete the `_reject_foreign_flags(action, o)` call in `handle`. `test_export_refuses_import_only_flags` must FAIL (no `CommandError` raised). Restore.
 2. **Side-table completeness** — change `side.setdefault(str(asset.pk), []).append(part.order)` to only record the first part (`side.setdefault(str(asset.pk), [part.order])`). Confirm `test_export_writes_the_media_side_table_keyed_by_source_pk` still passes — it does, because each asset here is referenced by one part — then note that cross-part accumulation is pinned by Task 3's shared-media test, not this one. Restore.
+3. **The problems guard** — change `if problems and not o.get("allow_problems")` to `if False`. `test_export_aborts_on_problems_and_allow_problems_overrides` must FAIL on the `pytest.raises` (no `CommandError` at all). This is the spec's central content-loss guard; a falsification that does not go red here would mean the migration could silently ship placeholdered media. Restore.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -533,6 +582,98 @@ def test_start_at_aborts_when_the_target_node_count_disagrees(tmp_path, bad):
         )
 
 
+def test_html_element_attributes_survive_the_round_trip(tmp_path):
+    """Regression guard on the not-sanitized policy.
+
+    _build_html stores HtmlElement.html verbatim -- the sandboxed iframe is the
+    security boundary, not sanitisation. If someone later adds sanitisation
+    there, the binary decision tree's data-binary-choose hooks would be
+    stripped and it would migrate as intact-looking dead markup.
+    """
+    from courses.models import HtmlElement
+
+    course = _mk_source(parts=("Only",))
+    unit = ContentNode.objects.get(course=course, title="U0")
+    Element.objects.create(
+        unit=unit, title="",
+        content_object=HtmlElement.objects.create(
+            html='<button data-binary-choose="1.1">Tak</button>'
+        ),
+    )
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content", "export",
+        "--source-slug", "src", "--bundle-dir", str(bundle),
+    )
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content", "import",
+        "--target-slug", "dst", "--bundle-dir", str(bundle),
+        "--as-user", "mig@example.com",
+    )
+    htmls = [
+        h.html
+        for h in HtmlElement.objects.all()
+        if "data-binary-choose" in h.html
+    ]
+    assert len(htmls) == 2  # source's and the target's copy
+    assert all('data-binary-choose="1.1"' in h for h in htmls)
+
+
+def test_a_corrupt_archive_is_named_in_the_error(tmp_path):
+    bundle = _export_bundle(tmp_path, parts=("Only",))
+    _mk_target()
+    _user()
+    victim = next(bundle.glob("*.zip"))
+    victim.write_bytes(b"not a zip at all")
+    with pytest.raises(CommandError, match=victim.name):
+        call_command(
+            "migrate_course_content", "import",
+            "--target-slug", "dst", "--bundle-dir", str(bundle),
+            "--as-user", "mig@example.com",
+        )
+
+
+def test_a_first_part_failure_reports_that_nothing_was_committed(tmp_path):
+    """The degenerate K=0 boundary: no 'last part committed' exists to resume
+    from, so the message must send the operator to a plain re-run."""
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    first = sorted(bundle.glob("*.zip"))[0]
+    first.write_bytes(b"corrupt")
+    with pytest.raises(CommandError, match="no parts committed"):
+        call_command(
+            "migrate_course_content", "import",
+            "--target-slug", "dst", "--bundle-dir", str(bundle),
+            "--as-user", "mig@example.com",
+        )
+    assert ContentNode.objects.filter(course=target).count() == 0
+
+
+def test_force_lets_the_import_proceed_into_a_non_empty_target(tmp_path):
+    """The refusal path is tested above; this pins that the override WORKS.
+
+    A falsification proves the guard can fail; only this proves its bypass
+    isn't inverted or ignored.
+    """
+    bundle = _export_bundle(tmp_path, parts=("Only",))
+    target = _mk_target()
+    _user()
+    ContentNode.objects.create(course=target, kind="part", title="Squatter")
+    call_command(
+        "migrate_course_content", "import",
+        "--target-slug", "dst", "--bundle-dir", str(bundle),
+        "--as-user", "mig@example.com", "--force",
+    )
+    tops = set(
+        ContentNode.objects.filter(course=target, parent__isnull=True)
+        .values_list("title", flat=True)
+    )
+    assert tops == {"Squatter", "Only"}
+
+
 def test_import_rejects_an_empty_bundle_directory(tmp_path):
     empty = tmp_path / "empty"
     empty.mkdir()
@@ -660,14 +801,23 @@ Replace the `else:` placeholder branch in `handle` with `elif action == "import"
                             target, None, user,
                         )
             except TransferError as exc:
-                raise CommandError(f"{archive.name}: {exc}") from exc
+                # Recovery guidance belongs HERE, on the failure path -- a
+                # trailing "no parts committed" line after the loop would be
+                # unreachable, because this CommandError propagates out of it.
+                if committed is None:
+                    hint = "no parts committed; re-run import from the start"
+                else:
+                    hint = (
+                        f"last part committed: {committed}; "
+                        f"resume with --start-at {committed + 1}"
+                    )
+                raise CommandError(f"{archive.name}: {exc}
+{hint}") from exc
             committed = order
             self.stdout.write(f"grafted part {order} from {archive.name}")
 
         if o.get("dry_run"):
             self.stdout.write("[dry-run] validated; nothing written")
-        elif committed is None:
-            self.stdout.write("no parts committed; re-run import from the start")
         else:
             self.stdout.write(f"last part committed: {committed}")
 ```
@@ -678,7 +828,7 @@ Replace the `else:` placeholder branch in `handle` with `elif action == "import"
 uv run pytest tests/test_migrate_course_content.py -vv
 ```
 
-Expected: **14 passed** — Task 1's 4 plus this task's 10 collected (9 named, but `test_start_at_aborts_when_the_target_node_count_disagrees` is parametrized ×2).
+Expected: **20 passed** — Task 1's 6 plus this task's 14 collected (13 named, with `test_start_at_aborts_when_the_target_node_count_disagrees` parametrized ×2).
 
 - [ ] **Step 5: Falsify the three guards that protect the real database**
 
@@ -687,6 +837,9 @@ Run each, confirm the named test goes RED, then restore:
 1. **Double-run guard** — change `if existing and not o.get("force")` to `if False`. `test_import_refuses_a_non_empty_target_without_force` must FAIL.
 2. **`--start-at` invariant** — change `if existing != start_at` to `if False`. Both parametrisations of `test_start_at_aborts_when_the_target_node_count_disagrees` must FAIL.
 3. **Dry-run writes nothing** — delete the `continue` after the dry-run `stdout.write`. `test_dry_run_validates_every_archive_and_writes_nothing` must FAIL on the node count.
+4. **Archive named in the error** — change `raise CommandError(f"{archive.name}: {exc}
+{hint}")` to omit `archive.name`. `test_a_corrupt_archive_is_named_in_the_error` must FAIL (its `match=` is the filename).
+5. **The `no parts committed` hint is reachable** — change the `if committed is None` branch to always emit the resume hint. `test_a_first_part_failure_reports_that_nothing_was_committed` must FAIL. This one matters because the message was unreachable in an earlier draft: it sat after the loop, where the propagating `CommandError` never let it run.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -801,7 +954,14 @@ uv run pytest tests/test_migrate_course_content.py -vv -k "verify or shared_medi
 
 - [ ] **Step 3: Implement `verify`**
 
-Replace the remaining placeholder branch with `else: self._verify(o)` and add:
+Add the one import `verify` needs to the command's top-of-file block — deliberately not added
+earlier, because `ruff`'s `F401` would have failed Tasks 1 and 2 at their commit gates:
+
+```python
+from courses.models import MediaAsset
+```
+
+Then replace the remaining placeholder branch with `else: self._verify(o)` and add:
 
 ```python
     # --- verify --------------------------------------------------------
