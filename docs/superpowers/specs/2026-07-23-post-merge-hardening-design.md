@@ -92,10 +92,17 @@ on. They coincidentally share the string `"image"`; they are different fields on
 The asymmetry is deliberate and worth recording. `FillTableElement.render` (`courses/models.py:1141`)
 has the signature `render(self, *, element=None, state=None, slug=None, node_pk=None)`, matching the
 contract inherited from `ElementBase.render` (`courses/models.py:371`). **No course and no unit is
-passed at any point in the render chain**, and the element owns no course field of its own — so
-`resolved_cells`, a no-arg property, has nothing to scope against. Read-time scoping is therefore
-impossible on the student path, and not merely inconvenient. The guarantee there is
-**validated-at-write**: stored data passed `clean_data`, which enforces course and kind at save time.
+passed at any point in the render chain**, and the element owns no course field — so `resolved_cells`,
+a no-arg property, has nothing to scope against.
+
+To be precise rather than sweeping: a course is not strictly *unreachable* from the model —
+`FillTableElement` carries `elements = GenericRelation(Element)` (`courses/models.py:990`), and an
+`Element` join row reaches `unit.course` — so read-time scoping could in principle be derived. It is
+simply not exposed through the existing signature, and threading it through would change the
+`ElementBase.render` contract shared by every element type, plus add a query per render. That cost is
+why the student-path guarantee stays **validated-at-write**: stored data passed `clean_data`, which
+enforces course and kind at save time. Either way the instruction is unchanged — `resolved_cells`
+passes no course and stays byte-identical.
 
 `course=None` preserving unscoped behaviour is not an oversight either — it mirrors `clean_data`,
 which already skips its own check with `if img_ids and self.course is not None`. A form without a
@@ -172,10 +179,15 @@ removed — passing vacuously.
 static cell, exactly as a dangling pk already does.
 
 **Issue B2 (gallery).** The fallback is different and stays different: an unresolvable pk leaves
-`asset is None`, and `editor_rows` **omits the row entirely**. `editor_rows` gains no `course=None`
-path at all — it is a form property that always has `self.course` available, so it scopes
-unconditionally. If `self.course` is somehow `None`, it must behave as `clean_data` does in the same
-situation and skip scoping rather than silently resolving nothing.
+`asset is None`, and `editor_rows` **omits the row entirely**.
+
+`editor_rows` gains no `course=None` path and needs no `None` carve-out. `GalleryElementForm.clean_data`
+already filters `course=self.course, kind="image", pk__in=ids` **unconditionally** — it has no
+`self.course is not None` guard (that guard exists only on the fill-table side, `element_forms.py:1543`).
+So scoping `editor_rows` unconditionally on `self.course` makes the resolver agree exactly with the
+validator in the same form, which is the whole point of the fix. Do not invent a `None` branch here to
+mirror the fill-table's; the two forms genuinely differ, and gallery's own validator is the right
+reference.
 
 In both cases the author still sees the real `clean_data` validation error explaining what was
 actually wrong; the missing image is not the only feedback they get.
@@ -223,15 +235,24 @@ deliberately differ here.
 **Issue C.** The hand-rolled parser is itself the risk, so it must be proven against **three** scenarios,
 each as concrete as the others — two proving it fires, one proving it does not:
 
-- blank a real Polish `msgstr` → `test_pl_has_no_untranslated_msgid` fails, naming that msgid;
+- blank a real Polish `msgstr` → the untranslated check fails, naming that msgid;
 - blank **one form** of a plural entry → it also fails (a single scalar falsification would leave the
   plural path, the subtlest branch, unproven);
-- inject an obsolete entry with an empty translation (`#~ msgid "..."` / `#~ msgstr ""`) → it must
-  **not** fire. This is the false-positive direction, and without it "excluded from the untranslated
-  scan" could be satisfied by a shallow assertion that never exercises an obsolete entry carrying a
-  blank `msgstr` at all.
+- an obsolete entry with an empty translation (`#~ msgid "..."` / `#~ msgstr ""`) → it must **not**
+  fire. This is the false-positive direction, and without it "excluded from the untranslated scan"
+  could be satisfied by a shallow assertion that never exercises an obsolete entry carrying a blank
+  `msgstr` at all.
 
-All three edits are reverted afterwards.
+**These three scenarios must never mutate the real catalogs.** CI runs `uv run python -m pytest -n auto`
+(`.github/workflows/ci.yml:49`), so tests are distributed across parallel xdist workers; editing
+`locale/pl/LC_MESSAGES/django.po` in place — even with a revert — would let a concurrently-running test
+(including this file's own three permanent guards) observe a transiently corrupted catalog, and a crash
+or failed assertion mid-test would leave a real translation file damaged on disk.
+
+`_entries(path)` already takes a path, so each scenario builds a **`tmp_path` fixture**: the real
+catalog's content, or a representative excerpt, plus the one injected mutation, written to a temporary
+file and parsed from there. Nothing is reverted because nothing real is touched. The three permanent
+guards continue to read the real catalogs, but read-only.
 
 The full non-e2e suite must pass, and both `uv run ruff check .` and `uv run ruff format --check .`
 must be clean; CI gates on them separately.
