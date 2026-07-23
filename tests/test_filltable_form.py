@@ -66,7 +66,7 @@ def test_form_rejects_over_cap_grid():
     big = [[{"kind": "answer", "answer": "1"}] for _ in range(n_rows)]
     f = _bind(_data(big))
     assert not f.is_valid()
-    assert any("limited to" in str(e).lower() for e in f.errors["data"])
+    assert any("cannot be made larger" in str(e).lower() for e in f.errors["data"])
 
 
 def test_answer_cells_iterates_positions():

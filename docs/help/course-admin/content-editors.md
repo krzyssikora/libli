@@ -70,7 +70,21 @@ italic, underline, inline math, and text/vertical alignment) in place, and use
 the row/column handles to insert or delete rows and columns. Toggle
 **Header row** and **Header column** to style the first row/column
 differently, and choose a **Borders** style (**Grid**, **Rows**,
-**Header only**, or **None**).
+**Header only**, or **None**). Select a range of cells with Shift+click, or
+extend it a slot at a time with **Alt+Shift+Arrow**, then press **Merge
+cells** to combine the range into one cell — only the top-left cell's
+content is kept, and you're asked to confirm first if any of the other cells
+in the range weren't empty. **Split cell** undoes a merge, leaving the freed
+cells empty. **Header cell** toggles a single cell between plain and header
+styling; it's greyed out — unavailable while the row or column header
+option covers this cell — whenever **Header row** or **Header column**
+already promotes that cell, since those toggles already control it there. In
+a table with **Header column** on, merging away a row's first cell promotes
+the next cell in that row to a header for students, even though the editor
+keeps showing it as a plain cell. A table can't be grown past 50 rows by 20
+columns; a table imported larger than that stays fully saveable as long as
+you don't try to make it even larger, but shrinking it back below the limit
+is one-way — you won't be able to widen it past the cap again afterwards.
 
 {el:gallery} **Gallery** — a carousel of images shown one at a time with navigation
 controls. Click **Add image** to pick from the media library, give each image

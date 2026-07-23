@@ -1399,6 +1399,13 @@ def _grid_data(form):
     return form.instance.normalized_data
 
 
+# Grandfathering means an over-cap table (e.g. the 26-column 130_kombinatoryka
+# import) stays saveable, so "limited to" is misleading -- the cap gates
+# GROWTH, not the table's current size. One module-level constant so
+# TableElementForm and FillTableElementForm share a single msgid to translate.
+_TABLE_SIZE_ERROR = _("A table cannot be made larger than %(r)d rows by %(c)d columns.")
+
+
 def _caps_ok(form, cells):
     """True iff the grid's LAYOUT dimensions are within the caps, or are no
     larger than what is already stored (grandfathering).
@@ -1468,7 +1475,7 @@ class TableElementForm(forms.ModelForm):
             )
         if not _caps_ok(self, rows):
             raise forms.ValidationError(
-                _("Tables are limited to %(r)d rows by %(c)d columns.")
+                _TABLE_SIZE_ERROR
                 % {"r": TableElement.MAX_ROWS, "c": TableElement.MAX_COLS}
             )
         # Coerce enums / fill cell defaults (does not resize a valid grid).
@@ -1509,7 +1516,7 @@ class FillTableElementForm(_CourseScopedMediaForm):
         cells = nd["cells"]
         if not _caps_ok(self, cells):
             raise forms.ValidationError(
-                _("Tables are limited to %(r)d rows by %(c)d columns.")
+                _TABLE_SIZE_ERROR
                 % {"r": FillTableElement.MAX_ROWS, "c": FillTableElement.MAX_COLS}
             )
         answers = list(answer_cells(cells))
