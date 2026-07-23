@@ -23,8 +23,15 @@ It is a composed scene, not an isolated figure. Measured from the source (ink = 
 | open laptop | ≈ 950–1450 | 234 – 671 |
 | whole composition | 0 – 1600 | 6 – 671 |
 
-Row ink density climbs from ~9–17% across the upper two thirds to **68% at y≈504, 90% at y≈560, and
-94% at y≈616** — the desk/foreground band occupies the bottom quarter and is very nearly solid.
+Row ink density (exact per-row samples across all 1600 px, not band averages):
+
+| y | 400 | 440 | 476 | 504 | 518 | **525** | 532 | 560 | 616 | 660 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| ink | 17.1% | 18.4% | 24.9% | 34.7% | 48.8% | **60%** | 73.5% | 86.9% | 95.2% | 100% |
+
+The desk/foreground band occupies the bottom quarter and becomes very nearly solid. **y=525 (78% of
+height) is the first row above 60%** — that is the band's effective onset and the anchor for the fade
+ramp in §1.
 
 These two measurements drive the entire CSS design below and are the reason it is not the obvious
 one:
@@ -33,7 +40,9 @@ one:
   `mask-size: cover` in a short box, which would have cropped 22–38% off the top at desktop widths
   and decapitated the figure on every render.
 - **The bottom quarter is nearly solid ink.** Painted unmodified it is a full-width tinted rectangle
-  with a hard horizontal top edge — the exact artifact the `@supports` guard below exists to prevent.
+  with a hard horizontal top edge at y≈525. The fix is the **bottom-fade ramp baked into the alpha in
+  §1** — *not* the `@supports` guard, which is mask feature-detection and addresses an unrelated
+  failure (a no-mask engine painting an unmasked tinted box). The ramp is not optional decoration.
 
 **Out of scope.** `templates/500.html` is deliberately dependency-free — no base template, no
 collected static, literal brand colours duplicated inline — because a broken static pipeline is
@@ -58,11 +67,23 @@ a CSS mask consumes, so storing anything else is waste. Two steps:
 1. **Alpha from luminance, not a hard threshold:** `alpha = 255 - L`. A hard threshold would throw
    away the source's anti-aliased edge pixels and produce a jagged silhouette; the inversion gives
    the same shape with smooth edges at the same file size.
-2. **Bottom fade baked into the alpha.** Multiply alpha by a vertical ramp: `1.0` for `y < 0.72·H`,
-   falling linearly to `0.0` at `y = H`. The 0.72 threshold is taken from the density ladder above —
-   it sits just above the y≈504 row where ink jumps from 25% to 68% — so the ramp dissolves the desk
-   band while leaving the person and the laptop at full strength. A ramp starting earlier (e.g.
-   0.55·H) would begin fading the figure's torso for no benefit.
+2. **Bottom fade baked into the alpha — a smoothstep ramp starting at `0.60·H`.** Multiply alpha by
+   `1 - smoothstep(t)` where `t = clamp((y - 0.60·H) / (0.40·H), 0, 1)` and
+   `smoothstep(t) = 3t² - 2t³`. So: `1.0` for `y ≤ 403`, `≈0.82` at y=476, **`≈0.57` at y=525** (the
+   band's onset), `≈0.11` at y=616, and `0.0` at the bottom edge.
+
+   Both the start point and the curve are chosen against the measured ladder. A **linear** ramp from
+   `0.72·H` — the obvious first choice — still multiplies by **0.78** at y=525, so the band's hard
+   *top* edge survives at three-quarters strength: it would dissolve the band's bottom (which nothing
+   was complaining about) and leave the actual artifact. Starting at `0.60·H` with a smoothstep curve
+   attenuates the onset to ~57% while holding the figure at full strength through y=403, and the
+   eased curve avoids substituting a visible ramp-start seam for the edge it removes.
+
+   **What the ramp actually costs, stated plainly:** the person and the laptop both extend to y=671
+   (see the table above), so the ramp fades the figure's lower body and the laptop's base along with
+   the desk. That is intended and acceptable — that region *is* desk, visually — but a screenshot
+   reviewer should expect the lower third of the subject to be attenuated rather than flag it as a
+   bug.
 
 **Size budget: ≤ 60 KB.** Measured, the derived file is **17 KB** at native 1600×672 with
 `optimize=True`. Downscaling is counterproductive and must not be done "for weight": the same image
@@ -89,18 +110,20 @@ global `app.css`.
 **`aspect-ratio`, not by a height guess**, so the mask never has to crop:
 
 ```css
-@supports (mask-image: url("")) or (-webkit-mask-image: url("")) {
+@supports (mask-image: none) or (-webkit-mask-image: none) {
   body.error-page::after {
     content: "";
     position: fixed; left: 0; right: 0; bottom: 0;  /* bleeds off both edges */
+    margin-inline: auto;                            /* re-centres when max-height clamps — see below */
     aspect-ratio: 1600 / 672;                       /* box matches the artwork */
-    max-height: 60vh;                               /* never dominates a short window */
+    max-height: 60dvh;                              /* never dominates a short window */
     background-color: var(--text-primary);          /* the tint — token, not a literal */
     -webkit-mask-image: url("../img/learner.png");
             mask-image: url("../img/learner.png");
-    -webkit-mask-repeat: no-repeat;    mask-repeat: no-repeat;
+    -webkit-mask-repeat: no-repeat;       mask-repeat: no-repeat;
     -webkit-mask-position: center bottom; mask-position: center bottom;
-    -webkit-mask-size: contain;        mask-size: contain;
+    -webkit-mask-size: contain;           mask-size: contain;
+    -webkit-mask-mode: alpha;             mask-mode: alpha;
     opacity: .07;
     z-index: 0;
     pointer-events: none;
@@ -108,6 +131,19 @@ global `app.css`.
   [data-theme="dark"] body.error-page::after { opacity: .10; }
 }
 ```
+
+**Feature detection uses `none`, not `url("")`.** Both detect the same thing, but `none` is an
+unambiguously valid value that cannot be matched by the manifest storage's `url(…)` rewrite pattern
+at all. `url("")` would work — Django 5.2's `url_converter` returns the match unchanged for an empty
+path — but that makes the whole watermark depend on an internal implementation detail, in a file the
+manifest backend rewrites, with **no test coverage**: both `config/settings/test.py` and `local.py`
+swap in plain `StaticFilesStorage`, so `collectstatic` under the manifest backend is never exercised
+in CI. `none` needs no such appeal.
+
+**`mask-mode: alpha` is declared, not assumed.** The asset is `LA` with luminance 0 everywhere, so
+the design depends on the alpha channel being the mask source. `match-source` does resolve to alpha
+for a raster image, but a luminance interpretation would make the watermark vanish outright (luminance
+0 = fully masked) rather than degrade — declaring the mode removes the question.
 
 **Why `aspect-ratio` + `contain` and no breakpoint.** Full-bleed width and a fixed short height are
 incompatible with a 2.38:1 artwork whose subject reaches the top edge — one of the three has to give,
@@ -117,13 +153,20 @@ scene is a thin full-width band; at 1280 px it is 1280×538. This replaces an ea
 `cover` + `max-width: 900px` scheme that cropped the subject out of frame on phones and cropped the
 head off on desktops.
 
-`max-height: 60vh` is the one clamp, and when it bites the box **pillarboxes** — not letterboxes.
-Width is pinned by `left: 0; right: 0`, so a height clamp shrinks the `contain`-fitted mask and leaves
-empty space at the **left and right** edges. Concretely, on a 1280×800 window the box wants 537 px but
-is clamped to 480 px, so the watermark renders 1143 px wide and centred with ≈68 px gaps either side —
-it stops being full-bleed. **This is expected on short windows, not a bug**, and the screenshot
-self-critique should not chase it. `contain` (rather than `100% 100%`) is what keeps the clamped case
-proportional instead of squashing the figure.
+**`max-height: 60dvh` is the one clamp, and `margin-inline: auto` is what makes it survivable.** When
+the clamp bites, the *box itself* shrinks to keep its `aspect-ratio`, which over-constrains
+`left: 0; right: 0; width: <derived>`. CSS resolves an over-constrained absolutely-positioned box by
+**ignoring `right`** (in LTR), so without auto inline margins the box goes flush left and the gutter
+lands entirely on one side. Measured in Chromium at 1280×800: `x=0, width=1143` — a 137 px gap on the
+**right only**, visibly lopsided; at 1280×600 it is `x=0, width=857`, a 423 px right-hand gutter.
+`margin-inline: auto` consumes the slack symmetrically instead: measured `x=68.6` at 1280×800,
+`x=125.7` at 1280×720, `x=211.4` at 1280×600, and `x=0` at 390×844 where the clamp never bites.
+
+So on a short window the watermark **pillarboxes** — it shrinks and sits centred with equal gaps
+left and right, and stops being full-bleed. That is expected, **but symmetry is not**: the screenshot
+self-critique must check that the gaps are equal, because an unequal gap is exactly the signature of
+`margin-inline: auto` having been dropped. `contain` (rather than `100% 100%`) is what keeps the
+clamped case proportional instead of squashing the figure.
 
 **Every `mask-*` longhand is duplicated with the `-webkit-` prefix** — all four, as written above,
 and any `mask-*` in any future rule. This is load-bearing: the `or (-webkit-mask-image: …)` arm of
@@ -158,8 +201,13 @@ out` looks see-through and can't be tapped").
 
 ```css
 body.error-page .app-header { z-index: 2; }                    /* already position:relative in app.css */
-body.error-page .app-main   { position: relative; z-index: 1; } /* needs both */
+.error-page__main           { position: relative; z-index: 1; } /* needs both */
 ```
+
+**Every `<main>` rule keys off `.error-page__main`, never `.app-main`.** That class exists only on
+these two pages, so it is self-scoping — and it is also what test 8 asserts the sheet defines. Keying
+the rules off `.app-main` instead would leave `.error-page__main` added to the element and never
+used, failing test 8's first assertion while looking correct.
 
 The scoping is not stylistic — it is a hard requirement. Written globally in `app.css`,
 `.app-main { position: relative; z-index: 1 }` would turn every `<main>` in the app into a stacking
@@ -186,18 +234,22 @@ header wraps), so subtracting only the main padding overshoots and every error p
 stray vertical scrollbar. Instead, let layout do the arithmetic:
 
 ```css
-body.error-page      { display: flex; flex-direction: column; min-height: 100dvh; }
-body.error-page .app-main { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+body.error-page   { display: flex; flex-direction: column; min-height: 100dvh; }
+.error-page__main { flex: 1; display: flex; flex-direction: column; justify-content: safe center; }
 ```
 
 No hard-coded header height, and `100dvh` rather than `100vh` so a mobile browser's collapsing URL bar
-does not overshoot either.
+does not overshoot either. `safe center`, not bare `center`: this spec explicitly contemplates a
+2 000-character attacker-supplied path, and centring an over-tall flex column is the classic way to
+push its top out of the scrollable area where it can never be reached. `safe` degrades to `start`
+exactly when overflow would occur.
 
 Both classes apply to `<main>` (`app-main error-page__main`), so `.app-main`'s
 `max-width: 960px; margin: 0 auto; padding: var(--space-8) var(--space-5)` **stays in force and is
 deliberately kept** — 960 px is a fine outer bound and the inner column is narrower anyway. The
 `{% if messages %}` alerts `base.html` renders inside `<main>` become flex children; they are given
-`width: 100%` so a stray alert spans the column rather than shrink-wrapping.
+`width: 100%` — written scoped as `.error-page__main > .alert { width: 100%; }`, since `.alert` is a
+global class in `app.css` and an unscoped rule would leak.
 
 Inside, wrapped in `<div class="error-page__inner">` at `max-width: 40rem`. **The table is DOM
 order.** The path line sits directly under the lead, because the lead's own advice is "check the
@@ -209,7 +261,7 @@ after it.
 | 1 | eyebrow (`404` / `403`) | `<p>` | `.error-page__code` | `3rem`, weight 700, `var(--accent)`, `--heading-letter-spacing`, tight bottom margin |
 | 2 | heading | `<h1>` | `.error-page__title` | `1.75rem`, weight 600, `var(--text-primary)` |
 | 3 | lead paragraph | `<p>` | `.error-page__lead` | `1.0625rem`, `var(--text-primary)`, line-height 1.6 |
-| 4 | attempted path (**404 only**) | `<p>` wrapping a `<code>` | `.error-page__path` | label `0.875rem` `var(--text-tertiary)`; `<code>` in `--font-mono`, `0.875rem`, `var(--surface-sunken)` chip with `--radius-sm` and `--border-subtle` |
+| 4 | attempted path (**404 only**) | `<p>` wrapping a `<code>` | `.error-page__path` | label `0.875rem` `var(--text-tertiary)`; the `<code>` is styled via the descendant selector **`.error-page__path code`** in `--font-mono`, `0.875rem`, `var(--surface-sunken)` chip with `--radius-sm` and `--border-subtle` |
 | 5 | report / advice paragraph (**404 only**) | `<p>` | `.error-page__note` | `0.9375rem`, `var(--text-secondary)` |
 | 6 | actions row | `<p>` | `.error-page__actions` | — |
 
@@ -226,7 +278,11 @@ path would otherwise blow out the measure or force horizontal page scroll.
 ### 3. `templates/404.html` (rewritten)
 
 Continues to `{% extends "base.html" %}` — the header, nav, language switch and theme toggle all stay,
-so a lost user always has a way out. Opens with `{% load static i18n %}` (the current file loads only
+so a lost user always has a way out. (One caveat, knowingly out of scope: `base.html`'s brand link is
+`href="{% url 'home' %}"`, which is `@login_required` — the same trap this spec fixes for the action
+button. It is pre-existing on *every* page in the app, so changing it belongs in its own diff; the
+"way out" claim here rests on the in-page action button, which does point at `landing`.) Opens with
+`{% load static i18n %}` (the current file loads only
 `i18n`, and a bare `{% static %}` without the load tag is a `TemplateSyntaxError`; `base.html`'s own
 load tag does not propagate to child templates). Keeps
 `{% block head_title %}{% trans "Page not found" %} · libli{% endblock %}` **unchanged** — the title
@@ -425,6 +481,16 @@ the real form at `/accounts/login/` with `tests.factories.TEST_PASSWORD`, per th
 `tests/test_e2e_html_element.py`. The e2e user additionally needs a verified email
 (`make_verified_user`) for that form to succeed.
 
+**The e2e module must copy two more things from that precedent, both non-optional:**
+
+1. `pytestmark = pytest.mark.e2e` at module top. `pyproject.toml` sets
+   `addopts = "-q -m 'not e2e'"`, so an *unmarked* module silently joins the default suite and CI's
+   unit job and launches Chromium there — the runaway-browser failure this project has already hit.
+   The module is run explicitly with `-m e2e`.
+2. The `scope="session", autouse=True` fixture setting `DJANGO_ALLOW_ASYNC_UNSAFE=true`. The module
+   seeds a user and a course from the test thread while sync Playwright is live; without it the ORM
+   calls raise `SynchronousOnlyOperation`.
+
 1. **404 renders the new page.** `client.get("/no-such-page/")` → status 404, the new heading and both
    prose strings present, the old `We couldn't find that page.` absent.
 2. **404 echoes the attempted path — asserted on the new markup, not on a bare substring.**
@@ -432,7 +498,9 @@ the real form at `/accounts/login/` with `tests.factories.TEST_PASSWORD`, per th
    on every page, so for `GET /no-such-page/` the substring `/no-such-page/` is **already** in the body
    before a single line of `.error-page__path` exists. A bare-substring assertion is therefore vacuous
    — the same trap test 5 avoids for `Log in`. Assert the rendered element instead:
-   `f"<code>{path}</code>"` (or the `You tried:` label and the path within one fragment).
+   `f"<code>{path}</code>"`. This requires the `<code>` element to carry **no attributes and no
+   surrounding whitespace** (it is styled via the `.error-page__path code` descendant selector, per
+   §2), so the exact string matches verbatim.
 3. **404 never emits a raw tag from the path.** Request `/<script>alert(1)</script>/` and assert the
    **payload** `b"<script>alert"` is absent while `b"%3Cscript%3Ealert"` is present. Asserting on the
    bare `b"<script>"` would be wrong: `base.html` emits three literal `<script>` tags of its own (the
@@ -463,10 +531,13 @@ the real form at `/accounts/login/` with `tests.factories.TEST_PASSWORD`, per th
    half reuses test 4's fixture and surface. Assert the PL strings appear and the EN source strings do
    not. This is the test that catches the realistic failure — a msgid added to the template but not to
    the catalog, or left `#, fuzzy`.
-7. **Both catalogs are free of obsolete entries.** The three existing `#~` assertions
-   (`tests/test_i18n_auth.py`, `tests/test_i18n_notes.py`, `tests/test_tags_i18n.py`) read **only**
-   `locale/pl/LC_MESSAGES/django.po`, so they cover half this change. Add the matching `#~`-absence
-   assertion for `locale/en/LC_MESSAGES/django.po`.
+7. **Both catalogs are clean.** The three existing assertions (`tests/test_i18n_auth.py`,
+   `tests/test_i18n_notes.py`, `tests/test_tags_i18n.py`) read **only**
+   `locale/pl/LC_MESSAGES/django.po`, so they cover half this change. Add the matching guard for
+   `locale/en/LC_MESSAGES/django.po`, asserting **both** `"#~" not in text` **and**
+   `"#, fuzzy" not in text` — exactly mirroring its PL sibling
+   `test_i18n_auth.py::test_po_catalog_clean`. Guarding only `#~` would leave an EN fuzzy entry
+   unguarded, and §Catalog churn's own instruction is about both catalogs.
 8. **Static and template wiring guard**, per the repo's standing convention for a new per-page sheet
    (`tests/test_auth_styles.py`, `test_settings_styles.py`, `test_tags_static.py`,
    `test_callout_css.py`). Assert that:
@@ -494,9 +565,24 @@ it goes red before keeping it. A passing test that has never been seen to fail p
 project has shipped vacuous tests before.
 
 **Visual verification is part of "done", not optional**, per the standing `verify-ui-with-screenshots`
-convention. **Six Playwright shots, countable:** `{404, 403} × {light, dark}` at 1280 (four), plus
-`{404, 403}` at 390 in **light only** (two). The phone width is a composition/layout risk, not a
-colour one, so it does not need a second theme sweep.
+convention. **Six Playwright shots, countable, with viewports pinned to width *and height*:**
+
+| # | Page | Theme | Viewport | Watermark regime |
+|---|---|---|---|---|
+| 1–2 | 404, 403 | light | **1280×900** | unclamped — full-bleed, box 1280×538 |
+| 3–4 | 404, 403 | dark | **1280×900** | unclamped |
+| 5–6 | 404, 403 | light | **390×844** | unclamped — box 390×164 |
+
+Height must be pinned, not defaulted: pytest-playwright's default viewport is **1280×720**, where
+`60dvh` = 432 px and the box clamps to ~1029 px wide — so every "1280" shot would land in the
+*clamped* regime and the full-bleed rendering §2 reasons about would never be photographed. 1280×900
+puts the desktop shots in the unclamped case. The phone width is a composition risk, not a colour one,
+so it does not need a second theme sweep.
+
+The shots are **verification artifacts and are not committed**: write them to the session scratchpad
+directory, review them, and leave them out of the diff. (This differs from the help-shot substrate,
+which deliberately commits its PNGs under `core/static/core/img/help/` because they are shipped page
+content.)
 
 - *Reaching the 404:* `live_server.url + "/no-such-page/"` (anonymous is fine).
 - *Reaching the 403:* log in as the fixture user, then navigate to the course outline URL — the same
@@ -508,15 +594,21 @@ colour one, so it does not need a second theme sweep.
   pre-paint `if (!pref)` branch never consults the cookie. Therefore: set the `libli_theme` cookie for
   the **anonymous 404** shots, and set `user.theme = "light" / "dark"` on the fixture user for the
   **authenticated 403** shots. `tests/test_e2e_html_element.py` already encodes the latter technique.
-- *Widths:* 1280 and 390, per the matrix above.
+- *Viewports:* per the matrix above — 1280×900 and 390×844, both dimensions set explicitly.
 
-Self-critique the shots before calling the work done, specifically checking: the watermark reads as
-atmosphere rather than as a picture; it never fights the text for contrast in either theme; **no hard
-horizontal edge appears across the bottom of the page** (the 0.72 ramp is doing its job); **the
-figure's head is in frame** (the measurement above says it sits at y=6, so a crop would be immediately
-visible); the whole scene is present at 390 px; content paints above the watermark; and the header's
-account / bell / mobile-nav dropdowns still overlay page content on both pages (the `z-index` ordering
-invariant in §2).
+Self-critique the shots before calling the work done, specifically checking:
+
+- the watermark reads as atmosphere rather than as a picture, and never fights the text for contrast
+  in either theme;
+- **no hard horizontal rule appears where the desk band begins** (y≈525 of the artwork — this is the
+  artifact the smoothstep ramp exists to kill, and it is the band's *top* edge, not its bottom);
+- **the figure's head is in frame** — it sits at y=6, so any vertical crop is immediately visible;
+- the lower third of the figure and the laptop base are *expected* to be faded (see §1) — not a bug;
+- the whole scene is present at 390 px;
+- content paints above the watermark, and the header's account / bell / mobile-nav dropdowns still
+  overlay page content on both pages (the `z-index` invariant in §2);
+- **left and right gutters are equal** if any shot does land in the clamped regime — an unequal gutter
+  is the signature of `margin-inline: auto` having been dropped.
 
 **Worktree DB isolation.** Concurrent worktrees collide on the Postgres `test_libli` database. This
 worktree's `.env` already names a unique database (`libli_errpages`, so the test DB is
