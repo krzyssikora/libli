@@ -30,8 +30,16 @@ integrity from scratch, badly).
 The transfer engine today is reachable only through `courses/views_transfer.py`: a browser downloads
 an export and uploads an archive through a staged preview-and-confirm flow. That is right for a
 teacher sharing one unit. It is the wrong instrument for this: 21 separate export→upload cycles
-carrying roughly 327 MB of media, through a form whose importer enforces per-entry size caps. A
-command drives the same underlying functions without the browser in the middle.
+carrying roughly 327 MB of media, each through session staging, a preview-confirm round trip, and a
+request timeout. A command drives the same underlying functions without the browser in the middle.
+
+**What the command does *not* avoid is media size validation.** `validate_archive_document` →
+`validate_media_entries` enforces `effective_max_image_bytes()` / `effective_max_video_bytes()` —
+per-entry caps configured on the *target* instance — identically for any caller. The command removes
+the browser and the staging overhead, not the caps. That makes the caps a real pre-cutover risk:
+before the real migration, the target's configured image/video ceilings must be checked against the
+largest source assets, or the cutover will fail on a `TransferError` partway through exactly as the
+UI would have.
 
 ### Why the tool is general
 
@@ -71,8 +79,17 @@ is what the archive format exists for:
 
 - **`export`** — run against the source database. Iterate the source course's top-level parts in
   `order`, and for each call `build_export(course, node=part)` then `write_archive_from(...)`,
-  writing one archive per part into the bundle directory, named so that part order is recoverable.
-  Strictly read-only with respect to the source.
+  writing one archive per part into the bundle directory. Strictly read-only with respect to the
+  source.
+
+  **`build_export` returns a 4-tuple**, not three values:
+  `(manifest, document, media_assets, problems)` — its signature is
+  `build_export(course, node=None, source_host="", *, drop_missing_media=True)`. Unpacking three
+  would raise `ValueError`, and dropping the fourth would discard the export's own content-loss
+  signal (see "The real export-side risk" below).
+
+  Archives are named `{order:02d}-{slug}.zip` so part order is recoverable from the filename alone,
+  without opening 21 archives to read their manifests.
 - **`import`** — run against the target database. Iterate the bundle's archives **in part order** and
   for each call `open_archive` → `validate_archive_document` → `import_subtree(...)` with the target
   course and a top-level insertion point.
@@ -81,6 +98,19 @@ The bundle directory is the interface between the phases, and it is also what ma
 operation inspectable: after the export phase the archives can be examined before anything is
 written anywhere.
 
+### The real export-side risk: `problems`
+
+`build_export`'s fourth return value is a list of per-part problems — missing media substituted with
+placeholders, dropped videos, elements that failed to serialise. The existing UI treats it as a
+blocking signal: `views_transfer._stream_archive` refuses to stream the archive and renders a
+confirmation page whenever `problems` is non-empty and the request has not already confirmed.
+
+The command must not be laxer than the UI it replaces. **A non-empty `problems` list for any part
+aborts the export phase by default**, reporting the affected part and its problems, and requires an
+explicit override flag to proceed. Exporting 21 parts and silently accepting placeholdered media
+would produce a migration that looks complete and has quietly lost content — the precise failure
+this whole effort exists to avoid.
+
 ### Guards
 
 The import phase will eventually run against a real database holding real courses, so it defends
@@ -88,8 +118,20 @@ itself:
 
 - **Double-run guard.** Refuse to import when the target course already has content nodes, unless an
   explicit override flag is passed. Re-running by accident would graft a second copy of all 21 parts.
-- **Per-part transaction.** Each part's graft is atomic, so a failure part-way cannot leave a
-  half-grafted part behind.
+- **Per-part transaction, and what it does *not* buy.** `importer._run_import` wraps each
+  `import_subtree` call in its own `transaction.atomic()`. So a part is never half-grafted — but 21
+  sequential grafts are 21 **independent** transactions, and a failure at part 12 leaves parts 1–11
+  durably committed. Atomicity is per part, not per migration; the spec must not imply otherwise.
+- **Resume by index, because of the above.** A partial failure is a likely outcome over 21 grafts
+  against a real database, and the double-run override is the wrong recovery lever — re-running with
+  it would iterate the bundle from the start and graft parts 1–11 a *second* time. The import phase
+  therefore reports the index of the last part committed, and accepts `--start-at N` to resume from
+  the next one. `--start-at` necessarily implies the target is non-empty, so it bypasses the
+  double-run guard by design.
+
+  Resume-by-index is chosen over detecting already-present parts by title: titles are not guaranteed
+  unique (82 of the source's chapters share a `__PLACEHOLDER` pattern), so title matching would be
+  fragile in exactly the situation it is needed.
 - **Dry run.** A mode that reports what *would* be grafted — per-part node and media counts — while
   writing nothing.
 - **The source is never mutated.** The export phase only reads.
@@ -109,13 +151,15 @@ binary-tree `HtmlElement` unit ("Klasyfikacja czworokątów").
 ## Data flow
 
 **Export phase**, per part: source course → `build_export(course, node=part)` produces
-`(manifest, document, media_assets)` → `write_archive_from(...)` writes a zip containing
+`(manifest, document, media_assets, problems)` → `problems` is checked (see "The real export-side
+risk") → `write_archive_from(manifest, document, media_assets, fileobj)` writes a zip containing
 `manifest.json`, `course.json`, and the media payload → one file per part in the bundle directory.
 
 **Import phase**, per archive in part order: file → `open_archive(fileobj, expected_kind=…)` →
 `validate_archive_document(...)` → `import_subtree(zf, manifest, document, media_entries,
-target_course, insertion_node=<top level>, user)` → new `ContentNode` rows under the target course,
-new `MediaAsset` rows with fresh primary keys, and media files materialised from the archive.
+target_course, None, user)` — every parameter is positional, and `None` is the top-level insertion
+point — → new `ContentNode` rows under the target course, new `MediaAsset` rows with fresh primary
+keys, and media files materialised from the archive.
 
 Node titles travel verbatim. That matters here: 29 of the source's chapters have been renamed by hand
 and 82 still carry `__PLACEHOLDER chapter N__`. All 111 arrive exactly as they are, and the remaining
@@ -157,18 +201,30 @@ Required coverage:
 - **Media re-materialised** with fresh primary keys in the target, distinct from the source's.
 - **Titles carried verbatim**, including a `__PLACEHOLDER`-style title, so the rename-later workflow
   is protected.
-- **The `HtmlElement` round-trip described below.**
+- **A non-empty `problems` list aborts the export phase**, and the override flag lets it proceed.
+- **A corrupt or oversized archive in the bundle names that specific archive** in the import phase's
+  error, rather than escaping as a raw traceback — the promise made in Error handling, and the
+  failure mode most likely to occur across 21 real archives.
+- **Resume by index:** a run that fails at part N leaves parts 1..N-1 committed, and `--start-at N`
+  grafts the remainder without duplicating them. Test the whole sequence, not just the flag.
+- **The `HtmlElement` round-trip described above** — as a regression guard on the not-sanitized
+  policy, not as a mitigation.
 
-### The risk that must be pinned before anything else
+### The HtmlElement round-trip: a regression guard, not a live risk
 
-`importer._build_html` passes imported html through `sanitize_html`. The binary decision tree's
-interactivity depends on `data-binary-choose` attributes that `course.html_js` binds to. If
-sanitisation strips them, the element survives the migration as visibly-intact but dead markup —
-exactly the kind of silent loss that is hard to notice among 793 units.
+An earlier draft of this spec claimed `importer._build_html` passes imported html through
+`sanitize_html`, and treated the possible stripping of the binary tree's `data-binary-choose`
+attributes as the project's foremost risk. **That was false and is corrected here.**
+`_build_html` is `return _clean_save(HtmlElement(html=data["html"])), ()` — no sanitisation on that
+path. The only `sanitize_html` call in the importer is for a question stem. The model states the
+policy outright: `html = models.TextField(blank=True)  # raw author HTML/CSS/JS — NOT sanitized`
+(`courses/models.py`), because the **sandboxed iframe, not sanitisation, is the security boundary**
+for `HtmlElement`.
 
-A test must therefore round-trip an `HtmlElement` carrying `data-binary-choose` through export and
-import and assert the attribute survives. **If it does not survive, stop and surface it.** That is a
-genuine content-loss finding which changes the design; it must not be worked around quietly.
+So the attributes are not at risk today. The round-trip test is still worth writing — it is nearly
+free and it pins the policy, so that anyone who later adds sanitisation to `_build_html` discovers
+they have broken the binary tree — but it is a **regression guard, not a mitigation**, and it must
+not displace the real export-side risk described immediately below.
 
 ### Known gaps, documented rather than solved
 
