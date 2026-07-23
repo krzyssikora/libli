@@ -165,8 +165,8 @@ aborts the export phase by default**, reporting the affected part and its proble
 produce a migration that looks complete and has quietly lost content — the precise failure this whole
 effort exists to avoid.
 
-**Re-running export is safe and overwrites.** Because a problems-abort at part 12 leaves archives for
-parts 1–11 already on disk, the export phase must define its own re-run behaviour rather than
+**Re-running export is safe and overwrites.** Because a problems-abort partway through leaves the
+already-exported archives on disk, the export phase must define its own re-run behaviour rather than
 inheriting the import side's. Archive names are deterministic (`{order:02d}-{slug}.zip`), so a re-run
 simply overwrites by filename. No resume-by-index is needed here: export is read-only against the
 source and cheap to repeat, so a clean full re-export is always correct — unlike import, where
@@ -193,8 +193,15 @@ itself:
   against a real database, and the double-run override is the wrong recovery lever — re-running with
   it would iterate the bundle from the start and graft parts 1–11 a *second* time. The import phase
   therefore reports the `order` of the last part committed, and accepts `--start-at K` to resume from
-  the next one. `--start-at` necessarily implies the target is non-empty, so it bypasses the
+  the next one. For any `K > 0` the target is non-empty by construction, so `--start-at` bypasses the
   double-run guard by design.
+
+  **The `K = 0` case is degenerate and is handled by not using `--start-at` at all.** If the very
+  first graft (`order == 0`) fails, nothing was committed and the target is still empty — there is no
+  "last part committed" to report. The failure message therefore says *no parts were committed; re-run
+  `import` from the start*, and a plain re-run works because the empty target satisfies the double-run
+  guard on its own. `--start-at 0` is accepted but redundant, and its invariant (target holds exactly
+  0 top-level nodes) is precisely the guard's own condition, so the two agree rather than conflict.
 
   Resume-by-index is chosen over detecting already-present parts by title because an index is a
   stronger invariant than a string match in general: nothing in the schema makes sibling titles
@@ -352,6 +359,8 @@ Required coverage:
 - **`--start-at K` aborts when the target does not hold exactly `K` top-level nodes**, so a mistyped
   index cannot silently skip or duplicate a part. Cover the off-by-one explicitly: with parts
   `0 … 10` committed, `--start-at 11` proceeds and `--start-at 10` and `--start-at 12` both abort.
+- **A failure on the very first part reports "no parts committed"** and is recoverable by a plain
+  re-run, not by `--start-at` — the degenerate `K = 0` boundary.
 - **The bundle side table correlates shared media by source pk**, and verification uses it to explain
   a positive media delta — a test should cover an asset referenced from two parts arriving as two
   target rows *and* being accounted for, rather than reported as a fault.
