@@ -344,7 +344,7 @@ Expected: all pass. The existing `test_partial_seeds_rows_and_controls` covers t
 
 - [ ] **Step 5: Falsify**
 
-Temporarily restore `assets = MediaAsset.objects.in_bulk(ids)`, re-run the two new tests, and confirm both go RED on `form.editor_rows == []`. Restore the scoped query.
+Temporarily restore `assets = MediaAsset.objects.in_bulk(ids)` and re-run the two new tests. Both must go RED on `assert [r["id"] for r in rows] == [ok.pk]`, because the unscoped lookup resolves the foreign/wrong-kind asset alongside the legitimate one — so the list holds **two** ids rather than one. It will not be an empty list; the legitimate in-course image resolves either way, which is what makes these tests prove the scoping is selective. Restore the scoped query.
 
 - [ ] **Step 6: Lint and commit**
 
@@ -600,13 +600,21 @@ def test_untranslated_scan_ignores_an_obsolete_blank_entry(tmp_path):
 
 
 def test_untranslated_scan_never_reports_the_header(tmp_path):
-    """The header (msgid "") must never reach the report -- and this is not
-    covered incidentally, because the real header's msgstr is non-empty
-    metadata. The body carries a genuine offender so the report is non-empty
-    and we can assert the header is not the thing named."""
-    p = _po(tmp_path, 'msgid "Real"\nmsgstr ""\n')
+    """The header (msgid "") must never reach the report.
+
+    This scenario deliberately does NOT use the _po()/_HEADER helper. A real
+    header carries metadata continuation lines, so its joined msgstr is
+    NON-empty -- which means the untranslated scan would skip it even with the
+    header rule removed, and a test built on _HEADER would pass whether or not
+    the rule existed. That is the same accidental-coverage trap the rule exists
+    to guard against, and it must not be baked into the fixture proving it.
+
+    So: an artificial header with a genuinely EMPTY msgstr. Now the header is
+    excluded ONLY by the msgid-emptiness rule, and deleting that rule makes
+    this test fail -- see the falsification in Step 5."""
+    p = tmp_path / "django.po"
+    p.write_text('msgid ""\nmsgstr ""\n\nmsgid "Real"\nmsgstr ""\n', encoding="utf-8")
     assert _untranslated(p) == ["Real"]
-    assert "" not in _untranslated(p)
 
 
 def test_entries_marks_a_fuzzy_entry(tmp_path):
@@ -640,7 +648,7 @@ Prove each scenario is load-bearing, one at a time, reverting after each:
 
 1. In `_entries`, change `fuzzy = any(...)` to `fuzzy = False`. Run: `test_entries_marks_a_fuzzy_entry` must FAIL. Restore.
 2. Change `obsolete = any(...)` to `obsolete = False`. Run: `test_entries_marks_an_obsolete_entry` must FAIL, **and** `test_untranslated_scan_ignores_an_obsolete_blank_entry` must also FAIL (the entry is no longer recognised as obsolete, so the scan reports it). Restore.
-3. In `_untranslated`, drop `or not e["msgid"]` from the skip condition. Run: `test_untranslated_scan_never_reports_the_header` must FAIL. Restore.
+3. In `_untranslated`, drop `or not e["msgid"]` from the skip condition. Run: `test_untranslated_scan_never_reports_the_header` must FAIL, reporting `['', 'Real']` instead of `['Real']` — the header's own empty msgstr now counts as untranslated. Restore. (This only goes red because that scenario builds its own header with an empty `msgstr`; had it used `_po()`/`_HEADER`, whose header carries non-empty metadata, the header would be skipped by emptiness anyway and the falsification would silently pass.)
 4. In `_untranslated`, change `need = required if e["plural"] else 1` to `need = 1`. Run: `test_untranslated_scan_flags_one_missing_plural_form` must still pass (form 2 is present-but-empty, caught by the `any(not s ...)` clause) — then additionally delete the `msgstr[2] ""` line from that fixture and confirm it FAILS, proving the `len(...) < need` clause carries the missing-form case. Restore both.
 
 Record in the commit message which falsifications were run.
