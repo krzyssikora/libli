@@ -24,8 +24,10 @@ them expensive:
   `refreshToolbarState`; `absorbedNonEmpty` calls `cellIsNonEmpty`. Those must become injected
   callbacks.
 
-Removing 163 duplicated lines therefore means touching roughly 1,100 lines of both `wire()` bodies,
-in editors that shipped days ago, with the e2e suite as the only safety net. The cost is not worth it
+Removing 163 duplicated lines therefore means touching both `wire()` bodies in full — 487 raw lines
+in `table_editor.js` and 693 in `filltable_editor.js`, about 1,180 together — in editors that shipped
+days ago, with the e2e suite as the only safety net. (Raw file lines here, not the normalised 368/528
+quoted in the divergence table below; the two measures differ by blank and comment lines.) The cost is not worth it
 *yet*. This guard is the cheaper move that addresses the actual risk — and if these editors keep
 growing until extraction does pay, the guard becomes the safety net for performing it.
 
@@ -77,7 +79,7 @@ Each carries its reason in the `DIVERGENT` list, so a reader learns *why* rather
 | Function | Why it differs |
 |---|---|
 | `label` | closes over a different editor root attribute (`[data-table-editor]` vs `[data-filltable-editor]`) |
-| `wire` | the container itself; its nested helpers are classified individually, so comparing the 368- vs 528-line bodies would be meaningless |
+| `wire` | the container itself; its nested helpers are classified individually, so comparing the two bodies (368 vs 528 lines *after normalisation*) would be meaningless |
 | `serialize` | fill-table emits three cell kinds (static / answer / image), the plain table one |
 | `refreshToolbarState` | fill-table adds an `if (!focusCell) return` gate *after* the merge/split/header block, so the kind-specific refresh (disabling `[data-cmd]` on answer/image cells, the answer-toggle state, hiding the alt input) is skipped when nothing is focused; that gate also moves its `refreshAlignButtons()` call behind it |
 | `toggleHeaderCell` | fill-table must re-key the live `cellStash` Map from old node to new |
@@ -97,6 +99,26 @@ So comparison strips, per line: leading and trailing whitespace, blank lines, wh
 comments, and trailing `//` comments. What remains is code tokens. Indentation therefore does not
 matter either, which is necessary anyway — the file-scope twins sit at two-space indent and the
 nested ones at four.
+
+**A `//` inside a string literal would break this, and it fails worse than the brace hazard.** A
+naive stripper truncates `var u = "http://x"` at the `//`, discarding the rest of the line. Unlike a
+broken extractor, which finds fewer functions and is caught by the count assertion, this failure
+makes two genuinely *different* lines normalise to the same prefix and compare **equal** — the guard
+reports success while missing real drift, and nothing else notices.
+
+Neither file contains such a line today. Every `//` in both files is a real comment; the ones that
+look risky merely *follow* a string on the same line, like
+`if (!window.confirm(msg("merge-confirm"))) return;   // cancel: no change`, where stripping is
+correct. There are likewise no template literals — every backtick in either file sits inside prose
+comment text, which is discarded before any scanning.
+
+Rather than write a JS-aware tokeniser for a case that does not exist, the guard carries a
+**tripwire**: before comparing, it fails loudly if either file contains a line where `//` is preceded
+by an odd number of unescaped `"` or `'` on that line (i.e. the `//` is inside an open string), or if
+any backtick survives comment-stripping (a template literal, which per-line scanning cannot handle
+safely). Either condition means the normalisation assumption has been invalidated and the stripper
+must be made quote-aware before the guard can be trusted. This mirrors the treatment of the
+brace-counting hazard: the assumption is stated, checked, and fails loudly rather than silently.
 
 Comments diverging freely is the accepted trade: each editor should be able to explain itself in its
 own terms.
