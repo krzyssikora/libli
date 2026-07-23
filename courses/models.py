@@ -1161,15 +1161,20 @@ class FillTableElement(ElementBase):
     def normalized_data(self):
         return self.normalize_data(self.data)
 
-    @property
-    def resolved_cells(self):
-        """The normalized grid with each image cell's `media` int pk replaced by its
-        MediaAsset (one in_bulk pass). Unresolved pks degrade to an empty static cell
-        so a dangling asset never 500s a lesson. Static/answer cells pass through.
-        A property (parallel to normalized_data) so the editor template can read it."""
-        cells = self.normalize_data(self.data)["cells"]
+    @staticmethod
+    def resolve_image_cells(cells):
+        """A normalized cells grid with each image cell's `media` int pk replaced
+        by its MediaAsset (one in_bulk pass). Unresolved pks degrade to an empty
+        static cell -- dropping any colspan/rowspan/header the cell carried --
+        so a dangling asset never 500s a lesson and never leaves a spanning gap
+        with nothing spanning it. Static/answer cells pass through unchanged.
+
+        Shared by resolved_cells (student render, resolves against self.data)
+        and FillTableElementForm.resolved_grid_cells (editor, resolves against
+        the submitted/stored grid_data on a rejected save) -- the two callers
+        must not diverge on this fallback."""
         ids = [c["media"] for row in cells for c in row if c.get("kind") == "image"]
-        assets = MediaAsset.objects.in_bulk(ids)
+        assets = MediaAsset.objects.in_bulk(ids) if ids else {}
         out = []
         for row in cells:
             out_row = []
@@ -1181,7 +1186,7 @@ class FillTableElement(ElementBase):
                     else:
                         out_row.append(
                             {
-                                "kind": self.STATIC,
+                                "kind": FillTableElement.STATIC,
                                 "html": "",
                                 "halign": c["halign"],
                                 "valign": c["valign"],
@@ -1191,6 +1196,15 @@ class FillTableElement(ElementBase):
                     out_row.append(c)
             out.append(out_row)
         return out
+
+    @property
+    def resolved_cells(self):
+        """The normalized grid with each image cell's `media` int pk replaced by its
+        MediaAsset (one in_bulk pass). Unresolved pks degrade to an empty static cell
+        so a dangling asset never 500s a lesson. Static/answer cells pass through.
+        A property (parallel to normalized_data) so the editor template can read it."""
+        cells = self.normalize_data(self.data)["cells"]
+        return self.resolve_image_cells(cells)
 
 
 class GalleryElement(ElementBase):

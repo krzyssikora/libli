@@ -191,3 +191,66 @@ def test_resolved_grid_cells_resolves_the_submitted_image_not_the_stored_one():
     assert resolved[0][0]["kind"] == "image"
     # submitted pk wins, not stored_asset
     assert resolved[0][0]["media"] == submitted_asset
+
+
+def test_unresolvable_image_cell_drops_spans_in_both_render_and_editor():
+    """resolved_cells (student render) and resolved_grid_cells (editor) share
+    one fallback for an image cell whose media pk cannot be resolved: drop the
+    cell to an empty static cell, and drop any colspan/rowspan/header it
+    carried along with it (a spanning gap left un-spanned would misshape the
+    grid). Pin this for BOTH paths so they cannot silently re-diverge -- see
+    FillTableElement.resolve_image_cells."""
+    course = make_course()
+    dangling_pk = 999999  # not in the DB
+    raw = {
+        "cells": [
+            [
+                {
+                    "kind": "image",
+                    "media": dangling_pk,
+                    "alt": "x",
+                    "colspan": 2,
+                    "rowspan": 2,
+                    "header": True,
+                },
+                {"kind": "answer", "answer": "1"},
+            ]
+        ]
+    }
+
+    # Student render path: FillTableElement.resolved_cells.
+    el = FillTableElement(data=raw)
+    el.save()
+    model_cell = el.resolved_cells[0][0]
+    assert model_cell["kind"] == "static" and model_cell["html"] == ""
+    assert "colspan" not in model_cell
+    assert "rowspan" not in model_cell
+    assert "header" not in model_cell
+
+    # Editor path, rejected-save branch: FillTableElementForm.resolved_grid_cells.
+    submitted = {
+        "cells": [
+            [
+                {
+                    "kind": "image",
+                    "media": dangling_pk,
+                    "alt": "x",
+                    "colspan": 2,
+                    "rowspan": 2,
+                    "header": True,
+                },
+                # No answer cell -> clean_data rejects, form invalid, grid_data
+                # takes the submitted branch (see test above).
+                {"kind": "static", "html": ""},
+            ]
+        ]
+    }
+    form = FORM_FOR_TYPE["filltable"](
+        data={"data": json.dumps(submitted)}, instance=FillTableElement(), course=course
+    )
+    assert not form.is_valid(), form.errors
+    form_cell = form.resolved_grid_cells[0][0]
+    assert form_cell["kind"] == "static" and form_cell["html"] == ""
+    assert "colspan" not in form_cell
+    assert "rowspan" not in form_cell
+    assert "header" not in form_cell

@@ -1369,6 +1369,36 @@ def _scan_spans(cells):
     return spanning
 
 
+def _grid_data(form):
+    """Normalised grid the editor template renders from.
+
+    On a bound-INVALID form this is the SUBMITTED payload, not the stored
+    one. The hidden name="data" field always carries the submission, and
+    serialize() skips its init pass when that field is non-empty -- so
+    rendering the stored grid after a rejected save shows the author their
+    pre-edit table while the field still holds the edit, and their next
+    Save silently re-posts the rejected shape.
+
+    The templates cannot do this themselves: the submission exists only as
+    an unparsed JSON string and Django templates have no json.loads.
+
+    Falls back to the stored value when unbound, valid, absent,
+    unparseable, or not a dict (which also covers the add path).
+
+    Shared by TableElementForm and FillTableElementForm.grid_data -- the two
+    properties were byte-for-byte identical."""
+    if form.is_bound and not form.is_valid():
+        raw = form.data.get("data")
+        if isinstance(raw, str):
+            try:
+                parsed = json.loads(raw)
+            except ValueError:
+                parsed = None
+            if isinstance(parsed, dict):
+                return form._meta.model.normalize_data(parsed)
+    return form.instance.normalized_data
+
+
 def _caps_ok(form, cells):
     """True iff the grid's LAYOUT dimensions are within the caps, or are no
     larger than what is already stored (grandfathering).
@@ -1446,30 +1476,7 @@ class TableElementForm(forms.ModelForm):
 
     @property
     def grid_data(self):
-        """Normalised grid the editor template renders from.
-
-        On a bound-INVALID form this is the SUBMITTED payload, not the stored
-        one. The hidden name="data" field always carries the submission, and
-        serialize() skips its init pass when that field is non-empty -- so
-        rendering the stored grid after a rejected save shows the author their
-        pre-edit table while the field still holds the edit, and their next
-        Save silently re-posts the rejected shape.
-
-        The templates cannot do this themselves: the submission exists only as
-        an unparsed JSON string and Django templates have no json.loads.
-
-        Falls back to the stored value when unbound, valid, absent,
-        unparseable, or not a dict (which also covers the add path)."""
-        if self.is_bound and not self.is_valid():
-            raw = self.data.get("data")
-            if isinstance(raw, str):
-                try:
-                    parsed = json.loads(raw)
-                except ValueError:
-                    parsed = None
-                if isinstance(parsed, dict):
-                    return self._meta.model.normalize_data(parsed)
-        return self.instance.normalized_data
+        return _grid_data(self)
 
 
 class FillTableElementForm(_CourseScopedMediaForm):
@@ -1534,30 +1541,7 @@ class FillTableElementForm(_CourseScopedMediaForm):
 
     @property
     def grid_data(self):
-        """Normalised grid the editor template renders from.
-
-        On a bound-INVALID form this is the SUBMITTED payload, not the stored
-        one. The hidden name="data" field always carries the submission, and
-        serialize() skips its init pass when that field is non-empty -- so
-        rendering the stored grid after a rejected save shows the author their
-        pre-edit table while the field still holds the edit, and their next
-        Save silently re-posts the rejected shape.
-
-        The templates cannot do this themselves: the submission exists only as
-        an unparsed JSON string and Django templates have no json.loads.
-
-        Falls back to the stored value when unbound, valid, absent,
-        unparseable, or not a dict (which also covers the add path)."""
-        if self.is_bound and not self.is_valid():
-            raw = self.data.get("data")
-            if isinstance(raw, str):
-                try:
-                    parsed = json.loads(raw)
-                except ValueError:
-                    parsed = None
-                if isinstance(parsed, dict):
-                    return self._meta.model.normalize_data(parsed)
-        return self.instance.normalized_data
+        return _grid_data(self)
 
     @property
     def resolved_grid_cells(self):
@@ -1565,31 +1549,11 @@ class FillTableElementForm(_CourseScopedMediaForm):
         FillTableElement.resolved_cells but sourced from grid_data so a
         rejected save re-renders the SUBMITTED grid (see grid_data).
 
-        MediaAsset is already imported at module level (element_forms.py:40),
-        so no local re-import -- matching the surrounding clean_data."""
-        cells = self.grid_data["cells"]
-        ids = [
-            c.get("media")
-            for row in cells
-            for c in row
-            if c.get("kind") == "image" and isinstance(c.get("media"), int)
-        ]
-        assets = MediaAsset.objects.in_bulk(ids) if ids else {}
-        out = []
-        for row in cells:
-            out_row = []
-            for c in row:
-                if c.get("kind") == "image":
-                    asset = assets.get(c.get("media"))
-                    out_row.append(
-                        {**c, "media": asset}
-                        if asset
-                        else {**c, "kind": "static", "html": ""}
-                    )
-                else:
-                    out_row.append(c)
-            out.append(out_row)
-        return out
+        Delegates to FillTableElement.resolve_image_cells so the editor and
+        the student render cannot silently diverge on the unresolved-image
+        fallback (it drops any colspan/rowspan/header the cell carried, same
+        as the model)."""
+        return FillTableElement.resolve_image_cells(self.grid_data["cells"])
 
 
 class GalleryElementForm(_CourseScopedMediaForm):
