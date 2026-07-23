@@ -275,6 +275,71 @@ def test_merge_over_content_asks_before_discarding(page, live_server):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_header_toggle_round_trips_a_header_cell(page, live_server):
+    """Press the real Header-cell toggle on a focused td: save must store
+    header: True. Toggle it again and save: the KEY must be gone entirely --
+    not header: False -- so a plain table stays byte-identical to one that
+    never touched the toggle."""
+    from courses.models import TableElement
+    from tests.test_e2e_table_editor import _login
+    from tests.test_e2e_table_editor import _make_pa_user
+    from tests.test_e2e_table_editor import _unit
+
+    _make_pa_user("hdr_ok")
+    _login(page, live_server, "hdr_ok")
+    unit = _unit("hdr_ok", "hdr-ok")
+    element = _seed(
+        unit,
+        TableElement,
+        [[{"html": "a"}, {"html": "b"}], [{"html": "c"}, {"html": "d"}]],
+    )
+
+    _reopen(page, live_server, unit, element, TABLE_ROOT)
+    _cell(page, TABLE_ROOT, 0, 0).click()
+    page.locator(f"{TABLE_ROOT} [data-header-toggle]").click()
+    assert _save_and_report(page, TABLE_ROOT), "save was rejected"
+    cells = _cells(TableElement, element)
+    assert cells[0][0]["header"] is True
+
+    _reopen(page, live_server, unit, element, TABLE_ROOT)
+    _cell(page, TABLE_ROOT, 0, 0).click()
+    page.locator(f"{TABLE_ROOT} [data-header-toggle]").click()
+    assert _save_and_report(page, TABLE_ROOT), "save was rejected"
+    cells = _cells(TableElement, element)
+    assert "header" not in cells[0][0]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_header_toggle_is_disabled_for_a_cell_the_header_row_option_covers(
+    page, live_server
+):
+    """Focus a row-0 cell, then tick [data-th-row] WITHOUT re-clicking the
+    cell: the Header button must go disabled live -- enablement is computed
+    off the checkbox's `change` event, not off focus movement."""
+    from courses.models import TableElement
+    from tests.test_e2e_table_editor import _login
+    from tests.test_e2e_table_editor import _make_pa_user
+    from tests.test_e2e_table_editor import _unit
+
+    _make_pa_user("hdr_lock")
+    _login(page, live_server, "hdr_lock")
+    unit = _unit("hdr_lock", "hdr-lock")
+    element = _seed(
+        unit,
+        TableElement,
+        [[{"html": "a"}, {"html": "b"}], [{"html": "c"}, {"html": "d"}]],
+    )
+
+    _reopen(page, live_server, unit, element, TABLE_ROOT)
+    _cell(page, TABLE_ROOT, 0, 0).click()
+    hdr_btn = page.locator(f"{TABLE_ROOT} [data-header-toggle]")
+    assert not hdr_btn.is_disabled()
+
+    page.locator(f"{TABLE_ROOT} [data-th-row]").click()
+    assert hdr_btn.is_disabled()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_merge_while_focus_sits_on_an_absorbed_cell_refocuses_the_survivor(
     page, live_server
 ):

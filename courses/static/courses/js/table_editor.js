@@ -291,18 +291,58 @@
           (libliTableGrid.colspanOf(focusCell) > 1 ||
            libliTableGrid.rowspanOf(focusCell) > 1));
       }
-      // Task 12 already renders [data-header-toggle], so headerBtn is non-null
-      // throughout Task 13 -- but refreshHeaderButton only exists from Task 14.
-      // Ship the stub below in THIS task so refreshToolbarState cannot throw a
-      // ReferenceError (which would take paintRange, clearRange and the whole
-      // merge/split enablement down with it); Task 14 replaces its body.
+      // Task 12 already renders [data-header-toggle], so headerBtn is non-null.
       if (headerBtn) refreshHeaderButton(headerBtn);
       refreshAlignButtons();
     }
 
-    // Replaced wholesale in Task 14.
+    // "Already promoted" must mean exactly what the RENDER templates mean, or
+    // the editor and the renderer disagree about which cells are covered:
+    //   header_row -> row 0
+    //   header_col -> each row's POSITIONALLY FIRST cell (forloop.first), NOT
+    //                 layout column 0 -- on a ragged grid these diverge.
+    function headerLocked(td) {
+      var tr = td.parentNode;
+      var rows = desc.rows();
+      if (thRow && thRow.checked && rows.indexOf(tr) === 0) return true;
+      if (thCol && thCol.checked && desc.cells(tr)[0] === td) return true;
+      return false;
+    }
+
     function refreshHeaderButton(btn) {
-      btn.disabled = true;
+      var locked = focusCell ? headerLocked(focusCell) : true;
+      btn.disabled = !focusCell || locked;
+      btn.setAttribute(
+        "aria-pressed", String(!!focusCell && focusCell.tagName === "TH")
+      );
+      btn.classList.toggle("is-on", !!focusCell && focusCell.tagName === "TH");
+      btn.title = locked ? msg("header-locked") : msg("header");
+    }
+
+    // td <-> th is a NEW element, so every live reference to the old node must
+    // be re-pointed or it silently dangles.
+    function toggleHeaderCell(td) {
+      if (!td) return;
+      var tag = td.tagName === "TH" ? "td" : "th";
+      var next = document.createElement(tag);
+      var i;
+      for (i = 0; i < td.attributes.length; i++) {
+        next.setAttribute(td.attributes[i].name, td.attributes[i].value);
+      }
+      // MOVE the children rather than re-serializing: a live
+      // .filltable-editor__answer input must keep its typed value and its
+      // event bindings.
+      while (td.firstChild) next.appendChild(td.firstChild);
+      td.replaceWith(next);
+      if (typeof cellStash !== "undefined" && cellStash.has(td)) {
+        cellStash.set(next, cellStash.get(td));   // fill-table only
+        cellStash.delete(td);
+      }
+      if (focusCell === td) focusCell = next;
+      if (rangeAnchor === td) rangeAnchor = next;   // rangeEnd is a coordinate
+      next.focus();
+      refreshToolbarState();
+      serialize();
     }
 
     // Non-empty means: static html that is not blank, OR any answer cell, OR
@@ -539,11 +579,16 @@
           afterStructuralEdit();
           return;
         }
+        var hdrBtn = e.target.closest("[data-header-toggle]");
+        if (hdrBtn && !hdrBtn.disabled && focusCell) {
+          toggleHeaderCell(focusCell);
+          return;
+        }
       });
     }
 
-    if (thRow) thRow.addEventListener("change", serialize);
-    if (thCol) thCol.addEventListener("change", serialize);
+    if (thRow) thRow.addEventListener("change", function () { serialize(); refreshToolbarState(); });
+    if (thCol) thCol.addEventListener("change", function () { serialize(); refreshToolbarState(); });
     if (borderSel) borderSel.addEventListener("change", serialize);
   }
 
