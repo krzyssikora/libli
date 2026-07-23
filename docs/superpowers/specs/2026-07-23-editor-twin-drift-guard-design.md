@@ -121,15 +121,31 @@ correct. There are likewise no template literals — every backtick in either fi
 comment text, which is discarded before any scanning.
 
 Rather than write a JS-aware tokeniser for a case that does not exist, the guard carries a
-**tripwire**: before comparing, it fails loudly if either file contains a line where `//` is preceded
-by an odd number of unescaped `"` or `'` on that line (i.e. the `//` is inside an open string), or if
-any backtick survives comment-stripping (a template literal, which per-line scanning cannot handle
-safely). Either condition means the normalisation assumption has been invalidated and the stripper
-must be made quote-aware before the guard can be trusted. This mirrors the treatment of the
-brace-counting hazard: the assumption is stated, checked, and fails loudly rather than silently.
+**tripwire**: before comparing, it fails loudly if a line **inside an extracted `TWINS` body** has
+`//` preceded by an odd number of unescaped `"` or `'` on that line (i.e. the `//` sits inside an
+open string), or if any backtick survives comment-stripping there (a template literal, which per-line
+scanning cannot handle safely). Either condition means the normalisation assumption has been
+invalidated and the stripper must be made quote-aware before the guard can be trusted.
+
+**Scope is deliberately the twin bodies, not the whole file.** Normalisation is only ever applied to
+the lines being compared, so a `//`-in-string anywhere else cannot corrupt a comparison — and a
+whole-file scan would contradict the Out-of-scope promise below, failing CI over an unrelated edit to
+a fill-table-only helper that has no twin to drift from.
+
+This tripwire needs **its own falsification** (see Testing 8) and does *not* inherit the
+brace-counting exemption. Brace-counting is covered indirectly because a miscount corrupts
+*extraction* and collapses the per-file function count. The tripwire guards *normalisation*, which
+runs after extraction and changes no counts — so a broken stripper leaves 28/36 intact and the count
+assertion never fires. Borrowing that exemption would have left the tripwire shipped unproven.
 
 Comments diverging freely is the accepted trade: each editor should be able to explain itself in its
 own terms.
+
+One residual gap in the count assertion is judged acceptable rather than left implicit: a broken
+regex that simultaneously *drops* one real function and *invents* one spurious match elsewhere would
+leave the total unchanged and slip past. For a pattern as narrow as `function <name>(`, a
+compensating pair of errors is not a realistic failure mode — the plausible regressions (a reformat,
+an arrow-function conversion, a rename) all subtract without adding.
 
 ## Data flow
 
@@ -157,10 +173,16 @@ no guard at all — it reports success while checking a void. Three hazards, eac
    inspect functions actually extracted — stays green while an unguarded 21st twin exists. That is
    exactly the rot the forward check was introduced to prevent, reintroduced one level down. Counting
    every function in each file catches a regex regression on any function, classified or not.
-2. **Brace counting.** Bodies are delimited by counting `{` and `}`, which is not a JS parser: a brace
-   inside a string literal, a regex literal or a template string would miscount and swallow the rest
-   of the file. No such line exists in either editor today; the count assertion in (1) is what
-   detects it if one is ever introduced, since a swallowed body makes the function count collapse.
+2. **Brace counting.** Bodies are delimited by counting `{` and `}`, which is not a JS parser. Four
+   sources can contribute a brace that is not structural: a string literal, a regex literal, a
+   template string, and a **comment**. The first three do not occur in either editor today. The
+   fourth does — both files carry `// … where {% trans %} is unavailable.` and
+   `// a LAYOUT {r, c} coordinate, not a node` — but every such comment is brace-**balanced** on its
+   own line, so the running count is undisturbed and extraction is correct. An *unbalanced* brace in
+   a comment would break it. Stating this explicitly matters: the earlier "no such line exists"
+   framing was true only of the three literal sources and quietly excluded the one source that is
+   actually present. The count assertion in (1) is what detects any of the four if one is ever
+   introduced, since a swallowed body makes the function count collapse.
 3. **Duplicate names.** A name-keyed map assumes each file defines a name once. That holds today
    (28 and 36 definitions, no repeats). If it ever stops holding, the extractor must not silently keep
    the last definition and compare the wrong pair — it fails instead, naming the duplicated function.
@@ -171,7 +193,7 @@ normalised line, so the fix is immediate rather than a hunt.
 ## Testing
 
 The guard is the deliverable, so proving it *can fail* is the substance of the work, not a formality.
-Seven falsifications, each reverted afterwards — one per independent check, so no check ships
+Eight falsifications, each reverted afterwards — one per independent check, so no check ships
 unproven:
 
 1. **A twin drifts** — change one line inside `paintRange` in `filltable_editor.js` only. The guard
@@ -197,6 +219,11 @@ unproven:
 7. **A double classification is caught** — add a name to `TWINS` while leaving it in `DIVERGENT`. The
    guard must fail, naming it. Without this, the documented converge-and-move workflow can silently
    break the "exactly one list" contract, and every other check would stay green.
+8. **The normalisation tripwire fires** — plant a line inside a twin body that puts `//` inside a
+   string (e.g. `var u = "http://x";`), and separately one bearing a surviving backtick. The guard
+   must fail on each, naming the condition. This one cannot be skipped: unlike brace-counting, the
+   tripwire has no indirect coverage from the count assertion, because normalisation runs after
+   extraction and leaves the 28/36 counts untouched.
 
 Falsification 3 matters as much as 1. A guard that fires on comment edits would be reverted within a
 week by whoever gets tired of it, which is a slower path to the same unguarded state.
