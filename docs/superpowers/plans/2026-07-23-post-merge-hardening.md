@@ -14,7 +14,7 @@
 
 - **Tests:** `uv run pytest <paths> -v`. `ruff`, `pytest` and `python` are **not on PATH** — always go through `uv run`.
 - **Never** set `DJANGO_SETTINGS_MODULE` on a pytest invocation. `pyproject.toml` pins `config.settings.test`; forcing `local` breaks `tests/test_auth_styles.py` with a false failure.
-- **Never** use `-q` (it suppresses the summary line here) and never pipe pytest through `tail`/`head` (the harness then reports the pipe's exit code).
+- **Never add `-q`**, and never pipe pytest through `tail`/`head` (the harness then reports the pipe's exit code). Note `pyproject.toml` already sets `addopts = "-q -m 'not e2e'"`, so `-q` is baked in and adding another one only suppresses more output. A consequence worth knowing: a single `-v` merely cancels that baked-in `-q` back to *default* output, so it does **not** give per-test PASSED/FAILED lines. Where a step below needs to read which specific test failed and why, it uses **`-vv`**.
 - **Never** run a bare `-m e2e` sweep — it spawns a browser per test. This plan needs no e2e.
 - **Lint:** `uv run ruff check .` and `uv run ruff format --check .` must both be clean. CI gates on them separately.
 - **Stage explicitly by path.** Never `git add -A` or `git add .`.
@@ -61,8 +61,15 @@ Append to `tests/test_filltable_editor_partial.py`. `json`, `FORM_FOR_TYPE`, `Fi
 ```python
 def test_foreign_course_image_cell_does_not_resolve_in_the_editor():
     """A rejected save carrying ANOTHER course's image pk must not re-render
-    that asset's URL. clean_data is what rejects the foreign pk, so the
-    rejection is exactly what routes the payload through resolved_grid_cells."""
+    that asset's URL.
+
+    The payload is deliberately valid in every OTHER respect -- it carries a
+    real answer cell -- so clean_data's earlier guards (caps, answer-cell
+    presence, blank-answer) all pass and it reaches the img_ids course check,
+    which is the rule that actually rejects it. Getting this wrong is easy: a
+    payload with no answer cell is rejected by "Mark at least one answer cell"
+    long before any media validation runs, and the test would then pass while
+    exercising a different rejection path than its name claims."""
     mine = make_course()
     theirs = make_course()
     foreign = make_image_asset(theirs, filename="theirs.png")
@@ -71,9 +78,7 @@ def test_foreign_course_image_cell_does_not_resolve_in_the_editor():
         "cells": [
             [
                 {"kind": "image", "media": foreign.pk, "alt": "x"},
-                # No answer cell -> clean_data rejects -> grid_data takes the
-                # submitted branch.
-                {"kind": "static", "html": ""},
+                {"kind": "answer", "answer": "1"},
             ]
         ]
     }
@@ -81,6 +86,9 @@ def test_foreign_course_image_cell_does_not_resolve_in_the_editor():
         data={"data": json.dumps(submitted)}, instance=FillTableElement(), course=mine
     )
     assert not form.is_valid(), form.errors
+    # Pin WHY it was rejected, so the test cannot silently start passing for an
+    # unrelated reason (an earlier guard firing) after a future edit.
+    assert "not an image in this course" in str(form.errors)
     cell = form.resolved_grid_cells[0][0]
     # Falls into the EXISTING unresolved branch: empty static cell.
     assert cell["kind"] == "static" and cell["html"] == ""
@@ -91,7 +99,9 @@ def test_foreign_course_image_cell_does_not_resolve_in_the_editor():
 def test_wrong_kind_media_does_not_resolve_in_the_editor():
     """clean_data requires an IMAGE in this course. An in-course asset of the
     wrong kind is rejected at save, so the resolver must not resolve it either
-    -- otherwise the editor emits a video's URL inside an <img>."""
+    -- otherwise the editor emits a video's URL inside an <img>. As above, the
+    payload carries a real answer cell so the rejection comes from the media
+    check and not from an earlier guard."""
     course = make_course()
     video = make_image_asset(course, filename="clip.png", kind="video")
 
@@ -99,7 +109,7 @@ def test_wrong_kind_media_does_not_resolve_in_the_editor():
         "cells": [
             [
                 {"kind": "image", "media": video.pk, "alt": "x"},
-                {"kind": "static", "html": ""},
+                {"kind": "answer", "answer": "1"},
             ]
         ]
     }
@@ -107,6 +117,7 @@ def test_wrong_kind_media_does_not_resolve_in_the_editor():
         data={"data": json.dumps(submitted)}, instance=FillTableElement(), course=course
     )
     assert not form.is_valid(), form.errors
+    assert "not an image in this course" in str(form.errors)
     cell = form.resolved_grid_cells[0][0]
     assert cell["kind"] == "static" and cell["html"] == ""
     assert video.file.url not in json.dumps(form.resolved_grid_cells, default=str)
@@ -115,10 +126,14 @@ def test_wrong_kind_media_does_not_resolve_in_the_editor():
 - [ ] **Step 2: Run them and confirm they fail for the right reason**
 
 ```
-uv run pytest tests/test_filltable_editor_partial.py -k "foreign_course_image or wrong_kind_media" -v
+uv run pytest tests/test_filltable_editor_partial.py -k "foreign_course_image or wrong_kind_media" -vv
 ```
 
-Expected: both FAIL on `assert cell["kind"] == "static"` — the cell resolves to the foreign/wrong-kind asset, so `kind` is still `"image"`. A failure on `form.is_valid()` instead would mean the payload was accepted and the test is not exercising the branch — stop and fix the payload.
+Expected: both FAIL on `assert cell["kind"] == "static"` — the cell resolves to the foreign/wrong-kind asset, so `kind` is still `"image"`.
+
+Two ways this can fail for the WRONG reason; both mean stop and fix the payload rather than proceeding:
+- a failure on `assert not form.is_valid()` — the payload was accepted, so the resolver branch is never reached;
+- a failure on `assert "not an image in this course" in str(form.errors)` — the form was rejected by an *earlier* guard (caps, missing answer cell, blank answer) and the media check never ran.
 
 - [ ] **Step 3: Add the `course` parameter to the resolver**
 
@@ -224,50 +239,73 @@ Append to `tests/test_gallery_editor_partial.py`. Add `import json` to that file
 ```python
 def test_foreign_course_image_is_not_resolved_into_editor_rows():
     """A rejected gallery save carrying ANOTHER course's image pk must not
-    re-render that asset's thumbnail. clean_data rejects the foreign pk, which
-    is exactly what leaves the form bound-invalid and routes the submitted
-    payload through editor_rows."""
+    re-render that asset's thumbnail.
+
+    The payload carries TWO images -- one legitimately in this course, one
+    foreign -- for two reasons. First, GalleryElement.MIN_IMAGES is 2, so a
+    single-image payload is rejected by "A gallery needs at least 2 images"
+    before any media validation runs, and the test would then pass while
+    exercising a rejection path unrelated to its name. Second, keeping a valid
+    image proves the scoping is SELECTIVE: the in-course row survives while the
+    foreign one disappears, which a blanket "resolve nothing" bug would fail."""
     mine = make_course()
     theirs = make_course()
+    ok = make_image_asset(mine, filename="mine.png")
     foreign = make_image_asset(theirs, filename="theirs.png")
 
-    submitted = {"desc_pos": "above", "images": [{"media": foreign.pk, "desc": ""}]}
+    submitted = {
+        "desc_pos": "above",
+        "images": [{"media": ok.pk, "desc": ""}, {"media": foreign.pk, "desc": ""}],
+    }
     form = GalleryElementForm(
         data={"data": json.dumps(submitted)},
         instance=GalleryElement(),
         course=mine,
     )
     assert not form.is_valid(), form.errors
+    # Pin WHY it was rejected, so an earlier guard firing cannot make this pass
+    # for the wrong reason.
+    assert "not an image in this course" in str(form.errors)
+    rows = form.editor_rows
     # Gallery's OWN fallback is to DROP the row entirely -- not the fill-table's
     # degrade-to-empty-static. The two forms deliberately differ here.
-    assert form.editor_rows == []
-    assert foreign.file.url not in json.dumps(form.editor_rows)
+    assert [r["id"] for r in rows] == [ok.pk]
+    assert foreign.file.url not in json.dumps(rows)
 
 
 def test_wrong_kind_media_is_not_resolved_into_editor_rows():
     """An in-course asset of the wrong kind is rejected by clean_data, so
-    editor_rows must not resolve it either."""
+    editor_rows must not resolve it either. Same two-image shape as above, for
+    the same two reasons."""
     course = make_course()
+    ok = make_image_asset(course, filename="ok.png")
     video = make_image_asset(course, filename="clip.png", kind="video")
 
-    submitted = {"desc_pos": "above", "images": [{"media": video.pk, "desc": ""}]}
+    submitted = {
+        "desc_pos": "above",
+        "images": [{"media": ok.pk, "desc": ""}, {"media": video.pk, "desc": ""}],
+    }
     form = GalleryElementForm(
         data={"data": json.dumps(submitted)},
         instance=GalleryElement(),
         course=course,
     )
     assert not form.is_valid(), form.errors
-    assert form.editor_rows == []
-    assert video.file.url not in json.dumps(form.editor_rows)
+    assert "not an image in this course" in str(form.errors)
+    rows = form.editor_rows
+    assert [r["id"] for r in rows] == [ok.pk]
+    assert video.file.url not in json.dumps(rows)
 ```
 
 - [ ] **Step 2: Run them and confirm they fail for the right reason**
 
 ```
-uv run pytest tests/test_gallery_editor_partial.py -k "foreign_course_image or wrong_kind_media" -v
+uv run pytest tests/test_gallery_editor_partial.py -k "foreign_course_image or wrong_kind_media" -vv
 ```
 
-Expected: both FAIL on `assert form.editor_rows == []` — the row is present because the unscoped `in_bulk` resolved the foreign/wrong-kind asset. A failure on `form.is_valid()` instead means the payload was accepted; stop and fix the payload.
+Expected: both FAIL on `assert [r["id"] for r in rows] == [ok.pk]` — the list holds two ids, because the unscoped `in_bulk` resolved the foreign/wrong-kind asset alongside the legitimate one.
+
+A failure on `assert not form.is_valid()` (payload accepted) or on the `"not an image in this course"` assertion (rejected by an earlier guard, so the media check never ran) both mean the test is not exercising the intended path — stop and fix the payload.
 
 - [ ] **Step 3: Scope the lookup**
 
@@ -662,7 +700,19 @@ and this module-level line, which no other test in that file uses:
 PO = ROOT / "locale" / "pl" / "LC_MESSAGES" / "django.po"
 ```
 
-Leave `ROOT` — it is a common helper; confirm with `grep -n "ROOT" tests/test_i18n_notes.py` and delete it too only if `PO` was its sole consumer.
+Then handle the cascade, which `ruff` *will* catch even though it ignores the dead constants themselves. Run `grep -n "ROOT\|Path" tests/test_i18n_notes.py`. In the current file `ROOT` appears only on its own definition line and in the `PO` line — `PO` is its sole consumer — so `ROOT` must go too:
+
+```python
+ROOT = Path(__file__).resolve().parent.parent
+```
+
+and with `ROOT` gone, `Path` has no remaining use, so this import must go as well:
+
+```python
+from pathlib import Path
+```
+
+**Keep** `import pytest` and `from django.utils import translation` — the parametrized msgid tests still use both. `ruff`'s `F401` is enabled (`select = ["E", "F", "I", "UP", "B", "S"]`), so leaving the now-unused `Path` import behind fails `uv run ruff check .` at Step 5. The dead `PO`/`ROOT` names themselves would *not* be flagged — module-level variables escape `F401` — which is exactly why they have to be removed by reading rather than by trusting the linter.
 
 - [ ] **Step 4: Confirm nothing else referenced them**
 
