@@ -1162,7 +1162,7 @@ class FillTableElement(ElementBase):
         return self.normalize_data(self.data)
 
     @staticmethod
-    def resolve_image_cells(cells):
+    def resolve_image_cells(cells, course=None):
         """A normalized cells grid with each image cell's `media` int pk replaced
         by its MediaAsset (one in_bulk pass). Unresolved pks degrade to an empty
         static cell -- dropping any colspan/rowspan/header the cell carried --
@@ -1172,9 +1172,29 @@ class FillTableElement(ElementBase):
         Shared by resolved_cells (student render, resolves against self.data)
         and FillTableElementForm.resolved_grid_cells (editor, resolves against
         the submitted/stored grid_data on a rejected save) -- the two callers
-        must not diverge on this fallback."""
+        must not diverge on this fallback.
+
+        `course` scopes the lookup to that course's IMAGE assets, matching what
+        clean_data validates. The editor passes it because it resolves
+        AUTHOR-SUBMITTED pks on a rejected save; the student render passes
+        nothing, because its data already passed clean_data at save time and no
+        course is threaded through the render chain. An out-of-scope pk simply
+        fails to resolve and takes the existing unresolved branch -- no new
+        branch, no second fallback shape.
+
+        NOTE: a cell's `kind` ("static"/"answer"/"image") and MediaAsset.kind
+        are different fields on different objects that happen to share the
+        string "image". The comprehension below filters CELLS; the query
+        filters ASSETS."""
         ids = [c["media"] for row in cells for c in row if c.get("kind") == "image"]
-        assets = MediaAsset.objects.in_bulk(ids) if ids else {}
+        if not ids:
+            assets = {}
+        elif course is None:
+            assets = MediaAsset.objects.in_bulk(ids)
+        else:
+            assets = MediaAsset.objects.filter(
+                course=course, kind="image", pk__in=ids
+            ).in_bulk()
         out = []
         for row in cells:
             out_row = []

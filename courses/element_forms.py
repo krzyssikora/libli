@@ -1565,8 +1565,14 @@ class FillTableElementForm(_CourseScopedMediaForm):
         Delegates to FillTableElement.resolve_image_cells so the editor and
         the student render cannot silently diverge on the unresolved-image
         fallback (it drops any colspan/rowspan/header the cell carried, same
-        as the model)."""
-        return FillTableElement.resolve_image_cells(self.grid_data["cells"])
+        as the model).
+
+        Passes self.course so a submitted pk from another course -- or an
+        in-course asset of the wrong kind -- resolves to nothing and takes that
+        same fallback, instead of rendering a foreign asset's URL."""
+        return FillTableElement.resolve_image_cells(
+            self.grid_data["cells"], course=self.course
+        )
 
 
 class GalleryElementForm(_CourseScopedMediaForm):

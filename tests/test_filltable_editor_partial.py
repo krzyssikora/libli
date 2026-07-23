@@ -299,3 +299,67 @@ def test_unresolvable_image_cell_drops_spans_in_both_render_and_editor():
     assert "colspan" not in form_cell
     assert "rowspan" not in form_cell
     assert "header" not in form_cell
+
+
+def test_foreign_course_image_cell_does_not_resolve_in_the_editor():
+    """A rejected save carrying ANOTHER course's image pk must not re-render
+    that asset's URL.
+
+    The payload is deliberately valid in every OTHER respect -- it carries a
+    real answer cell -- so clean_data's earlier guards (caps, answer-cell
+    presence, blank-answer) all pass and it reaches the img_ids course check,
+    which is the rule that actually rejects it. Getting this wrong is easy: a
+    payload with no answer cell is rejected by "Mark at least one answer cell"
+    long before any media validation runs, and the test would then pass while
+    exercising a different rejection path than its name claims."""
+    mine = make_course()
+    theirs = make_course()
+    foreign = make_image_asset(theirs, filename="theirs.png")
+
+    submitted = {
+        "cells": [
+            [
+                {"kind": "image", "media": foreign.pk, "alt": "x"},
+                {"kind": "answer", "answer": "1"},
+            ]
+        ]
+    }
+    form = FORM_FOR_TYPE["filltable"](
+        data={"data": json.dumps(submitted)}, instance=FillTableElement(), course=mine
+    )
+    assert not form.is_valid(), form.errors
+    # Pin WHY it was rejected, so the test cannot silently start passing for an
+    # unrelated reason (an earlier guard firing) after a future edit.
+    assert "not an image in this course" in str(form.errors)
+    cell = form.resolved_grid_cells[0][0]
+    # Falls into the EXISTING unresolved branch: empty static cell.
+    assert cell["kind"] == "static" and cell["html"] == ""
+    # The decisive assertion: the foreign asset's URL is nowhere in the output.
+    assert foreign.file.url not in json.dumps(form.resolved_grid_cells, default=str)
+
+
+def test_wrong_kind_media_does_not_resolve_in_the_editor():
+    """clean_data requires an IMAGE in this course. An in-course asset of the
+    wrong kind is rejected at save, so the resolver must not resolve it either
+    -- otherwise the editor emits a video's URL inside an <img>. As above, the
+    payload carries a real answer cell so the rejection comes from the media
+    check and not from an earlier guard."""
+    course = make_course()
+    video = make_image_asset(course, filename="clip.png", kind="video")
+
+    submitted = {
+        "cells": [
+            [
+                {"kind": "image", "media": video.pk, "alt": "x"},
+                {"kind": "answer", "answer": "1"},
+            ]
+        ]
+    }
+    form = FORM_FOR_TYPE["filltable"](
+        data={"data": json.dumps(submitted)}, instance=FillTableElement(), course=course
+    )
+    assert not form.is_valid(), form.errors
+    assert "not an image in this course" in str(form.errors)
+    cell = form.resolved_grid_cells[0][0]
+    assert cell["kind"] == "static" and cell["html"] == ""
+    assert video.file.url not in json.dumps(form.resolved_grid_cells, default=str)
