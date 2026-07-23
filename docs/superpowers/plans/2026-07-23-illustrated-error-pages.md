@@ -13,6 +13,10 @@
 - **Spec:** `docs/superpowers/specs/2026-07-23-illustrated-error-pages-design.md` — read it before Task 1. It carries measurements and rationale this plan does not repeat.
 - **Working directory:** `C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/illustrated-error-pages`. All paths below are relative to it.
 - **Tooling:** bash `python`/`pytest`/`ruff` are NOT on PATH. Always `uv run python …`, `uv run pytest …`, `uv run ruff …`.
+- **Lint rules that bite the test files below.** `pyproject.toml` selects `["E", "F", "I", "UP", "B", "S"]` with `[tool.ruff.lint.isort] force-single-line = true`. Two consequences, both non-obvious:
+  1. **One name per import line.** `from tests.factories import make_course, make_login` is an `I001` error. Write each name on its own line, sorted. Ruff sorts *nested* (in-function) import blocks too.
+  2. **No module-level import below the top block** (`E402`). When a later task appends to an existing test file, put any new `import` **inside the function that needs it** — this is exactly what the sibling `tests/test_auth_styles.py` does with `import re`. (Hoisting it into an earlier task's top block instead trades `E402` for `F401` unused-import.)
+- **Run `uv run ruff check <files>` before every commit**, not just at the end. Lint is the only gate that catches the two rules above, and discovering them after five commits forces a fixup.
 - **Test DB:** this worktree's `.env` already names `libli_errpages`. **Verify it, never overwrite it** — `.env` is untracked, so a clobber is unrecoverable.
 - **`templates/500.html` is out of scope.** Do not touch it. Its `Back to home` is an untranslated literal and stays.
 - **No raw hex in `error.css`.** Colours are tokens only (`test_error_page_styles.py` asserts this).
@@ -81,11 +85,13 @@ Expected: FAIL — `assert LEARNER.exists()` (the file does not exist yet).
 The source is a one-off local input, **not** committed: `C:/Users/krzys/Downloads/learner_bw.png` (opaque RGB, 1600×672, black scene on white). Run this once:
 
 ```bash
-uv run python - <<'PY'
+cd C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/illustrated-error-pages && uv run python - <<'PY'
 from PIL import Image
 
 SRC = r"C:/Users/krzys/Downloads/learner_bw.png"
-DST = "core/static/core/img/learner.png"
+# Absolute, so the write cannot land in the wrong repository if the shell's
+# working directory drifted between calls.
+DST = r"C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/illustrated-error-pages/core/static/core/img/learner.png"
 
 src = Image.open(SRC).convert("L")
 W, H = src.size
@@ -111,7 +117,7 @@ with Image.open(DST) as chk:
 PY
 ```
 
-Expected output: `LA (1600, 672) 17902 bytes` (±a few bytes across Pillow versions).
+Expected output: `LA (1600, 672) <n> bytes` with **n ≈ 17,900** (measured 17,883 and 17,902 on two Pillow builds — the exact byte count is not stable across versions, and nothing asserts it). What *is* asserted, and what must match exactly: mode `LA`, size `(1600, 672)`, and comfortably under the 60 KB budget.
 
 - [ ] **Step 4: Run the test to verify it passes**
 
@@ -121,6 +127,7 @@ Expected: 2 passed.
 - [ ] **Step 5: Commit**
 
 ```bash
+uv run ruff check tests/test_error_page_styles.py
 git add core/static/core/img/learner.png tests/test_error_page_styles.py
 git commit -m "feat(error-pages): derive the learner watermark mask asset"
 ```
@@ -141,9 +148,11 @@ git commit -m "feat(error-pages): derive the learner watermark mask asset"
 
 Append to `tests/test_error_page_styles.py`:
 
-```python
-import re
+Note the `import re` placement: it goes **inside** each function that needs it, never at the point of
+append. A module-level import below the top block is `E402`, and hoisting it into Task 1's header
+would be `F401` (unused there). `tests/test_auth_styles.py` does exactly this for the same reason.
 
+```python
 ERROR_CSS = ROOT / "core" / "static" / "core" / "css" / "error.css"
 
 
@@ -188,6 +197,8 @@ def test_error_css_pins_the_asset_aspect_ratio():
 
 
 def test_error_css_is_token_only_no_raw_hex():
+    import re
+
     css = ERROR_CSS.read_text(encoding="utf-8")
     assert not re.search(r"#[0-9a-fA-F]{3,8}\b", css), "use tokens, not raw hex"
     assert "background-color: var(--text-primary)" in css
@@ -199,6 +210,8 @@ def test_error_css_stacking_invariant():
     Inverting this reproduces a regression that has already shipped once (see the
     'Log out looks see-through and can't be tapped' comment in app.css).
     """
+    import re
+
     css = ERROR_CSS.read_text(encoding="utf-8")
     assert ".app-main" not in css, (
         "keep .app-main out of error.css -- a global rule would make every <main> "
@@ -350,6 +363,7 @@ Expected: 7 passed.
 - [ ] **Step 5: Commit**
 
 ```bash
+uv run ruff check tests/test_error_page_styles.py
 git add core/static/core/css/error.css tests/test_error_page_styles.py
 git commit -m "feat(error-pages): add error.css with the themed watermark and page vocabulary"
 ```
@@ -412,12 +426,22 @@ def test_404_never_emits_a_raw_tag_from_the_attempted_path(client):
     assert resp.status_code == 404
     assert b"<script>alert" not in resp.content
     assert b"%3Cscript%3Ealert" in resp.content
+
+
+def test_404_is_wired_to_the_error_page_stylesheet_and_body_class(client):
+    # Neither of these is implied by the prose assertions above: drop
+    # {% block extra_css %} or {% block body_class %} and every other test in
+    # this file still passes while the page silently loses the watermark, the
+    # centring and the whole type scale.
+    resp = client.get("/no-such-page/")
+    assert b"core/css/error.css" in resp.content
+    assert b'class="error-page"' in resp.content
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/test_error_pages.py -v`
-Expected: all three FAIL — the old template has none of the new copy, no `<code>` element, and no path echo.
+Expected: all four FAIL — the old template has none of the new copy, no `<code>` element, no path echo, and no stylesheet link or body class.
 
 - [ ] **Step 3: Rewrite the template**
 
@@ -455,11 +479,12 @@ Three things that are load-bearing and easy to get wrong:
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_error_pages.py tests/test_error_page_styles.py -v`
-Expected: 10 passed.
+Expected: 11 passed.
 
 - [ ] **Step 5: Commit**
 
 ```bash
+uv run ruff check tests/test_error_pages.py
 git add templates/404.html tests/test_error_pages.py
 git commit -m "feat(error-pages): illustrated 404 with the attempted address echoed"
 ```
@@ -486,15 +511,22 @@ def _no_access(client, username="outsider"):
 
     courses/access.py grants access on is_staff OR owner OR enrolled OR
     teaching a non-archived group on the course -- "no access" is four
-    negatives. make_login builds a plain non-staff user, and make_course gives
-    the course a different (factory) owner, so none of the four hold.
+    negatives, so all four are pinned here.
+
+    Note `owner=UserFactory()` is explicit and load-bearing: CourseFactory
+    declares no owner and Course.owner is null=True, so a bare make_course()
+    yields course.owner IS NONE -- an *unowned* course, not one owned by
+    somebody else, and `course.owner != user` would then pass trivially.
     """
-    from tests.factories import make_course, make_login
+    from tests.factories import UserFactory
+    from tests.factories import make_course
+    from tests.factories import make_login
 
     user = make_login(client, username)
-    course = make_course()
+    course = make_course(owner=UserFactory())
     assert not user.is_staff and not user.is_superuser
-    assert course.owner != user
+    assert course.owner is not None and course.owner != user
+    assert not course.enrollments.filter(student=user).exists()
     return user, course
 
 
@@ -506,6 +538,9 @@ def test_403_renders_the_illustrated_page(client):
     assert resp.status_code == 403
     assert b"Not for you" in resp.content
     assert b"have permission to open it" in resp.content
+    # Same wiring guard as the 404 -- prose assertions do not imply it.
+    assert b"core/css/error.css" in resp.content
+    assert b'class="error-page"' in resp.content
 
 
 def test_403_hides_the_login_action_from_an_authenticated_user(client):
@@ -513,6 +548,12 @@ def test_403_hides_the_login_action_from_an_authenticated_user(client):
 
     _, course = _no_access(client)
     resp = client.get(reverse("courses:course_outline", args=[course.slug]))
+    # The status + positive marker are what make this falsifiable. With only the
+    # negative assertion the test would also pass on a 302 to login, on a 200
+    # because the fixture accidentally granted access, and -- worst -- against
+    # the OLD template, which has no login link either.
+    assert resp.status_code == 403
+    assert b"Not for you" in resp.content
     assert b"/accounts/login/?next=" not in resp.content
 
 
@@ -533,7 +574,9 @@ def test_403_offers_a_login_action_to_an_anonymous_visitor(rf):
 
     assert "/accounts/login/?next=" in html
     # get_full_path, not path -- the query string must survive the round trip.
-    assert "tab%3Dnotes" in html or "tab=notes" in html
+    # |urlencode defaults to safe="/", so this form is deterministic; asserting
+    # `... or "tab=notes" in html` would silently tolerate a dropped |urlencode.
+    assert "tab%3Dnotes" in html
     # Exactly once: base.html renders its OWN "Log in" CTA for anonymous
     # visitors, so this is what pins the hide_auth_cta header suppression.
     # (RequestFactory leaves resolver_match None -> hide_auth_cta is False from
@@ -575,7 +618,7 @@ layer is live. {% endcomment %}
       <a class="btn" href="{% url 'landing' %}">{% trans "Back to main page" %}</a>
     {% else %}
       <a class="btn" href="{% url 'account_login' %}?next={{ request.get_full_path|urlencode }}">{% trans "Log in" %}</a>
-      <a class="btn--ghost" href="{% url 'landing' %}">{% trans "Back to main page" %}</a>
+      <a class="btn btn--ghost" href="{% url 'landing' %}">{% trans "Back to main page" %}</a>
     {% endif %}
   </p>
 </div>
@@ -584,14 +627,19 @@ layer is live. {% endcomment %}
 
 Notes: there is deliberately **no path line** (`permission_denied` passes only `{"exception": …}`, no `request_path`) and **no separate note paragraph** — the 403's advice is folded into the lead, so it uses four of the six classes. For an anonymous visitor `Log in` is the primary `.btn` and comes first, because logging in is the actual fix.
 
+**`class="btn btn--ghost"`, both classes.** In `app.css`, `.btn--ghost` sets only `background`, `color` and `border-color`; `display: inline-flex`, `padding`, `border-radius` and `border-style` all live on `.btn`. A bare `.btn--ghost` renders as unpadded, borderless inline text next to a fully-styled primary button. The repo's convention (`templates/accounts/manage/invitations.html`, `people.html`) is both classes.
+
+**Known verification gap, accepted:** all three 403 screenshots in Task 6 are of an *authenticated* user, because no first-party URL can produce an anonymous 403. The two-button anonymous row is therefore verified by markup review and the direct-render test only, never photographed.
+
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `uv run pytest tests/test_error_pages.py tests/test_error_page_styles.py -v`
-Expected: 13 passed.
+Expected: 14 passed.
 
 - [ ] **Step 5: Commit**
 
 ```bash
+uv run ruff check tests/test_error_pages.py
 git add templates/403.html tests/test_error_pages.py
 git commit -m "feat(error-pages): illustrated 403 with a login action for anonymous visitors"
 ```
@@ -624,12 +672,38 @@ tests/test_i18n_auth.py::test_po_catalog_clean (hygiene).
 from pathlib import Path
 
 import pytest
+from django.utils import translation
 
-from tests.factories import make_course, make_login
+from tests.factories import make_course
+from tests.factories import make_login
 
 pytestmark = pytest.mark.django_db
 
 ROOT = Path(__file__).resolve().parent.parent
+
+# All seven msgids this change introduces. Parametrized below so EVERY one is
+# proven to resolve -- the two render tests alone would leave `Back to main
+# page` and the 404 report line unasserted, and `Back to main page` is exactly
+# the entry predicted to come back `#, fuzzy` (a fuzzy entry is ignored at
+# runtime, so it would ship untranslated with a correct msgstr in the file).
+ERROR_NEW_MSGIDS = [
+    "Nothing here",
+    (
+        "We appreciate your eagerness to discover, but there's nothing at this "
+        "address. Check the address you entered, or go back to the main page."
+    ),
+    (
+        "If a link inside the app brought you here, please report it to your "
+        "administrator, describing the steps that led to this page."
+    ),
+    "You tried:",
+    "Back to main page",
+    "Not for you",
+    (
+        "This page exists, but your account doesn't have permission to open it. "
+        "If you think you should have access, ask your administrator."
+    ),
+]
 
 
 def _speak_polish(client):
@@ -670,6 +744,15 @@ def test_403_renders_in_polish(client):
     assert b"Not for you" not in body
 
 
+@pytest.mark.parametrize("msgid", ERROR_NEW_MSGIDS)
+def test_every_new_msgid_has_a_polish_translation(msgid):
+    # Mirrors test_i18n_auth.py's AUTH_NEW_MSGIDS check. Catches a msgid that
+    # was extracted but left untranslated OR left `#, fuzzy` -- gettext returns
+    # the msgid unchanged in both cases.
+    with translation.override("pl"):
+        assert translation.gettext(msgid) != msgid, f"no PL translation for {msgid!r}"
+
+
 @pytest.mark.parametrize("locale", ["pl", "en"])
 def test_po_catalog_clean(locale):
     # The three existing guards (test_i18n_auth / test_i18n_notes / test_tags_i18n)
@@ -698,7 +781,7 @@ def test_retired_msgids_are_gone(locale):
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/test_i18n_error_pages.py -v`
-Expected: the two render tests FAIL (no PL translations yet); `test_retired_msgids_are_gone` FAILS (the msgids are still in both catalogs).
+Expected: the two render tests FAIL (no PL translations yet); all seven `test_every_new_msgid_has_a_polish_translation` cases FAIL; `test_retired_msgids_are_gone` FAILS for both locales (the msgids are still there). `test_po_catalog_clean` passes already — both catalogs are currently clean, and it exists to stay that way.
 
 - [ ] **Step 3: Regenerate both catalogs**
 
@@ -753,6 +836,7 @@ Expected: no failures. If anything unrelated fails, check whether it is a pre-ex
 - [ ] **Step 8: Commit**
 
 ```bash
+uv run ruff check tests/test_i18n_error_pages.py
 git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo \
         locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo \
         docs/development/conventions.md tests/test_i18n_error_pages.py
@@ -783,18 +867,23 @@ Mirrors the harness in test_e2e_html_element.py.
 """
 
 import os
+import tempfile
 from pathlib import Path
 
 import pytest
 
-from tests.factories import TEST_PASSWORD, make_course, make_verified_user
+from tests.factories import TEST_PASSWORD
+from tests.factories import make_course
+from tests.factories import make_verified_user
 
 pytestmark = pytest.mark.e2e
 
-SHOTS = Path(
-    os.environ.get("LIBLI_SHOT_DIR")
-    or Path(__file__).resolve().parent.parent / "_shots"
-)
+# Outside the repository on purpose: these are verification artifacts, not
+# shipped content, and the spec says they stay out of the diff. (Contrast the
+# help-shot substrate, which writes into core/static/core/img/help/ because
+# those PNGs ARE page content.) A repo-root _shots/ would be untracked litter --
+# .gitignore has no entry for it.
+SHOTS = Path(tempfile.gettempdir()) / "libli-error-page-shots"
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -823,14 +912,21 @@ def _login(page, live_server, username):
     ],
 )
 def test_shoot_404(page, live_server, name, theme, width, height):
-    SHOTS.mkdir(exist_ok=True)
+    SHOTS.mkdir(parents=True, exist_ok=True)
     page.set_viewport_size({"width": width, "height": height})
-    # Anonymous: the pre-paint script's `if (!pref)` branch DOES consult the
-    # cookie, because data-theme-pref is empty for a logged-out visitor.
+    # Anonymous: _resolve_theme_pref reads the libli_theme cookie SERVER-side
+    # and renders data-theme accordingly. (It is not the pre-paint script's
+    # `if (!pref)` branch doing the work -- that branch never runs, because
+    # theme_pref falls through to the cookie and then Institution.default_theme,
+    # so data-theme-pref is never empty.)
     page.context.add_cookies(
         [{"name": "libli_theme", "value": theme, "url": live_server.url}]
     )
     page.goto(f"{live_server.url}/no-such-page/")
+    # Prove the shot is of the intended page: goto() does NOT throw on a 404,
+    # and would happily screenshot a redirect target.
+    page.wait_for_selector(".error-page__code")
+    assert page.locator(".error-page__code").inner_text() == "404"
     page.screenshot(path=str(SHOTS / f"{name}.png"))
 
 
@@ -844,7 +940,9 @@ def test_shoot_404(page, live_server, name, theme, width, height):
     ],
 )
 def test_shoot_403(page, live_server, name, theme, width, height):
-    SHOTS.mkdir(exist_ok=True)
+    from tests.factories import UserFactory
+
+    SHOTS.mkdir(parents=True, exist_ok=True)
     user = make_verified_user(
         username="outsider", email="outsider@t.example.com", password=TEST_PASSWORD
     )
@@ -854,19 +952,23 @@ def test_shoot_403(page, live_server, name, theme, width, height):
     # dark shot would come out light.
     user.theme = theme
     user.save(update_fields=["theme"])
-    course = make_course()
-    assert course.owner != user and not user.is_staff
+    course = make_course(owner=UserFactory())   # explicit: a bare make_course() is UNOWNED
+    assert course.owner is not None and course.owner != user and not user.is_staff
 
     page.set_viewport_size({"width": width, "height": height})
     _login(page, live_server, "outsider")
     page.goto(f"{live_server.url}/courses/{course.slug}/")
+    # Without this, a raced login would bounce to /accounts/login/ and the test
+    # would still "pass" while screenshotting the login form.
+    page.wait_for_selector(".error-page__code")
+    assert page.locator(".error-page__code").inner_text() == "403"
     page.screenshot(path=str(SHOTS / f"{name}.png"))
 ```
 
 - [ ] **Step 2: Run the shots**
 
 Run: `uv run pytest tests/test_e2e_error_pages.py -m e2e -v`
-Expected: 7 passed, seven PNGs under `_shots/`.
+Expected: 7 passed, seven PNGs under `<system temp dir>/libli-error-page-shots/`. The run prints nothing about the path — resolve it with `uv run python -c "import tempfile,pathlib;print(pathlib.Path(tempfile.gettempdir())/'libli-error-page-shots')"` before reading them in Step 3.
 
 **Run this in the foreground only.** Backgrounding an e2e sweep in this project has produced runaway browser processes.
 
@@ -886,10 +988,10 @@ Read each PNG and check, explicitly:
 
 Fix anything that fails, re-shoot, and re-check before proceeding.
 
-- [ ] **Step 4: Confirm the shots are not committed**
+- [ ] **Step 4: Confirm the shots are not in the repository at all**
 
 Run: `git status --short`
-Expected: `_shots/` does not appear as tracked content. If it shows as untracked, leave it untracked — these are verification artifacts. (This differs from the help-shot substrate, which commits its PNGs because they are shipped page content.)
+Expected: **no** screenshot paths appear, tracked or untracked — `SHOTS` points at the system temp directory, outside the worktree. If any PNG shows up here, the constant was changed; put it back rather than adding a `.gitignore` entry.
 
 - [ ] **Step 5: Lint and run the full suite one last time**
 
@@ -917,4 +1019,6 @@ git commit -m "test(error-pages): Playwright shots across both watermark regimes
 
 **Type/name consistency.** Class names in `error.css` (T2) match the markup in T3/T4 and the assertions in T1/T2. `_no_access` is defined once in T4 and reused only within that file; T5's Polish 403 test rebuilds the same shape inline rather than importing it across modules. `{% url 'landing' %}` is used consistently in both templates and nowhere is `home` used.
 
-**One gap, deliberately left:** test 8's stylesheet-link assertion is folded into T3/T4 rather than written as a standalone check, on the grounds that a missing `{% block extra_css %}` cannot pass those render tests. If the executing agent prefers an explicit assertion, adding it to `tests/test_error_page_styles.py` is harmless.
+**Corrected in review:** an earlier draft skipped test 8's stylesheet-link and body-class assertions, arguing that a missing `{% block extra_css %}` could not pass the render tests. That was wrong — those tests assert only prose substrings, so dropping either block would have left the whole suite green while the page silently lost its watermark, centring and type scale. Both are now asserted explicitly, on the rendered response, in T3 (404) and T4 (403).
+
+**Known verification gap, stated rather than hidden:** the anonymous 403's two-button action row is covered by the direct-render test and markup review, but never photographed — no first-party URL can produce an anonymous 403, so there is nothing for Playwright to navigate to.
