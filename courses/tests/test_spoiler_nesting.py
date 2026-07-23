@@ -1,6 +1,7 @@
 import re
 
 import pytest
+from django.urls import reverse
 
 from courses import builder
 from courses.builder import NESTABLE_TYPE_KEYS
@@ -9,8 +10,11 @@ from courses.builder import NestingError
 from courses.models import Element
 from courses.models import SpoilerElement
 from courses.models import TextElement
+from tests.factories import ContentNodeFactory
+from tests.factories import CourseFactory
 from tests.factories import add_element
 from tests.factories import make_course_with_unit
+from tests.factories import make_pa
 
 pytestmark = pytest.mark.django_db
 
@@ -136,6 +140,7 @@ def test_resolve_scope_accepts_leaf_child_in_top_level_spoiler():
 
 def test_resolve_scope_rejects_disallowed_child_type_in_spoiler():
     import pytest
+
     from courses import builder
     from courses.builder import NestingError
 
@@ -192,6 +197,7 @@ def test_resolve_scope_still_rejects_children_of_nested_spoiler():
 
 def test_resolve_scope_rejects_wrong_slot_for_spoiler():
     import pytest
+
     from courses import builder
     from courses.builder import NestingError
 
@@ -203,6 +209,7 @@ def test_resolve_scope_rejects_wrong_slot_for_spoiler():
 
 def test_resolve_scope_refuses_children_for_nested_spoiler():
     import pytest
+
     from courses import builder
     from courses.builder import NestingError
     from courses.models import TabsElement
@@ -234,13 +241,6 @@ def test_spoiler_form_drops_body_when_instance_has_children():
     form = SpoilerElementForm(instance=sp)
     assert "body" not in form.fields
     assert "label" in form.fields
-
-
-from django.urls import reverse
-
-from tests.factories import CourseFactory
-from tests.factories import ContentNodeFactory
-from tests.factories import make_pa
 
 
 def _lesson_unit(course):

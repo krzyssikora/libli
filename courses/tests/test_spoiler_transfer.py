@@ -46,7 +46,9 @@ def test_validator_is_strict():
 
 @pytest.mark.django_db
 def test_walk_unit_joins_expands_spoiler_children():
-    from courses.models import Element, SpoilerElement, TextElement
+    from courses.models import Element
+    from courses.models import SpoilerElement
+    from courses.models import TextElement
     from courses.transfer.export import walk_unit_joins
     from tests.factories import make_course_with_unit
 
@@ -67,9 +69,9 @@ def test_walk_unit_joins_expands_spoiler_children():
 
 
 def test_validate_nesting_accepts_spoiler_slot_and_rejects_depth2():
+    from courses.models import SpoilerElement
     from courses.transfer.payloads import validate_nesting
     from courses.transfer.schema import TransferError
-    from courses.models import SpoilerElement
 
     slot = SpoilerElement.SLOT_ID
     ok = [
@@ -139,9 +141,9 @@ def test_validate_nesting_accepts_spoiler_slot_and_rejects_depth2():
 def test_validate_nesting_rejects_container_spoiler_child():
     # reveal_gate is now an allowed spoiler child (Task 1 widening); a native
     # container (tabs) stays rejected -- retargeted from the old reveal_gate case.
+    from courses.models import SpoilerElement
     from courses.transfer.payloads import validate_nesting
     from courses.transfer.schema import TransferError
-    from courses.models import SpoilerElement
 
     slot = SpoilerElement.SLOT_ID
     bad = [

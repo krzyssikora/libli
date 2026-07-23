@@ -44,8 +44,7 @@ def test_spanning_table_becomes_native_with_colspan_ragged():
     # A colspan/rowspan table -> a native TableElement with ragged rows preserved
     # (each row's real cells) and the span emitted on the cell; not flagged.
     html = (
-        '<table><tr><td colspan="2">wide</td></tr>'
-        "<tr><td>a</td><td>b</td></tr></table>"
+        '<table><tr><td colspan="2">wide</td></tr><tr><td>a</td><td>b</td></tr></table>'
     )
     el, flags = table_element(_t(html))
     assert el["type"] == "table" and not flags
@@ -56,10 +55,7 @@ def test_spanning_table_becomes_native_with_colspan_ragged():
 
 
 def test_spanning_table_preserves_th_and_rowspan():
-    html = (
-        '<table><tr><th rowspan="2">h</th><td>a</td></tr>'
-        "<tr><td>b</td></tr></table>"
-    )
+    html = '<table><tr><th rowspan="2">h</th><td>a</td></tr><tr><td>b</td></tr></table>'
     el, _ = table_element(_t(html))
     assert el["data"]["header_row"] is False  # per-cell header instead of the toggle
     hcell = el["data"]["cells"][0][0]
