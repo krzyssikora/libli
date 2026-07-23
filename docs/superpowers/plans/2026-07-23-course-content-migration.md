@@ -2,9 +2,19 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **Post-review note:** the code blocks in Tasks 1–3 below are the historical record of what was
+> actually typed and committed, task by task — keep them as-is for that history. They do **not**
+> describe the code as it ships today. The final review (verdict "No — with fixes") found the design
+> those tasks produced too weak in several places — most importantly, `verify` reconciled the target
+> against whatever the bundle directory happened to hold on disk rather than against a trustworthy
+> record of what the source actually exported, so a mixed-vintage ("Frankenstein") bundle could be
+> grafted and then blessed as complete. See **## Post-review addendum** at the end of this file for
+> what changed and why; the spec's own "Verification" and "Guards" sections carry the same story in
+> more detail and are the current source of truth for `export`/`import`/`verify` behaviour.
+
 **Goal:** A management command that moves a course's content between two databases via the transfer engine's archive format — export each top-level part to a bundle, then graft the bundle into an existing target course.
 
-**Architecture:** One command, three actions. `export` runs against the source database and writes one archive per part plus a media side table; `import` runs against the target database and grafts each archive as a subtree; `verify` reconciles tallies afterwards. A bundle directory on disk is the handoff, because a Django process binds one database.
+**Architecture:** One command, three actions. `export` runs against the source database and writes one archive per part plus a bundle manifest (source tallies + media cross-part-sharing table, written once on full success); `import` runs against the target database, gates on that manifest's completeness, and grafts each archive as a subtree; `verify` reconciles the target against the manifest's recorded tallies and a captured pre-migration baseline. A bundle directory on disk is the handoff, because a Django process binds one database. See the post-review note above and the addendum at the end of this file.
 
 **Tech Stack:** Django management command, the existing `courses/transfer/` engine, pytest.
 
@@ -1051,7 +1061,54 @@ git commit -m "feat(transfer): migrate_course_content verify phase"
 ## Done when
 
 - `migrate_course_content` supports `export`, `import` and `verify`, with flags scoped per action.
-- Every guard that protects the real database — double-run, `--start-at` invariant, dry-run-writes-nothing, problems-abort, missing-side-table — has been shown able to fail.
-- Media shared across parts duplicates on import and is *accounted for* by the side table rather than reported as a fault.
+- Every guard that protects the real database — double-run, the baseline-aware `--start-at` invariant, dry-run-writes-nothing, problems-abort, missing-bundle-manifest, `part_count` mismatch, filename-collision, missing-baseline, exact-media, element/per-kind-node tallies — has been shown able to fail.
+- Media shared across parts duplicates on import and is *accounted for exactly* (not merely above a floor) by the bundle manifest's media table rather than reported as a fault.
+- A mixed-vintage ("Frankenstein") bundle — archives from more than one export run, or fewer archives than the manifest declares — is refused by both `import` and `verify`, before any destructive write.
 - Full non-e2e suite green; `ruff check` and `ruff format --check` both clean.
 - Nothing in the repository writes to `libli_mat` or the real `libli`.
+
+## Post-review addendum: fixes applied after the final code review
+
+The final review (verdict "No — with fixes") on the branch produced by Tasks 1–3 above found six
+numbered findings plus several smaller items. All were applied, in
+`courses/management/commands/migrate_course_content.py` and `tests/test_migrate_course_content.py`,
+without a new dedicated task/step structure (the review was applied as direct fixes, not planned as
+a fresh multi-task effort). Summary, for anyone reading this plan after the fact:
+
+- **A bundle manifest (`bundle-manifest.json`) replaces the bare side table (`media-parts.json`).**
+  Written once by `export`, only on full success. Carries `source_slug`, `part_count`, the source's
+  own tallies (`total_nodes`, `node_kind_counts`, `total_elements`, `media_count`), and the media
+  cross-part-sharing table (folded in, not a separate file). **This is a deliberate strengthening
+  beyond what this plan and its spec originally specified** — the original design let `verify`
+  reconcile against whatever archives were currently in the bundle directory, which a mixed-vintage
+  bundle could defeat. `import` now requires this manifest and refuses if it's missing or if the
+  number of `*.zip` files on disk doesn't match its recorded `part_count` — checked BEFORE any graft,
+  not only in `verify` afterwards.
+- **`export --clean`.** `export` now refuses to write into a bundle directory that already holds
+  archives or a manifest, unless `--clean` is passed (which removes them first). A bundle is never
+  merged into.
+- **Archive filenames are parsed as an integer (`re.match(r"^(\d+)-", name)`), never sorted as text
+  or read via `int(name[:2])`.** `{order:02d}` is a minimum width, not a fixed one; at >=100 parts
+  the old lexicographic sort put `"100-…zip"` before `"20-…zip"`, and `int("notes.zip"[:2])` raised
+  an uncaught `ValueError` on any non-conforming filename. Parsing and validation now happen in
+  `_bundle_archives`, above the graft loop, so a bad name aborts before anything is written.
+- **The `--start-at` invariant is baseline-aware.** A new `import-baseline.json`, written once by
+  the invocation that truly begins a migration (captured before the first graft), records the
+  target's pre-migration state; the invariant and the resume hint are both computed from
+  `baseline + K` rather than raw `K`, so they can no longer disagree with each other after `--force`
+  put pre-existing content in the target.
+- **`verify`'s media check is exact, not a floor.** `_create_media` materialises exactly one
+  `MediaAsset` row per `document["media"]` entry, so the target total is fully determined, not merely
+  bounded below. `verify` now also checks total elements and per-`kind` node tallies (not only a bare
+  total-node count) against the bundle manifest's recorded source tallies, combined with the captured
+  baseline.
+- **Every argument has `help=` text**, an empty `--start-at`-filtered `todo` reports "nothing to do"
+  explicitly instead of printing `last part committed: None`, and `verify` wraps a malformed manifest
+  (`json.JSONDecodeError`) and a corrupt archive (`TransferError`) as `CommandError`, matching what
+  `import` already did.
+
+**Explicitly deferred** (not fixed here, called out for the PR body): `--dry-run` being blocked by the
+double-run guard; `--force` silently doing nothing when combined with `--start-at` in the SAME
+invocation; the rerun-overwrite test only ever having counted files; full flag-scoping-matrix coverage
+for `--source-slug`/`--target-slug` (documented as intentionally exempt instead — see the comment above
+`_ACTION_FLAGS` in the command); the shared-`MEDIA_ROOT` assertion.

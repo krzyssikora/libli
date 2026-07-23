@@ -60,7 +60,7 @@ Three operations, selected by a required positional `action`, so which flags are
 unambiguous:
 
 ```
-manage.py migrate_course_content export --source-slug <slug> --bundle-dir <dir> [--allow-problems]
+manage.py migrate_course_content export --source-slug <slug> --bundle-dir <dir> [--allow-problems] [--clean]
 manage.py migrate_course_content import --target-slug <slug> --bundle-dir <dir> --as-user <email>
                                         [--dry-run] [--force] [--start-at K]
 manage.py migrate_course_content verify --target-slug <slug> --bundle-dir <dir>
@@ -143,7 +143,12 @@ is what the archive format exists for:
   signal (see "The real export-side risk" below).
 
   Archives are named `{order:02d}-{slug}.zip` so part order is recoverable from the filename alone,
-  without opening 21 archives to read their manifests.
+  without opening 21 archives to read their manifests. **`{order:02d}` is a MINIMUM width, not a fixed
+  one** — at 100+ top-level nodes (realistic for a Flat-preset course, where every unit sits at top
+  level) `"100-…zip"` and `"20-…zip"` both exist, and a lexicographic sort of the filenames orders them
+  wrong. Every site that needs an archive's part order therefore parses the `<order>-` prefix as an
+  integer with a regex and sorts (or filters, for `--start-at`) on that integer — never on the filename
+  text — and rejects outright any `*.zip` in the bundle that doesn't match the pattern.
 - **`import`** — run against the target database. Iterate the bundle's archives **in part order** and
   for each call `open_archive` → `validate_archive_document` → `import_subtree(...)` with the target
   course and a top-level insertion point.
@@ -165,12 +170,17 @@ aborts the export phase by default**, reporting the affected part and its proble
 produce a migration that looks complete and has quietly lost content — the precise failure this whole
 effort exists to avoid.
 
-**Re-running export is safe and overwrites.** Because a problems-abort partway through leaves the
-already-exported archives on disk, the export phase must define its own re-run behaviour rather than
-inheriting the import side's. Archive names are deterministic (`{order:02d}-{slug}.zip`), so a re-run
-simply overwrites by filename. No resume-by-index is needed here: export is read-only against the
-source and cheap to repeat, so a clean full re-export is always correct — unlike import, where
-re-running would duplicate committed content.
+**Re-running export requires `--clean`; a bundle is never silently merged into.** A problems-abort
+partway through leaves the already-exported archives on disk, and export is read-only and cheap to
+repeat, so a full re-export is always the correct recovery — but overwriting-by-filename alone is not
+enough to make that safe, because a *smaller* re-export (fewer top-level parts than the run before it)
+would leave the larger prior run's extra archive(s) behind, mixed in with the new ones: a Frankenstein
+bundle straddling two different exports, indistinguishable from a complete one once `import` reads it.
+Concretely: export 21 parts (bundle manifest written) → edit the source → re-export, which aborts at
+part 5 on a `problems` finding → the bundle now holds parts 0–4 new, parts 5–20 stale, and the OLD
+manifest. So `export` refuses to write into a bundle directory that already holds a `*.zip` or a
+manifest **unless `--clean` is passed**, in which case it removes them first. A bundle is exported
+completely, from a clean directory, every time — never appended to, never partially merged.
 
 ### Guards
 
@@ -226,9 +236,23 @@ itself:
   the double-run guard, an operator who mistypes `K` — or reads a stale report, or points at the wrong
   bundle — would silently skip a part (a permanent content gap in the middle of the course) or graft
   one twice, which is exactly the failure class that guard exists to prevent. So before grafting, the
-  command asserts the target course currently holds **exactly `K` top-level nodes** (parts `0 … K-1`,
-  all already committed) and aborts with a clear message on mismatch. The operator supplies the
-  intent; the command checks the fact.
+  command asserts the target course currently holds **exactly `K` top-level nodes MORE than it held
+  before this migration began**, and aborts with a clear message on mismatch. The operator supplies
+  the intent; the command checks the fact.
+
+  **The invariant is against a captured BASELINE, not against a raw `K`.** `existing == K` is only
+  correct when the target was empty before the migration started; the moment `--force` grafts into a
+  target that already held its own top-level nodes (e.g. 2 pre-existing ones), that stops holding: part
+  0 commits (making 3 nodes total), part 1 fails, the failure hint says `--start-at 1`, but a
+  baseline-naive invariant then demands *exactly* 1 top-level node and aborts on the very hint it just
+  printed — the advertised recovery path is unusable. So the FIRST invocation for a given bundle+target
+  (the one where `--start-at` is not given, or is given as the degenerate `0`) captures the target's
+  pre-migration state — top-level node count, all-levels node count, per-kind node counts, element
+  count, media count — and writes it once to a small on-disk marker beside the bundle
+  (`import-baseline.json`). Every later `--start-at K > 0` resume reads that SAME baseline back and
+  checks `existing == baseline.top_nodes + K`, so the invariant and the hint always agree with each
+  other regardless of what the target held before `--force` ever ran. `verify` reads the same baseline,
+  for the same reason (see Verification).
 - **Dry run.** A mode that reports what *would* be grafted — per-part node, element and media counts
   against their caps — while writing nothing. (The element count matters most: at a ~955 average
   against a 20,000 cap it has the widest headroom, but it is also the count a single outsized part
@@ -237,56 +261,90 @@ itself:
 
 ### Verification
 
+> **This section describes a deliberate strengthening beyond the version of the spec that shipped
+> the first three tasks.** Review of the initial implementation found that `verify` reconciled the
+> target against **the bundle directory as found on disk** — archives it re-opened at verify time —
+> never against a trustworthy record of what the *source* actually produced. That meant a bundle
+> mixed from two different export runs (see "Re-running export requires `--clean`" above) could be
+> grafted and then `verify`-blessed as complete, because `verify` had no independent way to know the
+> bundle was incomplete. The fix below — a single manifest written once, atomically, on export
+> success, plus a target-side baseline captured once at the true start of an import — is not what the
+> original spec asked for; the original was too weak, and this replaces it.
+
 The user asked for counts plus a broad sample rather than an exhaustive sweep. The command supports
-the counting half directly: a mode that compares the target's totals against the bundle's — parts,
-chapters, units, media, and per-element-type tallies — and reports any mismatch. For the migration
-the node tallies should match exactly — 21 parts / 111 chapters / 793 units — while media should come
-out at **at least** 1144, any excess being accounted for by the side table (see below). Stating the
-media figure as an exact target would manufacture the very false alarm the side table exists to
-prevent.
+the counting half directly: a mode that compares the target's totals against the bundle's own
+recorded tallies — total nodes, per-**kind** node tallies (part/chapter/section/unit), total
+elements, and media — and reports any mismatch. For the migration the node and element tallies should
+match exactly — 21 parts / 111 chapters / 793 units, ~20,054 elements — and media should also match
+exactly once cross-part sharing (see below) is accounted for. Elements are ~20,054 of the ~21,000
+objects a full migration moves; a verification that only ever counted bare `ContentNode` totals would
+never notice a lost or malformed element.
+
+**The bundle manifest (`bundle-manifest.json`).** `export` writes this once, only after every part has
+exported successfully — so its mere presence on disk means "this bundle is a complete, single-vintage
+export", never a partial or mixed one. It carries: the source course's slug; `part_count`; the
+**source's own tallies** frozen at that moment (`total_nodes`, `node_kind_counts`, `total_elements`,
+`media_count`); and the media cross-part-sharing table (below). `import` refuses to graft anything
+unless this manifest is present **and** its declared `part_count` matches the number of `*.zip` files
+actually in the bundle directory — the completeness check that moves BEFORE the destructive graft step
+rather than living only in `verify`, after the fact. `verify` performs the same check, then reconciles
+the target against the manifest's recorded tallies — never against whatever archives happen to be
+sitting in the bundle directory right now, which could have been edited, thinned, or mixed with a
+different export since the manifest was written. (`verify` additionally re-opens each archive as a
+lightweight integrity cross-check — corrupt or hand-edited content still surfaces, wrapped as a
+`CommandError` rather than a raw `TransferError` or traceback.)
+
+**The target-side baseline (`import-baseline.json`).** Both the `--start-at` invariant (see Guards,
+above) and `verify` need to know what the target held *before this migration touched it* — trivially
+zero for the standard prepared-empty-target workflow, but not after `--force`. `import` captures this
+once, at the true start of a migration (the first invocation for which no such file yet exists: a
+plain import, or the degenerate `--start-at 0`), and every later resume or `verify` call reads the
+SAME captured baseline back rather than re-deriving it from whatever the target currently holds
+(which, mid-migration, already includes this migration's own partial progress). `verify` refuses to
+run without it, for the same reason it refuses to run without the bundle manifest: a delta computed
+against an unknown baseline is uninterpretable.
+
+**Node and element tallies are exact, reconciled as `baseline + bundle → target`.** For each of total
+nodes, each node kind, and total elements: `expected = baseline value + bundle manifest's tallied
+value`; a mismatch against the target's actual count aborts `verify` naming the discrepancy.
 
 The sample half is a render check performed after the real cutover, deliberately spanning the element
 families most likely to break in transit: a spoiler unit, the `250_pole` fill-table with its
 `colspan` explanation rows, a video unit, a math unit, an interactive-in-spoiler unit, and the
 binary-tree `HtmlElement` unit ("Klasyfikacja czworokątów").
 
-**The media count may legitimately exceed the source's.** `build_export` instantiates a fresh
+**The media count may legitimately exceed the source's distinct-asset count — but the TARGET total is
+fully determined, so `verify` checks it exactly, not as a floor.** `build_export` instantiates a fresh
 `MediaIdMap` per call, scoped to the single subtree being exported, so an asset referenced from more
 than one top-level part is exported into each of those parts' archives and re-materialised once per
 archive on import — arriving as two `MediaAsset` rows in the target. Whether any cross-part sharing
-exists in this corpus is a database fact, not a source fact, and is unverified here.
+exists in this corpus is a database fact, not a source fact, and is unverified here. But
+`_create_media` materialises exactly one `MediaAsset` row per `document["media"]` entry — the same
+list the side table is built from — so the TOTAL number of rows the import will create is fully
+determined by that table; it is not merely bounded below by it. A floor-only check (`floor <= actual
+<= ceiling`) accepts an import that lost exactly one re-materialised asset out of several duplicates of
+a shared one, landing the actual count between the floor and the ceiling — silently. So `verify`
+computes the exact expected total (`baseline media count + sum of every part-list's length in the
+table`) and requires the target's actual count to equal it precisely.
 
-So the verification mode must not treat "target media > source media" as automatically a bug. It
-reports the delta, and must make that delta *diagnosable*.
-
-**The archive's own media ids cannot do that job.** `MediaIdMap.register` assigns
-`f"m{len(self._assets) + 1}"` and the map is per-`build_export`-call, so every part's document
+**The archive's own media ids cannot do the cross-part-sharing correlation.** `MediaIdMap.register`
+assigns `f"m{len(self._assets) + 1}"` and the map is per-`build_export`-call, so every part's document
 restarts at `m1`. Correlating on the archive-local `id` field would flag `m1`/`m2`/`m3` in nearly
-every part whether or not any asset is genuinely shared — near-universal false positives, and exactly
-the opposite of what the preceding paragraph establishes.
+every part whether or not any asset is genuinely shared — near-universal false positives.
 
-The correlation must therefore be made where the source primary keys are still in hand: the export
-phase already receives `media_assets` as `(mid, asset, is_placeholder)` triples, so it writes a
-**bundle-level side table** — one small JSON file beside the archives — mapping each source
-`MediaAsset.pk` to the list of part indices whose archive contains it. Those indices are the same
-0-based `order` values used in the archive filenames (see "One index space"), so a side-table entry
-`[3, 7]` reads directly against `03-…zip` and `07-…zip`.
+The correlation is instead made where the source primary keys are still in hand: the export phase
+already receives `media_assets` as `(mid, asset, is_placeholder)` triples, so it accumulates a
+**media table inside the bundle manifest** mapping each source `MediaAsset.pk` to the list of part
+indices whose archive contains it. Those indices are the same 0-based `order` values used in the
+archive filenames (see "One index space"), so a table entry `[3, 7]` reads directly against `03-…zip`
+and `07-…zip`. It is accumulated in memory across the whole export loop and folded into the manifest
+once, only on full success — exactly like every other manifest field, and for the same reason: a
+partial table would make `verify` under-report cross-part sharing and turn a legitimate media surplus
+into an apparent fault.
 
-**It is accumulated in memory and written once, only on a fully successful export.** Each
-`build_export` call sees one part's assets, so the pk→parts mapping only exists as cross-part state
-held by the export loop. Writing it incrementally would leave a stale, partial table behind after a
-problems-abort partway through — and `verify` reading that table would silently under-report cross-part
-sharing, turning a legitimate media delta back into an apparent fault. Exactly the hazard the archives
-already handle via deterministic overwrite, which this artifact must not be exempt from: a re-run
-overwrites the table wholesale, and an aborted run leaves none at all, so `verify` either finds a
-table matching a complete bundle or refuses to run.
-
-Verification reads that table:
-entries with more than one part index are genuine cross-part sharing and explain a positive delta;
-a delta that the table does not account for is an implementation fault. The side table lives outside
-the archives and is never imported.
-
-The 21 / 111 / 793 node tallies are exact; the 1144 media figure is a floor.
+Entries with more than one part index are genuine cross-part sharing and explain part of a target
+media count above the source's distinct-asset count; the exact-equality check above is what actually
+distinguishes that from a fault, not merely a floor.
 
 ## Data flow
 
@@ -296,14 +354,20 @@ risk") → `write_archive_from(manifest, document, media_assets, fileobj)` write
 `manifest.json`, `course.json`, and the media payload → one file per part in the bundle directory.
 
 Across the whole loop, the export phase also accumulates the source-`MediaAsset.pk` → part-index
-mapping in memory, and writes it once as the bundle side table **only after every part has exported
-successfully** — so an aborted run leaves archives but no table, and never a stale one.
+mapping and the node/element tallies in memory, and writes them once as the bundle manifest **only
+after every part has exported successfully** — so an aborted run leaves archives but no manifest, and
+never a stale one. `export` also refuses to start writing into a bundle directory that already holds
+archives or a manifest from an earlier run, unless `--clean` is passed (see "Re-running export
+requires `--clean`", above).
 
-**Import phase**, per archive in part order: file → `open_archive(fileobj, expected_kind=…)` →
-`validate_archive_document(...)` → `import_subtree(zf, manifest, document, media_entries,
-target_course, None, user)` — every parameter is positional, and `None` is the top-level insertion
-point — → new `ContentNode` rows under the target course, new `MediaAsset` rows with fresh primary
-keys, and media files materialised from the archive.
+**Import phase**: first, the manifest completeness gate (bundle manifest present, its `part_count`
+matches the archives on disk) — BEFORE anything is written to the target. Then, per archive in part
+order: file → `open_archive(fileobj, expected_kind=…)` → `validate_archive_document(...)` →
+`import_subtree(zf, manifest, document, media_entries, target_course, None, user)` — every parameter
+is positional, and `None` is the top-level insertion point — → new `ContentNode` rows under the target
+course, new `MediaAsset` rows with fresh primary keys, and media files materialised from the archive.
+Before the first graft of a fresh (non-resume) run, the target's pre-migration baseline is captured
+and written to `import-baseline.json` beside the bundle (see Verification).
 
 Node titles travel verbatim. That matters here: 29 of the source's chapters have been renamed by hand
 and 82 still carry `__PLACEHOLDER chapter N__`. All 111 arrive exactly as they are, and the remaining
@@ -324,12 +388,27 @@ raise `TransferError` for malformed or oversized archives; the command reports t
 by name rather than letting a raw traceback escape.
 
 **A missing or empty bundle directory is an error**, not a no-op success — an import phase that
-grafts nothing and reports success would be indistinguishable from a completed migration.
+grafts nothing and reports success would be indistinguishable from a completed migration. Likewise, a
+`--start-at K` that lands beyond every part in the bundle (the whole migration is already complete)
+says so explicitly ("nothing to do") rather than falling through to print `last part committed: None`.
 
-**`verify` aborts when the bundle has no side table**, rather than proceeding as though no media were
-shared. A missing table means the export that produced this bundle did not complete, so any media
-delta it computed would be uninterpretable — and defaulting to "nothing is shared" would report
-legitimate duplication as a fault, the exact inversion the table exists to prevent.
+**A bundle whose manifest is missing, or whose declared `part_count` disagrees with the archives on
+disk, is refused by BOTH `import` and `verify`** — never proceeding as though the bundle were complete.
+This is the completeness gate that catches a mixed-vintage ("Frankenstein") bundle: a missing manifest
+means the export that produced this bundle never completed; a `part_count` mismatch means the bundle
+directory has since been edited (an archive removed, or archives from two different export runs
+present together). `import` checks this BEFORE grafting anything; `verify` checks it before trusting
+the manifest's recorded tallies.
+
+**`verify` aborts when the target has no recorded pre-migration baseline**, for the identical reason it
+aborts on a missing manifest: `import-baseline.json` is written once, by the invocation that began the
+migration, and a media/node delta computed against an unknown baseline is uninterpretable —
+defaulting to "the target started empty" would report legitimate pre-existing content (e.g. after
+`--force`) as a fault, the exact inversion the baseline exists to prevent.
+
+**A malformed manifest or baseline file, and a corrupt archive encountered during `verify`'s own
+integrity cross-check, surface as `CommandError`** — `json.JSONDecodeError` and `TransferError` are
+both wrapped, exactly as `import` already wraps `TransferError` around its own archive-opening.
 
 ## Testing
 
@@ -353,20 +432,46 @@ Required coverage:
 - **A non-empty `problems` list aborts the export phase**, and `--allow-problems` lets it proceed.
 - **`--as-user` resolves to a real user and stamps `MediaAsset.uploaded_by`** on imported assets; an
   unknown email fails clearly rather than importing with a null uploader.
-- **Re-running export overwrites existing archives** in the bundle directory rather than erroring or
-  silently skipping.
+- **Re-running export without `--clean` is refused**, rather than merging into the existing bundle;
+  **with `--clean` it replaces the bundle wholesale**, including removing a stale archive a *smaller*
+  re-export would otherwise leave behind (the Frankenstein-bundle scenario).
+  `ContentNode.order` is not database-unique, and two top-level nodes sharing an order must abort the
+  export rather than silently letting the second overwrite the first's archive.
+- **Archive filenames are parsed as an integer, not sorted as text** — `_bundle_archives` must order
+  `["2-x.zip", "10-x.zip", "100-x.zip"]` correctly and must name-and-reject any `*.zip` not matching
+  `<order>-<slug>.zip`, both as direct unit tests of the parsing (no need for a 100-part course fixture
+  to exercise the bug).
 - **Dry-run drives the real validator** (`open_archive` + `validate_archive_document` per archive) and
-  writes nothing, so every cap is exercised rather than a hand-picked subset.
+  writes nothing (including the baseline file), so every cap is exercised rather than a hand-picked
+  subset.
+- **`import` and `verify` both refuse a bundle whose manifest is missing, or whose declared
+  `part_count` disagrees with the archives currently on disk** — the completeness gate, exercised
+  BEFORE any destructive write (assert the target gains zero nodes from a refused import).
 - **`--start-at K` aborts when the target does not hold exactly `K` top-level nodes**, so a mistyped
   index cannot silently skip or duplicate a part. Cover the off-by-one explicitly: with parts
   `0 … 10` committed, `--start-at 11` proceeds and `--start-at 10` and `--start-at 12` both abort.
+- **The `--start-at` invariant is baseline-aware, not raw-`K`**: `--force` onto a target holding
+  pre-existing top-level nodes, a mid-run failure, and a resume via the EXACT `--start-at` hint the
+  command printed must succeed — proving the invariant and the hint agree with each other rather than
+  merely that each is independently plausible.
+- **A `--start-at K` beyond every part in the bundle says "nothing to do"** rather than printing
+  `last part committed: None`.
 - **A failure on the very first part reports "no parts committed"** and is recoverable by a plain
   re-run, not by `--start-at` — the degenerate `K = 0` boundary.
-- **The bundle side table correlates shared media by source pk**, and verification uses it to explain
-  a positive media delta — a test should cover an asset referenced from two parts arriving as two
-  target rows *and* being accounted for, rather than reported as a fault.
-- **An aborted export leaves no side table**, and `verify` refuses to run against a bundle whose table
-  is missing rather than silently treating every asset as unshared.
+- **The bundle manifest's media table correlates shared media by source pk**, and verification uses it
+  to explain a positive media delta — a test should cover an asset referenced from two parts arriving
+  as two target rows *and* being accounted for, rather than reported as a fault.
+- **Verification's media check is exact, not a floor**: deleting one imported `MediaAsset` — in a
+  scenario where an asset IS shared across parts, so floor < ceiling — must make `verify` abort. A
+  floor-only check would pass this silently (the count still sits within the floor..ceiling range),
+  which is precisely the weakness being tested against.
+- **Verification checks total elements and per-kind node tallies**, not only a bare total-node count —
+  a lost element, or a node whose kind was corrupted without changing the total node count, must each
+  be independently detectable.
+- **`verify` refuses to run without a recorded pre-migration baseline** (i.e. before any `import` has
+  run against this bundle+target), for the same reason it refuses without a manifest.
+- **A malformed manifest/baseline JSON file and a corrupt archive encountered by `verify` both surface
+  as `CommandError`**, never a raw `json.JSONDecodeError` or `TransferError`.
 - **A corrupt or oversized archive in the bundle names that specific archive** in the import phase's
   error, rather than escaping as a raw traceback — the promise made in Error handling, and the
   failure mode most likely to occur across 21 real archives.
