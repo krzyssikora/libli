@@ -10,8 +10,10 @@ This work replaces both with an illustrated, bilingual (EN/PL) treatment that:
 
 - tells the user, warmly, what happened and what to do about it;
 - gives them the information a useful bug report needs (the address they actually tried);
-- shares one decorative learner artwork rendered as a faint full-bleed watermark, tinted from the
-  theme token so light and dark both work from a single asset.
+- shares one decorative learner artwork rendered as a faint bottom-anchored watermark, tinted from the
+  theme token so light and dark both work from a single asset. (It spans the full width on tall
+  windows and sits centred with equal side gutters on the common 16:9 desktop — see §2, where the
+  threshold is derived.)
 
 ### The artwork, measured
 
@@ -27,7 +29,7 @@ Row ink density (exact per-row samples across all 1600 px, not band averages):
 
 | y | 400 | 440 | 476 | 504 | 518 | **525** | 532 | 560 | 616 | 660 |
 |---|---|---|---|---|---|---|---|---|---|---|
-| ink | 17.1% | 18.4% | 24.9% | 34.7% | 48.8% | **60%** | 73.5% | 86.9% | 95.2% | 100% |
+| ink | 17.1% | 18.4% | 24.9% | 34.7% | 48.8% | **61.3%** | 73.5% | 86.9% | 95.2% | 100% |
 
 The desk/foreground band occupies the bottom quarter and becomes very nearly solid. **y=525 (78% of
 height) is the first row above 60%** — that is the band's effective onset and the anchor for the fade
@@ -44,6 +46,14 @@ one:
   §1** — *not* the `@supports` guard, which is mask feature-detection and addresses an unrelated
   failure (a no-mask engine painting an unmasked tinted box). The ramp is not optional decoration.
 
+**Out of scope: CSRF failures.** Django routes CSRF rejections through `CSRF_FAILURE_VIEW` →
+`django.views.csrf.csrf_failure`, which renders **`403_csrf.html`**, not `403.html`. The project has
+no `templates/403_csrf.html`, so a visitor whose POST fails CSRF gets Django's built-in unstyled page
+— and that is arguably the *most likely* real-world anonymous 403. It is left alone here: it is a
+distinct template with a distinct context and no `request_path`, and folding it in would widen this
+change. Noted so the Purpose's "guaranteed to see" claim is understood as bounded to the two
+templates this spec covers.
+
 **Out of scope.** `templates/500.html` is deliberately dependency-free — no base template, no
 collected static, literal brand colours duplicated inline — because a broken static pipeline is
 itself a plausible cause of a 500. It is not touched. No support/contact address is introduced: the
@@ -56,8 +66,16 @@ this" line is therefore plain prose with no link.
 
 **Source.** `C:/Users/krzys/Downloads/learner_bw.png` — opaque RGB, 1600×672, black scene on white.
 It lives outside the repository and is **not** committed: it is a one-off input, and the derived
-`learner.png` below is the artifact of record. If the derivation ever needs repeating and the source
-is gone, it can be re-derived from the committed PNG, which carries the same silhouette.
+`learner.png` below is the artifact of record.
+
+**Recovering from the committed PNG is a different procedure, and running the recipe on it is wrong.**
+The recipe's input is opaque RGB black-on-white; the committed artifact is `LA` with **luminance 0
+everywhere** and the ramp **already baked into alpha**. Applying `alpha = 255 - L` to it yields
+`255 - 0 = 255` for every pixel — a full-frame tinted rectangle — and re-applying the ramp on top of
+an already-ramped alpha double-fades the bottom (≈0.32 rather than 0.57 at y=525). So: from a
+**black-on-white source**, run both steps below; from the **committed PNG**, take its alpha channel as
+the finished silhouette and apply neither step. Both branches go in the `error.css` comment, since
+that is where the spec says a maintainer will look.
 
 **Derivation** (one-shot, via Pillow — already a project dependency, used by the help-shot
 substrate). Output is an **`LA`-mode PNG at the source's native 1600×672**, luminance channel 0
@@ -90,9 +108,20 @@ a CSS mask consumes, so storing anything else is waste. Two steps:
 resampled to 1280×538 measures **26 KB**, because resampling introduces gradients in what is
 otherwise a flat two-tone alpha channel. Test 8 asserts the ceiling.
 
+**Build the output as a fresh `Image.merge("LA", …)`**, never by mutating the source image. The source
+carries a GIMP sRGB `icc_profile` and a 3.9 KB raw-EXIF text chunk, and Pillow's PNG writer
+auto-carries `icc_profile` from `im.info` — mutating the source therefore writes a colour profile into
+a greyscale+alpha file that nothing samples (measured 18 303 bytes vs 17 902), which is exactly the
+waste this step exists to avoid. Both variants clear the 60 KB ceiling, so no test would catch it.
+
 No generation script is committed. The **recipe** is recorded in a comment in `error.css`, which is
-where a maintainer would look: `LA` mode, 1600×672, `alpha = 255 - L`, smoothstep ramp to zero from
-`0.60·H`, `optimize=True`. The comment records that the input was a one-off local file and
+where a maintainer would look, and it must be complete enough to reproduce the asset byte-for-byte:
+`LA` mode built via `Image.merge` (no carried metadata), 1600×672, `alpha = 255 - L`, then
+`alpha *= 1 - (3t² - 2t³)` where `t = clamp((y - 0.60·H) / (0.40·H), 0, 1)`, saved with
+`optimize=True`. The formulas go in the comment, not only in this spec — §1 argues that the *exact*
+curve is what kills the y=525 edge, so "smoothstep from 0.60·H" alone would let two maintainers
+produce two different assets. The comment also carries the two-branch recovery note above, records
+that the input was a one-off local file, and
 deliberately **does not** contain the literal `C:/Users/krzys/...` path — `error.css` is committed and
 served publicly as static content, and a machine-specific home directory is both a leak and useless
 to anyone else.
@@ -123,7 +152,7 @@ global `app.css`.
     -webkit-mask-repeat: no-repeat;       mask-repeat: no-repeat;
     -webkit-mask-position: center bottom; mask-position: center bottom;
     -webkit-mask-size: contain;           mask-size: contain;
-    -webkit-mask-mode: alpha;             mask-mode: alpha;
+                                          mask-mode: alpha;   /* no -webkit- form exists */
     opacity: .07;
     z-index: 0;
     pointer-events: none;
@@ -140,10 +169,15 @@ manifest backend rewrites, with **no test coverage**: both `config/settings/test
 swap in plain `StaticFilesStorage`, so `collectstatic` under the manifest backend is never exercised
 in CI. `none` needs no such appeal.
 
-**`mask-mode: alpha` is declared, not assumed.** The asset is `LA` with luminance 0 everywhere, so
-the design depends on the alpha channel being the mask source. `match-source` does resolve to alpha
-for a raster image, but a luminance interpretation would make the watermark vanish outright (luminance
-0 = fully masked) rather than degrade — declaring the mode removes the question.
+**`mask-mode: alpha` is declared unprefixed only — there is no `-webkit-mask-mode`.** The asset is
+`LA` with luminance 0 everywhere, so the design depends on the alpha channel being the mask source.
+`match-source` does resolve to alpha for a raster image, but a luminance interpretation would make the
+watermark vanish outright (luminance 0 = fully masked) rather than degrade, so the mode is declared
+where it can be. It is the **one** `mask-*` property exempt from the prefix rule below, because the
+prefixed form does not exist in any engine — verified:
+`CSS.supports('-webkit-mask-mode','alpha')` is `false`, as is the legacy
+`-webkit-mask-source-type`. Prefix-only engines therefore fall back to their `auto`/alpha default,
+which is the correct interpretation for a raster mask anyway.
 
 **Why `aspect-ratio` + `contain` and no breakpoint.** Full-bleed width and a fixed short height are
 incompatible with a 2.38:1 artwork whose subject reaches the top edge — one of the three has to give,
@@ -162,14 +196,29 @@ lands entirely on one side. Measured in Chromium at 1280×800: `x=0, width=1143`
 `margin-inline: auto` consumes the slack symmetrically instead: measured `x=68.6` at 1280×800,
 `x=125.7` at 1280×720, `x=211.4` at 1280×600, and `x=0` at 390×844 where the clamp never bites.
 
-So on a short window the watermark **pillarboxes** — it shrinks and sits centred with equal gaps
-left and right, and stops being full-bleed. That is expected, **but symmetry is not**: the screenshot
-self-critique must check that the gaps are equal, because an unequal gap is exactly the signature of
-`margin-inline: auto` having been dropped. `contain` (rather than `100% 100%`) is what keeps the
-clamped case proportional instead of squashing the figure.
+**Pillarboxed is the normal desktop rendering, not an edge case.** The clamp bites whenever
+`W × 672/1600 > 0.60 × H`, i.e. whenever **`H < 0.7 × W`** — which is every common 16:9 display:
 
-**Every `mask-*` longhand is duplicated with the `-webkit-` prefix** — all four, as written above,
-and any `mask-*` in any future rule. This is load-bearing: the `or (-webkit-mask-image: …)` arm of
+| Viewport | box wants | `60dvh` cap | regime |
+|---|---|---|---|
+| 1920×960 (maximised 1080p) | 806 px | 576 px | **clamped** |
+| 1440×800 | 605 px | 480 px | **clamped** |
+| 1366×768 | 574 px | 461 px | **clamped** |
+| 1280×720 (Playwright default) | 538 px | 432 px | **clamped** |
+| 1280×900 | 538 px | 540 px | full-width (by 2.4 px) |
+| 390×844 (phone) | 164 px | 506 px | full-width |
+
+So most desktop users see the scene shrunk and centred with equal side gutters; full-width is the
+*tall-window* case. Both are correct. **What is not optional is the symmetry** — an unequal gutter is
+exactly the signature of `margin-inline: auto` having been dropped, so the screenshot matrix in
+§Testing photographs a clamped viewport specifically to check it. `contain` (rather than
+`100% 100%`) is what keeps the clamped case proportional instead of squashing the figure.
+
+**Every `mask-*` longhand that has a prefixed form is duplicated with the `-webkit-` prefix** — the
+**four** written above (`-webkit-mask-image`, `-webkit-mask-repeat`, `-webkit-mask-position`,
+`-webkit-mask-size`), and any `mask-*` in any future rule. `mask-mode` is the documented exception
+(no prefixed form exists), so the sheet carries **four** prefixed longhands and **five** unprefixed
+ones. This is load-bearing: the `or (-webkit-mask-image: …)` arm of
 the `@supports` query deliberately admits pre-15.4 Safari, and those engines ignore unprefixed
 `mask-repeat`, `mask-position` and `mask-size`. Prefixing only `mask-image` would let them through
 the guard and then paint the mask tiled, at its natural 1600×672, anchored top-left — worse than no
@@ -187,12 +236,13 @@ is the real asset reference, since the `@supports` condition uses `none` rather 
 It is a CSS pseudo-element, not an `<img>`: purely decorative, absent from the accessibility tree, no
 alt text to translate, and `pointer-events: none` so it can never intercept a click.
 
-**Stacking — the ordering invariant is `watermark 0 < .app-main 1 < .app-header 2`.** Both must be
-raised above the watermark, but they must **not** share a layer. Giving `.app-header` a `z-index`
-turns it into a stacking context, re-scoping its descendants' `z-index: 50` (`.menu__panel` — account
-menu, bell panel) and `z-index: 40` (`.app-nav` mobile panel) inside it. If `.app-main` then sat at
-the same `z-index: 1`, DOM order would decide and the later `.app-main` would paint *and hit-test*
-above the header's whole subtree — including the dropdown panels, which hang down over main.
+**Stacking — the ordering invariant is
+`watermark 0 < .error-page__main 1 < body.error-page .app-header 2`.** Both must be raised above the
+watermark, but they must **not** share a layer. Giving the header a `z-index` turns it into a stacking
+context, re-scoping its descendants' `z-index: 50` (`.menu__panel` — account menu, bell panel) and
+`z-index: 40` (`.app-nav` mobile panel) inside it. If `<main>` then sat at the same `z-index: 1`, DOM
+order would decide and the later `<main>` would paint *and hit-test* above the header's whole
+subtree — including the dropdown panels, which hang down over main.
 `app.css` carries a comment recording that this precise regression has already happened once ("`Log
 out` looks see-through and can't be tapped").
 
@@ -228,9 +278,9 @@ page, not a boxed panel.
 **Vertical centring is derived, never guessed.** The tempting
 `min-height: calc(100vh - 2 * var(--space-6))` copied from `.auth-main` is *wrong here*: that
 precedent works because `templates/allauth/layouts/entrance.html` **replaces** `{% block header %}`, so
-auth pages have no `.app-header` at all. The error pages deliberately keep the header (≈57 px:
-`var(--space-3)` padding × 2 + a 32 px control row + 1 px border, and more below 640 px where the
-header wraps), so subtracting only the main padding overshoots and every error page would render a
+auth pages have no `.app-header` at all. The error pages deliberately keep the header (**measured
+≈69 px** in Chromium against the real `app.css`, and taller below 640 px where the header wraps), so
+subtracting only the main padding overshoots and every error page would render a
 stray vertical scrollbar. Instead, let layout do the arithmetic:
 
 ```css
@@ -247,9 +297,10 @@ exactly when overflow would occur.
 Both classes apply to `<main>` (`app-main error-page__main`), so `.app-main`'s
 `max-width: 960px; margin: 0 auto; padding: var(--space-8) var(--space-5)` **stays in force and is
 deliberately kept** — 960 px is a fine outer bound and the inner column is narrower anyway. The
-`{% if messages %}` alerts `base.html` renders inside `<main>` become flex children; they are given
-`width: 100%` — written scoped as `.error-page__main > .alert { width: 100%; }`, since `.alert` is a
-global class in `app.css` and an unscoped rule would leak.
+`{% if messages %}` alerts `base.html` renders inside `<main>` become flex children — and need **no
+rule at all**: `.error-page__main` is `display: flex; flex-direction: column` with the default
+`align-items: stretch`, and `.alert` sets no width in `app.css`, so they already fill the cross axis.
+An earlier draft specified `width: 100%` here; it was a no-op implying a problem that does not exist.
 
 Inside, wrapped in `<div class="error-page__inner">` at `max-width: 40rem`. **The table is DOM
 order.** The path line sits directly under the lead, because the lead's own advice is "check the
@@ -307,6 +358,11 @@ The same shell, the same CSS, the same `landing` target, different copy, and two
 differences. Where 404 says "nothing here", 403 says "here, but not yours". Keeps
 `{% block head_title %}{% trans "Access denied" %} · libli{% endblock %}` unchanged.
 
+**It carries the same four block overrides as §3** — `{% load static i18n %}`, `{% block body_class %}`,
+`{% block main_class %}` and the `error.css` link in `{% block extra_css %}`. §3 spells them out as
+404 instructions; they are not 404-specific. In particular `{% load static %}` is mandatory here too,
+or the stylesheet link is a `TemplateSyntaxError` — the exact trap §3 calls out.
+
 **Element sequence: `__code`, `__title`, `__lead`, `__actions` — four of the six.** `.error-page__note`
 and `.error-page__path` are **404-only**: the 403 has no path to show (below), and its "ask your
 administrator" advice is already folded into the lead sentence rather than split into a second
@@ -333,13 +389,16 @@ paragraph. An implementer should not invent a fourth paragraph to fill `__note`.
   `BlockNode.super()` re-renders the parent block against the same mutable `Context`, so the pushed
   `{% with %}` layer is visible to it.
 
-**Reachability, stated honestly.** Every `raise PermissionDenied` in the project sits behind
-`@login_required` (`courses/views.py` and peers), so an anonymous request to those URLs gets a 302 to
-login and **never a 403**. The anonymous branch is therefore effectively unreachable in production
-today. It is kept because it is one `{% if %}`, because it is the correct behaviour the moment any
-non-login-gated view raises `PermissionDenied`, and because a 403 page whose only advice to a
-logged-out visitor is "ask your administrator" would be actively unhelpful. Its test is a direct
-template render (see §Testing), not a live request — because no live request can produce it.
+**Reachability, stated honestly.** Every `raise PermissionDenied` in **first-party** code sits behind
+`@login_required` (`courses/views.py` and peers), so an anonymous request to *those* URLs gets a 302 to
+login and never a 403. Third-party code is a different matter: allauth raises `PermissionDenied` from
+anonymous-reachable paths (`allauth/core/internal/httpkit.py`, `allauth/account/views.py`, and the
+adapter's "Unable to determine client IP address"), and those render this template for a logged-out
+visitor. So the anonymous branch is rare but **not** unreachable — which strengthens the case for
+keeping it. It is also one `{% if %}`, it is the correct behaviour the moment any first-party view
+raises `PermissionDenied` outside a login gate, and a 403 whose only advice to a logged-out visitor is
+"ask your administrator" would be actively unhelpful. Its test is a direct template render (see
+§Testing) rather than a live request, because no *first-party* surface produces it.
 
 ## Data flow
 
@@ -372,7 +431,7 @@ them into the templates and the catalogs unchanged.
 | eyebrow | `404` *(not translated — a numeral)* | — |
 | heading | `Nothing here` | `Nic tu nie ma` |
 | body | `We appreciate your eagerness to discover, but there's nothing at this address. Check the address you entered, or go back to the main page.` | `Doceniamy zapał do odkrywania, ale pod tym adresem nic nie ma. Sprawdź wpisany adres lub wróć na stronę główną.` |
-| report | `If a link inside libli brought you here, please report it to your administrator, describing the steps that led to this page.` | `Jeśli ta strona otworzyła się po kliknięciu linku w aplikacji, zgłoś to administratorowi, opisując kroki, które do niej doprowadziły.` |
+| report | `If a link inside the app brought you here, please report it to your administrator, describing the steps that led to this page.` | `Jeśli ta strona otworzyła się po kliknięciu linku w aplikacji, zgłoś to administratorowi, opisując kroki, które do niej doprowadziły.` |
 | path label | `You tried:` | `Próbowano otworzyć:` |
 | action | `Back to main page` | `Powrót do strony głównej` |
 
@@ -386,6 +445,14 @@ them into the templates and the catalogs unchanged.
 | body | `This page exists, but your account doesn't have permission to open it. If you think you should have access, ask your administrator.` | `Ta strona istnieje, ale twoje konto nie ma uprawnień, żeby ją otworzyć. Jeśli uważasz, że powinno je mieć, zwróć się do administratora.` |
 | action | `Back to main page` | `Powrót do strony głównej` |
 | action (anon) | `Log in` *(existing msgid, reused)* | `Zaloguj się` |
+
+**No brand name in the copy.** The EN report line says "inside **the app**", not "inside libli". The
+product name is institution-brandable (`Institution.name`, rendered in `base.html`'s brand slot), so a
+hardcoded "libli" would ship a rebranded install a 404 naming somebody else's product. Using
+`%(site_name)s` — the convention `tests/test_i18n_auth.py` pins for `Sign in to %(site_name)s` — would
+also work, but the brand adds nothing here and the user's own wording was "a link within the app". The
+practical benefit: EN and PL now say the same thing, which is what makes test 6's "EN absent / PL
+present" pairing a real guard rather than a coincidence of two differently-worded strings.
 
 **The blunt 403 heading is a deliberate, user-approved voice choice.** `Not for you` / `Nie dla
 ciebie` is terser than the warm register the rest of the page uses, and in informal Polish it lands
@@ -421,6 +488,12 @@ live rather than becoming obsolete, the three new msgids would never appear, and
 `locale/en` `#~`-absence assertion would pass **vacuously against a file nobody regenerated**. Run
 `makemessages -l pl -l en`, then the manual `#~` / fuzzy cleanup, then `compilemessages`. The `.po`
 edits alone would leave the runtime reading a stale catalog and the Polish render test failing.
+
+**Fix the doc, not just this change.** `docs/development/conventions.md` is the source of the trap, so
+this work also updates that line to `makemessages -l pl -l en` and notes that both catalogs are
+tracked. Routing around it for one change would leave the next contributor to walk into it — and
+test 7's new EN guard would keep passing vacuously for them, which is precisely the failure mode that
+guard exists to prevent.
 
 **One fuzzy match is near-certain and must be cleared.** The retired `Back to home` already carries
 the Polish msgstr `Powrót do strony głównej` — byte-identical to the Polish this spec assigns the new
@@ -548,9 +621,11 @@ the real form at `/accounts/login/` with `tests.factories.TEST_PASSWORD`, per th
    - the tint is `background-color: var(--text-primary)` and the sheet is token-only with no raw hex,
      mirroring `test_auth_styles.py`'s rule for a new per-page sheet;
    - **the stacking invariant holds**: parse the three `z-index` values out of `error.css` and assert
-     `watermark < .app-main < .app-header`. §2 argues this reproduces an already-shipped regression if
-     inverted, so leaving it to a human eyeballing screenshots is not enough — a later edit that drops
-     `z-index: 1` from `.app-main` or swaps the two must go red;
+     `watermark < .error-page__main < .app-header`. Note the selectors deliberately — `.app-main` must
+     **not** appear in `error.css` at all (see §2), so an assertion written against it would be
+     unsatisfiable and would tempt an implementer into adding the very rule §2 forbids. §2 argues this
+     ordering reproduces an already-shipped regression if inverted, so leaving it to a human eyeballing
+     screenshots is not enough — a later edit that drops `z-index: 1` or swaps the two must go red;
    - both templates emit the stylesheet link and the `error-page` body class;
    - `core/static/core/img/learner.png` exists, opens as an `LA`-mode image, is **exactly 1600×672**,
      and is **≤ 60 KB**. The dimensions assertion is not decoration: §2 hard-codes
@@ -567,17 +642,24 @@ project has shipped vacuous tests before.
 **Visual verification is part of "done", not optional**, per the standing `verify-ui-with-screenshots`
 convention. **Six Playwright shots, countable, with viewports pinned to width *and height*:**
 
+**Seven shots:**
+
 | # | Page | Theme | Viewport | Watermark regime |
 |---|---|---|---|---|
-| 1–2 | 404, 403 | light | **1280×900** | unclamped — full-bleed, box 1280×538 |
-| 3–4 | 404, 403 | dark | **1280×900** | unclamped |
-| 5–6 | 404, 403 | light | **390×844** | unclamped — box 390×164 |
+| 1–2 | 404, 403 | light | **1280×900** | full-width, box 1280×538 |
+| 3–4 | 404, 403 | dark | **1280×900** | full-width |
+| 5–6 | 404, 403 | light | **390×844** | full-width, box 390×164 |
+| 7 | 404 | light | **1280×720** | **clamped** — box ≈1029×432, centred |
 
-Height must be pinned, not defaulted: pytest-playwright's default viewport is **1280×720**, where
-`60dvh` = 432 px and the box clamps to ~1029 px wide — so every "1280" shot would land in the
-*clamped* regime and the full-bleed rendering §2 reasons about would never be photographed. 1280×900
-puts the desktop shots in the unclamped case. The phone width is a composition risk, not a colour one,
-so it does not need a second theme sweep.
+Height must be pinned, not defaulted, and **both regimes must be photographed**. Shot 7 is not
+redundant: per §2 the clamped regime is what most desktop users actually get (`H < 0.7 × W` covers
+1920×1080, 1440×900, 1366×768 and Playwright's own 1280×720 default), and it is the **only** shot in
+which the `margin-inline: auto` gutter-symmetry check is meaningful — without it that check is
+unreachable by construction and the regression it guards would never be looked for. Conversely,
+1280×900 is the full-width case §2 reasons about, and it clears the clamp by only 2.4 px (the
+threshold at 1280 wide is H ≥ 896), so it is deliberate and fragile: nudging the viewport or the
+`60dvh` value flips all four desktop shots into the other regime. The phone width is a composition
+risk, not a colour one, so it does not need a second theme sweep.
 
 The shots are **verification artifacts and are not committed**: write them to the session scratchpad
 directory, review them, and leave them out of the diff. (This differs from the help-shot substrate,
@@ -607,8 +689,9 @@ Self-critique the shots before calling the work done, specifically checking:
 - the whole scene is present at 390 px;
 - content paints above the watermark, and the header's account / bell / mobile-nav dropdowns still
   overlay page content on both pages (the `z-index` invariant in §2);
-- **left and right gutters are equal** if any shot does land in the clamped regime — an unequal gutter
-  is the signature of `margin-inline: auto` having been dropped.
+- **on shot 7 (the clamped viewport), the left and right gutters are equal** — an unequal gutter is
+  the signature of `margin-inline: auto` having been dropped. This check is unconditional, which is
+  why shot 7 exists.
 
 **Worktree DB isolation.** Concurrent worktrees collide on the Postgres `test_libli` database. This
 worktree's `.env` already names a unique database (`libli_errpages`, so the test DB is
