@@ -1,0 +1,94 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Ciąg \\((a_n)\\) jest zdefiniowany wzorem ogólnym</p><p>\\[</p><p>a_n=2+\\frac{4n}{3}\\quad\\text{dla }n=1, 2, 3, \\dots</p><p>\\]</p><p>Ciąg \\((a_n)\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "jest rosnący",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "jest stały",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "jest malejący",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Ciąg \\((b_n)\\) jest zdefiniowany wzorem ogólnym</p><p>\\[</p><p>b_n=2\\cdot\\left(\\frac{3}{4}\\right)\\quad\\text{dla }n=1, 2, 3, \\dots</p><p>\\]</p><p>Ciąg \\((b_n)\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "jest rosnący",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "jest stały",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "jest malejący",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Ciąg \\((c_n)\\) jest zdefiniowany wzorem rekurencyjnym</p><p>\\(\\begin{cases}</p><p>\\begin{align}</p><p>c_1&=21&&\\\\</p><p>c_n&=c_{n-1}-1\\quad&\\text{dla }n=2, 3, 4, \\dots</p><p>\\end{align}</p><p>\\end{cases}\\)</p><p>Ciąg \\((c_n)\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "jest rosnący",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "jest stały",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "jest malejący",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Ciąg \\((d_n)\\) jest zdefiniowany wzorem rekurencyjnym</p><p>\\(\\begin{cases}</p><p>\\begin{align}</p><p>d_1&=21&&\\\\</p><p>d_n&=d_{n-1}\\cdot 3\\quad&\\text{dla }n=2, 3, 4, \\dots</p><p>\\end{align}</p><p>\\end{cases}\\)</p><p>Ciąg \\((d_n)\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "jest rosnący",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "jest stały",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "jest malejący",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "65ab41d0bec85bc96133ee87168264f8093c21f67415106e3e3725e26b8380a4"
+}

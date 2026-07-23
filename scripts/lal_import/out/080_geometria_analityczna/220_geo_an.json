@@ -1,0 +1,179 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wróćmy do zadania z poprzedniej strony.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź współrzędne środka oraz promień okręgu\n        \\[\n        x^2-2x+y^2+10y+17=0\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Przyjrzyjmy się oddzielnie fragmentom równania oznaczonym kolorami.\n                <div class=\"centered\">\n<span style=\"background-color: #ffcccc;\">\n                        \\(x^2-2x\\)\n                    </span>\n                    \\(+\\)\n                    <span style=\"background-color: #ccccff;\">\n                        \\(y^2+10y\\)\n                    </span>\n                    \\(+17=0\\)\n                </div>\n<div class=\"switch_line\">\n                    Poprzednio ustaliliśmy, że\n                    <span style=\"background-color: #ffcccc;\">\n                        \\(x^2-2x=\\)\n                    </span>\n<div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n<span style=\"background-color: #ffcccc;\">\n                            \\((x-2)^2-4\\)\n                        </span>\n</div>\n<div class=\"switch_value\">\n<span style=\"background-color: #ffcccc;\">\n                            \\((x-1)^2\\)\n                        </span>\n</div>\n<div class=\"switch_value\">\n<span style=\"background-color: #ffcccc;\">\n                            \\((x-1)^2-1\\)\n                        </span>\n</div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Ustaliliśmy też, że\n                    <span style=\"background-color: #ccccff;\">\n                        \\(y^2+10y=\\)\n                    </span>\n<div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n<span style=\"background-color: #ccccff;\">\n                            \\((y+5)^2-25\\)\n                        </span>\n</div>\n<div class=\"switch_value\">\n<span style=\"background-color: #ccccff;\">\n                            \\((y+10)^2-100\\)\n                        </span>\n</div>\n<div class=\"switch_value\">\n<span style=\"background-color: #ccccff;\">\n                            \\((y-5)^2-5\\)\n                        </span>\n</div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                I dlatego równanie okręgu możemy przekształcić:\n                <div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n<span style=\"background-color: #ffcccc;\">\n                                        \\(x^2-2x\\)\n                                    </span>\n</td>\n<td>\n                                    \\(+\\)\n                                </td>\n<td>\n<span style=\"background-color: #ccccff;\">\n                                        \\(y^2+10y\\)\n                                    </span>\n</td>\n<td>\n                                    \\(+17=0\\quad\\quad\\)\n                                </td>\n</tr>\n<tr>\n<td>\n<span style=\"background-color: #ffcccc;\">\n                                        \\((x-1)^2-1\\)\n                                    </span>\n</td>\n<td>\n                                    \\(+\\)\n                                </td>\n<td>\n<span style=\"background-color: #ccccff;\">\n                                        \\((y+5)^2-25\\)\n                                    </span>\n</td>\n<td>\n                                    \\(+17=0\\quad\\quad\\)\n                                </td>\n</tr>\n<tr>\n<td>\n<span style=\"background-color: #ffcccc;\">\n                                        \\((x-1)^2\\)\n                                    </span>\n</td>\n<td>\n                                    \\(+\\)\n                                </td>\n<td>\n<span style=\"background-color: #ccccff;\">\n                                        \\((y+5)^2\\)\n                                    </span>\n</td>\n<td>\n                                    \\(+17\\)\n                                    <span style=\"background-color: #ffcccc;\">\n                                        \\(-1\\)\n                                    </span>\n<span style=\"background-color: #ccccff;\">\n                                        \\(-25\\)\n                                    </span>\n                                    \\(=0\\)\n                                </td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"switch_line\">\n                    Przenosząc liczby na prawą stronę równania otrzymujemy \\((x-1)^2+(y+5)^2=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(41\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(9\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(7\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Przekształciliśmy równanie okręgu do postaci kanonicznej:\n                \\[\n                (x-1)^2+(y+5)^2=9\n                \\]\n                która w ogólności wygląda tak:\n                \\[\n                (x-a)^2+(y-b)^2=r^2\n                \\]\n                Zwróć uwagę, że współrzędne \\((a, b)\\) środka okręgu są w tym równaniu\n                <strong>\n                    odejmowane\n                </strong>\n                od zmiennych \\(x\\) i \\(y\\).\n                <div class=\"switch_line\">\n                    I dlatego środek okręgu to punkt\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\((-1, 5)\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\((1, -5)\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\((1, 5)\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\((-1, -5)\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Promień okręgu ma długość\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(5\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(9\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(3\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Równanie okręgu\n                \\[\n                x^2-2x+y^2+10y+17=0\n                \\]\n                przekształciliśmy do postaci kanonicznej:\n                \\[\n                (x-1)^2+(y+5)^2=9\n                \\]\n                z której odczytujemy środek okręgu \\((1, -5)\\) oraz długość promienia \\(3\\).\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź współrzędne środka oraz promień okręgu\n        \\[\n        x^2+4x+y^2-6y-12=0\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zacznijmy od przedstawienia wyrażenia \\(x^2+4x\\) w postaci \\((x+a)^2-c\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(x^2+4x=(x+\\)\n            <span>\n<input class=\"fill_answer\" placeholder=\"?\" type=\"text\"/>\n</span>\n            \\()^2-\\)\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n<span>\n<input class=\"fill_answer\" placeholder=\"?\" type=\"text\"/>\n</span>\n            .\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Podobnie\n            \\(y^2-6y=(y\\)\n            <span>\n<input class=\"fill_answer\" placeholder=\"?\" type=\"text\"/>\n</span>\n            \\()^2-\\)\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n<span>\n<input class=\"fill_answer\" placeholder=\"?\" type=\"text\"/>\n</span>\n            .\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            I dlatego równanie\n            \\[\n            x^2+4x+y^2-6y-12=0\n            \\]\n            możemy zmienić w \n            \\[\n            (x+2)^2-4+(y-3)^2-9-12=0\n            \\]\n            Czyli \\((x+2)^2+(y-3)^2=\\)\n            <span>\n<input class=\"fill_answer\" placeholder=\"?\" type=\"text\"/>\n</span>\n            .\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Tak więc promień okręgu to\n            <span>\n<input class=\"fill_answer\" placeholder=\"?\" type=\"text\"/>\n</span>\n            .\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Współrzędna \\(x\\) środka okręgu to\n            <span>\n<input class=\"fill_answer\" placeholder=\"?\" type=\"text\"/>\n</span>\n            ,\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            a współrzędna \\(y\\)-owa to\n            <span>\n<input class=\"fill_answer\" placeholder=\"?\" type=\"text\"/>\n</span>\n            .\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n    Okrąg o równaniu \\(x^2+4x+y^2-6y-12=0\\), czyli o równaniu \\((x+2)^2+(y-3)^2=25\\) ma środek w punkcie \\((-2, 3)\\) i promień długości \\(5\\).\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W poniższym zadaniu masz jeszcze kilka przykładów na przedstawienie równania okręgu w postaci kanonicznej i odczytanie z niej środka i promienia.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Tym razem nie ma już pełnych rozwiązań, ale możesz sprawdzić swoje odpowiedzi.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź współrzędne środków oraz promienie podanych okręgów.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(x^2-4x+y^2-2y-20=0\\)",
+      "body": "\n                        środek \\((2,1)\\), promień =\\(5\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(x^2+y^2+4y-12=0\\)",
+      "body": "\n                        środek \\((0,-2)\\), promień =\\(4\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(x^2-6x+y^2=0\\)",
+      "body": "\n                        środek \\((3,0)\\), promień =\\(3\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(x^2-8x+y^2+8y+16=0\\)",
+      "body": "\n                        środek \\((4,-4)\\), promień =\\(4\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(x^2-3x+y^2+5y-0,5=0\\)",
+      "body": "\n                        środek \\((1,5,-2,5)\\), promień =\\(3\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(x^2+10x+y^2-4y-20=0\\)",
+      "body": "\n                        środek \\((-5,2)\\), promień =\\(7\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(x^2+6x+y^2-2y-8=0\\)",
+      "body": "\n                        środek \\((-3,1)\\), promień =\\(3\\sqrt{2}\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(x^2-2x+y^2-3y-44,75=0\\)",
+      "body": "\n                        środek \\((1;1,5)\\), promień =\\(4\\sqrt{3}\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(x^2+6x+y^2-3y-6,75=0\\)",
+      "body": "\n                        środek \\((-3;1,5)\\), promień =\\(3\\sqrt{2}\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(x^2+3x+y^2+y-5,5=0\\)",
+      "body": "\n                        środek \\((-1,5,-0,5)\\), promień =\\(2\\sqrt{2}\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(x^2-4x+y^2-y-70,75=0\\)",
+      "body": "\n                        środek \\((2;0,5)\\), promień =\\(5\\sqrt{3}\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(x^2-x+y^2+6y-30,75=0\\)",
+      "body": "\n                        środek \\((0,5,-3)\\), promień =\\(2\\sqrt{10}\\)\n                    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "953162ea55f2d580f72562351c6692a0b4b28bf8d6b66c2dfb148e2fa4eb6c1a"
+}

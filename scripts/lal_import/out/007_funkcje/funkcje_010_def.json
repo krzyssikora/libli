@@ -1,0 +1,101 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Funkcje\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli\n    <strong>\n        funkcja\n    </strong>\n    jest dla Ciebie pojęciem nowym, koniecznie obejrzyj nagranie. W przeciwnym razie możesz zacząć od podsumowania poniżej.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/funkcja.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Mamy dane dwa zbiory, którym nadajemy nazwy:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            zbiór \\(A\\) - dziedzina,\n        </li>\n<li>\n            zbiór \\(B\\) - przeciwdziedzina.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>\n            Funkcja\n        </strong>\n        \\(f\\) ze zbioru \\(A\\) w zbiór \\(B\\) to takie przyporządkowanie\n        <br/>\n<small>\n            (elementów zbioru \\(B\\), tj. przeciwdziedziny elementom zbioru \\(A\\), tj. dziedziny)\n        </small>\n        ,\n        <br/>\n        że\n        <u>\n<strong>\n                każdemu elementowi\n            </strong>\n            dziedziny\n        </u>\n<br/>\n        przyporządkowany jest\n        <br/>\n<u>\n<strong>\n                dokładnie jeden element\n            </strong>\n            przeciwdziedziny\n        </u>\n        .\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zapisujemy to\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                        f:A\\longrightarrow B\n                                                                                        "
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            Elementy dziedziny (\\(A\\)) nazywamy\n            <strong>\n                argumentami\n            </strong>\n            .\n        </li>\n<li>\n            Elementy przeciwdziedziny (\\(B\\)) nazywamy\n            <strong>\n                wartościami\n            </strong>\n            .\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n    Wskazówka\n</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        O funkcji możesz myśleć jak o wyniku rzutu piłkami...\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Niech \\(A\\) (dziedzina) będzie drużyną, w której\n        <u>\n            każdy\n        </u>\n        zawodnik (element) rzuca piłką (\n        <u>\n            jedną\n        </u>\n        piłką) w kierunku jakiegoś (któregokolwiek) zawodnika drużyny \\(B\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli każdy trafi, mamy do czynienia z funkcją.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Funkcja czy nie?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spójrz na poniższe rysunki. Czy przedstawiają one funkcje \\(f:A\\longrightarrow B\\)? Dlaczego?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy odpowiesz, sprawdź moje odpowiedzi.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"czy to funkcja? 1\" src=\"static/funkcja_def_1_1.png\" width=\"600\"/>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "body": "\n<div>\n<img alt=\"czy to funkcja? 2 - odpowiedź\" src=\"static/funkcja_def_2_2.png\" width=\"600\"/>\n</div>\n<p>\n<strong>\n<span style=\"color: red;\">\n                    Nie\n                </span>\n                , to nie jest funkcja.\n            </strong>\n</p>\n<p>\n            Zwróć uwagę, że nie wszystkie elementy przeciwdziedziny muszą być przyporządkowane jakimś argumentom (punkt zaznaczony zielonym okręgiem). To nie jest problem.\n        </p>\n<p>\n            Problemem jest, że istnieje argument (punkt zaznaczony czerwonym okręgiem), który nie ma przyporządkowanej żadnej wartości.\n        </p>\n<p>\n<strong>\n                Nie jest\n            </strong>\n            spełniony warunek, że\n            <strong>\n                każdy\n            </strong>\n            argument ma przyporządkowaną dokładnie jedną wartość.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"czy to funkcja? 2\" src=\"static/funkcja_def_2_1.png\" width=\"600\"/>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "body": "\n<div>\n<img alt=\"czy to funkcja? 3 - odpowiedź\" src=\"static/funkcja_def_3_2.png\" width=\"600\"/>\n</div>\n<p>\n<strong>\n<span style=\"color: red;\">\n                    Nie\n                </span>\n                , to nie jest funkcja.\n            </strong>\n</p>\n<p>\n            Zwróć uwagę, że dwóm argumentom może byc przyporządkowana ta sama wartość (punkt zaznaczony ciemnozielonym okręgiem). To nie jest problem.\n        </p>\n<p>\n            Problemem jest, że istnieje argument (punkt zaznaczony czerwonym okręgiem), któremu przyporządkowane są dwie wartości.\n        </p>\n<p>\n<strong>\n                Nie jest\n            </strong>\n            spełniony warunek, że każdy argument ma przyporządkowaną\n            <strong>\n                dokładnie jedną\n            </strong>\n            wartość.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"czy to funkcja? 3\" src=\"static/funkcja_def_3_1.png\" width=\"600\"/>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "body": "\n<div>\n<img alt=\"czy to funkcja? 1 - odpowiedź\" src=\"static/funkcja_def_1_2.png\" width=\"600\"/>\n</div>\n<p>\n<strong>\n<span style=\"color: green;\">\n                    Tak\n                </span>\n                , to jest funkcja.\n            </strong>\n</p>\n<p>\n            Zwróć uwagę, że dwóm argumentom może byc przyporządkowana ta sama wartość (punkt zaznaczony ciemnozielonym okręgiem).\n        </p>\n<p>\n            Zwróć też uwagę, że nie wszystkie elementy przeciwdziedziny muszą być przyporządkowane jakimś argumentom (punkt zaznaczony jasnozielonym okręgiem).\n        </p>\n<p>\n            Spełniony jest warunek, że\n            <strong>\n                każdy\n            </strong>\n            argument ma przyporządkowaną\n            <strong>\n                dokładnie jedną\n            </strong>\n            wartość.\n        </p>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7be331ba8ccd450c35ff2ebcf7d029a7621de594c1e8cdc2c5ddcdbe7bfa7a48"
+}

@@ -1,0 +1,265 @@
+{
+  "part": {
+    "source_folder": "040_funkcje_podstawy",
+    "order": 7,
+    "title": "funkcje podstawy"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "funkcje_1_proporcjonalnosc_odwrotna.json",
+          "source_html": "funkcje_1_proporcjonalnosc_odwrotna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Proporcjonalność odwrotna"
+        },
+        {
+          "order": 1,
+          "unit_json": "funkcje_2_wykladnicza.json",
+          "source_html": "funkcje_2_wykladnicza.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Działania na potęgach"
+        },
+        {
+          "order": 2,
+          "unit_json": "funkcje_3_logarytmiczna.json",
+          "source_html": "funkcje_3_logarytmiczna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Działania na logarytmach"
+        },
+        {
+          "order": 3,
+          "unit_json": "funkcje_4_podsumowanie.json",
+          "source_html": "funkcje_4_podsumowanie.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "funkcje 4 podsumowanie"
+        },
+        {
+          "order": 4,
+          "unit_json": "funkcje_5_warto_wiedziec.json",
+          "source_html": "funkcje_5_warto_wiedziec.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Liczba e"
+        },
+        {
+          "order": 5,
+          "unit_json": "funkcje_10_proporcjonalnosc_odwrotna.json",
+          "source_html": "funkcje_10_proporcjonalnosc_odwrotna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Proporcjonalność odwrotna"
+        },
+        {
+          "order": 6,
+          "unit_json": "funkcje_11_proporcjonalnosc_odwrotna.json",
+          "source_html": "funkcje_11_proporcjonalnosc_odwrotna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Proporcjonalność odwrotna"
+        },
+        {
+          "order": 7,
+          "unit_json": "funkcje_12_proporcjonalnosc_odwrotna.json",
+          "source_html": "funkcje_12_proporcjonalnosc_odwrotna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Wykres proporcjonalności odwrotnej."
+        },
+        {
+          "order": 8,
+          "unit_json": "funkcje_13_proporcjonalnosc_odwrotna.json",
+          "source_html": "funkcje_13_proporcjonalnosc_odwrotna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Wykresy proporcjonalności odwrotnej"
+        },
+        {
+          "order": 9,
+          "unit_json": "funkcje_14_proporcjonalnosc_odwrotna.json",
+          "source_html": "funkcje_14_proporcjonalnosc_odwrotna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "funkcje 14 proporcjonalnosc odwrotna"
+        },
+        {
+          "order": 10,
+          "unit_json": "funkcje_15_proporcjonalnosc_odwrotna.json",
+          "source_html": "funkcje_15_proporcjonalnosc_odwrotna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "funkcje 15 proporcjonalnosc odwrotna"
+        },
+        {
+          "order": 11,
+          "unit_json": "funkcje_16_proporcjonalnosc_odwrotna.json",
+          "source_html": "funkcje_16_proporcjonalnosc_odwrotna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "funkcje 16 proporcjonalnosc odwrotna"
+        },
+        {
+          "order": 12,
+          "unit_json": "funkcje_19_proporcjonalnosc_odwrotna_quiz.json",
+          "source_html": "funkcje_19_proporcjonalnosc_odwrotna_quiz.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "quiz",
+          "title": "funkcje 19 proporcjonalnosc odwrotna quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "funkcje_20_wykladnicza.json",
+          "source_html": "funkcje_20_wykladnicza.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Działania na potęgach"
+        },
+        {
+          "order": 1,
+          "unit_json": "funkcje_21_wykladnicza.json",
+          "source_html": "funkcje_21_wykladnicza.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Funkcja wykładnicza"
+        },
+        {
+          "order": 2,
+          "unit_json": "funkcje_22_wykladnicza.json",
+          "source_html": "funkcje_22_wykladnicza.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Wykres funkcji wykładniczej"
+        },
+        {
+          "order": 3,
+          "unit_json": "funkcje_23_wykladnicza.json",
+          "source_html": "funkcje_23_wykladnicza.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Porównywanie potęg o tej samej podstawie"
+        },
+        {
+          "order": 4,
+          "unit_json": "funkcje_24_wykladnicza.json",
+          "source_html": "funkcje_24_wykladnicza.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "funkcje 24 wykladnicza"
+        },
+        {
+          "order": 5,
+          "unit_json": "funkcje_25_wykladnicza.json",
+          "source_html": "funkcje_25_wykladnicza.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Zastosowania funkcji wykładniczej"
+        },
+        {
+          "order": 6,
+          "unit_json": "funkcje_29_wykladnicza_quiz.json",
+          "source_html": "funkcje_29_wykladnicza_quiz.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "quiz",
+          "title": "funkcje 29 wykladnicza quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "funkcje_30_logarytmiczna.json",
+          "source_html": "funkcje_30_logarytmiczna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Działania na logarytmach"
+        },
+        {
+          "order": 1,
+          "unit_json": "funkcje_31_logarytmiczna.json",
+          "source_html": "funkcje_31_logarytmiczna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Funkcja logarytmiczna"
+        },
+        {
+          "order": 2,
+          "unit_json": "funkcje_32_logarytmiczna.json",
+          "source_html": "funkcje_32_logarytmiczna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Wykres funkcji logarytmicznej"
+        },
+        {
+          "order": 3,
+          "unit_json": "funkcje_33_logarytmiczna.json",
+          "source_html": "funkcje_33_logarytmiczna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Porównywanie logarytmów"
+        },
+        {
+          "order": 4,
+          "unit_json": "funkcje_34_logarytmiczna.json",
+          "source_html": "funkcje_34_logarytmiczna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "funkcje 34 logarytmiczna"
+        },
+        {
+          "order": 5,
+          "unit_json": "funkcje_35_logarytmiczna.json",
+          "source_html": "funkcje_35_logarytmiczna.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Zastosowania funkcji logarytmicznej"
+        },
+        {
+          "order": 6,
+          "unit_json": "funkcje_39_logarytmiczna_quiz.json",
+          "source_html": "funkcje_39_logarytmiczna_quiz.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "quiz",
+          "title": "funkcje 39 logarytmiczna quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "funkcje_40_podsumowanie.json",
+          "source_html": "funkcje_40_podsumowanie.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "funkcje 40 podsumowanie"
+        },
+        {
+          "order": 1,
+          "unit_json": "funkcje_50_warto_wiedziec.json",
+          "source_html": "funkcje_50_warto_wiedziec.html",
+          "source_dir": "040_funkcje_podstawy",
+          "unit_type": "lesson",
+          "title": "Liczba e"
+        }
+      ]
+    }
+  ]
+}

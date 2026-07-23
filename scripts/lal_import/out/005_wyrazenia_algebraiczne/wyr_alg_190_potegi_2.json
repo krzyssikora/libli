@@ -1,0 +1,10 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/potegi_rzeczywiste.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a728ad34eb7ebae40dee677b3c6a297e323ecdc66414fb7fe01134030dca29cd"
+}

@@ -96,8 +96,15 @@ def _doc(**kw):
 
 
 def test_base_style_unchanged_light_locked():
-    # The shared base must NOT theme html/body — that would regress other courses.
-    assert htmlsandbox._BASE_STYLE == "html,body{background:#fff;color:#111}"
+    # The shared base must NOT theme html/body — that would regress other courses —
+    # but it DOES fix the auto-height iframe geometry: flow-root (no child-margin
+    # collapse through body) + margin:0;padding:8px (the gutter is inside body's
+    # scrollHeight, so the iframe height matches the document -> no scrollbar).
+    assert htmlsandbox._BASE_STYLE == (
+        "html,body{background:#fff;color:#111}body{display:flow-root;margin:0;padding:8px}"
+    )
+    assert "background:#fff;color:#111" in htmlsandbox._BASE_STYLE  # light, unthemed
+    assert "display:flow-root" in htmlsandbox._BASE_STYLE
 
 
 def test_theme_tokens_four_part_and_colour_only():

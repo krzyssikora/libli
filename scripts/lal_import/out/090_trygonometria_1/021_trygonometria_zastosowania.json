@@ -1,0 +1,104 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Teraz, gdy już wiemy, czym są funkcje trygonometryczne kąta ostrego (sinus, cosinus, tangens i cotangens), możemy rozwiązać zadanie dotyczące podjazdu dla wózków.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W zadaniu tym będzie mowa o kącie \\(10^{\\circ}\\). Powinniśmy wiedzieć, skąd wziąć wartości funkcji trygonometrycznych takiego i innych kątów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Są na to dwie proste możliwości: możemy albo użyć odpowiedniego kalkulatora (ale takie nie są, niestety, dozwolone na egzaminie maturalnym), albo\n    <a href=\"/static/wybrane_wzory_matematyczne_EM2023.pdf\" target=\"_blank\">\n        tablic trygonometrycznych\n    </a>\n    . Tablice znajdziesz na samym końcu zalinkowanego pliku\n    <emph>\n        pdf\n    </emph>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Znajdź w tablicach trygonometrycznych wartości wskazane w tabeli i wpisz je poniżej.\n        </p>\n"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(\\sin 50^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\text{tg }28^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\cos 85^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\sin 82^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\text{tg }71^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\cos 11^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<input class=\"table_input\" placeholder=\"sin 50°\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"tg 28°\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"cos 85°\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"sin 82°\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"tg 71°\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"cos 11°\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n        Świetnie!\n    "
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "d2b2ba9305581fb1d85408f1471252f4408559b53fc6018d942fd08b9d48ba4f"
+}

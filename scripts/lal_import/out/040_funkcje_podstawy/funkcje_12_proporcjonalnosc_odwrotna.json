@@ -1,0 +1,141 @@
+{
+  "elements": [
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(x\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{5}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{2}{3}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(y\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{3}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{4}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{5}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W powyższym przykładzie stała proporcjonalności jest równa 1, co oznacza, że wielkości \\(x\\) i \\(y\\) są połaczone zależnością:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    \\(x\\cdot y = 1\\)\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli przepiszemy ją w ten sposób:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    \\(y=\\frac{1}{x}\\)\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    otrzymamy równanie funkcji. Naciśnij \"start\" w poniższej animacji, a zobaczysz naniesione w układzie współrzędnych punkty ze współrzędnymi z tabeli, a następnie cały wykres.\n</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/tmvjjtks/width/900/height/540/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zwróć uwagę, że wykres został narysowany także dla argumentów ujemmych (\\(x\\lt 0\\)). Jedyną wartością \\(x\\), dla której nie można obliczyć \\(y\\) jest \\(x=0\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Podobne wykresy możemy stworzyć dla równań\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "y=\\frac{a}{x},"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    gdzie \\(a\\) jest dowolną liczbą różną od 0.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c813237ed868e40fe5831bb882bbde1f5a529a84ba86844a5b3aee81a4605be9"
+}

@@ -1,0 +1,75 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Jak zapewne się domyślasz, wyrażenie postaci</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    \\frac{A}{x-p}+q\n    \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>można zapisać w postaci ułamka algebraicznego</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    \\frac{ax+b}{cx+d}\n    \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>(Zwróć uwagę, że użyłem dużęgo \\(A\\) w pierwszym wyrażeniu, oraz małego \\(a\\) w drugim - to są inne współczynniki.)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyjmy się temu na przykładzie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Przedstaw równanie funkcji\n        <div class=\"table_wrapper\">\\[\n        y=\\frac{(\\tfrac{2}{3})}{x-1}+2\n        \\]</div>\n        w postaci\n        <div class=\"table_wrapper\">\\[\n        y=\\frac{ax+b}{cx+d}\n        \\]</div>\n        gdzie wszystkie współczynniki \\(a\\), \\(b\\), \\(c\\) i \\(d\\) są całkowite.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Aby dodać \\(2\\) do \\(\\frac{(\\tfrac{2}{3})}{x-1}\\), zamienimy \\(2\\) na ułamek o mianowniku \\(x-1\\).\n                <div class=\"switch_line\">\n                    \\(2=\\) \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{2}{x-1}\\)</div>\n<div class=\"switch_value\">\\(\\frac{2x-2}{x-1}\\)</div>\n<div class=\"switch_value\">\\(\\frac{2x-1}{x-1}\\)</div>\n<div class=\"switch_value\">\\(\\frac{x-1}{x-1}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Otrzymamy:\n                <div class=\"table_wrapper\">\\[\n                y=\\frac{(\\tfrac{2}{3})}{x-1}+2=\\frac{(\\tfrac{2}{3})}{x-1}+\\frac{2x-2}{x-1}=\\frac{\\tfrac{2}{3}+2x-2}{x-1}\n                \\]</div>\n<div class=\"switch_line\">\n                    Po uproszczeniu, licznik ułamka to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2x-\\tfrac{4}{3}\\)</div>\n<div class=\"switch_value\">\\(2x-\\tfrac{7}{3}\\)</div>\n<div class=\"switch_value\">\\(x+\\tfrac{2}{3}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Otrzymany ułamek:\n                <div class=\"table_wrapper\">\\[\n                \\frac{2x-\\tfrac{4}{3}}{x-1}\n                \\]</div>\n                uprościmy dalej rozszerzając trzykrotnie (tj. pomnożymy licznik i mianownik przez \\(3\\)):\n                <div class=\"table_wrapper\">\\[\n                \\frac{2x-\\tfrac{4}{3}}{x-1}\\cdot\\frac{3}{3}\n                \\]</div>\n<div class=\"switch_line\">\n                    W liczniku otrzymamy:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2x-4\\)</div>\n<div class=\"switch_value\">\\(6x-4\\)</div>\n<div class=\"switch_value\">\\(6x+4\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>,\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    a w mianowniku:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3x-3\\)</div>\n<div class=\"switch_value\">\\(3x-1\\)</div>\n<div class=\"switch_value\">\\(3x+3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Ostatecznie przekształciliśmy\n                <div class=\"table_wrapper\">\\[\n                y=\\frac{(\\tfrac{2}{3})}{x-1}+2\n                \\]</div>\n                w\n                <div class=\"table_wrapper\">\\[\n                \\frac{6x-4}{3x-3}\n                \\]</div>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Funkcje tej postaci to szczególny rodzaj funkcji wymiernych, a których szerzej powiemy później. Nazywamy je funkcjami <strong>homograficznymi</strong>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Funkcja</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>homograficzna</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to funkcja zdefiniowana równaniem:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    y=\\frac{ax+b}{cx+d}, \\quad\\quad x\\ne -\\tfrac{d}{c}\n    \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>przy czym:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            \\(c\\ne 0\\),\n        </li>\n<li>\n            \\(ad-bc\\ne 0\\).\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    No dobrze, a skąd wzięły się założenia \\(c\\ne 0\\) i \\(ad-bc\\ne 0\\)?\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6670d48c9ed98065e90f3d9468118c3fa31795f6a57848171897137f56fae299"
+}

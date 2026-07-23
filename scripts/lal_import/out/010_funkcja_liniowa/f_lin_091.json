@@ -1,0 +1,237 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zdjęcie poniżej przedstawia cennik taksówki. Przyjmijmy, że cena za przejazd naliczana jest co 100 metrów.\n        <p>\n<img alt=\"\" class=\"img_center\" height=\"600\" src=\"static/taxi.jpg\" style=\"width: 800px; height: 600px;\" width=\"800\"/>\n</p>\n<ol>\n<li>\n                Ile zapłaci pasażer za kurs w ciągu dnia o długości 4 kilometrów 740 metrów?\n            </li>\n<li>\n                Cena za kurs w ciągu dnia wyniosła 23 złote 60 groszy. Jaka była długość kursu?\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    nagranie\n                </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    krok po kroku\n                </a>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Ustalenie zależności między odległością pokonaną przez taksówkę a kosztem kursu.\n            </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/taxi1.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Pierwsza część pytania.\n            </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/taxi2.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Druga część pytania.\n            </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/taxi3.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Kursy taksówki w obu częściach pytania odbywały się w ciągu dnia, więc z całego zdjęcia interesuje nas tylko ten fragment:\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"\" class=\"img_center\" height=\"163\" src=\"static/taxi_part.jpg\" style=\"width: 800px; height: 163px;\" width=\"800\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Zanim przystąpimy do odpowiedzi na którąkolwiek część pytania, zauważmy, że możemy opisać koszt kursu taksówki jako funkcję liniową w zależności od przejechanej odległości.\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        W poniższej tabeli widzimy koszt kursów o długości 0, 1, 2 oraz 3 kilometrów.\n                    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "0 km",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "8 zł (tylko opłata początkowa)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "1 km",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "8 zł + 3 zł za pierwszy kilometr =\n                                    <br/>\n                                    = 11 zł",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "2 km",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "8 zł + 6 zł za dwa kilometry =\n                                    <br/>\n                                    = 14 zł",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "3 km",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "8 zł + 9 zł za trzy kilometry =\n                                    <br/>\n                                    = 17 zł",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Zaznaczmy punkty (odległość, koszt) w układzie współrzędnych.\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"\" class=\"img_center\" src=\"static/taxI_f_lin.png\" style=\"width: 1200px;\" width=\"1200\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Zwróćmy uwagę na niebieski trójkąt pokazujący nachylenie prostej.\n                        \\[a=\\frac{\\text{skok}}{\\text{krok}}=\\frac{3\\text{ (zł)}}{1\\text{ (km)}}=3\\]\n                        Zauważmy, że punkt \\((0,8)\\) wskazuje, że wyraz wolny \\(b=8\\).\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Tak więc, jeśli przyjmiemy, że:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul style=\"list-style: none;\">\n<li>\n                                \\(x\\) to przejechana odległość (w kilometrach)\n                            </li>\n<li>\n                                \\(y\\) to koszt kursu (w złotówkach)\n                            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to łączy je liniowa zależność:\n                        \\[y=3x+8\\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        1.\n                        <br/>\n                        Odpowiemy teraz na pierwsze pytanie: \"\n                        <u>\n                            Ile zapłaci pasażer za kurs w ciągu dnia o długości 4 kilometrów 740 metrów?\n                        </u>\n                        \"\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Dana jest długość kursu, którą w kilometrach zapisujemy jako 4,74 km.\n                    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "Musimy zwrócić uwagę na jeden bardzo istotny szczegłół z treści zadania:\n                                    <br/>\n                                    \"\n                                    <strong>\n                                        cena za przejazd naliczana jest co 100 metrów\n                                    </strong>\n                                    \".\n                                    <br/>\n                                    Oznacza to, że przed zakończeniem kursu cena została ostatni raz naliczona po przejechaniu\n                                    <strong>\n                                        4 kilometrów i 700 metrów\n                                    </strong>\n                                    ,\n                                    <br/>\n                                    a ostatnie 40 metrów do kosztu się nie wlicza.",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Stąd długość kursu \\(x=4,7\\).\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    Pozostaje nam obliczyć koszt kursu, czyli \\(y\\):\n                    \\[y=3x+8\\quad\\quad\\leftarrow\\quad\\quad x=4,7\\]\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\[y=3\\cdot 4,7+8=22.1\\]\n                    Pasażer zapłaci 22 złote i 10 groszy.\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    2.\n                    <br/>\n                    Czas na drugie pytanie: \"Cena za kurs w ciągu dnia wyniosła 23 złote 60 groszy. Jaka była długość kursu?\"\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    Kosz kursu w zlotych to \\(y=23,6\\). Podstawmy tę wartość do równania prostej.\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\[y=3x+8\\quad\\quad\\leftarrow\\quad\\quad y=23,6\\]\n                    \\[23,6=3x+8\\]\n                    i wyliczmy \\(x\\).\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\[3x=23,6-8\\]\n                    \\[3x=15,6\\]\n                    \\[x=5,2\\]\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    Długość tego kursu to 5 kilometrów i 200 metrów.\n                    <br/>\n                    Zwróćmy uwagę, że kurs mógł być trochę dłuższy, bo opłata naliczana jest co 100 metrów. Jednak musiał być krótszy niż 5 kilometrów i 300 metrów.\n                "
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "f396e0637234b673ec797edd6d5798a95ff127d85a397ac8b18b878bde8e709d"
+}

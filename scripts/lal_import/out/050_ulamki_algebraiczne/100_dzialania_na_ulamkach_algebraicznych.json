@@ -1,0 +1,146 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Ułamki algebraiczne mnożymy bardzo podobnie, jak ułamki zwykłe, czyli\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        mnożymy licznik przez licznik\n    </li>\n<li>\n        i mianownik przez mianownik.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Warto jedynie pamiętać, że jeśli chcemy uzyskać wynik <i>w najprostszej postaci</i> (a najczęściej chcemy), warto skrócić ułamki <u>przed</u> mnożeniem.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz\n        <div class=\"table_wrapper\">\\[\n        \\frac{2x-10}{x^2+x-6}\\cdot\\frac{x^2+2x-3}{x^2-25}\n        \\]</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zacznijmy od rozłożenia wszystkich czterech wyrażeń (dwóch liczników i dwóch mianowników) na czynniki.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Najprostsze jest: \\(2x-10 = 2(x-5)\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Ale teraz musimy rozłożyć na czynniki trzy wyrażenia kwadratowe.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Jeśli potrzebujesz, oblicz deltę i miejsca zerowe, a potem wybierz odpowiednią odpowiedź.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(x^2+x-6=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "&gt;&gt; wybierz &gt;&gt;"
+    },
+    {
+      "type": "text",
+      "body": "\\((x-2)(x+3)\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\((x+2)(x-3)\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\((x+6)(x-1)\\)"
+    },
+    {
+      "type": "text",
+      "body": "zatwierdź"
+    },
+    {
+      "type": "text",
+      "body": "<p>Teraz \\(x^2+2x-3=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "&gt;&gt; wybierz &gt;&gt;"
+    },
+    {
+      "type": "text",
+      "body": "\\((x-1)(x-3)\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\((x-1)(x+3)\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\((x-1)(x+2)\\)"
+    },
+    {
+      "type": "text",
+      "body": "zatwierdź"
+    },
+    {
+      "type": "text",
+      "body": "<p>I wreszcie \\(x^2-25=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "&gt;&gt; wybierz &gt;&gt;"
+    },
+    {
+      "type": "text",
+      "body": "\\((x-5)(x-5)\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\((x+5)(x+5)\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\((x-5)(x+5)\\)"
+    },
+    {
+      "type": "text",
+      "body": "zatwierdź"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Tak więc:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            \\frac{2x-10}{x^2+x-6}\\cdot\\frac{x^2+2x-3}{x^2-25}=\\frac{2(x-5)}{(x-2)(x+3)}\\cdot\\frac{(x-1)(x+3)}{(x-5)(x+5)}=\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zauważmy, że w licznikach i w mianownikach powtarzają się identyczne czynniki:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            =\\frac{2\\color{red}{(x-5)}}{(x-2)\\color{blue}{(x+3)}}\\cdot\\frac{(x-1)\\color{blue}{(x+3)}}{\\color{red}{(x-5)}(x+5)}=\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>Skróćmy je:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            =\\frac{2\\require{cancel}\\cancel{\\color{red}{(x-5)}}}{(x-2)\\require{cancel}\\cancel{\\color{blue}{(x+3)}}}\\cdot\\frac{(x-1)\\require{cancel}\\cancel{\\color{blue}{(x+3)}}}{\\require{cancel}\\cancel{\\color{red}{(x-5)}}(x+5)}=\n            \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>I uzyskamy:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n            =\\frac{2}{x-2}\\cdot\\frac{x-1}{x+5}=\\frac{2(x-1)}{(x-2)(x+5)}\n            \\]"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ac6bad35ccee57e16fce0ec79d02e405aaf563011e1388edba1f9e5abb5e7e41"
+}

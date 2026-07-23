@@ -1,0 +1,48 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Oblicz i wpisz wynik:\n</p><p>\\(\\log_2 16\\)</p>",
+      "value": "4",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(\\log_9 3\\)</p>",
+      "value": "0.5",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jaka jest wartość liczby \\(a\\) jeśli \\(\\log_4 7+\\log_4 3 = \\log_4 a\\)?</p>",
+      "value": "21",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jaka jest wartość liczby \\(a\\) jeśli \\(\\log_3 22-\\log_3 2 = \\log_3 a\\)?</p>",
+      "value": "11",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jeśli \\(\\log_a 2=7\\) to jaka jest wartość liczby \\(\\log_a 2^3\\)?</p>",
+      "value": "21",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Jeśli \\(\\log_{128} 512=\\frac{\\log_2 k}{\\log_2 m}\\) to:\n</p><p>\\(k=\\)</p>",
+      "value": "512",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\\(m=\\)</p>",
+      "value": "128",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c566db24a6f62394534baa1116aff7d6525f807db1e90f0f3f0fc7976631a8a1"
+}

@@ -1,0 +1,54 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n<u>\n                ZASADY PRZYSTAWANIA TRÓJKĄTÓW\n            </u>\n</strong>\n        (kliknij, żeby zobaczyć opis)\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<details>\n<summary>\n<strong>\n                        bok-bok-bok\n                    </strong>\n</summary>\n<p>\n                    Trójkąty są przystające, jeśli mają trzy boki identycznej długości.\n                </p>\n</details>\n</li>\n<li>\n<details>\n<summary>\n<strong>\n                        bok-kąt-bok\n                    </strong>\n</summary>\n<p>\n                    Trójkąty są przystające, jeśli mają dwa boki identycznej długości i kąt między nimi o tej samej mierze.\n                </p>\n</details>\n</li>\n<li>\n<details>\n<summary>\n<strong>\n                        kąt-bok-kąt\n                    </strong>\n</summary>\n<p>\n                    Trójkąty są przystające, jeśli mają jeden bok identycznej długości i przyległe do niego kąty tej samej miary.\n                </p>\n</details>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Przyjrzyj się poniższym parom trójkątów i zaznacz, które z nich\n            <u>\n                muszą\n            </u>\n            być przystające.\n        </p>\n<p>\n            Uwaga! Rysunki są pomocnicze, nie zachowują skali.\n        </p>\n<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n<strong>\n                                1\n                            </strong>\n</td>\n<td>\n<strong>\n                                2\n                            </strong>\n</td>\n</tr>\n<tr>\n<td>\n<img alt=\"\" src=\"static/przystawanie_1.png\" style=\"width: 500px;\" width=\"500\"/>\n</td>\n<td>\n<img alt=\"\" src=\"static/przystawanie_2.png\" style=\"width: 500px;\" width=\"500\"/>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                                3\n                            </strong>\n</td>\n<td>\n<strong>\n                                4\n                            </strong>\n</td>\n</tr>\n<tr>\n<td>\n<img alt=\"\" src=\"static/przystawanie_3.png\" style=\"width: 500px;\" width=\"500\"/>\n</td>\n<td>\n<img alt=\"\" src=\"static/przystawanie_4.png\" style=\"width: 500px;\" width=\"500\"/>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                                5\n                            </strong>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td>\n<img alt=\"\" src=\"static/przystawanie_5.png\" style=\"width: 500px;\" width=\"500\"/>\n</td>\n<td>\n</td>\n</tr>\n</table>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            para 1\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            para 2\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            para 3\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            para 4\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            para 5\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n"
+    },
+    {
+      "type": "text",
+      "body": "\n        potwierdź\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "251bb5a3175bea78454952638b62ea737ddec38fab5593fa80960b27fd2935d0"
+}

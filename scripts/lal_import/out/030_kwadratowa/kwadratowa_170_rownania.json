@@ -1,0 +1,117 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Równania i nierówności kwadratowe\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wiele równań, z którymi będziemy mieli do czynienia, można uprościć do postaci\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\nax^2+bx+c=0\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Ze względu na to, że takie równania będą nam się pojawiały bardzo często, dobrze mieć wprawę w ich rozwiązywaniu. Rozwiązywaniu takich równań przyjrzymy się teraz dokładniej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Co już wiemy?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poznaliśmy dwie metody rozwiązywania równań kwadratowych:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n<details>\n<summary>\n                przez dopełnianie do kwadratu z użyciem wzoru skróconego mnożenia (kliknij, by zobaczyć przykład)\n            </summary>\n            \\[\n                                                                                                \\begin{align*}\n                                                                                                2x^2-12x+17&amp;=0\\\\\n                                                                                                2\\left(x^2-6x+\\tfrac{17}{2}\\right)&amp;=0\\\\\n                                                                                                2\\left(x^2-6x\\color{purple}{+9-9}+\\tfrac{17}{2}\\right)&amp;=0\\\\\n                                                                                                2\\left(\\color{blue}{x^2-6x+9}\\color{red}{-9+\\tfrac{17}{2}}\\right)&amp;=0\\\\\n                                                                                                2\\left(\\color{blue}{(x-3)^2}\\color{red}{-\\tfrac{18}{2}+\\tfrac{17}{2}}\\right)&amp;=0\\\\\n                                                                                                2\\left((x-3)^2-\\tfrac{1}{2}\\right)&amp;=0\\\\\n                                                                                                2(x-3)^2-1&amp;=0\\\\\n                                                                                                2(x-3)^2&amp;=1\\\\\n                                                                                                (x-3)^2&amp;=\\frac{1}{2}\\\\\n                                                                                                x-3&amp;=\\pm\\frac{1}{\\sqrt{2}}\\\\\n                                                                                                x&amp;=3\\pm\\frac{1}{\\sqrt{2}}=3\\pm\\frac{\\sqrt{2}}{2}\n                                                                                                \\end{align*}\n                                                                                                \\]\n        </details>\n</li>\n<li>\n<details>\n<summary>\n                z użyciem wzoru na pierwiastki równania kwadratowego (kliknij, by zobaczyć przykład)\n            </summary>\n            \\[\n                                                                                                \\begin{align*}\n                                                                                                2x^2-12x+17&amp;=0\\\\\n                                                                                                x&amp;=\\frac{-b\\pm\\sqrt{\\Delta}}{2a}\\\\\n                                                                                                &amp;\\text{gdzie }\\Delta = b^2-4ac\\\\[10pt]\n                                                                                                \\Delta&amp;=(-12)^2-4\\cdot 2\\cdot 17=\\\\\n                                                                                                &amp;=144-136=8\\\\ \n                                                                                                x&amp;=\\frac{-(-12)\\pm\\sqrt{8}}{2\\cdot 2}\\\\\n                                                                                                x&amp;=\\frac{12\\pm 2\\sqrt{2}}{4}\\\\\n                                                                                                x&amp;=\\frac{12}{4}\\pm\\frac{2\\sqrt{2}}{4}\\\\\n                                                                                                x&amp;=3\\pm\\frac{\\sqrt{2}}{2}\n                                                                                                \\end{align*}\n                                                                                                \\]\n        </details>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poniżej poznamy kilka szczególnych schematów postępowania, gdy można szybciej uzyskać wynik.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Użyteczne schematy w rozwiązywaniu równań kwadratowych\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n    \\(ax^2+bx=0\\), czyli \\(c=0\\)\n</h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    To chyba najprostsza sytuacja. Gdy mamy do czynienia z takim równaniem, możemy wyłączyć \\(x\\) przed nawias:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\nx(ax+b)=0\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Teraz mamy do czynienia z iloczynem dwóch czynników (\\(x\\) oraz \\(ax+b\\)) i wystarczy każdy z nich przyrównać do \\(0\\).\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Przykład",
+      "body": "\n\n    \\[\n                                                                                        \\begin{align*}\n                                                                                        -4x^2+3x&amp;=0\\\\\n                                                                                        x(-4x+3)&amp;=0\n                                                                                        \\end{align*}\n                                                                                        \\]\n    <p>\n        I teraz musimy rozwiązać oddzielnie:\n        <ul>\n<li>\n                \\(x=0\\) - ten przypadek nie wymaga żadnych dalszych kroków,\n            </li>\n<li>\n                \\(-4x+3=0\\), skąd otrzymujemy \\(x=\\tfrac{3}{4}\\)\n            </li>\n</ul>\n</p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n    \\(ax^2+c=0\\), czyli \\(b=0\\)\n</h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dla takiego równania możemy znaleźć dwa rozwiązania rzeczywiste, jeśli współczynniki \\(a\\) i \\(c\\) są\n    <strong>\n        przeciwnych\n    </strong>\n    znaków. Wówczas możemy skorzystać ze wzoru skróconego mnożenia:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\nx^2-\\alpha^2=(x+\\alpha)(x-\\alpha)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przeczytaj przykłady, żeby dowiedzieć się jak i dlaczego.\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Przykład 1.\\(-3x^2+5=0\\)",
+      "body": "\n\n<p>\n        Znaki współczynników \\(-3\\) oraz \\(5\\) są przeciwne, więc powinny istnieć rozwiązania. Sprawdźmy. Najpierw podzielmy obie strony przez \\(-3\\):\n    </p>\n    \\[\n                                                                                        x^2-\\tfrac{5}{3}=0\n                                                                                        \\]\n    <p>\n        Takie równanie wygląda jak wskazany wyżej wzór\n    </p>\n    \\[\n                                                                                        x^2-\\alpha^2=(x+\\alpha)(x-\\alpha)\n                                                                                        \\]\n    <p>\n        w którym \\(\\alpha^2=\\frac{5}{3}\\). Zapiszym więc ułamek \\(\\frac{5}{3}\\) w postaci kwadratu:\n    </p>\n    \\[\n                                                                                        \\tfrac{5}{3}=\\left(\\tfrac{\\sqrt{5}}{\\sqrt{3}}\\right)^2\n                                                                                        \\]\n    <p>\n        Możemy teraz przepisać równanie i przekształcić je ze wzoru skróconego mnożenia.\n    </p>\n    \\[\n                                                                                        \\begin{align*}\n                                                                                        x^2-\\tfrac{5}{3}&amp;=0\\\\\n                                                                                        x^2-\\left(\\tfrac{\\sqrt{5}}{\\sqrt{3}}\\right)^2&amp;=0\\\\\n                                                                                        \\left(x-\\tfrac{\\sqrt{5}}{\\sqrt{3}}\\right)\\left(x+\\tfrac{\\sqrt{5}}{\\sqrt{3}}\\right)&amp;=0\n                                                                                        \\end{align*}\n                                                                                        \\]\n    <p>\n        I teraz każdy z czynników może być równy \\(0\\):\n    </p>\n<div class=\"centered\">\n        \\(x-\\frac{\\sqrt{5}}{\\sqrt{3}}=0\\quad\\quad\\) albo \\(\\quad\\quad x+\\frac{\\sqrt{5}}{\\sqrt{3}}=0\\)\n    </div>\n<p>\n        czyli:\n    </p>\n<div class=\"centered\">\n        \\(x=\\frac{\\sqrt{5}}{\\sqrt{3}}\\quad\\quad\\) albo \\(\\quad\\quad x=-\\frac{\\sqrt{5}}{\\sqrt{3}}\\)\n    </div>\n<p>\n        Na zakończenie pozostało nam tylko usunąć niewymierności z mianowników, by uzyskać:\n    </p>\n<div class=\"centered\">\n        \\(x=\\frac{\\sqrt{15}}{3}\\quad\\quad\\) albo \\(\\quad\\quad x=-\\frac{\\sqrt{15}}{3}\\)\n    </div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Przykład 2.\\(-4x^2-7=0\\)",
+      "body": "\n\n<p>\n        Teraz zobaczymy, dlaczego fakt, że współczynniki \\(-4\\) oraz \\(-7\\) są tego samego znaku powoduje, że nie ma rozwiązań rzeczywistych. Przenieśmy siódemkę na prawą stronę, a następnie podzielmy przez \\(-4\\):\n    </p>\n    \\[\n                                                                                        \\begin{align*}\n                                                                                        -4x^2-7&amp;=0\\\\\n                                                                                        -4x^2&amp;=7\\\\\n                                                                                        x^2&amp;=-\\tfrac{7}{4}\n                                                                                        \\end{align*}\n                                                                                        \\]\n    <p>\n        Jak widać, po lewej stronie równania jest kwadrat liczby rzeczywistej, który nigdy nie jest ujemny. Po prawej stronie równania mamy liczbę ujemną. Te dwie strony równania nie mogę więc być sobie równe, a tym samym równanie nie ma rozwiązania.\n    </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n    Inne wzory skróconego mnożenia\n</h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czasem warto pamiętać o wzorach skróconego mnożenia na kwadrat sumy lub różnicy. Na przykład, widząc takie równanie:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n4x^2+12x+9=0\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    zamiast używać np. wzoru z deltą, możemy dostrzeć, że lewa strona równania pasuje do wzoru skróconego mnożenia, więc możemy ją zapisać jako:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n(2x+3)^2=0\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    No a teraz, skoro kwadrat pewnej liczby ma być równy \\(0\\), to i ta liczba musi być równa \\(0\\):\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\begin{align*}\n2x+3&=0\\\\\n2x&=-3\\\\\nx&=-\\frac{3}{2}\n\\end{align*}\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fc6161fb7055d6ecba7ab5f68fdc2740003e9bc70a10cde48d9c3c8e3e21c99c"
+}

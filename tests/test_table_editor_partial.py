@@ -57,3 +57,71 @@ def test_grid_handle_icons_resolve_to_sprite_symbols():
     used = set(re.findall(r'"(ed-[\w-]+)"', TABLE_JS.read_text(encoding="utf-8")))
     assert used, "expected table_editor.js to reference ed-* sprite symbols"
     assert used <= _sprite_symbols()
+
+
+def test_editor_grid_emits_spans_for_a_spanning_table():
+    el = TableElement(
+        data=TableElement.normalize_data(
+            {"cells": [[{"colspan": 3, "rowspan": 2, "html": "m"}], [{}, {}]]}
+        )
+    )
+    html = _render(el)
+    assert 'colspan="3"' in html
+    assert 'rowspan="2"' in html
+
+
+def test_editor_grid_emits_th_for_a_header_cell():
+    el = TableElement(
+        data=TableElement.normalize_data(
+            {"cells": [[{"header": True, "html": "h"}, {}]]}
+        )
+    )
+    html = _render(el)
+    assert "<th" in html
+    # a header cell in the plain table is still editable
+    assert re.search(r"<th[^>]*contenteditable", html)
+
+
+def test_editor_grid_of_a_plain_table_has_no_span_attributes():
+    html = _render(TableElement())
+    assert "colspan" not in html
+    assert "rowspan" not in html
+    assert "<th" not in html
+
+
+def test_editor_grid_does_not_promote_header_row_or_col_cells_to_th():
+    """The riskiest byte-identity case, and the one the default 2x2 misses.
+
+    If the EDITOR promoted header_row/header_col cells to <th>, serialize()
+    would start writing header:true for cells that never carried it -- breaking
+    byte-identity for every existing header-row table in the corpus. Only a
+    cell's OWN header flag may produce a <th> here."""
+    el = TableElement(
+        data=TableElement.normalize_data(
+            {"header_row": True, "header_col": True, "cells": [[{}, {}], [{}, {}]]}
+        )
+    )
+    html = _render(el)
+    # "<th" carries the whole signal. Do NOT also assert `"header" not in html`:
+    # the border preset renders <option value="header"> unconditionally, so that
+    # substring is present in every render, before and after this change.
+    assert "<th" not in html
+
+
+def test_table_editor_exposes_merge_split_and_header_controls():
+    html = _render(TableElement())
+    for attr in ("data-merge", "data-split", "data-header-toggle"):
+        assert attr in html
+    # Client-built markup cannot call {% trans %}, so every string rides on a
+    # data-msg-* attribute (the established convention in this editor).
+    for msg in (
+        "data-msg-merge-confirm",
+        "data-msg-merge-too-big",
+        "data-msg-header-locked",
+        "data-msg-range-selected",
+        "data-msg-merge",
+        "data-msg-header",
+        "data-msg-range-cleared",
+    ):
+        assert msg in html
+    assert 'aria-live="polite"' in html

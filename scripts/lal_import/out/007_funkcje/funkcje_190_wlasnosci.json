@@ -1,0 +1,176 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rysunek poniżej przedstawia wykres funkcji.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"własności funkcji\" src=\"static/funkcja_wlasnosci_1.png\" width=\"400\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na podstawie wykresu:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n                określ dziedzinę funkcji,\n            </li>\n<li>\n                określ zbiór wartości funkcji,\n            </li>\n<li>\n                wskaż najmniejszą wartość funkcji,\n            </li>\n<li>\n                wskaż największą wartość funkcji,\n            </li>\n<li>\n                wskaż miejsca zerowe,\n            </li>\n<li>\n                wskaż argumenty, dla których funkcja jest rosnąca,\n            </li>\n<li>\n                określ, czy funkcja jest różnowartowościowa.\n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                To po kolei...\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n                określ dziedzinę funkcji.\n            </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                W tym celu musimy sczytać z rysunku współrzędne \\(x\\)-owe wszystkich punktów wykresu.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"własności funkcji\" src=\"static/funkcja_wlasnosci_1_1.png\" width=\"400\"/>\n"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Dziedziną funkcji jest zbiór\n                \n￿0￿\n                ,\n                \n\n￿1￿\n                .\n                \n",
+      "options": [
+        "\\((-4,-1)\\cup(-1,3\\rangle\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n                określ zbiór wartości funkcji.\n            </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                W tym celu musimy sczytać z rysunku współrzędne \\(y\\)-owe wszystkich punktów wykresu.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"własności funkcji\" src=\"static/funkcja_wlasnosci_1_2.png\" width=\"400\"/>\n"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Zbiorem wartości funkcji jest zbiór\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\langle -2, 2\\rangle\\)",
+        "\\((-2,2)\\)",
+        "\\(\\langle -2,2)\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n                wskaż najmniejszą wartość funkcji\n            </blockquote>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Najmniejsza wartość to\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(-4\\)",
+        "\\(-3\\)",
+        "\\(-2\\)",
+        "\\(2\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n                wskaż największą wartość funkcji\n            </blockquote>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Największa wartość to\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(2\\)",
+        "\\(1\\)",
+        "\\(0\\)",
+        "\\(-1\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n                wskaż miejsca zerowe\n            </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Odczytajmy współrzędne punktów, w których wykres przecina oś \\(OX\\).\n            </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Miejsca zerowe to\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(-3,5\\)",
+        "\\(2\\)",
+        "\\(-3,5\\) oraz \\(2\\)",
+        "\\(1,5\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n                wskaż argumenty, dla których funkcja jest rosnąca.\n            </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Wzrost funkcji wskazany jest na poniższym rysunku.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"własności funkcji\" src=\"static/funkcja_wlasnosci_1_3.png\" width=\"400\"/>\n"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Funkcja rośnie dla argumentów\n                \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(x\\in\\langle -3, -1\\rangle\\) oraz dla \\(x\\in (-1, 1\\rangle\\)",
+        "\\(x\\in \\langle -3, 1\\rangle\\)",
+        "\\(x\\in\\langle 1, 2\\rangle\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Zauważmy, że odpowiedź \"\\(x\\in\\langle -3, -1\\rangle\\) oraz dla \\(x\\in (-1, 1\\rangle\\)\" jest poprawna, ale mimo tego, że przedziały \\(\\langle -3, -1\\rangle\\) oraz \\((-1, 1\\rangle\\) sumują się do \\((-3, 1\\rangle\\), taka suma przedziałów nie jest poprawną odpowiedzią.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Jest tak dlatego, że między argumentami z lewego przedziału a tymi z prawego przedziału niekoniecznie następuje wzrost wartości, co widać na rysunku poniżej.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"własności funkcji\" src=\"static/funkcja_wlasnosci_1_4.png\" width=\"400\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Przed nami kolejna część zadania.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n                określ, czy funkcja jest różnowartowościowa.\n            </blockquote>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Funkcja przedstawiona na wykresie\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "jest różnowartowościowa",
+        "nie jest różnowartowościowa"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Funkcja nie jest różnowartowościowa choćby dlatego, że ma dwa miejsca zerowe.\n            </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d606754ab2faa2eb2181c9dc096ebcc3f8489b8a58951e50dff8acbb68240e94"
+}

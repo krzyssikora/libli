@@ -1,0 +1,34 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n        Pierwiastek \\(n\\)-tego stopnia z liczby \\(a\\), \\(\\sqrt[n]{a}\\) to taka liczba \\(b\\), że \\(b^n=a\\):\n        \\[\n        \\sqrt[n]{a}=b\\quad\\Leftrightarrow\\quad a=b^n\n        \\]\n    </li>\n<li>\n        Istnieją pierwiastki\n        <strong>\n            nieparzystego stopnia\n        </strong>\n        z liczb ujemnych.\n    </li>\n<li>\n        Działania na potęgach:\n        \\[\n        \\begin{align*}\n        a^n\\cdot a^k&amp;=a^{n+k}\\\\\n        a^n: a^k&amp;=a^{n-k}\\\\\n        \\left(a^n\\right)^k&amp;=a^{nk}\\\\[10pt]\n        (ab)^n&amp;=a^n\\cdot b^n\\\\\n        \\left(\\frac{a}{b}\\right)^n&amp;=\\frac{a^n}{b^n}\\\\[10pt]\n        a^{-n}&amp;=\\left(\\frac{1}{a}\\right)^n\\\\\n        a^{\\tfrac{1}{n}}&amp;=\\sqrt[n]{a}\\\\\n        a^{\\tfrac{k}{n}}&amp;=\\left(\\sqrt[n]{a}\\right)^k=\\\\\n        &amp;=\\sqrt[n]{a^k}\\\\[10pt]\n        a^0&amp;=1\\\\\n        a^1&amp;=a\n        \\end{align*}\n        \\]\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<h2>\n    Wyrażenia algebraiczne\n</h2>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n<strong>\n            Wyraz\n        </strong>\n        to proste wyrażenie algebraiczne będące\n        <strong>\n            iloczynem\n        </strong>\n        liczb i zmiennych.\n    </li>\n<li>\n<strong>\n            Wyrazy podobne\n        </strong>\n        to takie, które (po uproszczeniu) mają\n        <ul>\n<li>\n                dokładnie takie same zmienne\n            </li>\n<li>\n                w dokładnie takich samych potęgach\n            </li>\n</ul>\n</li>\n<li>\n<strong>\n            Suma algebraiczna\n        </strong>\n        to suma pewnej liczby wyrazów algebraicznych.\n    </li>\n<li>\n        Wymnażając dwie sumy algebraiczne, mnożymy każdy wyraz pierwszej sumy przez każdy wyraz drugiej sumy.\n    </li>\n<li>\n<strong>\n            Wzory skróconego mnożenia\n        </strong>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                        kwadrat sumy\n                    </td>\n<td>\n                        \\(\\quad\\)\n                    </td>\n<td>\n                        \\((a+b)^2=a^2+2ab+b^2\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        kwadrat różnicy\n                    </td>\n<td>\n                        \\(\\quad\\)\n                    </td>\n<td>\n                        \\((a-b)^2=a^2-2ab+b^2\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        różnica kwadratów\n                    </td>\n<td>\n                        \\(\\quad\\)\n                    </td>\n<td>\n                        \\((a+b)(a-b)=a^2-b^2\\)\n                    </td>\n</tr>\n</table>\n</div>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<h2>\n    Logarytmy\n</h2>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n<strong>\n            Logarytm o podstawie \\(a\\) z liczby \\(b\\)\n        </strong>\n        to odpowiedź na pytanie:\n        \"\n        <em>\n            do jakiej potęgi podnieść podstawę \\(a\\), by uzyskać \\(b\\)\n        </em>\n        \", co zapisujemy:\n        \\[\\log_a b=c\\quad\\quad\\Leftrightarrow\\quad\\quad a^c=b\\]\n        przy czym \\(a\\gt 0\\), \\(a\\ne 1\\) i \\(b\\gt 0\\).\n    </li>\n<li>\n        Działania na logarytmach:\n        \\[\n        \\begin{align*}\n        \\log_a x+\\log_a y&amp;=\\log_a (x\\cdot y)\\\\\n        \\log_a x-\\log_a y&amp;=\\log_a \\left(\\frac{x}{y}\\right)\\\\\n        \\log_a \\left(n^s\\right)&amp;=s\\cdot\\log_a n\\\\\n        \\log_a b&amp;=\\frac{\\log_c b}{\\log_c a}\n        \\end{align*}\n        \\]\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<h2>\n    Średnie\n</h2>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n<strong>\n            Średnia arytmetyczna\n        </strong>\n        liczb \\(a_1, a_2, a_3, ..., a_n\\) jest dana wzorem:\n        \\[\n        S=\\frac{a_1+a_2+a_3+ ...+ a_n}{n}\n        \\]\n        <small>\n            czyli dodajemy wszystkie liczby i dzielimy wynik przez to, ile ich jest.\n        </small>\n</li>\n<li>\n<strong>\n            Średnia ważona\n        </strong>\n        to uogólnienie średniej arytmetycznej. Tym razem liczbom \\(a_1, a_2, a_3, ..., a_n\\) przypisujemy wagi, odpowiednio \\(w_1, w_2, w_3, ..., w_n\\). Średnia ważona zdefiniowana jest wzorem:\n        \\[\n        S=\\frac{a_1\\cdot w_1+a_2\\cdot w_2+a_3\\cdot w_3+ ...+ a_n\\cdot w_n}{w_1+w_2+w_3+ ...+ w_n}\n        \\]\n        <small>\n            czyli dodajemy wszystkie liczby pomnożone przez ich wagi i dzielimy wynik przez sumę wag.\n        </small>\n</li>\n<li>\n<strong>\n            Średnia geometryczna\n        </strong>\n        liczb \\(a_1, a_2, a_3, ..., a_n\\) jest dana wzorem:\n        \\[\n        S=\\sqrt[n]{a_1\\cdot a_2\\cdot a_3\\cdot ...\\cdot a_n}\n        \\]\n    </li>\n</ol>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a17cfbab0e1d72aff68034f5d4d70b50ae7f62d6fb36613f8393c7fb3dc48a31"
+}

@@ -1,0 +1,66 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>Deltoid</strong> to czworokąt, w którym dwie pary sąsiednich boków są równej długości.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A oto podstawowe własności deltoidu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Własności deltoidu</strong>:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            Prosta przechodząca przez końce boków o równej długości jest osią symetrii deltoidu.\n        </li>\n<li>\n            Przekątne deltoidu przecinają się pod kątem prostym.\n            <details>\n<summary>co więcej...</summary>\n                A co więcej, na mocy pierwszej własności, jedna z przekątnych dzieli drugą na połowy.\n            </details>\n</li>\n<li>\n            Kąty między bokami o różnej długości są równe.\n            <details>\n<summary>chyba, że...</summary>\n                No, chyba, że wszystkie boki są tej samej długości - wówczas mamy dwie pary równych kątów.\n            </details>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Warto wspomnieć też jedną ciekawą własność deltoidów <strong>wypukłych</strong>.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" start=\"4\">\n<li>\n            Jeśli deltoid jest wypukły, można w niego wpisać okrąg.\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W poniższym aplecie możesz przesuwać zaznaczone na <span style=\"color: red\">czerwono</span> punkty, żeby zmienić kształt czworokąta.\n        </p>\n<p>\n            Czwarty wierzchołek zmieni się sam - tak, by czworokąt był deltoidem. Zwróć uwagę, że boki równej długości są zaznaczone tym samym kolorem.\n        </p>\n<p>\n            Zaznaczaj pola wyboru i zmieniaj kształt deltoidu, by obserwować opisane wyżej własności.\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"728px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/dcbgm36n/width/675/height/728/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"własności deltoidu\" width=\"675px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Czworokąt \\(PQRS\\) jest deltoidem, w którym \\(PQ=PS\\) oraz \\(RQ=RS\\).\n        </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_90.png\" style=\"max-width: 600px;\"/>\n</figure>\n"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Linia \\(PR\\) jest osią symetrii deltoidu.\n            </div>\n<div class=\"one_choice ks_button\">prawda</div>\n<div class=\"one_choice ks_button\">fałsz</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Linia \\(QS\\) jest osią symetrii deltoidu.\n            </div>\n<div class=\"one_choice ks_button\">prawda</div>\n<div class=\"one_choice ks_button\">fałsz</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Kąty \\(PSR\\) oraz \\(SPQ\\) są równe.\n            </div>\n<div class=\"one_choice ks_button\">prawda</div>\n<div class=\"one_choice ks_button\">fałsz</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Kąty \\(PSR\\) oraz \\(PQR\\) są równe.\n            </div>\n<div class=\"one_choice ks_button\">prawda</div>\n<div class=\"one_choice ks_button\">fałsz</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Odcinki \\(PR\\) i \\(QS\\) są prostopadłe.\n            </div>\n<div class=\"one_choice ks_button\">prawda</div>\n<div class=\"one_choice ks_button\">fałsz</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Odcinki \\(PQ\\) i \\(QR\\) są prostopadłe.\n            </div>\n<div class=\"one_choice ks_button\">prawda</div>\n<div class=\"one_choice ks_button\">fałsz</div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "potwierdź "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi: \n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6daf2c4701c18ececa6c36ff41e75623019c6b9834e669a863822aade3374a8b"
+}

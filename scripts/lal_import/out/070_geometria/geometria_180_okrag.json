@@ -1,0 +1,402 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"zadanie 2\" height=\"400\" src=\"static/katy_w_kole_zad_1.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n            Rysunek przedstawia czworokąt \\(ABCS\\), gdzie punkt \\(S\\) jest środkiem okręgu, a punkty \\(A\\), \\(B\\), \\(C\\) leżą na okręgu.\n        </p>\n<ul class=\"nolist\">\n<li>\n                Kąt \\(\\angle ASB\\) na zewmątrz czworokąta jest prosty.\n            </li>\n<li>\n                Kąt \\(\\angle SCB\\) wewnątrz czworokąta ma miarę \\(20^{\\circ}\\).\n            </li>\n</ul>\n<p>\n            Znajdź miary wszystkich kątów wewnętrznych czworokąta.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            zacznij rozwiązanie\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>Skoro kąt \\(\\angle ASB\\) na zewnątrz czworokąta jest prosty, to kąt \\(\\angle ASB\\) wewnątrz czworokąta ma miarę</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(90^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(180^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(270^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>Kąt \\(\\angle ABC\\) jest wpisany w koło i oparty na tym samym łuku, co kąt prosty \\(\\angle ASB\\), więc ma miarę</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(30^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(45^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(90^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Mamy już ustalone miary trzech kątów wewnętrznych czworokąta \\(ABCS\\):\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                            \\(\\angle BCS=20^{\\circ}\\)\n                        </li>\n<li>\n                            \\(\\angle ASC=270^{\\circ}\\)\n                        </li>\n<li>\n                            \\(\\angle ABC=45^{\\circ}\\)\n                        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Ostatni kąt, \\(\\angle SAB\\) wyliczymy z sumy kątów w czworokącie, która jest równa</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(180^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(360^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(540^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>I dlatego kąt \\(\\angle SAB\\) ma miarę</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(20^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(25^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(45^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Podsumowując:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                            \\(\\angle BCS=20^{\\circ}\\)\n                        </li>\n<li>\n                            \\(\\angle ASC=270^{\\circ}\\)\n                        </li>\n<li>\n                            \\(\\angle ABC=45^{\\circ}\\)\n                        </li>\n<li>\n                            \\(\\angle SAB=25^{\\circ}\\)\n                        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"zadanie 2\" height=\"400\" src=\"static/katy_w_kole_zad_2.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n            Rysunek przedstawia trójkąt \\(ABC\\) wpisany w koło.\n        </p>\n<ul class=\"nolist\">\n<li>\n                Bok \\(AB\\) jest średnicą koła.\n            </li>\n<li>\n                Boki \\(AC\\) i \\(BC\\) są równej długości, \\(6\\) cm.\n            </li>\n</ul>\n<p>\n            Oblicz pole trójkąta \\(ABC\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            zacznij rozwiązanie\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>Bok \\(AB\\) jest średnicą koła, więc kąt \\(\\angle ACB\\) ma miarę</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(45^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(60^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(90^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>Trójkąt \\(ABC\\) jest prostokątny, więc jeśli jedna z przyprostokątnych jest podstawą, to druga jest wysokością. Stąd pole trójkąta to</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(9\\sqrt{2}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(18\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(36\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Pole trójkąta to \\(\\frac{1}{2}\\cdot AC\\cdot BC=\\frac{1}{2}\\cdot 6\\cdot 6=18\\).\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"zadanie 3\" height=\"400\" src=\"static/katy_w_kole_zad_3.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n            Rysunek przedstawia trójkąt \\(ABC\\) wpisany w koło. Przez wierzchołek \\(A\\) poprowadzono styczną.\n        </p>\n<ul class=\"nolist\">\n<li>\n                Kąt między styczną a bokiem \\(AB\\) ma miarę \\(50^{\\circ}\\).\n            </li>\n<li>\n                Kąt \\(\\angle ABC\\) ma miarę \\(70^{\\circ}\\).\n            </li>\n</ul>\n<p>\n            Znajdź miary wszystkichkątów wewnętrznych trójkąta \\(ABC\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            zacznij rozwiązanie\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Na mocy twierdzenia o kącie między styczną a cięciwą:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"Kąt między styczną a cięciwą\" height=\"400\" src=\"static/tw_katy_3_alternate.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Kąt \\(\\angle ACB\\) ma miarę</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(50^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(60^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(70^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>Trzeci kąt, \\(\\angle CAB\\) obliczamy z sumy kątów w trójkącie, i otrzymujemy</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(50^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(60^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(70^{\\circ}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Podsumowując:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                            \\(\\angle ABC=70^{\\circ}\\)\n                        </li>\n<li>\n                            \\(\\angle BCA=50^{\\circ}\\)\n                        </li>\n<li>\n                            \\(\\angle BAC=60^{\\circ}\\)\n                        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Trapez jest wpisany w koło.\n        </p>\n<p>\n            Udowodnij, że jest to trapez równoramienny.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            zacznij rozwiązanie\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Oznaczmy wierzchołki trapezu literami \\(A\\), \\(B\\), \\(C\\) i \\(D\\), a kąt wewnętrzny przy wierzchołku \\(A\\) literą \\(\\alpha\\).\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"zadanie 4\" height=\"200\" src=\"static/katy_w_kole_zad_4.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Rysunek poniżej wskazuje dwa kąty\n                        <u>\n                            odpowiadające\n                        </u>\n                        . Proste oznaczone strzałkami są równoległe, i dlatego kąty odpowiadające mają tę samą miarę.\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"zadanie 4\" height=\"250\" src=\"static/katy_w_kole_zad_4_katy_odpowiadajace.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Porównując oba powyższe rysunki możemy wywnioskować, że \\(\\angle ADC=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(\\alpha\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(180^{\\circ}-\\alpha\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(90^{\\circ}-\\alpha\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Z twierdzenia o czworokącie wpisanym w koło:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"Czworokąt wpisany w koło\" height=\"400\" src=\"static/tw_katy_4_czworokat.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Możemy ustalić kąt przy wierzchołku \\(B\\):\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\angle ABC=180^{\\circ}-\\angle ADC=180^{\\circ}-\\left(180^{\\circ}-\\alpha\\right)=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(\\alpha\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(180^{\\circ}-\\alpha\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(90^{\\circ}-\\alpha\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Wykazaliśmy, że oba kąty przyległe do podstawy \\(AB\\) trapezu (\\(\\angle ADC\\), \\(\\angle ABC\\)) mają jednakową miarę \\(\\alpha\\), a to oznacza, że trapez jest równoramienny.\n                    </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "89ad41370b9e50c398076fbc7a7bfa64c447e9cb962cb461c6d90a4895018b0b"
+}

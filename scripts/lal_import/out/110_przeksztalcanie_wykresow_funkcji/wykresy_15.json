@@ -1,0 +1,22 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Współrzędne wektora, wektor przeciwny\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/wspolrzedne_wektora.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Długość wektora\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/dlugosc_wektora.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "06aac6af8fb340ee319a17f0863168df16a07c8f0a7fddbab3a59a6cac3dda22"
+}

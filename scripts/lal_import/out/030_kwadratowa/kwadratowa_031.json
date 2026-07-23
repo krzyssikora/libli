@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Metoda alternatywna\n</h3>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n<p>\n            Dla paraboli o równaniu \\(y=ax^2+bx+c\\) znane są wzory na współrzędne wierzechołka \\(W=(p, q)\\). Gdy wyliczymy \\(p\\) i \\(q\\), otrzymamy szybko postać kanoniczną podstawiając wyliczone wartości do wzoru \\(y=a(x-p)^2 +q\\).\n        </p>\n<p>\n            W tych wzorach, ale też później, przyda nam się wartość oznaczaną grecką literą\n            <emph>\n                Delta\n            </emph>\n            (\\(\\Delta\\)):\n        </p>\n        \\[\n                                \\Delta = b^2-4ac\n                                \\]\n        <p>\n            Te wzory wyglądają następująco:\n        </p>\n        \\[\n                                p=-\\frac{b}{2a}\\quad\\quad\\text{i}\\quad\\quad q=-\\frac{\\Delta}{4a}\n                                \\]\n        <p>\n            Użyjmy tych wzorów dla funkcji \\(y=-2x^2+12x-17\\), czyli dla parametrów:\n        </p>\n<p>\n            \\(a=-2, b=12, c=-17\\)\n        </p>\n<p>\n            Po pierwsze:\n        </p>\n        \\[\n                                p=-\\frac{b}{2a}=-\\frac{12}{2\\cdot (-2)}=3\n                                \\]\n        <p>\n            i po drugie:\n        </p>\n        \\[\n                                \\quad q=-\\frac{\\Delta}{4a}=-\\frac{12^2-4\\cdot(-2)\\cdot(-17)}{4\\cdot(-2)}=-\\frac{144-136}{-8}=1\n                                \\]\n        <p>\n            i teraz:\n        </p>\n<p>\n            \\begin{align*}\n                                                y&amp;=a(x-p)^2 +q\\\\\n                                                \\text{czyli}&amp;\\\\\n                                                y&amp;=-2(x-3)^2+1\n                                                \\end{align*}\n        </p>\n</div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rozumienie powyższej metody jest bardzo ważne, ale można też inaczej.\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">\n        Metoda alternatywna - zobacz\n    </div>",
+      "reason": "show_solution button without solution"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "7eff553f2da9be59f3496f7c795c85772a9b1f99ef6c11700d090bcb99054112"
+}

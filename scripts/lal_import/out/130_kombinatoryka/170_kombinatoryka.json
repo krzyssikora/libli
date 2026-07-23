@@ -1,0 +1,71 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W szkolnej loterii przygotowano 100 losów i wrzucono je do pudełka. Wśród nich 8 to losy wygrywające.\n        </p>\n<p>\n            Osoba losująca wyjmuje jeden los, sprawdza, czy coś wygrała i odkłada los spowrotem do pudełka.\n        </p>\n<p>\n            Marta losuje trzykrotnie. Ile jest możliwych sytuacji, w których ani razu nie wygra? \n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<p>\n            Losów przegrywających jest \\(100-8=92\\).\n        </p>\n<p>\n            Możliwych sytuacji, w których marta 3-krotnie przegrywa jest\n        </p>\n        \\[\n        92^3=778\\,688\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Maciek postanowił od poniedziałku do piątku przyłożyć się do nauki i rzetelenie uczyć się codziennie jednego przedmiotu (niekoniecznie za każdym razem innego).\n        </p>\n<p>\n            Każdego dnia wybiera spośród trzech przedmiotów przyrodniczych: chemii, fizyki i biologii, oraz dwóch humanistycznych: polskiego i historii.\n        </p>\n<p>\n            Na ile sposobów Maciek może wybrać za każdym razem przedmiot przyrodniczy?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(3^5=243\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Joanna przez dwa tygodnie podczas lunchu wypijała szklankę napoju. Za każdym razem mogła wybrać spośród:\n        </p>\n<ul>\n<li>wody gazowanej,</li>\n<li>wody niegazowanej,</li>\n<li>soku jabłkowego,</li>\n<li>soku pomarańczowego,</li>\n<li>soku grejpfrutowego.</li>\n</ul>\n<p>\n            Na ile sposobów mogła wybrać tak, by przez całe dwa tygodnie pić do lunchu tylko wodę?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(2^{14}=16384\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Martyna może do szkoły jechać:\n        </p>\n<ul>\n<li>autobusem,</li>\n<li>tramwajem,</li>\n<li>rowerem,</li>\n<li>hulajnogą,</li>\n<li>samochodem z mamą,</li>\n<li>samochodem z tatą.</li>\n</ul>\n<p>\n            Przez kolejne pięć dni postanowiła jeździć do szkoły bez pomocy rodziców. Ile ma możliwości?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(4^5=1024\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W pobliżu domu pana Romka są trzy małe sklepy spożywcze i dwa większe supermarkety spożywcze.\n        </p>\n<p>\n            Pan Romek przez sześć kolejnych dni robi małe zakupy w jednym z tych sklepów.\n        </p>\n<p>\n            Ile ma możliwości, żeby robić zakupy wyłącznie w małych sklepach?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(3^6=729\\)\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "34c1dc6f196e864740725cce7d7bfeea4b3fd9f22a9ef9eec1e4c406b7b391a7"
+}

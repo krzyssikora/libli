@@ -1,0 +1,50 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Ustaliliśmy, że jeśli \\((a_n)\\) jest ciągiem arytmetycznym to\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    a_n=\\frac{a_{n-1}+a_{n+1}}{2}\n    \\]\n    co oznacza, że wyraz \\(a_n\\) jest średnią arytmetyczną woich \"sąsiadów\".\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważ, że w bardzo podobny sposób, zamiast brać \"sąsiadów\", czyli przesuwać się o krok wstecz (do \\(a_{n-1}\\)) i krok wprzód (do \\(a_{n+1}\\)) moglibyśmy zrobić po dwa kroki w obie strony.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wówczas uzyskalibyśmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    a_n=\\frac{a_{n-2}+a_{n+2}}{2}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Moglibyśmy też zrobić po trzy kroki:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    a_n=\\frac{a_{n-3}+a_{n+3}}{2}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    albo i inną liczbę kroków:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    a_n=\\frac{a_{n-k}+a_{n+k}}{2}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Oznacza to, że\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Jeśli weźmiemy dwa wyrazy w tej samej odległości od wyrazu \\(a_n\\), to wyraz \\(a_n\\) jest średnią arytmetyczną tych dwóch wyrazów.\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "23048b54a7ebaa00b799ca3f3dd94290560d7e9c02d8e05600d971fe0f4bd25b"
+}

@@ -1,0 +1,70 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Podsumowanie\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Przyjrzyj się wykresom funkcji \\(y=\\frac{a}{x}\\) dla \\(a\\gt 0\\).\n        </p>\n<p>\n            Przemyśl, jakie są wskazane niżej właśności tej funkcji, a następnie porównaj swoje odpowiedzi z moimi.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "dziedzina",
+      "body": "\n<div>\n                                \\(x\\in\\mathbb{R}\\setminus\\{0\\}\\) czyli \\(x\\in (-\\infty,0)\\cup(0,+\\infty)\\)\n                            </div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "zbiór wartości",
+      "body": "\n<div>\n                                \\(x\\in\\mathbb{R}\\setminus\\{0\\}\\) czyli \\(x\\in (-\\infty,0)\\cup(0,+\\infty)\\)\n                            </div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "położenie wykresu",
+      "body": "\n                            gałęzie hiperboli znajdują się\n                            <span style=\"color: red\">\n                                w I (\\(\\nearrow\\)) i w III (\\(\\swarrow\\))\n                            </span>\n                            ćwiartce układu współrzędnych.\n                        "
+    },
+    {
+      "type": "spoiler",
+      "label": "monotoniczność",
+      "body": "\n<p>\n                                funkcja\n                                <strong>\n<span style=\"color: red\">\n                                        maleje\n                                    </span>\n</strong>\n                                w dwóch przedziałach:\n                                <br/>\n                                \\(x\\in (-\\infty,0)\\) oraz \\(x\\in(0,+\\infty)\\)\n                            </p>\n<p>\n                                \\(\\rightarrow\\)\n                                <u>\n                                    uwaga\n                                </u>\n                                , funkcja\n                                <strong>\n                                    nie maleje\n                                </strong>\n                                w zbiorze \\(\\mathbb{R}\\setminus\\{0\\}\\)\n                            </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Przyjrzyj się wykresom funkcji \\(y=\\frac{a}{x}\\) dla \\(a\\lt 0\\).\n        </p>\n<p>\n            Przemyśl, jakie są wskazane niżej właśności tej funkcji, a następnie porównaj swoje odpowiedzi z moimi.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "dziedzina",
+      "body": "\n                            \\(x\\in\\mathbb{R}\\setminus\\{0\\}\\) czyli \\(x\\in (-\\infty,0)\\cup(0,+\\infty)\\)\n                        "
+    },
+    {
+      "type": "spoiler",
+      "label": "zbiór wartości",
+      "body": "\n                            \\(x\\in\\mathbb{R}\\setminus\\{0\\}\\) czyli \\(x\\in (-\\infty,0)\\cup(0,+\\infty)\\)\n                        "
+    },
+    {
+      "type": "spoiler",
+      "label": "położenie wykresu",
+      "body": "\n                            gałęzie hiperboli znajdują się\n                            <span style=\"color: red\">\n                                w II (\\(\\nwarrow\\)) i w IV (\\(\\searrow\\))\n                            </span>\n                            ćwiartce układu współrzędnych.\n                        "
+    },
+    {
+      "type": "spoiler",
+      "label": "monotoniczność",
+      "body": "\n<div>\n                                funkcja\n                                <strong>\n<span style=\"color: red\">\n                                        rośnie\n                                    </span>\n</strong>\n                                w dwóch przedziałach:\n                                <br/>\n                                \\(x\\in (-\\infty,0)\\) oraz \\(x\\in(0,+\\infty)\\)\n                            </div>\n<div>\n                                \\(\\rightarrow\\)\n                                <u>\n                                    uwaga\n                                </u>\n                                , funkcja\n                                <strong>\n                                    nie rośnie\n                                </strong>\n                                w zbiorze \\(\\mathbb{R}\\setminus\\{0\\}\\)\n                            </div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważ, że w powyższych dwóch pytaniach / zestawieniach (wyższym \\(\\uparrow\\) dla \\(a\\gt 0\\) i niższym \\(\\downarrow\\) dla \\(a\\lt 0\\)) na\n    <span style=\"color: red;\">\n        czerwono\n    </span>\n    zaznaczono cechy różniące te wykresy. Pozostałe własności są wspólne.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "0aea2d599e6e91c686fecdd5eca37614844bbf8b2d5e2930e73573b909c141f5"
+}

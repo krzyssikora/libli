@@ -1,0 +1,115 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Środek okręgu o promieniu \\(8\\) jest w odległości \\(6\\) od prostej \\(k\\). Prosta \\(k\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "jest styczną do okręgu",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "przecina okrąg w dwóch punktach",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "nie ma punktów wspólnych z okręgiem",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Prosta \\(k\\) nie ma punktów wspólnych z okręgiem o promieniu \\(7\\). Odległość środka okręgu od prostej może być równa (zaznacz wszystkie możliwości)</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(6\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(7\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(8\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(10\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(13\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jeśli prosta jest styczna do okręgu o promieniu \\(11\\), to jaka jest odległość środka okręgu od tej prostej?</p>",
+      "value": "11",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Dane są równanie okręgu i równanie prostej. Rozwiązując układ tych dwóch równań dostajemy równanie \\(x^2+6x+9=0\\). Wynika z tego, że prosta</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "jest styczną do okręgu",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "przecina okrąg w dwóch punktach",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "nie ma punktów wspólnych z okręgiem",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Dane są równanie okręgu i równanie prostej. Rozwiązując układ tych dwóch równań dostajemy równanie \\(x^2-10x+30=0\\). Wynika z tego, że prosta</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "jest styczną do okręgu",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "przecina okrąg w dwóch punktach",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "nie ma punktów wspólnych z okręgiem",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "00fc0147cb4a71b5e167dff353b860e90f5b6da178005e1b4cae33c50116549f"
+}

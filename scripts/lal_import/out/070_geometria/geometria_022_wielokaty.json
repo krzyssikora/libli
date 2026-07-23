@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Pomyślmy teraz o kątach w wielokątach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Najpierw zastanowimy się nad sumą wszystkich kątów wewnętrznych w wielokącie. Zaczniemy od kątów w trójkącie, a potem pomyślimy o dowolnym innym wielokącie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Na zakończenie porozmawiamy o wielokątach foremnych i, rzecz jasna, o kątach w wielokątach foremnych.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "bef2f36e25b2edcc787aa092e6a52eda12d5b6d3346f7dcb8f3613b0415a1fd7"
+}

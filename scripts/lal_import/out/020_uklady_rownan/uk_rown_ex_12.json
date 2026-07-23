@@ -1,0 +1,54 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Aby móc użyć powyższego wzoru, potrzebujemy znać największy wspólny dzielnik. Jego znalezienie nie zawsze jest łatwe.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Pomocą może tu służyć tzw.\n    <strong>\n        algorytm Euklidesa\n    </strong>\n    , który jest oparty na prostej obserwacji:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\text{NDW}(a, b) = \\text{NWD}(a, b-a)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Obliczając największy wspólny dzielnik liczb \\(a\\) i \\(b\\), możemy je zastąpić przez\n    <strong>\n        mniejszą\n    </strong>\n    z tych liczb i\n    <strong>\n        różnicę\n    </strong>\n    między nimi.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyj się poniższej animacji, która pokazuje, jak znaleźć z pomocą algorytmu Euklidesa największy wspólny dzielnik liczb 84 i 60.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/uklad_rownan_ex_2_nwd_euklides.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Znajdź największy wspólny dzielnik liczb 126 i 98 z użyciem algorytmu Euklidesa.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"fill_steps\">\n<p>\n<span class=\"myequation\">\n                \\(\\text{NWD}(126, 98)=\\)\n            </span>\n</p>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n<span class=\"myequation\">\n                    \\(=\\text{NWD}(\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n                    \\(, 98)=\\)\n                </span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n<span class=\"myequation\">\n                    \\(=\\text{NWD}(28,\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n                    \\( )=\\)\n                </span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n<span class=\"myequation\">\n                    \\(=\\text{NWD}(28,\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n                    \\( )=\\)\n                </span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n<span class=\"myequation\">\n                    \\(=\\text{NWD}(28\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n                    \\( )=\\)\n                </span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n<span class=\"myequation\">\n                    \\(=\\text{NWD}(\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n                    \\( , 14)\\)\n                </span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                Tak więc\n                <span class=\"myequation\">\n                    \\(\\text{NWD}(126, 98)=\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Świetnie!\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Pomyśl, jak obliczyć najmniejszą wspólną wielokrotność\n            <strong>\n                trzech\n            </strong>\n            (lub większej liczby) liczb.\n        </p>\n<p>\n            Możesz poszukać inspiracji choćby w\n            <a href=\"https://pl.wikipedia.org/wiki/Najmniejsza_wsp%C3%B3lna_wielokrotno%C5%9B%C4%87\">\n                artykule o najmniejszej wspólnej wielokrotności na Wikipedii\n            </a>\n            .\n        </p>\n<p>\n            Z tego artykułu pochodzi poniższy diagram przedstawiający najmniejsze wspólne wielokrotności dla wszystkich możliwych kombinacji liczb 2, 3, 4, 5 i 7:\n        </p>\n<p>\n<img alt=\"wielokrotności\" src=\"static/lcm.png\"/>\n</p>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b01ccc27bf992352b3be670f0dcd388f02adb41904c811e43bf0504bc1d848b5"
+}

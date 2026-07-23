@@ -1,0 +1,635 @@
+"""Unit tests for table_grid.js's PURE functions.
+
+They run inside a headless Playwright page because CI has no Node -- these are
+NOT UI tests and are not a substitute for the real-gesture e2e in
+test_e2e_spanning_merge.py. They feed a DOM table in and assert the shape that
+comes out.
+
+Run this slice's loop with:
+  DATABASE_URL=... uv run pytest -m e2e -k table_grid
+"""
+
+import os
+from pathlib import Path
+
+import pytest
+
+pytestmark = pytest.mark.e2e
+
+MODULE = (
+    Path(__file__).resolve().parent.parent / "courses/static/courses/js/table_grid.js"
+)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_sync_orm_under_playwright():
+    os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
+    yield
+
+
+@pytest.fixture
+def grid_page(page):
+    """A blank page with table_grid.js loaded and a `mk(html)` helper building a
+    descriptor over a <table>. Chrome (a trailing td[data-control] per row and a
+    tr[data-control-row]) is present in every fixture so the descriptor's
+    exclusion of it is genuinely exercised."""
+    page.set_content("<body><div id='host'></div></body>")
+    page.add_script_tag(path=str(MODULE))
+    page.evaluate(
+        """
+        (function () {
+        window.mk = function (rowsHtml) {
+          var host = document.getElementById('host');
+          host.innerHTML = '<table>' + rowsHtml +
+            '<tr data-control-row><td data-control></td></tr></table>';
+          var table = host.querySelector('table');
+          function rows() {
+            return Array.prototype.filter.call(
+              table.querySelectorAll('tr'),
+              function (tr) { return !tr.hasAttribute('data-control-row'); });
+          }
+          function cells(tr) {
+            return Array.prototype.slice.call(
+              tr.querySelectorAll('td:not([data-control]), th:not([data-control])'));
+          }
+          return {
+            rows: rows,
+            cells: cells,
+            makeCell: function () {
+              var td = document.createElement('td');
+              td.setAttribute('contenteditable','true');
+              return td;
+            },
+            makeRow: function () {
+              var tr = document.createElement('tr');
+              var ctl = document.createElement('td');
+              ctl.setAttribute('data-control','');
+              tr.appendChild(ctl);
+              return tr;
+            },
+            maxCols: 20, maxRows: 50
+          };
+        };
+        // Compact readback: one string per row, each cell as "colspanxrowspan".
+        window.shape = function (g) {
+          return g.rows().map(function (tr) {
+            return g.cells(tr).map(function (c) {
+              return (c.colSpan || 1) + 'x' + (c.rowSpan || 1);
+            }).join(',');
+          });
+        };
+        })();
+        """
+    )
+    return page
+
+
+ROW_3 = "<tr><td></td><td></td><td></td><td data-control></td></tr>"
+ROW_SPAN3 = "<tr><td colspan='3'></td><td data-control></td></tr>"
+
+
+def test_layout_width_ignores_the_trailing_control_cell(grid_page):
+    js = "() => libliTableGrid.layoutWidth(mk(`%s`))" % ROW_3  # noqa: UP031
+    assert grid_page.evaluate(js) == 3
+
+
+def test_layout_width_counts_a_colspan_not_the_cell_count(grid_page):
+    js = "() => libliTableGrid.layoutWidth(mk(`%s`))" % ROW_SPAN3  # noqa: UP031
+    assert grid_page.evaluate(js) == 3
+
+
+def test_slot_map_projects_a_rowspan_into_later_rows(grid_page):
+    html = (
+        "<tr><td id='a' rowspan='2'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var sm = libliTableGrid.slotMap(mk(`%s`));
+             return sm.map[1][0] === document.getElementById('a');
+           }"""
+    js = template % html  # noqa: UP031
+    assert grid_page.evaluate(js) is True
+
+
+def test_slot_map_of_an_empty_grid_has_zero_width(grid_page):
+    assert grid_page.evaluate(
+        """() => {
+             var sm = libliTableGrid.slotMap(mk("<tr><td data-control></td></tr>"));
+             return [sm.width, sm.height];
+           }"""
+    ) == [0, 1]
+
+
+def test_slot_map_clips_a_rowspan_that_overflows_the_grid(grid_page):
+    # Reachable from hand-edited JSON. Height stays the row count.
+    assert grid_page.evaluate(
+        """() => {
+             var sm = libliTableGrid.slotMap(
+               mk("<tr><td rowspan='9'></td><td data-control></td></tr>"));
+             return [sm.width, sm.height];
+           }"""
+    ) == [1, 1]
+
+
+def test_is_spanning_is_false_for_a_plain_grid(grid_page):
+    js = "() => libliTableGrid.isSpanning(mk(`%s`))" % ROW_3  # noqa: UP031
+    assert grid_page.evaluate(js) is False
+
+
+def test_is_spanning_is_true_when_any_cell_spans(grid_page):
+    js = "() => libliTableGrid.isSpanning(mk(`%s`))" % ROW_SPAN3  # noqa: UP031
+    assert grid_page.evaluate(js) is True
+
+
+# The server (TableElement.layout_dims) and the editor (slotMap) must never
+# disagree about a grid's size: if they did, the caps could reject a grid the
+# editor believes is legal -- an author-facing dead end with no way out.
+SHARED_FIXTURES = [
+    (
+        [[{"colspan": 3}], [{}, {}, {}]],
+        "<tr><td colspan='3'></td><td data-control></td></tr>"
+        "<tr><td></td><td></td><td></td><td data-control></td></tr>",
+    ),
+    (
+        [[{"rowspan": 2}, {}, {}], [{}, {}]],
+        "<tr><td rowspan='2'></td><td></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td></td><td data-control></td></tr>",
+    ),
+]
+
+
+@pytest.mark.parametrize("cells,html", SHARED_FIXTURES)
+def test_layout_dims_and_slot_map_agree(grid_page, cells, html):
+    from courses.models import TableElement
+
+    template = """() => {
+             var sm = libliTableGrid.slotMap(mk(`%s`));
+             return [sm.width, sm.height];
+           }"""
+    js = template % html  # noqa: UP031
+    js_dims = grid_page.evaluate(js)
+    assert tuple(js_dims) == TableElement.layout_dims(cells)
+
+
+def _run(page, rows_html, js):
+    template = "() => { var g = mk(`%s`); %s; return shape(g); }"
+    return page.evaluate(template % (rows_html, js))  # noqa: UP031
+
+
+def test_insert_column_grows_a_straddling_colspan(grid_page):
+    # colspan=3 anchored at 0 covers 0,1,2. Inserting at 1 is strictly inside.
+    rows = (
+        "<tr><td colspan='3'></td><td data-control></td></tr>"
+        "<tr><td></td><td></td><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.insertColumn(g, 1)") == [
+        "4x1",
+        "1x1,1x1,1x1,1x1",
+    ]
+
+
+def test_insert_column_at_a_spans_anchor_does_not_grow_it(grid_page):
+    # layoutCol == c is NOT straddling: a fresh cell goes in before the span.
+    rows = (
+        "<tr><td colspan='3'></td><td data-control></td></tr>"
+        "<tr><td></td><td></td><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.insertColumn(g, 0)") == [
+        "1x1,3x1",
+        "1x1,1x1,1x1,1x1",
+    ]
+
+
+def test_insert_column_at_the_far_edge_of_a_span_does_not_grow_it(grid_page):
+    # layoutCol == c + s falls outside the span entirely.
+    rows = (
+        "<tr><td colspan='2'></td><td data-control></td></tr>"
+        "<tr><td></td><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.insertColumn(g, 2)") == [
+        "2x1,1x1",
+        "1x1,1x1,1x1",
+    ]
+
+
+def test_insert_column_appends_at_the_right_edge(grid_page):
+    assert _run(grid_page, ROW_3, "libliTableGrid.insertColumn(g, 3)") == [
+        "1x1,1x1,1x1,1x1"
+    ]
+
+
+def test_insert_column_through_rowspan_covered_rows_grows_the_span_once(grid_page):
+    # A colspan=2 rowspan=3 cell straddling column 1: it grows ONCE, at its
+    # anchor, and the covered rows gain nothing. "Insert into every row" would
+    # produce a layout-inconsistent grid here.
+    rows = (
+        "<tr><td colspan='2' rowspan='3'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.insertColumn(g, 1)") == [
+        "3x3,1x1",
+        "1x1",
+        "1x1",
+    ]
+
+
+def test_insert_column_at_the_anchor_of_a_rowspan_gives_every_row_a_cell(grid_page):
+    # The layoutCol == c edge for a rowspan=3 colspan=1 cell: all three rows
+    # gain a cell and the layout stays consistent.
+    rows = (
+        "<tr><td></td><td></td><td rowspan='3'></td><td data-control></td></tr>"
+        "<tr><td></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.insertColumn(g, 2)") == [
+        "1x1,1x1,1x1,1x3",
+        "1x1,1x1,1x1",
+        "1x1,1x1,1x1",
+    ]
+
+
+def test_insert_column_position_follows_layout_not_sibling_index(grid_page):
+    # (0,0) has rowspan=2, so row 1's data cells sit at layout columns 1,2,3.
+    # Inserting at layout column 2 must land at SIBLING index 1 in row 1.
+    rows = (
+        "<tr><td id='rs' rowspan='2'></td><td></td><td></td><td></td>"
+        "<td data-control></td></tr>"
+        "<tr><td></td><td id='mark'></td><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.insertColumn(g, 2);
+             var row1 = g.cells(g.rows()[1]);
+             return row1.indexOf(document.getElementById('mark'));
+           }"""
+    idx = grid_page.evaluate(template % rows)  # noqa: UP031
+    # 'mark' was at sibling index 1 and the new cell went in before it.
+    assert idx == 2
+
+
+def test_delete_column_shrinks_a_covering_colspan(grid_page):
+    rows = (
+        "<tr><td colspan='3'></td><td data-control></td></tr>"
+        "<tr><td></td><td></td><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.deleteColumn(g, 1)") == [
+        "2x1",
+        "1x1,1x1",
+    ]
+
+
+def test_delete_column_at_a_spans_anchor_still_decrements_it(grid_page):
+    # The COVERING predicate, not the strict straddle one. Under the straddle
+    # test this cell would keep colspan=3 in a 2-wide grid -- inconsistent.
+    rows = (
+        "<tr><td colspan='3'></td><td data-control></td></tr>"
+        "<tr><td></td><td></td><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.deleteColumn(g, 0)") == [
+        "2x1",
+        "1x1,1x1",
+    ]
+
+
+def test_delete_column_removes_a_cell_whose_last_column_goes(grid_page):
+    rows = (
+        "<tr><td></td><td id='doomed'></td><td data-control></td></tr>"
+        "<tr><td></td><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.deleteColumn(g, 1);
+             return document.getElementById('doomed') === null;
+           }"""
+    gone = grid_page.evaluate(template % rows)  # noqa: UP031
+    assert gone is True
+
+
+def test_delete_column_decrements_a_rowspan_cell_only_once(grid_page):
+    # A colspan=2 rowspan=2 cell anchored at 0: it covers layout columns 0-1
+    # in both rows. Deleting layout column 0 should decrement its colspan ONCE,
+    # not once per row (which would over-shrink or corrupt the span).
+    rows = (
+        "<tr><td id='m' colspan='2' rowspan='2'></td><td></td>"
+        "<td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.deleteColumn(g, 0);
+             var m = document.getElementById('m');
+             return {shapes: shape(g), colSpan: m.colSpan, rowSpan: m.rowSpan};
+           }"""
+    result = grid_page.evaluate(template % rows)  # noqa: UP031
+    assert result == {
+        "shapes": ["1x2,1x1", "1x1"],
+        "colSpan": 1,
+        "rowSpan": 2,
+    }
+
+
+def test_insert_row_grows_a_straddling_rowspan(grid_page):
+    rows = (
+        "<tr><td rowspan='2'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.insertRow(g, 1)") == [
+        "1x3,1x1",
+        "1x1",
+        "1x1",
+    ]
+
+
+def test_insert_row_at_a_rowspans_anchor_does_not_grow_it(grid_page):
+    rows = (
+        "<tr><td rowspan='2'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.insertRow(g, 0)") == [
+        "1x1,1x1",
+        "1x2,1x1",
+        "1x1",
+    ]
+
+
+def test_insert_row_appends_at_the_bottom(grid_page):
+    assert _run(grid_page, ROW_3, "libliTableGrid.insertRow(g, 1)") == [
+        "1x1,1x1,1x1",
+        "1x1,1x1,1x1",
+    ]
+
+
+def test_inserted_row_carries_its_control_chrome(grid_page):
+    # makeRow supplies the caller's row handles; without it the new row would
+    # silently have no insert/delete buttons.
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.insertRow(g, 1);
+             return !!g.rows()[1].querySelector('td[data-control]');
+           }"""
+    has_ctl = grid_page.evaluate(template % ROW_3)  # noqa: UP031
+    assert has_ctl is True
+
+
+def test_delete_row_shrinks_a_rowspan_anchored_above(grid_page):
+    rows = (
+        "<tr><td rowspan='3'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.deleteRow(g, 1)") == ["1x2,1x1", "1x1"]
+
+
+def test_delete_row_relocates_a_cell_anchored_in_it(grid_page):
+    # The hard case: a rowspan=3 cell mid-way along a wide row. Its node must
+    # move into the next row, decremented, at the right sibling index.
+    rows = (
+        "<tr><td></td><td id='rs' rowspan='3'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td id='after'></td><td data-control></td></tr>"
+        "<tr><td></td><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.deleteRow(g, 0);
+             var rs = document.getElementById('rs');
+             var row0 = g.cells(g.rows()[0]);
+             return [shape(g), row0.indexOf(rs), rs.rowSpan];
+           }"""
+    result = grid_page.evaluate(template % rows)  # noqa: UP031
+    shape, index, rowspan = result
+    assert rowspan == 2
+    # It lands at layout column 1, i.e. sibling index 1 -- before 'after'.
+    assert index == 1
+    assert shape == ["1x1,1x2,1x1", "1x1,1x1"]
+
+
+def test_delete_last_row_removes_an_overflowing_rowspan_cell(grid_page):
+    # Terminal case: no row idx+1 to relocate into. Reachable from hand-edited
+    # JSON; must degrade rather than throw.
+    rows = "<tr><td rowspan='9'></td><td></td><td data-control></td></tr>"
+    assert _run(grid_page, rows, "libliTableGrid.deleteRow(g, 0)") == []
+
+
+def test_delete_row_clamps_a_rowspan_that_would_overflow(grid_page):
+    # After removing the last row, a rowspan=2 anchored in row 0 would reach
+    # past the grid and shove the control strip sideways.
+    rows = (
+        "<tr><td rowspan='2'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+    )
+    assert _run(grid_page, rows, "libliTableGrid.deleteRow(g, 1)") == ["1x1,1x1"]
+
+
+def test_delete_row_clamps_an_overflowing_stored_rowspan(grid_page):
+    # 'a' carries an overflowing STORED rowspan=5 -- reachable only from
+    # hand-edited JSON, since slotMap clips it to height=2 for mapping while
+    # the attribute itself stays 5. It straddles the deleted row (anchored at
+    # row 0), so deleteRow's step (a) decrements it once: 5 -> 4. That alone
+    # is NOT enough -- 0 + 4 = 4 still overflows the new height=1 grid -- so
+    # only clampRowspans, bringing it to max(1, 1 - 0) = 1, keeps it in bounds.
+    rows = (
+        "<tr><td id='a' rowspan='5'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.deleteRow(g, 1);
+             return [shape(g), document.getElementById('a').rowSpan];
+           }"""
+    js = template % rows  # noqa: UP031
+    shape, row_span = grid_page.evaluate(js)
+    assert row_span == 1
+    assert shape == ["1x1,1x1"]
+
+
+def test_range_expands_to_contain_a_clipped_merged_cell(grid_page):
+    rows = (
+        "<tr><td id='a'></td><td colspan='2'></td><td data-control></td></tr>"
+        "<tr><td></td><td id='b'></td><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             var rg = libliTableGrid.rangeCells(
+               g, document.getElementById('a'), document.getElementById('b'));
+             return [rg.r0, rg.c0, rg.r1, rg.c1];
+           }"""
+    dims = grid_page.evaluate(template % rows)  # noqa: UP031
+    # Selecting (0,0)..(1,1) clips the colspan=2 at (0,1), so c1 expands to 2.
+    assert dims == [0, 0, 1, 2]
+
+
+def test_range_normalisation_runs_to_a_fixpoint(grid_page):
+    """Expanding for one merged cell must newly clip a SECOND one, forcing a
+    second pass. A single-pass implementation returns an illegal rectangle, and
+    merge() on an illegal rectangle removes cells that still project outside it.
+
+    Layout (4 wide, 3 tall), traced by hand against slotMap:
+        row0:  a(0,0)   M1 = colspan2 (0,1)-(0,2)   D(0,3)
+        row1:  E(1,0)   f(1,1)   M2 = rowspan2 (1,2)-(2,2)   H(1,3)
+        row2:  I(2,0)   J(2,1)   [covered by M2]   L(2,3)
+
+    Selecting f..a starts at r0=0,c0=0,r1=1,c1=1.
+      pass 1: M1 at (0,1) reaches column 2  -> c1 = 2
+      pass 2: that pulls in M2 at (1,2), which reaches row 2 -> r1 = 2
+      pass 3: nothing changes -> fixpoint at [0, 0, 2, 2]
+    """
+    rows = (
+        "<tr><td id='a'></td><td colspan='2'></td><td></td>"
+        "<td data-control></td></tr>"
+        "<tr><td></td><td id='f'></td><td rowspan='2'></td><td></td>"
+        "<td data-control></td></tr>"
+        "<tr><td></td><td></td><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             var rg = libliTableGrid.rangeCells(
+               g, document.getElementById('f'), document.getElementById('a'));
+             return [rg.r0, rg.c0, rg.r1, rg.c1];
+           }"""
+    dims = grid_page.evaluate(template % rows)  # noqa: UP031
+    assert dims == [0, 0, 2, 2]
+
+
+def test_can_merge_is_false_for_a_single_cell(grid_page):
+    template = """() => {
+                 var g = mk(`%s`);
+                 var c = g.cells(g.rows()[0])[0];
+                 return libliTableGrid.canMerge(g, c, c);
+               }"""
+    assert grid_page.evaluate(template % ROW_3) is False  # noqa: UP031
+
+
+def test_can_merge_is_false_when_the_range_exceeds_max_cols(grid_page):
+    # 26 columns against maxCols 20: refused, never clamped.
+    cells = "".join("<td></td>" for _ in range(26))
+    rows = "<tr>%s<td data-control></td></tr>" % cells  # noqa: UP031
+    template = """() => {
+                 var g = mk(`%s`);
+                 var cs = g.cells(g.rows()[0]);
+                 return libliTableGrid.canMerge(g, cs[0], cs[25]);
+               }"""
+    assert grid_page.evaluate(template % rows) is False  # noqa: UP031
+
+
+def test_merge_gives_the_anchor_the_covering_spans_and_removes_the_rest(grid_page):
+    rows = (
+        "<tr><td id='a'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td id='b'></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.merge(g, document.getElementById('a'),
+                                     document.getElementById('b'));
+             return shape(g);
+           }"""
+    result = grid_page.evaluate(template % rows)  # noqa: UP031
+    assert result == ["2x2", ""]
+
+
+def test_merge_leaves_a_legal_empty_row(grid_page):
+    # A full-width 2-row merge empties row 1 entirely -- legal, and the row
+    # keeps its control cell so it can still be deleted.
+    rows = (
+        "<tr><td id='a'></td><td></td><td data-control></td></tr>"
+        "<tr><td></td><td id='b'></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.merge(g, document.getElementById('a'),
+                                     document.getElementById('b'));
+             return [g.rows().length,
+                     !!g.rows()[1].querySelector('td[data-control]')];
+           }"""
+    kept = grid_page.evaluate(template % rows)  # noqa: UP031
+    assert kept == [2, True]
+
+
+def test_merge_survivor_is_the_post_fixpoint_anchor_not_the_clicked_cell(grid_page):
+    """X sits at the true top-left (0,0). Clicking two PLAIN cells that never
+    touch X -- 'a' at (1,0) and 'b' at (1,2) -- still resolves the anchor to X,
+    because a rowspan=2 cell straddling column 1 is inside the naive rectangle
+    from the start and its anchor sits at (0,1); pulling that anchor into
+    range drags r0 from 1 up to 0, which lands squarely on X's slot.
+
+    Layout (3 wide, 2 tall), traced by hand against slotMap:
+        row0:  x(0,0)   M = rowspan2 (0,1)-(1,1)   d(0,2)
+        row1:  a(1,0)   [covered by M]              b(1,2)
+
+    Selecting a..b starts at r0=1,c0=0,r1=1,c1=2 (both in row 1).
+      pass 1: M at (1,1) is anchored at (0,1) -- its anchor.r=0 < r0=1, so
+              r0 expands to 0. M's own span [0,1] is already inside
+              c0..c1=0..2, so nothing else changes yet.
+      pass 2: re-scanning rows 0..1, cols 0..2 finds nothing new -> fixpoint
+              at [0, 0, 1, 2].
+    x occupies (0,0) -- the new top-left -- despite neither 'a' nor 'b' ever
+    referencing it. merge() must keep x's content and discard a and b.
+    """
+    rows = (
+        "<tr><td id='x'></td><td rowspan='2'></td><td></td>"
+        "<td data-control></td></tr>"
+        "<tr><td id='a'></td><td id='b'></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             var x = document.getElementById('x');
+             var a = document.getElementById('a');
+             var b = document.getElementById('b');
+             var rg = libliTableGrid.rangeCells(g, a, b);
+             var anchorIsX = rg.anchor === x;
+             libliTableGrid.merge(g, a, b);
+             return {
+               dims: [rg.r0, rg.c0, rg.r1, rg.c1],
+               anchorIsX: anchorIsX,
+               xShape: (x.colSpan || 1) + 'x' + (x.rowSpan || 1),
+               xStillThere: document.body.contains(x),
+               aGone: document.getElementById('a') === null,
+               bGone: document.getElementById('b') === null,
+             };
+           }"""
+    result = grid_page.evaluate(template % rows)  # noqa: UP031
+    assert result["dims"] == [0, 0, 1, 2]
+    assert result["anchorIsX"] is True
+    assert result["xShape"] == "3x2"
+    assert result["xStillThere"] is True
+    assert result["aGone"] is True
+    assert result["bGone"] is True
+
+
+def test_split_restores_cells_at_the_right_sibling_indexes(grid_page):
+    # colspan=3 rowspan=2 anchored mid-row in a ragged grid: 2 slots free to
+    # its right in row 0, 3 in row 1.
+    rows = (
+        "<tr><td></td><td id='m' colspan='3' rowspan='2'></td><td></td>"
+        "<td data-control></td></tr>"
+        "<tr><td></td><td id='tail'></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             libliTableGrid.split(g, document.getElementById('m'));
+             return [shape(g),
+                     g.cells(g.rows()[1]).indexOf(document.getElementById('tail'))];
+           }"""
+    result = grid_page.evaluate(template % rows)  # noqa: UP031
+    shape, tail_index = result
+    assert shape == ["1x1,1x1,1x1,1x1,1x1", "1x1,1x1,1x1,1x1,1x1"]
+    # 'tail' sat at layout column 4, so three new cells went in before it.
+    assert tail_index == 4
+
+
+def test_merge_is_a_no_op_when_the_anchor_slot_is_null(grid_page):
+    # A degenerate grid whose top-left slot is unoccupied: merge must not
+    # remove the absorbed cells with no survivor.
+    rows = (
+        "<tr><td data-control></td></tr>"
+        "<tr><td></td><td></td><td data-control></td></tr>"
+    )
+    template = """() => {
+             var g = mk(`%s`);
+             var cs = g.cells(g.rows()[1]);
+             var before = shape(g).join('|');
+             libliTableGrid.merge(g, {r: 0, c: 0}, cs[1]);
+             return shape(g).join('|') === before;
+           }"""
+    ok = grid_page.evaluate(template % rows)  # noqa: UP031
+    assert ok is True

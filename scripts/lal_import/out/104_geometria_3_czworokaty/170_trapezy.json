@@ -1,0 +1,61 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyjmy się teraz dwóm twierdzeniom na temat trapezów równoramiennych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W poniższym aplecie widzisz trapez równoramienny i jego dwie przekątne.\n        </p>\n<p>\n            Naciśnij \"start\" i przyjrzyj się animacji.\n        </p>\n<p>\n            Co pokazuje animacja?\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"533px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/shekf7z3/width/531/height/533/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"przekątne w trapezie równoramiennym\" width=\"531px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Twierdzenie o przekątnych trapezu równoramiennego</strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Przekątne w trapezie równoramiennym są równej długości.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<u>co więcej:</u>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            odcinki <strong style=\"color: orange;\">nad</strong> punktem przecięcia przekątnych na obu przekątnych są równej długości,\n        </li>\n<li>\n            odcinki <strong style=\"color: red;\">pod</strong> punktem przecięcia przekątnych na obu przekątnych są równej długości,\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W poniższym aplecie widzisz trapez równoramienny i jego dwie podstawy: dłuższą \\(a\\) i krótszą \\(b\\).\n        </p>\n<p>\n            Naciśnij \"start\" i przyjrzyj się uważnie animacji.\n        </p>\n<p>\n            Czy widzisz, co pokazuje animacja?\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"608px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/ej2t3u3n/width/775/height/608/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"wysokość w trapezie równoramiennym\" width=\"775px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Co pokazuje animacja?",
+      "body": "\n\n<div class=\"steps\">\n            Na początku tworzymy odcinek o długości \\(\\frac{a+b}{2}\\).\n            <figure>\n<img src=\"static/trapez_wysokosc_w_rownoramiennym_1.png\" style=\"max-width: 500px\"/>\n</figure>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Następnie tworzymy odcinek o długości \\(\\frac{a-b}{2}\\).\n                </p>\n<figure>\n<img src=\"static/trapez_wysokosc_w_rownoramiennym_2.png\" style=\"max-width: 500px\"/>\n</figure>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Wysokość trapezu opuszczona z wierzchołka krótszej podstawy dzieli dłuższą podstawę na odcinki o takich dwóch długościach. \n                </p>\n<figure>\n<img src=\"static/trapez_wysokosc_w_rownoramiennym_3.png\" style=\"max-width: 500px\"/>\n</figure>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Twierdzenie o wysokości trapezu równoramiennego</strong>\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_wysokosc_w_rownoramiennym_3.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wysokość trapezu równoramiennego opuszczona z wierzchołka krótszej podstawy dzieli dłuższą podstawę na odcinki o długościach \\(\\frac{a+b}{2}\\) i \\(\\frac{a-b}{2}\\).\n    </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "076201d80b09a753ceb7af162b7070b690311de1674c1d68b92148769e3d76fe"
+}

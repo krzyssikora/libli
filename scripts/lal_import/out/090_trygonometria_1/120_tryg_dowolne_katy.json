@@ -1,0 +1,248 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Dla wielokrotności kątów \\(30^{\\circ}\\), \\(45^{\\circ}\\) i \\(60^{\\circ}\\) możemy ustalić dokładne (nie przybliżone) wartości funkcji trygonometrycznych z użyciem współrzędnych punktów z okręgu jednostkowego.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"okrąg jednostkowy, kąty 30, 45, 60\" src=\"static/30_45_60_wszystkie_wspolrzedne.png\" width=\"700\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zilustrujemy to w poniższym zadaniu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Znajdź dokładne wartości \\(\\sin 240^{\\circ}\\), \\(\\cos 240^{\\circ}\\), \\(\\text{tg } 240^{\\circ}\\) i \\(\\text{ctg } 240^{\\circ}\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Kąt \\(240^{\\circ}\\) leży w</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    I ćwiartce\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    II ćwiartce\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    III ćwiartce\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    IV ćwiartce\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>układu współrzędnych.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "image",
+      "media_src": "static/cwiartki.png",
+      "alt": "okrąg jednostkowy, kąty 30, 45, 60",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                \\(180^{\\circ}\\lt 240^{\\circ}\\lt 270^{\\circ}\\), więc kąt \\(240^{\\circ}\\) leży w trzeciej ćwiartce układu współrzędnych.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Kąt \\(240^{\\circ}\\) jest wskazany przez</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    czerwony\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zielony\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    niebieski\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>punkt.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Czerwony punkt wskazuje kąt \\(210^{\\circ}\\), zielony punkt wskazuje kąt \\(225^{\\circ}\\), a niebieski punkt wskazuje kąt \\(240^{\\circ}\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Ze współrzędnych niebieskiego punktu odczytujemy, że</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\sin 240^{\\circ}=-\\frac{1}{2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\sin 240^{\\circ}=-\\frac{\\sqrt{3}}{2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\sin 240^{\\circ}=\\frac{1}{2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\sin 240^{\\circ}=\\frac{\\sqrt{3}}{2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>Natomiast</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\cos 240^{\\circ}=-\\frac{1}{2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\cos 240^{\\circ}=-\\frac{\\sqrt{3}}{2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\cos 240^{\\circ}=\\frac{1}{2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\cos 240^{\\circ}=\\frac{\\sqrt{3}}{2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Pozostało nam policzyć \\(\\text{tg}240^{\\circ}\\) i \\(\\text{ctg}240^{\\circ}\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Jak wiemy\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(\\text{tg}\\alpha=\\frac{\\sin\\alpha}{\\cos\\alpha}=\\frac{y}{x}\\quad\\) oraz \\(\\quad\\text{ctg}\\alpha=\\frac{\\cos\\alpha}{\\sin\\alpha}=\\frac{x}{y}\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>I dlatego</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\text{tg }240^{\\circ}=\\sqrt{3}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\text{tg }240^{\\circ}=-\\sqrt{3}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\text{tg }240^{\\circ}=\\frac{1}{\\sqrt{3}}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\text{tg }240^{\\circ}=-\\frac{1}{\\sqrt{3}}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>Podobnie</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\text{ctg }240^{\\circ}=\\sqrt{3}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\text{ctg }240^{\\circ}=-\\sqrt{3}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\text{ctg }240^{\\circ}=\\frac{1}{\\sqrt{3}}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\text{ctg }240^{\\circ}=-\\frac{1}{\\sqrt{3}}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Podsumowując:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(\\sin 240^{\\circ}=-\\frac{\\sqrt{3}}{2}\\), \\(\\quad\\cos 240^{\\circ}=-\\frac{1}{2}\\), \\(\\quad\\text{tg }240^{\\circ}=\\sqrt{3}\\), \\(\\quad\\text{ctg }240^{\\circ}=\\frac{1}{\\sqrt{3}}\\).\n            "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "724fce00c90d03f99eee23c570703dbd0f6b9c5b3dbf1c932461bf61080ebc01"
+}

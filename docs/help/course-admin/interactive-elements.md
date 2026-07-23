@@ -46,12 +46,27 @@ no marks.
 
 ## {el:filltable} Fill-in table
 
-A table editor — the same grid, header-row/column, and border controls as
-[Table](content-editors) — with one addition: the **Answer cell** toolbar
-button turns a cell into an input holding an accepted-answer string instead
-of rich content. Static cells stay editable text/math like a plain table;
-answer cells are checked server-side per cell as the student types. Records
-no marks and reveals nothing.
+A table editor — the same grid, header-row/column, border, and cell
+merge/split controls as [Table](content-editors) — with one addition: the
+**Answer cell** toolbar button turns a cell into an input holding an
+accepted-answer string instead of rich content. Static cells stay editable
+text/math like a plain table; answer cells are checked server-side per cell
+as the student types. Select a range of cells with Shift+click, or extend it
+a slot at a time with **Alt+Shift+Arrow**, then press **Merge cells** to
+combine the range into one — only the top-left cell survives, kind and all,
+so merging over an answer cell's accepted answer or an image cell's picture
+discards it along with everything else in the range; you're asked to confirm
+first whenever an absorbed cell isn't empty. **Split cell** undoes a merge,
+returning the freed cells as empty static cells. **Header cell** toggles a
+single cell between plain and header styling; it's greyed out —
+unavailable while the row or column header option covers this cell —
+whenever **Header row** or **Header column** already promotes that cell. In
+a table with **Header column** on, merging away a row's first cell promotes
+the next cell in that row to a header for students, even though the editor
+keeps showing it as a plain cell. A table can't be grown past 50 rows by 20
+columns; a table imported larger than that stays fully saveable as long as
+you don't try to make it even larger, but shrinking it back below the limit
+is one-way. Records no marks and reveals nothing.
 
 ## {el:spoiler} Spoiler
 

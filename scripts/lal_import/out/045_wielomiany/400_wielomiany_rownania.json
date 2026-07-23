@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Podsumujmy krótko, co już wiemy o równaniach wielomianowych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przede wszystkim\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Równania wielomianowe to takie, które można zapisać w postaci\n    \\[\n    W(x)=0\n    \\]\n    gdzie \\(W(x)\\) jest wielomianem.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rozwiązując równania wielomianowe będziemy (poza przypadkami wujątkowo prostymi) rozkładać wielomian na czynniki o niższych stopniach - aż dojdziemy do stopni \\(1\\) i \\(2\\). W tym celu możemy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n        szukać pierwiastków całkowitych rozpatrując dzielniki wyrazu wolnego,\n        <!-- INTERNAL LINK 1 -->\n</li>\n<li>\n        szukać pierwiastków wymiernych rozpatrując dzielniki wyrazu wolnego i dzielniki współczynnika najwyższej potęgi, i dzieląc pierwsze przez drugie,\n        <!-- INTERNAL LINK 1 -->\n</li>\n<li>\n        po znalezieniu pierwiastka dzielić przez odpowiedni dwumian liniowy (twierdzenie Bézout),\n        <!-- INTERNAL LINK 1 -->\n</li>\n<li>\n        rozkładać wielomian na czynniki z pomocą wzorów skróconego mnożenia.\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Na zakończenie warto wspomnieć o jeszcze jednej, prostej metodzie -\n    <strong>\n        wyłączaniu czynnika przed / za nawias\n    </strong>\n    . Tej metodzie teraz się przyjrzymy.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "bf06ac11c66ff1f909a19df1d55289a3237b0cfeee68efae50d8ca93db31ee84"
+}

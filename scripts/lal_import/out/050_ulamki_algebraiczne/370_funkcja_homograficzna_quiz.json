@@ -1,0 +1,159 @@
+{
+  "elements": [
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<figure>\n<img src=\"static/homograficzna_quiz_1.png\"/>\n</figure>",
+      "reason": "<figure> media cannot live in a sanitized stem"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Rysunek powyżej przedstawia wykres funkcji</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=\\frac{2}{x-3}+1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=\\frac{-2}{x-3}+1\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=\\frac{2}{x+3}-1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=\\frac{-2}{x+3}-1\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<figure>\n<img src=\"static/homograficzna_quiz_2.png\"/>\n</figure>",
+      "reason": "<figure> media cannot live in a sanitized stem"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Rysunek powyżej przedstawia wykres funkcji</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=\\frac{4x-6}{2x+3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=\\frac{2x-3}{4x+6}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=\\frac{4x+6}{2x-3}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=\\frac{6x+4}{3x-2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<figure>\n<img src=\"static/homograficzna_quiz_3.png\"/>\n</figure>",
+      "reason": "<figure> media cannot live in a sanitized stem"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Rysunek powyżej przedstawia wykres funkcji</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=\\frac{3}{x+1}-2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=\\frac{3}{x-1}+2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=\\frac{-3}{x+1}+2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=\\frac{-3}{x-1}-2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Na którym z poniższych rysunków pokazano wykres funkcji</p><div class=\"table_wrapper\">\\[\ny=\\frac{2}{x+1}-2\n\\]</div><p>?</p><div class=\"table_wrapper\">\n<table class=\"my_table_TL table_centered\">\n<tr>\n<th>1</th>\n<th>2</th>\n<th>3</th>\n<th>4</th>\n</tr>\n<tr>\n<td><img src=\"static/homograficzna_quiz_4_1.png\" style=\"min-width: 200px;\"/></td>\n<td><img src=\"static/homograficzna_quiz_4_2.png\" style=\"min-width: 200px;\"/></td>\n<td><img src=\"static/homograficzna_quiz_4_3.png\" style=\"min-width: 200px;\"/></td>\n<td><img src=\"static/homograficzna_quiz_4_4.png\" style=\"min-width: 200px;\"/></td>\n</tr>\n</table>\n</div>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "1",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "2",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "3",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "4",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Na którym z poniższych rysunków pokazano wykres funkcji</p><div class=\"table_wrapper\">\\[\ny=\\frac{-2x+1}{x+1}\n\\]</div><p>?</p><div class=\"table_wrapper\">\n<table class=\"my_table_TL table_centered vertical_table\">\n<tr>\n<th>1</th>\n<th>2</th>\n<th>3</th>\n<th>4</th>\n</tr>\n<tr>\n<td><img src=\"static/homograficzna_quiz_5_1.png\" style=\"min-width: 200px;\"/></td>\n<td><img src=\"static/homograficzna_quiz_5_2.png\" style=\"min-width: 200px;\"/></td>\n<td><img src=\"static/homograficzna_quiz_5_3.png\" style=\"min-width: 200px;\"/></td>\n<td><img src=\"static/homograficzna_quiz_5_4.png\" style=\"min-width: 200px;\"/></td>\n</tr>\n</table>\n</div>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "1",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "2",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "3",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "4",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "4a7d36b6a3bda58b6f46c1749aab1ed3353a218e462de4fc4cd5eef1c8873e89"
+}

@@ -1,0 +1,46 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h4>\n    Jak użyć skali podobieństwa w zadaniu?\n</h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W trójkącie prostokątnym \\(ABC\\) przyprostokątne \\(AB\\) i \\(BC\\) są długości 4 i 3 odpowiednio, jak na rysunku.\n        </p>\n<p>\n<img alt=\"skala podobieństwa - zadanie\" height=\"534\" src=\"static/skala_podobienstwa_zadanie_1.png\" style=\"width: 710px; height: 534px;\" width=\"710\"/>\n</p>\n<p>\n            Bok \\(AC\\) przedłużono do punktu \\(E\\), a bok \\(AB\\) do punktu \\(D\\) w taki sposób, że odcinki \\(BC\\) i \\(DE\\) są równoległe i \\(CE=10\\).\n        </p>\n<p>\n            Oblicz obwód trójkąta \\(ADE\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Obejrzyj nagranie z rozwiązaniem lub przejdź przez rozwiązanie krok po kroku.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-2-1\" id=\"tab-2-1\">\n                nagranie\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-2-2\" id=\"tab-2-2\">\n                krok po kroku\n            </a>\n</li>\n</ul>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/skala_podobienstwa_zadanie_1.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"fill_steps\">\n<p>\n                    Aby obliczyć obwód trójkąta \\(ADE\\), znajdziemy długości jego boków.\n                </p>\n<p>\n                    Do tego brakuje nam zaznaczonych na rysunku niżej kolorowych odcinków.\n                </p>\n<p>\n<img alt=\"skala podobieństwa, zadanie 1\" height=\"534\" src=\"static/skala_podobienstwa_zadanie_2.png\" style=\"width: 710px; height: 534px;\" width=\"710\"/>\n</p>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Ten niebieski (\\(AC\\)) wyliczysz łatwo z twierdzenia Pitagorasa:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(AC=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Do kolejnego kroku musimy zauważyć, że trójkąty \\(ADE\\) i \\(ABC\\) są podobne na mocy zasady \"kąt-kąt-kąt\".\n                    </p>\n<p>\n                        Wynika to z tego, że:\n                    </p>\n<ul>\n<li>\n                            mają wspólny kąt w wierzchołku \\(A\\)\n                        </li>\n<li>\n                            kąty w wierzchołkach \\(B\\) i \\(D\\) są proste (bo odcinki \\(BC\\) i \\(DE\\) są równoległe)\n                        </li>\n<li>\n                            czyli z sumy kątów w trójkącie trzeci kąt w obu trójkątach też musi być taki sam.\n                        </li>\n</ul>\n<p>\n                        Zwróćmy teraz uwagę na długości przeciwprostokątnych w obu trójkątach:\n                    </p>\n<ul>\n<li>\n                            w trójkącie \\(ABC\\) przeciwprostokątna ma długość \\(5\\)\n                        </li>\n<li>\n                            w trójkącie \\(ADE\\) przeciwprostokątna jest sumą długości odcinków \\(AC\\) oraz \\(CE\\), czyli ma długość\n                            <span class=\"myequation\">\n                                \\(AE=\\)\n                                <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</li>\n</ul>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Mając długości obu przeciwprostokątnych, możemy ustalić skalę podobieństwa.\n                    </p>\n<p>\n                        Trójkąt większy (\\(ADE\\)) jest podobny do mniejszego (\\(ABC\\)) w skali\n                        <span class=\"myequation\">\n                            \\(\\frac{15}{5}=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        To teraz wiemy, że\n                    </p>\n<ul>\n<li>\n                            odcinek \\(AD\\) jest 3-krotnie dłuższy od \\(AB\\)\n                        </li>\n<li>\n                            odcinek \\(DE\\) jest 3-krotnie dłuższy od \\(BC\\).\n                        </li>\n</ul>\n<p>\n                        czyli\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(AD=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        oraz\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(DE=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        A obwód trójkąta \\(ADE\\) jest sumą długości boków \\(AD\\), \\(DE\\) i \\(AE\\), więc\n                    </p>\n<p>\n<span class=\"myequation\">\n                            obwód \\(=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Obwód trójkąta \\(ADE\\) to \\(36\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zauważ, że można go wyliczyć trochę łatwiej, mnożąc przez 3 (czyli przez skalę podobieństwa) obwód trójkąta \\(ABC\\):\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                obwód \\(=(4+3+5)\\cdot 3=12\\cdot 3=36\\)\n            </p>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "0e5714ebffa79d7a6f890032d6f134adca0b49ad9fbabc55fca51aecda71e6ac"
+}

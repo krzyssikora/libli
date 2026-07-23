@@ -1,5 +1,6 @@
 """Forms for creating and editing the per-type lesson and question content elements."""
 
+import json
 import re
 
 from django import forms
@@ -219,6 +220,14 @@ class SpoilerElementForm(forms.ModelForm):
     class Meta:
         model = SpoilerElement
         fields = ["label", "body"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # A nested spoiler edits its children via the nested editor rows, not this
+        # flat form; drop `body` so a save can never blank it or orphan children.
+        inst = self.instance
+        if inst is not None and inst.pk and inst.resolved_children():
+            self.fields.pop("body", None)
 
 
 class CalloutElementForm(forms.ModelForm):
@@ -1307,6 +1316,130 @@ class ExtendedResponseQuestionElementForm(_MarkingFieldsMixin, forms.ModelForm):
         return cleaned
 
 
+def _scan_spans(cells):
+    """Detect whether a raw, author-supplied grid is spanning, and reject an
+    out-of-range span while we are here.
+
+    Returns True iff any cell carries a real colspan/rowspan (> 1). Detection
+    goes through TableElement._span so it cannot diverge from the branch
+    normalize_data will actually take -- notably, _span does NOT coerce, so a
+    string "3" is not a span.
+
+    The RANGE check deliberately reads the RAW int instead: _span's return is
+    already clamped to the cap and so can never look out of range. Values below
+    2 are not spans at all and are ignored rather than rejected, matching both
+    _span (None) and layout_dims (counts as 1).
+
+    Coerces defensively at both levels, mirroring normalize_data: a non-list
+    `cells` is empty, a non-list row is skipped, a non-dict cell is skipped.
+    TableElementForm has its own guards ahead of this, but
+    FillTableElementForm does not -- without this, a crafted {"cells": 5}
+    would be `for r in 5` -> TypeError -> 500."""
+    rows = cells if isinstance(cells, list) else []
+    spanning = False
+    for row in rows:
+        if not isinstance(row, list):
+            continue
+        for cell in row:
+            if not isinstance(cell, dict):
+                continue
+            for key, cap in (
+                ("colspan", TableElement.MAX_COLS),
+                ("rowspan", TableElement.MAX_ROWS),
+            ):
+                raw = cell.get(key)
+                if isinstance(raw, bool) or not isinstance(raw, int) or raw < 2:
+                    continue
+                if raw > cap:
+                    # Two msgids, not one interpolated with 20 or 50: a single
+                    # nounless string ("more than 20.") cannot be translated
+                    # correctly, and Polish needs the axis word to inflect.
+                    raise forms.ValidationError(
+                        _("A merged cell may not span more than %(n)d columns.")
+                        % {"n": cap}
+                        if key == "colspan"
+                        else _("A merged cell may not span more than %(n)d rows.")
+                        % {"n": cap}
+                    )
+            if (
+                TableElement._span(cell, "colspan") is not None
+                or TableElement._span(cell, "rowspan") is not None
+            ):
+                spanning = True
+    return spanning
+
+
+def _grid_data(form):
+    """Normalised grid the editor template renders from.
+
+    On a bound-INVALID form this is the SUBMITTED payload, not the stored
+    one. The hidden name="data" field always carries the submission, and
+    serialize() skips its init pass when that field is non-empty -- so
+    rendering the stored grid after a rejected save shows the author their
+    pre-edit table while the field still holds the edit, and their next
+    Save silently re-posts the rejected shape.
+
+    The templates cannot do this themselves: the submission exists only as
+    an unparsed JSON string and Django templates have no json.loads.
+
+    Falls back to the stored value when unbound, valid, absent,
+    unparseable, or not a dict (which also covers the add path).
+
+    Shared by TableElementForm and FillTableElementForm.grid_data -- the two
+    properties were byte-for-byte identical."""
+    if form.is_bound and not form.is_valid():
+        raw = form.data.get("data")
+        if isinstance(raw, str):
+            try:
+                parsed = json.loads(raw)
+            except ValueError:
+                parsed = None
+            if isinstance(parsed, dict):
+                # normalize_data returns fresh dicts, so _sanitized_data's
+                # in-place mutation cannot touch the stored instance -- it is
+                # sanitising a throwaway copy of the rejected submission.
+                # Without this, a rejected save echoes the author's raw HTML
+                # straight back through the template's |safe filter.
+                model = form._meta.model
+                return model._sanitized_data(model.normalize_data(parsed))
+    return form.instance.normalized_data
+
+
+# Grandfathering means an over-cap table (e.g. the 26-column 130_kombinatoryka
+# import) stays saveable, so "limited to" is misleading -- the cap gates
+# GROWTH, not the table's current size. One module-level constant so
+# TableElementForm and FillTableElementForm share a single msgid to translate.
+_TABLE_SIZE_ERROR = _("A table cannot be made larger than %(r)d rows by %(c)d columns.")
+
+
+def _caps_ok(form, cells):
+    """True iff the grid's LAYOUT dimensions are within the caps, or are no
+    larger than what is already stored (grandfathering).
+
+    The 26-column 130_kombinatoryka table already exceeds MAX_COLS, so an
+    absolute cap would make an existing element permanently unsaveable. The
+    caps therefore gate GROWTH, per axis, against the pre-save DB value.
+    (0, 0) for an unsaved instance -- an explicit special case, because
+    normalize_data({}) returns the default 2x2, not an empty grid."""
+    model = form._meta.model
+    # Read the caps off the FORM'S model, not TableElement: they are equal
+    # today (FillTableElement aliases them), but hardcoding one model's caps
+    # here while the error message interpolates the other's would silently
+    # disagree the moment they diverge.
+    max_cols, max_rows = model.MAX_COLS, model.MAX_ROWS
+    width, height = TableElement.layout_dims(cells)
+    if form.instance.pk is None:
+        stored_w, stored_h = 0, 0
+    else:
+        stored = model.normalize_data(form.instance.data)["cells"]
+        stored_w, stored_h = TableElement.layout_dims(stored)
+    if width > max_cols and width > stored_w:
+        return False
+    if height > max_rows and height > stored_h:
+        return False
+    return True
+
+
 class TableElementForm(forms.ModelForm):
     class Meta:
         model = TableElement
@@ -1333,24 +1466,39 @@ class TableElementForm(forms.ModelForm):
         if not isinstance(rows, list):
             raise forms.ValidationError(_("A table needs at least one cell."))
         widths = {len(r) if isinstance(r, list) else -1 for r in rows}
-        # Present-but-malformed grid IS an error (ragged / zero-width / non-list row).
+        # Present-but-malformed grid IS an error (non-list row, or EVERY row
+        # empty). Note this is not a per-row zero-width rejection: a single
+        # empty row is legal, and is exactly what a full-width multi-row merge
+        # produces.
         if -1 in widths or widths == {0}:
             raise forms.ValidationError(_("A table needs at least one cell."))
-        if len(widths) != 1:
+        # Only now decide which structural check applies. A spanning grid is
+        # ragged by construction, so the uniform-width rule cannot hold for it.
+        spanning = _scan_spans(rows)
+        if not spanning and len(widths) != 1:
             raise forms.ValidationError(
                 _("All table rows must have the same number of cells.")
             )
-        n_rows, n_cols = len(rows), next(iter(widths))
-        if n_rows > TableElement.MAX_ROWS or n_cols > TableElement.MAX_COLS:
+        if not _caps_ok(self, rows):
             raise forms.ValidationError(
-                _("Tables are limited to %(r)d rows by %(c)d columns.")
+                _TABLE_SIZE_ERROR
                 % {"r": TableElement.MAX_ROWS, "c": TableElement.MAX_COLS}
             )
         # Coerce enums / fill cell defaults (does not resize a valid grid).
         return TableElement.normalize_data(data)
 
+    @property
+    def grid_data(self):
+        return _grid_data(self)
 
-class FillTableElementForm(forms.ModelForm):
+
+class FillTableElementForm(_CourseScopedMediaForm):
+    """Fill-in table. `data` JSON holds {cells:[[cell,...],...]}; image cells carry
+    a `media` id that is course-scoped against the referenced image in clean_data
+    (mirrors GalleryElementForm — the same author-submitted-pk risk)."""
+
+    media_kind = "image"
+
     class Meta:
         model = FillTableElement
         fields = ["data"]
@@ -1366,12 +1514,15 @@ class FillTableElementForm(forms.ModelForm):
         from courses.filltable import is_blank_answer
 
         data = self.cleaned_data.get("data")
+        raw_cells = data.get("cells") if isinstance(data, dict) else None
+        # Raw scan FIRST: rejects an out-of-range span before normalize_data
+        # clamps it out of sight. Coerces malformed input rather than raising.
+        _scan_spans(raw_cells)
         nd = FillTableElement.normalize_data(data if isinstance(data, dict) else {})
         cells = nd["cells"]
-        n_rows, n_cols = len(cells), len(cells[0])
-        if n_rows > FillTableElement.MAX_ROWS or n_cols > FillTableElement.MAX_COLS:
+        if not _caps_ok(self, cells):
             raise forms.ValidationError(
-                _("Tables are limited to %(r)d rows by %(c)d columns.")
+                _TABLE_SIZE_ERROR
                 % {"r": FillTableElement.MAX_ROWS, "c": FillTableElement.MAX_COLS}
             )
         answers = list(answer_cells(cells))
@@ -1386,7 +1537,36 @@ class FillTableElementForm(forms.ModelForm):
                     "or make it a normal cell."
                 )
             )
+        # Course-scope image cells (mirrors GalleryElementForm): every image cell's
+        # media must be an image in this course.
+        img_ids = {c["media"] for row in cells for c in row if c.get("kind") == "image"}
+        if img_ids and self.course is not None:
+            allowed = set(
+                MediaAsset.objects.filter(
+                    course=self.course, kind="image", pk__in=img_ids
+                ).values_list("pk", flat=True)
+            )
+            if img_ids - allowed:
+                raise forms.ValidationError(
+                    _("A table image is not an image in this course.")
+                )
         return nd
+
+    @property
+    def grid_data(self):
+        return _grid_data(self)
+
+    @property
+    def resolved_grid_cells(self):
+        """grid_data's cells with image pks resolved to MediaAsset, mirroring
+        FillTableElement.resolved_cells but sourced from grid_data so a
+        rejected save re-renders the SUBMITTED grid (see grid_data).
+
+        Delegates to FillTableElement.resolve_image_cells so the editor and
+        the student render cannot silently diverge on the unresolved-image
+        fallback (it drops any colspan/rowspan/header the cell carried, same
+        as the model)."""
+        return FillTableElement.resolve_image_cells(self.grid_data["cells"])
 
 
 class GalleryElementForm(_CourseScopedMediaForm):

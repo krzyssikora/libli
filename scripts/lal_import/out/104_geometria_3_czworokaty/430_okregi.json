@@ -1,0 +1,14 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Poniższy aplet pokazuje koło i (prawie) losowe czworokąty.\n        </p>\n<p>\n            Wszystkie <span style=\"color: blue;\">niebieskie</span> czworokąty nazywamy <strong>opisanymi</strong> na kole.\n        </p>\n<p>\n            Wszystkie <span style=\"color: red;\">czerwone</span> czworokąty nazywamy <strong>wpisanymi</strong> w koło.\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"434px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/jwdrhkdu/width/575/height/434/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"czworokąty wpisane i opisane na kole\" width=\"575px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n<p>\n            Przyjrzyj się czworokątom <span style=\"color: blue;\">opisanym</span> na kole i czworokątom <span style=\"color: red;\">wpisanym</span> w koło.\n        </p>\n<p>\n            Jak je zdefiniować?\n        </p>\n<details>\n<summary>czworokąt <strong style=\"color: blue;\">opisany</strong> na kole</summary>\n<div class=\"important\">\n                Czworokąt nazywamy <strong>opisanym</strong> na kole, jeśli wszystkie boki czworokąta są <strong>styczne</strong> do okręgu ograniczającego koło.\n            </div>\n</details>\n<details>\n<summary>czworokąt <strong style=\"color: red;\">wpisany</strong> w koło</summary>\n<div class=\"important\">\n                Czworokąt nazywamy <strong>wpisanym</strong> w koło, jeśli wszystkie wierzchołki czworokąta leżą na okręgu ograniczającym koło.\n            </div>\n</details>\n<hr/>\n<strong>Uwaga</strong>! Analogiczne definicje możemy sformułować dla wielokątów o dowolnej liczbie wierzchołków.\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "56a2a9b80b4dfb0fecb24246887339c6b14047c2a2d890dbfbf011b7e9fbf5dc"
+}

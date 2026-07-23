@@ -1,0 +1,94 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Zajmiemy się teraz ustalaniem\n    <strong>\n        największej możliwej dziedziny\n    </strong>\n    dla funkcji o danym równaniu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dlaczego dziedziną nie zawsze jest po prostu zbiór liczb rzeczywistych \\(\\mathbb{R}\\)? Dlatego, że w równaniu funkcji mogą zostać użyte wyrażenia, które nie są określone dla wszystkich liczb rzeczywistych. Innymi słowy: dla niektórych liczb nie mają sensu. I takie liczby należy z dziedziny wykluczyć.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Aby zrozumieć, jak ustalać dziedzinę funkcji o danym równaniu, przypomnijmy sobie, co wiemy o różnych działaniach arytmetycznych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Większość z wymienionych niżej działań jest dozwolona, ale niektóre (nieliczne!) nie są.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pomyśl o każdym działaniu i odpowiedz na pytanie \"czy wolno ... ?\"\n        </p>"
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "tak",
+        "nie"
+      ],
+      "rows": [
+        {
+          "statement": "dzielić przez \\(0\\)",
+          "correct": 1
+        },
+        {
+          "statement": "mnożyć przez \\(0\\)",
+          "correct": 0
+        },
+        {
+          "statement": "podnosić \\(0\\) do potęgi",
+          "correct": 0
+        },
+        {
+          "statement": "podnosić liczby do potęgi \\(0\\)",
+          "correct": 0
+        },
+        {
+          "statement": "podnosić liczby do potęgi ujemnej",
+          "correct": 0
+        },
+        {
+          "statement": "podnosić liczby do potęgi ułamkowej",
+          "correct": 0
+        },
+        {
+          "statement": "obliczać pierwiastek nieparzystego stopnia z liczby ujemnej",
+          "correct": 0
+        },
+        {
+          "statement": "obliczać pierwiastek parzystego stopnia z liczby ujemnej",
+          "correct": 1
+        },
+        {
+          "statement": "obliczać pierwiastek nieparzystego stopnia z \\(0\\)",
+          "correct": 0
+        },
+        {
+          "statement": "obliczać pierwiastek parzystego stopnia z \\(0\\)",
+          "correct": 0
+        }
+      ]
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Szukając dziedziny funkcji o danym równaniu,\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "możemy uznać, że jest nią cały zbiór \\(\\mathbb{R}\\)",
+        "musimy upewnić się, że nie dzielimy przez \\(0\\)",
+        "musimy upewnić się, że nie liczymy pierwiastka parzystego stopnia z liczby ujemnej",
+        "musimy upewnić się, że nie dzielimy przez \\(0\\) i nie liczymy pierwiastka parzystego stopnia z liczby ujemnej"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Przejdźmy dalej, by zobaczyć, jak to zrobić w praktyce.\n            </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "dfd719baaf4d229ace0c9e52bcf026525ffd1b03116b9819e8d19703ee2044ec"
+}

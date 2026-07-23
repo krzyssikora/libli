@@ -1,0 +1,115 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>Dany jest wielomian</p><p>\\(W(x)=x^{10}-2x+1\\)</p><p>Podaj</p><p>pierwiastek całkowity wielomianu \\(W(x)\\):</p>",
+      "value": "1",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Ile pierwiastków całkowitych ma wielomian \\(W(x)\\)?</p>",
+      "value": "1",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Dany jest wielomian</p><p>\\(V(x)=x^5+4x^4+7x^3+8x^2+6x+4\\)</p><p>Czy liczba \\(2\\) jest pierwiastkiem \\(V(x)\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "nie",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy liczba \\(-2\\) jest pierwiastkiem \\(V(x)\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "nie",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Dany jest wielomian</p><p>\\(P(x)=3x^7+24x^4-11x^3+18x^2-64x+17\\)</p><p>Czy liczba \\(2\\) jest pierwiastkiem \\(P(x)\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "nie",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy liczba \\(-5\\) jest pierwiastkiem \\(P(x)\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "nie",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy wielomian \\(P(x)\\) ma pierwiastek rzeczywisty?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "nie",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Dany jest wielomian</p><p>\\(K(x)=(2x+1)(2x-1)^4(x+2)^3\\)</p><p>Ile</p><p>pierwiastków ma wielomian \\(K(x)\\)?</p>",
+      "value": "3",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jaki jest stopień wielomianu \\(K(x)\\)?</p>",
+      "value": "8",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b1806d5702ecae2660e158a65da2e5f1d06f8eca6c3a2ae034cde4bc78e8b071"
+}

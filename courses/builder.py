@@ -47,6 +47,7 @@ NESTABLE_TYPE_KEYS = frozenset(
         "fill_gate",
         "switch_gate",
         "switch_grid",
+        "fill_blank",
         "fill_table",
         "stepper",
         "mark_done",
@@ -54,8 +55,34 @@ NESTABLE_TYPE_KEYS = frozenset(
     }
 )
 
+# Leaf children a spoiler may hold (server-enforced), in CANONICAL (transfer) keys.
+# Static leaves PLUS the interactive leaves (reveal/fill/switch gate, switch grid,
+# fill blank, fill table). Excludes spoiler itself and native containers
+# (tabs/two_column) — the depth-1 leaf-only scope. Non-canonical callers normalize
+# first: editor form keys via _NESTABLE_FORM_KEY_ALIASES, the LAL loader's parser keys
+# via its _PARSER_TO_CANONICAL.
+SPOILER_CHILD_TYPES = frozenset(
+    {
+        "text",
+        "math",
+        "image",
+        "video",
+        "iframe",
+        "table",
+        "gallery",
+        "callout",
+        "reveal_gate",
+        "fill_gate",
+        "switch_gate",
+        "switch_grid",
+        "fill_blank",
+        "fill_table",
+    }
+)
+
 # Form key -> transfer key, for the types where the two namespaces diverge.
 _NESTABLE_FORM_KEY_ALIASES = {
+    "fillblankquestion": "fill_blank",
     "fillgate": "fill_gate",
     "filltable": "fill_table",
     "guessnumber": "guess_number",
@@ -98,6 +125,21 @@ def resolve_scope(unit, parent_ref, tab, type_key):
     if join is None:
         raise NestingError("unknown parent")
     parent_obj = join.content_object
+    from courses.models import SpoilerElement
+
+    if isinstance(parent_obj, SpoilerElement):
+        # Single-slot container: no `data` slot list to read. A spoiler may receive
+        # children only when it is itself top-level (depth-1 invariant), and only
+        # allowlisted LEAF child types (SPOILER_CHILD_TYPES — static leaves plus the
+        # interactive leaves; native containers and nested spoilers stay excluded).
+        if join.parent_id is not None:
+            raise NestingError("a nested spoiler may not have children")
+        if tab != SpoilerElement.SLOT_ID:
+            raise NestingError("unknown slot")
+        child_key = _NESTABLE_FORM_KEY_ALIASES.get(type_key, type_key)
+        if child_key not in SPOILER_CHILD_TYPES:
+            raise NestingError(f"{type_key} may not be nested inside a spoiler")
+        return join, SpoilerElement.SLOT_ID
     # normalize_data (behind normalized_data) is DESTRUCTIVE and read-side only: it
     # pads/truncates and mints fresh random ids on every call, so a slot validated
     # against it here could be an ephemeral phantom that never matches again at
@@ -737,7 +779,11 @@ def save_element(course, unit_pk, type_key, element_ref, post_data, files):
             f.instance.save()
             idx += 1
     else:
-        extra = {"course": course} if type_key in ("image", "video", "gallery") else {}
+        extra = (
+            {"course": course}
+            if type_key in ("image", "video", "gallery", "filltable")
+            else {}
+        )
         form = FORM_FOR_TYPE[type_key](
             data=post_data, files=files, instance=instance, **extra
         )

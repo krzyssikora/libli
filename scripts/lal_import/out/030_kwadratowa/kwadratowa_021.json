@@ -1,0 +1,76 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Zanim zrozumiemy, jak wygląda wykres funkcji kwadratowej w tzw.\n        <strong>\n            postaci ogólnej\n        </strong>\n        , czyli \\(y=ax^2+bx+c\\), poznamy dokładniej\n        <strong>\n            postać kanoniczną\n        </strong>\n        , czyli\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    y=a(x-p)^2+q\n    "
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_podstawy_02.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Przesuwaj\n            <span style=\"color: yellow; background-color: gray;\">\n                żółty punkt\n            </span>\n            , żeby zmienić położenie wierzchołka, oraz\n            <span style=\"color: red;\">\n                czerwony punkt\n            </span>\n            , by zmienić kształt paraboli.\n        </p>\n<p>\n            Rób tak, aby uzyskać prabole o każdym z poniższych równań.\n        </p>\n<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"600px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/skbu6jt5/width/700/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"funkcja kwadratowa - równanie kanoniczne\" width=\"700px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(y=-2(x-4)^2+1,\\quad\\quad\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(y=-\\frac{1}{2}(x+5)^2-1,\\quad\\quad\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(y=3x^2-3,\\quad\\quad\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(y=\\frac{1}{2}(x+4)^2-2,\\quad\\quad\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(y=2(x-1)^2+3\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "53c9e404c8c3af956521d5cef79fc76cb608931415499ffe6d5137252e7eeefe"
+}

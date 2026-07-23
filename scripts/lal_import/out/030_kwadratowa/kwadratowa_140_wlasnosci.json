@@ -1,0 +1,58 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli dziedziną funkcji kwadratowej jest zbiór liczb rzeczywistych \\(\\mathbb{R}\\), jej zbiór wartości jest wyznaczony przez położenie wierzchołka paraboli.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Spójrzmy na przykładowy wykres.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"zbiór wartości funkcji kwadratowej\" src=\"static/kwadratowa_wartosci_1.png\" width=\"600px\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Współrzędne wierzchołka to \\((-5,-3)\\). Ze względu na to, że ramiona paraboli są skierowane do góry, wierzchołek wskazuje\n    <strong>\n        najmniejszą\n    </strong>\n    wartość \\(y=-3\\). Dlatego zbiorem wartości są wszystkie liczby\n    <strong>\n        większe lub równe\n    </strong>\n    \\(-3\\), czyli\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\ny\\in \\langle -3,+\\infty)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli zobrazowaną wyżej funkcję oznaczymy literą \\(f\\), mówimy, że\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n    funkcja \\(f\\) idzie ze zbioru liczb rzeczywistych w zbiór \\(\\langle -3,+\\infty)\\)\n</blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    i zapisujemy:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\nf:\\ \\mathbb{R}\\longrightarrow\\langle -3,+\\infty)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wskaż zbiór wartości funkcji kwadratowych z wykresami, jak niżej.\n        <div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n<strong>\n                            1\n                        </strong>\n<br/>\n<img alt=\"zbiór wartości funkcji kwadratowej\" src=\"static/kwadratowa_wartosci_2.png\" width=\"150px\"/>\n</td>\n<td>\n<strong>\n                            2\n                        </strong>\n<br/>\n<img alt=\"zbiór wartości funkcji kwadratowej\" src=\"static/kwadratowa_wartosci_3.png\" width=\"150px\"/>\n</td>\n<td>\n<ul>\n<li>\n<div class=\"statement\" data-width=\"100px\">\n                                    Wykres 1.\n                                </div>\n<div class=\"one_choice ks_button\">\n                                    \\(y\\in\\langle -1,+\\infty)\\)\n                                </div>\n<div class=\"one_choice ks_button\">\n                                    \\(y\\in (-\\infty, -1\\rangle\\)\n                                </div>\n<div>\n</div>\n<div class=\"fixed_width\" data-width=\"100px\">\n</div>\n<div class=\"one_choice ks_button\">\n                                    \\(y\\in\\langle 6,+\\infty)\\)\n                                </div>\n<div class=\"one_choice ks_button\">\n                                    \\(y\\in (-\\infty, 6\\rangle\\)\n                                </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"100px\">\n                                    Wykres 2.\n                                </div>\n<div class=\"one_choice ks_button\">\n                                    \\(y\\in\\langle 2,+\\infty)\\)\n                                </div>\n<div class=\"one_choice ks_button\">\n                                    \\(y\\in (-\\infty, 2\\rangle\\)\n                                </div>\n<div>\n</div>\n<div class=\"fixed_width\" data-width=\"100px\">\n</div>\n<div class=\"one_choice ks_button\">\n                                    \\(y\\in\\langle -4,+\\infty)\\)\n                                </div>\n<div class=\"one_choice ks_button\">\n                                    \\(y\\in (-\\infty, -4\\rangle\\)\n                                </div>\n</li>\n</ul>\n<!-- <div style=\"display: inline-block; width: 80px;\">\n                                                               </div> -->\n<div class=\"confirm_choice ks_button\" style=\"float: right;\">\n                            potwierdź\n                        </div>\n</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi:\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "3eb997bc5ebfd37478c37b06d9ba1c0f6ee5a94a787583747a1253f92a463121"
+}

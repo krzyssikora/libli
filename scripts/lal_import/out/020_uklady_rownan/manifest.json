@@ -1,0 +1,193 @@
+{
+  "part": {
+    "source_folder": "020_uklady_rownan",
+    "order": 5,
+    "title": "uklady rownan"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "uk_rown_00.json",
+          "source_html": "uk_rown_00.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "uk rown 00"
+        },
+        {
+          "order": 1,
+          "unit_json": "uk_rown_10_metoda_podstawienia.json",
+          "source_html": "uk_rown_10_metoda_podstawienia.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "uk rown 10 metoda podstawienia"
+        },
+        {
+          "order": 2,
+          "unit_json": "uk_rown_ex_10.json",
+          "source_html": "uk_rown_ex_10.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "Największy wspólny dzielnik i najmniejsza wspólna wielokrotność"
+        },
+        {
+          "order": 3,
+          "unit_json": "uk_rown_11.json",
+          "source_html": "uk_rown_11.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "Rozwiązywanie układu równań metodą podstawienia"
+        },
+        {
+          "order": 4,
+          "unit_json": "uk_rown_ex_11.json",
+          "source_html": "uk_rown_ex_11.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "Związek między największym wspólnym dzielnikiem a najmniejszą wspólną wielokrotnością"
+        },
+        {
+          "order": 5,
+          "unit_json": "uk_rown_12.json",
+          "source_html": "uk_rown_12.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "Równanie prostej przechodzącej przez dwa punkty"
+        },
+        {
+          "order": 6,
+          "unit_json": "uk_rown_ex_12.json",
+          "source_html": "uk_rown_ex_12.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "Wyliczanie największego wspólnego dzielnika za pomocą algorytmu Euklidesa"
+        },
+        {
+          "order": 7,
+          "unit_json": "uk_rown_ex_13.json",
+          "source_html": "uk_rown_ex_13.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "Rozwiązywanie układów równań metodą eliminacji Gaussa"
+        },
+        {
+          "order": 8,
+          "unit_json": "uk_rown_19_quiz.json",
+          "source_html": "uk_rown_19_quiz.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "quiz",
+          "title": "uk rown 19 quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "uk_rown_20_metoda_przeciwnych_wspolczynnikow.json",
+          "source_html": "uk_rown_20_metoda_przeciwnych_wspolczynnikow.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "uk rown 20 metoda przeciwnych wspolczynnikow"
+        },
+        {
+          "order": 1,
+          "unit_json": "uk_rown_21.json",
+          "source_html": "uk_rown_21.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "Rozwiązywanie układów równań metodą przeciwnych współczynników"
+        },
+        {
+          "order": 2,
+          "unit_json": "uk_rown_22.json",
+          "source_html": "uk_rown_22.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "uk rown 22"
+        },
+        {
+          "order": 3,
+          "unit_json": "uk_rown_29_quiz.json",
+          "source_html": "uk_rown_29_quiz.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "quiz",
+          "title": "uk rown 29 quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "uk_rown_30.json",
+          "source_html": "uk_rown_30.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "uk rown 30"
+        },
+        {
+          "order": 1,
+          "unit_json": "uk_rown_31.json",
+          "source_html": "uk_rown_31.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "Metoda graficzna - przykłady"
+        },
+        {
+          "order": 2,
+          "unit_json": "uk_rown_39_quiz.json",
+          "source_html": "uk_rown_39_quiz.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "quiz",
+          "title": "uk rown 39 quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "uk_rown_40.json",
+          "source_html": "uk_rown_40.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "Jak rozwiązywać zadania z treścią?"
+        },
+        {
+          "order": 1,
+          "unit_json": "uk_rown_41.json",
+          "source_html": "uk_rown_41.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "uk rown 41"
+        },
+        {
+          "order": 2,
+          "unit_json": "uk_rown_42.json",
+          "source_html": "uk_rown_42.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "lesson",
+          "title": "uk rown 42"
+        },
+        {
+          "order": 3,
+          "unit_json": "uk_rown_49_quiz.json",
+          "source_html": "uk_rown_49_quiz.html",
+          "source_dir": "020_uklady_rownan",
+          "unit_type": "quiz",
+          "title": "uk rown 49 quiz"
+        }
+      ]
+    }
+  ]
+}

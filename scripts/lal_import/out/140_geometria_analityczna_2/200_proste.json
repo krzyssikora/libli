@@ -1,0 +1,93 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Proste o równaniach\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(A_1x+B_1y+C_1=0\\quad\\) oraz \\(\\quad A_2x+B_2y+C_2=0\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        są <strong>równoległe</strong> <u>wtedy i tylko wtedy</u> gdy\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        współczynniki \\(x\\)-ów i \\(y\\)-ów są proporcjonalne, czyli\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\frac{A_1}{B_1}=\\frac{A_2}{B_2}\\quad\\text{jeśli}\\quad B_1\\ne 0\\text{ i }B_2\\ne 0\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        lub\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\frac{B_1}{A_1}=\\frac{B_2}{A_2}\\quad\\text{jeśli}\\quad A_1\\ne 0\\text{ i }A_2\\ne 0\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Czy proste są równoległe?\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"table_wrapper\" style=\"white-space: nowrap;\">\n<li>\n<div class=\"statement\" data-width=\"350px\">\n<div class=\"table_wrapper\">\n<strong>1.</strong> \\(8x-6y-5=0\\) i \\(12x-9y+2=0\\)\n                </div>\n</div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"350px\">\n<div class=\"table_wrapper\">\n<strong>2.</strong> \\(9x-3y+2=0\\) i \\(12x+4y-5=0\\)\n                </div>\n</div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"350px\">\n<div class=\"table_wrapper\">\n<strong>3.</strong> \\(4x-3y+1=0\\) i \\(6x-8y-7=0\\)\n                </div>\n</div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "potwierdź "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi: \n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "Jeśli nie wszystkie Twoje odpowiedzi są poprawne i nie wiesz dlaczego, zerknij tutaj.",
+      "body": "\n\n<ol class=\"bold\">\n<li>\n                \\(\\frac{8}{-6}=\\frac{12}{-9}\\quad=-\\frac{4}{3}\\), więc są równoległe.\n            </li>\n<li>\n                \\(\\frac{9}{-3}=-3\\), ale \\(\\frac{12}{4}=3\\), a \\(-3\\ne 3\\), więc nie są równoległe.\n            </li>\n<li>\n                \\(\\frac{4}{-3}=-\\frac{4}{3}\\), ale \\(\\frac{6}{-8}=-\\frac{3}{4}\\), a \\(-\\frac{4}{3}\\ne -\\frac{3}{4}\\), więc nie są równoległe.\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Znajdź równanie ogólne prostej równoległej do \\(3x-5y+12=0\\) i przechodzącej przez punkt \\(\\left(2, 1\\tfrac{1}{2}\\right)\\).\n        </p>\n<p>\n            Udziel takiej odpowiedzi, w której wszystkie współczynniki będą całkowite i nie będą miały wspólnego dzielnika większego niż \\(1\\).\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Szukamy równania ogólnego, czyli równania postaci\n                </p>\n                \\[\n                Ax+By+C=0\n                \\]\n                <p>\n                    Jak wiemy (spójrz na górę strony), kierunek prostej jest wyznaczony przez współczynniki \\(A\\) i \\(B\\).\n                </p>\n<div class=\"switch_line\">\n                    Te współczynniki muszą spełniać warunek\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{A}{B}=\\frac{3}{5}\\)</div>\n<div class=\"switch_value\">\\(\\frac{A}{B}=\\frac{3}{-5}\\)</div>\n<div class=\"switch_value\">\\(\\frac{A}{B}=\\frac{-5}{3}\\)</div>\n<div class=\"switch_value\">\\(\\frac{A}{B}=\\frac{3}{12}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Znamy wartość ilorazu \\(A:B\\), ale nie wiemy, jakie powinny być wartości każdego ze współczynników.\n                </p>\n<p>\n                    Dlatego zacznijmy od najprostszego wyboru. Skoro \\(\\frac{A}{B}=\\frac{3}{-5}\\), to przyjmijmy, że \\(A=3\\) i \\(B=-5\\).\n                </p>\n<p>\n                    Szukana prosta ma więc równanie postaci\n                </p>\n                \\[\n                3x-5y+C=0\n                \\]\n                <div class=\"switch_line\">\n                    Aby znaleźć wartość współczynnika \\(C\\), musimy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">podstawić do tego równania współrzędne punktu \\(\\left(2, 1\\tfrac{1}{2}\\right)\\)</div>\n<div class=\"switch_value\">rozwiązać układ równań</div>\n<div class=\"switch_value\">przyjąć, że \\(C=1\\tfrac{1}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Otrzymujemy równanie\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3\\cdot 2-5\\cdot 1\\tfrac{1}{2}+C=0\\)</div>\n<div class=\"switch_value\">\\(3\\cdot 1\\tfrac{1}{2}-5\\cdot 2+C=0\\)</div>\n<div class=\"switch_value\">\\(3\\cdot 2+5\\cdot 1\\tfrac{1}{2}+C=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Gdy rozwiążemy równanie, otrzymamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(C=-1\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(C=1\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(C=10\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(C=-10\\tfrac{1}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Otrzymaliśmy \\(C=1\\tfrac{1}{2}\\), czyli równanie\n                </p>\n                \\[\n                3x-5y+1\\tfrac{1}{2}=0\n                \\]\n                <p>\n                    Jest to równanie w postaci ogólnej, ale nie wszystkie współczynniki są całkowite.\n                </p>\n<div class=\"switch_line\">\n                    Aby sprostać temu warunkowi musimy \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">pomnożyć obie strony równania przez \\(\\frac{2}{3}\\)</div>\n<div class=\"switch_value\">pomnożyć obie strony równania przez \\(2\\)</div>\n<div class=\"switch_value\">dodać \\(1\\tfrac{1}{2}\\) do obu stron równania</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Otrzymujemy szukane równanie\n                </p>\n                \\[\n                6x-10y+3=0\n                \\]\n                <figure>\n<img src=\"static/geometria_analityczna_2_zadanie_530.png\" style=\"max-height: 250px;\"/>\n</figure>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dane są dwie proste: \\(k\\) i \\(m\\).\n        </p>\n<p>\n            Prosta \\(k\\) ma równanie \\(4x+6y-3=0\\).\n        </p>\n<p>\n            Prosta \\(m\\) ma równanie \\(6x+By+C=0\\), jest równoległa do \\(k\\) i przechodzi przez punkt \\(\\left(-1\\tfrac{2}{3}, 3\\right)\\).\n        </p>\n<p>\n            Znajdź wartości współczynników \\(B\\) i \\(C\\).\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Współczynniki \\(x\\)-ów i \\(y\\)-ów równań prostych równoległych muszą być proporcjonalne, czyli\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{4}{6}=\\frac{6}{B}\\)</div>\n<div class=\"switch_value\">\\(\\frac{6}{4}=\\frac{6}{B}\\)</div>\n<div class=\"switch_value\">\\(\\frac{6}{-3}=\\frac{B}{C}\\)</div>\n<div class=\"switch_value\">\\(\\frac{4}{-3}=\\frac{6}{C}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Z tego równania wyliczamy, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(B=4\\)</div>\n<div class=\"switch_value\">\\(B=9\\)</div>\n<div class=\"switch_value\">\\(B=10\\)</div>\n<div class=\"switch_value\">\\(B=12\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Rzeczywiście:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\frac{4}{6}=\\frac{6}{9}\\quad =\\frac{2}{3}\n                    \\]\n                </div>\n<p>\n                    Otrzymaliśmy więc równanie:\n                </p>\n                \\[\n                6x+9y+C=0\\\n                \\]\n                <div class=\"switch_line\">\n                    Aby znaleźć wartość współczynnika \\(C\\) musimy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">podstawić do tego równania współrzędne punktu \\(\\left(-1\\tfrac{2}{3}, 3\\right)\\)</div>\n<div class=\"switch_value\">rozwiązać układ równań dwóch prostych</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Otrzymujemy równanie:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(6\\cdot 3+9\\cdot\\left(-1\\tfrac{2}{3}\\right)+C=0\\)</div>\n<div class=\"switch_value\">\\(6\\cdot\\left(-1\\tfrac{2}{3}\\right)+9\\cdot 3+C=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Z tego równania wyliczamy, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(C=17\\)</div>\n<div class=\"switch_value\">\\(C=-17\\)</div>\n<div class=\"switch_value\">\\(C=25\\)</div>\n<div class=\"switch_value\">\\(C=-25\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Obliczyliśmy, że\n                </p>\n<div class=\"centered\">\n                    \\(B=9\\quad\\) oraz \\(\\quad C=-17\\)\n                </div>\n<p>\n                    czyli równanie prostej \\(m\\) to\n                </p>\n                \\[\n                6x+9y-17=0\n                \\]\n                <figure>\n<img src=\"static/geometria_analityczna_2_zadanie_540.png\" style=\"max-height: 250px;\"/>\n</figure>\n</div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "105568ccd069b9454fa5fe242dceaaee3df6688ce1a834dde090273e4cb53760"
+}

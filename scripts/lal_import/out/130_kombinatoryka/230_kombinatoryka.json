@@ -1,0 +1,76 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Kombinacją</strong> nazywamy dowolny podzbiór zbiór skończonego.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Liczba kombinacji \\(k\\)-elementowych ze zbioru \\(n\\)-elementowego jest zdefiniowana za pomocą symbolu Newtona:\n        \\[\n        C_n^k=\\binom{n}{k}=\\frac{n!}{k!\\cdot(n-k)!}\n        \\]\n        przy czym \\(n, k\\in\\mathbb{N}\\) są takie, że \\(0\\le k\\le n\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Własności symbolu Newtona\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    \\binom{n}{k}=\\binom{n}{n-k}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W ostatnich dwóch zadaniach obliczyliśmy, że\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\n            \\binom{6}{2}=\\binom{6}{4}\n            \\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            co ilustruje równanie \\(\\binom{n}{k}=\\binom{n}{n-k}\\) dla \\(n=6\\) oraz \\(k=2\\) lub \\(k=4\\).\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "dodatkowe wyjaśnienia",
+      "body": "\n\n<p>\n            Zauważmy, że jeśli wybieramy 2 obiekty z 6, to jednocześnie zostawiamy 4 obiekty niewybrane.\n        </p>\n<p>\n            Każdemu wyborowi 2 obiektów z 6 odpowiada pozostawienie 4 obiektów. I odwrotnie - każdemu wyborowi 4 obiektów z 6 odpowiada pozostawienie 2.\n        </p>\n<p>\n            Dlatego wyborów 2 z 6 jest tyle samo, co wyborów 4 z 6 - spójrz poniżej.\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder narrow_table\">\n<tr>\n<td></td>\n<td>wybrane 2 z 6</td>\n<td></td>\n<td>pozostawione 4 z 6</td>\n</tr>\n<tr><td>1</td><th>A, B</th><td></td><th>C, D, E, F</th></tr>\n<tr><td>2</td><th>A, C</th><td></td><th>B, D, E, F</th></tr>\n<tr><td>3</td><th>A, D</th><td></td><th>B, C, E, F</th></tr>\n<tr><td>4</td><th>A, E</th><td></td><th>B, C, D, F</th></tr>\n<tr><td>5</td><th>A, F</th><td></td><th>B, C, D, E</th></tr>\n<tr><td>6</td><th>B, C</th><td></td><th>A, D, E, F</th></tr>\n<tr><td>7</td><th>B, D</th><td></td><th>A, C, E, F</th></tr>\n<tr><td>8</td><th>B, E</th><td></td><th>A, C, D, F</th></tr>\n<tr><td>9</td><th>B, F</th><td></td><th>A, C, D, E</th></tr>\n<tr><td>10</td><th>C, D</th><td></td><th>A, B, E, F</th></tr>\n<tr><td>11</td><th>C, E</th><td></td><th>A, B, D, F</th></tr>\n<tr><td>12</td><th>C, F</th><td></td><th>A, B, D, E</th></tr>\n<tr><td>13</td><th>D, E</th><td></td><th>A, B, C, F</th></tr>\n<tr><td>14</td><th>D, F</th><td></td><th>A, B, C, E</th></tr>\n<tr><td>15</td><th>E, F</th><td></td><th>A, B, C, D</th></tr>\n<tr>\n<td></td>\n<td>pozostawione 2 z 6</td>\n<td></td>\n<td>wybrane 4 z 6</td>\n</tr>\n</table>\n</div>\n        \\[\n        \\binom{6}{2}=15=\\binom{6}{4}\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważmy, że wynik symbolu Newtona to zawsze liczba całkowita. Dlatego nie warto liczyc oddzielnie licznika i mianownika, lecz zacząć od skracania, bo <u>cały mianownik się skróci</u>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Obliczając\n    \\[\n    \\binom{n}{k} = \\frac{n!}{k!(n-k)!}\n    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n            najpierw skróć w całości dłuższą z dwóch silni z mianownika: \\(k!\\) albo \\((n-k)!\\)\n        </li>\n<li>\n            a potem skróć drugą z tych silni czynnik po czynniku.\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Na ile sposobów ze zwycięskiej drużyny dziesięciu sportowców można wybrać trzy osoby, które pojdą na spotkanie z premierem?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Możliwych wyborów jest \\(\\binom{10}{3}\\), czyli\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{10!}{7!}\\)</div>\n<div class=\"switch_value\">\\(\\frac{10!}{3!}\\)</div>\n<div class=\"switch_value\">\\(\\frac{10!}{3!\\cdot 7!}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Teraz zgodnie z <strong>pierwszym</strong> zaleceniem, skrócimy  dłuższą silnię z mianownika, czyli\n                <div class=\"switch_line\">\n<div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(10!\\)</div>\n<div class=\"switch_value\">\\(7!\\)</div>\n<div class=\"switch_value\">\\(3!\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    W tym celu rozbijemy silnię w liczniku: \\(10!=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(7!\\cdot 8\\cdot 9\\cdot 10\\)</div>\n<div class=\"switch_value\">\\(7!\\cdot 3\\)</div>\n<div class=\"switch_value\">\\(7!\\cdot 3!\\)</div>\n<div class=\"switch_value\">\\(7!\\cdot 10\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                I teraz skracamy ułamek:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\frac{10!}{3!\\cdot 7!}=\\frac{7!\\cdot 8\\cdot 9\\cdot 10}{3!\\cdot 7!}=\\frac{\\require{cancel}\\cancel{7!}\\cdot 8\\cdot 9\\cdot 10}{3!\\cdot \\require{cancel}\\cancel{7!}}=\\frac{8\\cdot 9\\cdot 10}{3!}\n                    \\]\n                </div>\n                I teraz możemy zgodnie z <strong>drugim</strong> zaleceniem skrócić drugą silnię, czynnik po czynniku. Rozpiszmy ułamek:\n                \\[\n                \\frac{8\\cdot 9\\cdot 10}{3!}=\\frac{8\\cdot 9\\cdot 10}{1\\cdot 2\\cdot 3}\n                \\]\n                <div class=\"switch_line\">\n                    i skróćmy \\(8\\) z \\(2\\) oraz \\(9\\) z \\(3\\) otrzymując:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4\\cdot 3\\)</div>\n<div class=\"switch_value\">\\(4\\cdot 3\\cdot 10\\)</div>\n<div class=\"switch_value\">\\(4\\cdot 3\\cdot 5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Finalnie więc\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\binom{10}{3}=4\\cdot 3\\cdot 10=120\n                    \\]\n                </div>\n<p>\n                    Trzy osoby z dziesięciu można wybrać na 120 sposobów.\n                </p>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Kolejne właśności symbolu Newtona ułatwiające obliczenia poznasz dalej.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "793ee86c6f38519d695f2506138c6f3003ddcaf6b8d7d5664bd28ba388cb11e7"
+}

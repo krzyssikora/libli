@@ -1,0 +1,78 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W poniższym aplecie możesz przesuwać szary punkt.\n        </p>\n<p>\n<span style=\"color: blue\">\n                Niebieski\n            </span>\n            punkt to obraz szarego punktu w symetrii względem osi OX.\n        </p>\n<p>\n<span style=\"color: red\">\n                Czerwony\n            </span>\n            punkt to obraz szarego punktu w symetrii względem osi OY.\n        </p>\n<p>\n            Przesuwaj szary punkt i zaobserwuj, jakie są współrzędne punktów odbitych symetrycznie w obu osiach.\n        </p>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"700px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/ysaehar8/width/700/height/700/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"współrzędne w symetrii osiowej\" width=\"700px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Klikaj współrzędne punktów obramowane granatowo, aż uzyskasz prawdziwe zdania - wtedy zatwierdź.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n                Obraz punktu \\((x,y)\\) w symetrii względem osi\n                <span style=\"color: blue\">\n                    OX\n                </span>\n                ma współrzędne\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\((x,y)\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\((-x,y)\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\((x,-y)\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\((-x,-y)\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                .\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                Obraz punktu \\((x,y)\\) w symetrii względem osi\n                <span style=\"color: red\">\n                    OY\n                </span>\n                ma współrzędne\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\((x,y)\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\((-x,y)\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\((x,-y)\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                \\((-x,-y)\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n                .\n            "
+    },
+    {
+      "type": "text",
+      "body": "\n            zatwierdź\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Świetnie!\n        "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fbe4a4b4b90e44196e5a482cb2701c9c0bf02c6031863679244d284af14ce243"
+}

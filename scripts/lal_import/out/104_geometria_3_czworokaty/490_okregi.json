@@ -1,0 +1,71 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Udowodnij, że na trapezie można opisać okrąg wtedy i tylko wtedy, gdy jest równoramienny.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "body": "\n\n<p>\n            Rozpatrzmy trapez \\(ABCD\\), w którym podstawami są boki \\(AB\\) i \\(CD\\). Dla uproszczenia, kąty wewnętrzne w wierzchołkach będziemy oznaczać po prostu literami \\(A\\), \\(B\\), \\(C\\) i \\(D\\).\n        </p>\n<hr/>\n<p>\n<strong>Przypuśćmy najpierw</strong>, że na trapezie \\(ABCD\\) można opisać okrąg. Z tego powodu:\n        </p>\n<ol class=\"bold\">\n<li>\n                \\(A+C=180^{\\circ}\\),\n            </li>\n<li>\n                \\(B+D=180^{\\circ}\\).\n            </li>\n</ol>\n<p>\n            W każdym trapezie prawdziwej jest <strong>twierdzenie o kątach przy ramieniu trapezu</strong>.\n        </p>\n<details>\n<summary>pamiętasz to twierdzenie?</summary>\n<div class=\"important\">\n                Suma kątów wewnętrznych przy jednym ramieniu trapezu jest równa \\(180^{\\circ}\\).\n            </div>\n</details>\n<p>\n            Z tego powodu\n        </p>\n<ol class=\"bold\" start=\"3\">\n<li>\n                \\(A+D=180^{\\circ}\\),\n            </li>\n<li>\n                \\(B+C=180^{\\circ}\\).\n            </li>\n</ol>\n<p>\n            Odejmując stronami równania np. <strong>1</strong> i <strong>3</strong>, a potem <strong>1</strong> i <strong>4</strong> dostajemy równości kątów \\(C=D\\) i \\(A=B\\). \n        </p>\n<p>\n            To oznacza, że trapez \\(ABCD\\) jest równoramienny.\n        </p>\n<hr/>\n<p>\n<strong>Teraz przypuśćmy</strong>, że trapez jest równoramienny. To oznacza, że:\n        </p>\n<div class=\"centered\">\n            \\(A=B\\) i \\(C=D\\)\n        </div>\n<p>\n            Wówczas oczywiście\n        </p>\n        \\[A+C=B+D\\]\n        <p>\n            Sumy przeciwległych kątów są równe, więc na trapezie można opisać okrąg.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Czworokąt \\(ABCD\\) jest wpisany w koło, przy czym kąt \\(D\\) jest prosty, a miara kąta \\(B\\) jest o połowę większa od miary kąta \\(A\\).\n        </p>\n<p>\n            Oblicz miary kątów wewnętrznych czworokąta.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "body": "\n\n<ol>\n<li>\n                Kąt \\(D\\) jest prosty, a czworokąt wpisany w koło, więc kąt \\(B\\) jest także prosty.\n            </li>\n<li>\n                \\(B=1,5\\cdot A\\), więc \\(A=60^{\\circ}\\).\n            </li>\n<li>\n                Ponownie z własności czworokąta wpisanego w koło: \\(C=180^{\\circ}-60^{\\circ}=120^{\\circ}\\).\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Czworokąt \\(ABCD\\) jest wpisany w koło. Długości boków \\(AB\\), \\(BC\\) i \\(CD\\) to \\(7\\), \\(24\\) i \\(20\\) odpowiednio. Boki \\(AB\\) i \\(BC\\) są prostopadłe. \n        </p>\n<p>\n            Znajdź długość boku \\(AD\\).\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "body": "\n\n<ol>\n<li>\n                Trójkąt \\(ABC\\) jest prostokątny, więc z twierdzenia Pitagorasa obliczamy długość przekątnej \\(AC\\) czworokąta. \\(AC=25\\).\n            </li>\n<li>\n                Czworokąt jest wpisany w koło, czyli \\(D=180^{\\circ}-B=180^{\\circ}-90^{\\circ}=90^{\\circ}\\).\n            </li>\n<li>\n                Trójkąt \\(ACD\\) jest prostokątny, więc z twierdzenia Pitagorasa obliczamy \\(AD=15\\).\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Trapez o podstawach \\(8\\) i \\(2\\) wpisano w koło o promieniu \\(4\\).\n        </p>\n<p>\n            Znajdź długości ramion trapezu.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "body": "\n\n<ol>\n<li>\n                Podstawa o długości \\(8\\) jest średnicą koła.\n            </li>\n<li>\n                Trapez jest rónoramienny (patrz <span class=\"question_like\">zadanie 1</span> powyżej).\n            </li>\n<li>\n                Z twierdzenia Pitagorasa obliczamy odległość podstawy o długości \\(2\\) od środka koła, czyli wysokość trapezu: \\(\\sqrt{4^2-1^2}=\\sqrt{15}\\).\n            </li>\n<li>\n                Wysokość uposzczona z końca krótszej podstawy odcina od trapezu trójkąt prostokątny o przyprostokątnych długości \\(\\sqrt{15}\\) oraz \\(\\frac{8-2}{2}=3\\).\n            </li>\n<li>\n                Przeciwprostokątna tego trójkąta to szukane ramię trapezu. Jego długość liczymy z twierdzenia Pitagorasa: \\(\\sqrt{(\\sqrt{15})^2+3^2}=\\sqrt{15+9}=\\sqrt{24}=2\\sqrt{6}\\).\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Czworokat \\(ABCD\\) jest wpisany w koło o srodku w punkcie \\(S\\). Styczna do koła w punkcie \\(A\\) jest nachylona do boku \\(AD\\) pod kątem \\(58^{\\circ}\\). \n        </p>\n<p>\n            Oblicz miary kątów wewnętrznych czworokąta \\(ABCD\\) wiedząc, że miary kątów \\(SDC\\) i \\(SAB\\) wynoszą odpowiednio \\(63^{\\circ}\\) i \\(41^{\\circ}\\).\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "body": "\n\n<figure>\n<img src=\"static/geometria_3_zadanie_1100.png\" style=\"max-height: 250px;\"/>\n</figure>\n<ol>\n<li>\n                Odcinek \\(AS\\) (promień) jest prostopadły do stycznej, więc kąt \\(SAD=90^{\\circ}-58^{\\circ}=32^{\\circ}\\).\n            </li>\n<li>\n                \\(A=32^{\\circ}+41^{\\circ}=73^{\\circ}\\)\n            </li>\n<li>\n                Trójkąt \\(ASD\\) jest równoramienny (2 promienie), więc kąt \\(ADS=32^{\\circ}\\) i \\(D=32^{\\circ}+63^{\\circ}=95^{\\circ}\\).\n            </li>\n<li>\n                Z własności czworokąta wpisanego w koło \\(B=180^{\\circ}-D=85^{\\circ}\\) oraz \\(C=180^{\\circ}-A=107^{\\circ}\\).\n            </li>\n</ol>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2b3d9acd1ae5275896d35f6ee0597e4466ab932434c1083746d328bf980d47d3"
+}

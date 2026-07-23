@@ -1,0 +1,22 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Wielokąty\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>\n        Wielokąt\n    </strong>\n    to po prostu fragment płaszczyzny ograniczony linią łamaną, której koniec łączy się z początkiem.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W poniższym aplecie możesz przesuwać suwak, by zobaczyć różne losowe wielokąty o liczbie boków między 3 a 15.\n        </p>\n<p>\n            Zastanów się, czym, poza liczbą boków, różnią się od siebie te wielokąty.\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"476px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/qeuhezcd/width/584/height/476/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"losowe wielokąty\" width=\"584px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "0620de3f478a993f75207bab37841ac04470cd21cb959957f3f50f5158eb43c6"
+}

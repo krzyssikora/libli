@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Pamiętaj:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(\\sin\\alpha= \\frac{y}{r}\\)\n        <span style=\"display: inline-block; width: 100px;\">\n</span>\n        \\(\\cos\\alpha= \\frac{x}{r}\\)\n        <span style=\"display: inline-block; width: 100px;\">\n</span>\n        \\(\\text{tg}\\alpha= \\frac{y}{x}\\)\n        <span style=\"display: inline-block; width: 100px;\">\n</span>\n        \\(\\text{ctg}\\alpha= \\frac{x}{y}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"funkcje trygonometryczne wielokrotności 90 stopni\" height=\"300\" src=\"static/wielokrotnosci_90.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n<small>\n                Rysunek przedstawia okrąg jednostkowy, czyli taki, którego promień \\(r=1\\).\n            </small>\n</p>\n<p>\n            Jakie są wartości funkcji trygonometrycznych kątów \\(0^{\\circ}\\), \\(90^{\\circ}\\), \\(180^{\\circ}\\) i \\(270^{\\circ}\\)?\n        </p>\n<p>\n            Skorzystaj z definicji funkcji trygonometrycznych, użyj współrzędnych z rysunku i uzupełnij tabelę.\n        </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                            \\(\\alpha\\)\n                        </td>\n<td>\n                            \\(\\sin\\alpha\\)\n                        </td>\n<td>\n                            \\(\\cos\\alpha\\)\n                        </td>\n<td>\n                            \\(\\text{tg}\\alpha\\)\n                        </td>\n<td>\n                            \\(\\text{ctg}\\alpha\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(0^{\\circ}\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            nie istnieje\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(90^{\\circ}\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            nie istnieje\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                            \\(180^{\\circ}\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            nie istnieje\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(270^{\\circ}\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            nie istnieje\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>\n<details>\n<summary>\n                Czy rozumiesz, dlaczego niektóre wartości\n                <em>\n                    nie istnieją\n                </em>\n                ?\n            </summary>\n<p>\n                Tangens jest zdefiniowany: \\(\\text{tg}\\alpha=\\frac{y}{x}\\), więc jego wartość nie istnieje dla kątów wskazanych przez punkty na osi \\(OY\\) - bo mają współrzędną \\(x=0\\).\n            </p>\n<p>\n                Cotangens jest zdefiniowany: \\(\\text{ctg}\\alpha=\\frac{x}{y}\\), więc jego wartość nie istnieje dla kątów wskazanych przez punkty na osi \\(OX\\) - bo mają współrzędną \\(y=0\\).\n            </p>\n</details>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n    Świetnie!\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "bd8916a734b30decf2348c7ad118988725add32b7a10050db64617258f360691"
+}

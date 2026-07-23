@@ -1,0 +1,27 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    W każdym trójkącie istnieją cztery bardzo ważne rodzaje odcinków / półprostych / prostych, które odgrywają w nim szczególne role. Są to:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        symetralne boków,\n    </li>\n<li>\n        dwusieczne kątów,\n    </li>\n<li>\n        środkowe i\n    </li>\n<li>\n        wysokości.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Obejrzyj nagranie na ich temat. Pod nagraniem znajdziesz aplet użyty w nagraniu - możesz go użyć, by lepiej poznać te cztery rodzaje obiektów.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/proste_w_trojkacie.mp4"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/ygp3sazc/width/800/height/650/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "58d7778cea8dae75ccdbcd755b3d4ee156b1e61868fc1e493645a70c72a0694b"
+}

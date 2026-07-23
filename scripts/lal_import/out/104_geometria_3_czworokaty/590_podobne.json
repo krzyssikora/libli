@@ -1,0 +1,81 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Prostokątna kartka papieru ma takie wymiary, że jeśli przetniemy ją na trzy w kierunku prostopadłym do dłuższego boku, to otrzymamy trzy prostokąty podobne do początkowego.\n        </p>\n<p>\n            Jaki jest stosunek dłuższego do krótszego boku kartki?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(\\sqrt{3}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Boki pierwszego czworokąta mają długości kolejno: \\(9\\), \\(15\\), \\(12\\) i \\(10\\).\n        </p>\n<p>\n            Drugi czworokąt jest podobny do pierwszego, a jego najdłuższy bok ma długość \\(20\\).\n        </p>\n<p>\n            Znajdź długości pozostałych boków drugiego czworokąta.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        Długości boków to kolejno: \\(12\\), (\\(20\\) - znany bok), \\(16\\), \\(13\\tfrac{1}{3}\\).\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dwa romby są podobne w skali \\(\\frac{3}{4}\\). Przekątne większego rombu mają długości \\(6\\sqrt{6}\\) i \\(8\\).\n        </p>\n<p>\n            Znajdź długość boku mniejszego rombu.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic rozwiązania",
+      "body": "\n\n        Albo najpierw znajdź z podobieństwa długości przekątnych mniejszego rombu, a potem z twierdzenia Pitagorasa, z użyciem połówek przekątnych - długość boku, albo najpierw znajdź długość boku większego rombu (z twierdzenia Pitagorasa, z połówek przekątnych), a potem długość boku mniejszego z podobieństwa.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(\\frac{3}{4}\\sqrt{70}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Krótsza przekątna równoległoboku jest prostopadła do jednego z boków. Boki są długości \\(34\\) i \\(16\\).\n        </p>\n<p>\n            Drugi równoległobok jest podobny do pierwszego, a jego krótsza przekątna ma długość \\(15\\).\n        </p>\n<p>\n            Oblicz obwód drugiego równoległoboku. \n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rysunek pomocniczy",
+      "body": "\n\n<figure>\n<img src=\"static/geometria_3_zadanie_1240.png\" style=\"max-height: 250px;\"/>\n<figcaption>(rysunek nie zachowuje skali)</figcaption>\n</figure>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(50\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Stosunek długości boków w dwóch prostokątach podobnych to \\(3:5\\). Skala podobieństwa tych prostokątów  to \\(2:3\\).\n        </p>\n<p>\n            Jeśli suma obwodów obu prostokątów jest równa \\(520\\), oblicz:\n        </p>\n<ol class=\"bold\" type=\"A\">\n<li>\n                obwody,\n            </li>\n<li>\n                długości boków \n            </li>\n</ol>\n<p>\n            obu prostokątów.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n<ol class=\"bold\" type=\"A\">\n<li>\n                mniejszy: \\(195\\), wiekszy: \\(325\\)\n            </li>\n<li>\n                mniejszy: \\(39\\) i \\(58,5\\), wiekszy: \\(65\\) i \\(97,5\\)\n            </li>\n</ol>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "207a1392229df79862deca9e957190ef106814f6b7e89fbc5865e4d3940ffabb"
+}

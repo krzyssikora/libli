@@ -1,0 +1,87 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Ułamek</p><p>\\(\\frac{4x^2+4x+1}{4x^2-1}\\)</p><p>po skróceniu przyjmuje postać</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\frac{2x-1}{2x+1}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{2x+1}{2x-1}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{4x+1}{-1}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{4x+1}{4x-1}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Ułamek</p><p>\\(\\frac{6x^2-13x+6}{6x^2-x-2}\\)</p><p>po skróceniu przyjmuje postać</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\frac{-13x+6}{-x-2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{2x+3}{2x-1}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x^2+13x-3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{2x-3}{2x+1}\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Ułamek</p><p>\\(\\frac{2x-1}{x+3}\\)</p><p>rozszerzono w taki sposób, że jego licznik przyjął postać \\(3x^2+8x-3\\).</p><p>\n    Wówczas jego mianownik to\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(6x^2-5x+1\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(6x^2+1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2x^2+5x-3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2x^2+3x-2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "9256dac2ea92ea0d6c5358e88721433a9600055895577e4b48356d91e79e7890"
+}

@@ -1,0 +1,68 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W poniższym aplecie widzisz pomarańczowy punkt na stycznej do okręgu. Odcinek łączący ten punkt z punktem styczności jest także pomarańczowy.\n        </p>\n<p>\n            Przez ten punkt poprowadzona jest prosta przecinająca okrąg w dwóch punktach. Odcinki łączące pomarańczowy punkt z dwoma nowymi punktami są oznaczone kolorami czerwonym i niebieskim.\n        </p>\n<p>\n            Na górze widzisz zapisane obliczenia na długościach tych odcinków. Długości odcinków są zapisane kolorami takimi, jak odcinki.\n        </p>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"600px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/xy4fae4z/width/700/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"potęga punktu względem okręgu 1\" width=\"700px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<p>\n            Możesz przesuwać niebieski punkt na okręgu oraz pomarańczowy punkt na stycznej.\n        </p>\n<p>\n            Przejrzyj się, jak zmieniają się obliczenia, gdy przesuwasz punkty. Co dostrzegasz?\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W poniższym aplecie widzisz pomarańczowy punkt wewnątrz koła. Przez ten punkt poprowadzone są dwie cięciwy.\n        </p>\n<p>\n            Fragmenty cięciw łączące pomarańczowy punkt z punktami na okręgu są oznaczone czterema różnymi kolorami.\n        </p>\n<p>\n            Na dole widzisz zapisane obliczenia na długościach tych odcinków. Długości odcinków są zapisane kolorami takimi, jak odcinki.\n        </p>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"842px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/dbcg45zj/width/730/height/842/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"potęga punktu względem okręgu 2\" width=\"730px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<p>\n            Możesz przesuwać pomarańczowy punkt wewnątrz koła. Możesz też zmieniać położenie cięciw, przez przesuwanie ich końców, tych oznaczonych małymi kółkami.\n        </p>\n<p>\n            Przejrzyj się, jak zmieniają się obliczenia, gdy przesuwasz punkty. Co dostrzegasz?\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Dany jest okrąg \\(o\\) i punkt \\(P\\). Jeśli przez punkt \\(P\\) poprowadzimy prostą sieczną okręgu \\(O\\), która przetnie okrąg w punktach \\(A\\) i \\(B\\), to iloczyn odległości \\(PA\\) i \\(PB\\) jest stały, niezależny od położenia siecznej.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Ten iloczyn nazywamy\n        <strong>\n            potęgą punktu \\(P\\) względem okręgu \\(o\\)\n        </strong>\n        .\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/potega_pkt_okrag_rys_1.png",
+      "alt": "Potęga punktu względem okręgu",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                    rysunek 1\n                </strong>\n<br/>\n                punkt \\(P\\) na zewnątrz okręgu\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/potega_pkt_okrag_rys_2.png",
+      "alt": "Potęga punktu względem okręgu",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                    rysunek 2\n                </strong>\n<br/>\n                punkt \\(P\\) na okręgu\n            </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/potega_pkt_okrag_rys_3.png",
+      "alt": "Potęga punktu względem okręgu",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n                    rysunek 3\n                </strong>\n<br/>\n                punkt \\(P\\) wewnątrz okręgu\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n<u>\n                Co to oznacza?\n            </u>\n</strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n<details>\n<summary>\n                    Jeśli punkt \\(P\\) leży na zewnątrz okręgu (\n                    <strong>\n                        rysunek 1\n                    </strong>\n                    )\n                </summary>\n                możemy przesunąć sieczną tak, by stała się styczną. Wówczas punkty \\(A\\) i \\(B\\) scalą się w punkt styczności, zaznaczony na rysunku jako \\(C\\) i wtedy \n                \\[\n                PA\\cdot PB=PC\\cdot PC=PC^2\n                \\]\n                więc potęga punktu \\(P\\) względem okręgu \\(o\\) jest równa:\n                \\[\n                \\begin{align*}\n                PA\\cdot PB &amp;=PA'\\cdot PB'=\\\\\n                &amp;=PA''\\cdot PB''=\\\\\n                &amp;=PC^2\n                \\end{align*}\n                \\]\n            </details>\n</li>\n<li>\n<details>\n<summary>\n                    Jeśli punkt \\(P\\) leży na okręgu (\n                    <strong>\n                        rysunek 2\n                    </strong>\n                    )\n                </summary>\n                to sieczna przecina okrąg w punktach \\(P\\) i \\(B\\), czyli \\(A=P\\). To oznacza, że długość \\(PA=PP=0\\), więc potęga punktu \\(P\\) względem okręgu \\(o\\) jest równa \\(0\\).\n            </details>\n</li>\n<li>\n<details>\n<summary>\n                    Jeśli punkt \\(P\\) leży wewnątrz okręgu (\n                    <strong>\n                        rysunek 3\n                    </strong>\n                    )\n                </summary>\n                to niektóre źródła definiują potęgę punktu \\(P\\) względem okręgu \\(o\\) jako liczbę ujemną.\n                <p>\n                    Z naszej perspektywy nie jest to istotne, liczy się wyłącznie, że\n                </p>\n                \\[\n                \\begin{align*}\n                PA\\cdot PB&amp;=PA'\\cdot PB'=\\\\\n                &amp;=PA''\\cdot PB''\\\\\n                \\end{align*}\n                \\]\n            </details>\n</li>\n</ol>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "5d2bf3380662fad50de219eebba484a5df135f117c6021f03cc3e7ac42157737"
+}

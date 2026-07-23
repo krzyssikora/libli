@@ -1,0 +1,180 @@
+{
+  "elements": [
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<p>Rozpatrzmy następujący układ równań</p><p>\\[</p><p>\\begin{cases}</p><p>4x-3y=-17\\\\</p><p>6x+5y=3</p><p>\\end{cases}</p><p>\\]</p><p>Rozwiążemy ten układ metodą przeciwnych współczynników, eliminując zmienną \\(x\\).</p>",
+      "reason": "stem had no answer DSL"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Przez jakie liczby możemy pomnożyć równania, żeby uzyskać przeciwne współczynniki przy zmiennej \\(x\\)?\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "Pierwsze równanie przez \\(2\\), a drugie przez \\(-3\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Pierwsze równanie przez \\(3\\), a drugie przez \\(-2\\).",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Pierwsze równanie przez \\(5\\), a drugie przez \\(3\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Pierwsze równanie przez \\(-3\\), a drugie przez \\(2\\).",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Po wyeliminowaniu zmiennej \\(x\\) otrzymamy:\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(y=-45\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=3\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=-2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Rozwiązaniem układu równań są liczby:\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(x=3, y=3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=-38, y=-45\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=3, y=-2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=-2, y=3\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<p>Rozpatrzmy następujący układ równań</p><p>\\[</p><p>\\begin{cases}</p><p>3x+8y=50\\\\</p><p>-7x+6y=19</p><p>\\end{cases}</p><p>\\]</p><p>Rozwiążemy ten układ metodą przeciwnych współczynników, eliminując zmienną \\(y\\).</p>",
+      "reason": "stem had no answer DSL"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Jaka jest najmniejsza możliwa dodatnia wartość współczynnika, jaki możemy wykreować przy zmiennej \\(y\\)?\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(12\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(24\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(48\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(64\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Po wyeliminowaniu zmiennej \\(y\\) otrzymamy:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x=-11\\tfrac{17}{19}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=5\\tfrac{1}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=-2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Rozwiązaniem układu równań są liczby:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x=0, y=6\\tfrac{1}{4}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=2, y=5\\tfrac{1}{2}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=5\\tfrac{1}{2}, y=2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=5, y=2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "4b47b4b0d9fdbcb701ad8ac187619892afbd69fa7667e021f4a43f27468f2b96"
+}

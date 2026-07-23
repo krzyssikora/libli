@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Suma kątów w wielokącie\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A jaka jest suma kątów w czworokącie, pięciokącie, sześciokącie... albo w dowolnym \\(n\\)-kącie, czyli wielokącie, który ma \\(n\\) wierzchołków i \\(n\\) boków?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Obejrzyj nagranie.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/suma_katow_w_wielokacie.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Sum wszystkich kątów wewnętrznych w \\(n\\)-kącie jest równa\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                        (n-2)\\cdot 180^{\\circ}\n                                                                                        "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d45bd8a6ca3a1822008407d0c00f5276d319a9efc20465f294a168d121b02c3e"
+}

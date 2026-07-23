@@ -1,0 +1,273 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Czworokąty \\(A_1B_1C_1D_1\\) i \\(A_2B_2C_2D_2\\) są <strong>podobne</strong> (\\(A_1B_1C_1D_1\\sim A_2B_2C_2D_2\\)) jeśli\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            równe są kolejne kąty wewnętrzne:\n            <div class=\"table_wrapper\">\n                \\[\n                \\color{red}{A_1}=\\color{red}{A_2},\\quad \\color{green}{B_1}=\\color{green}{B_2},\\quad \\color{orange}{C_1}=\\color{orange}{C_2},\\quad \\color{blue}{D_1}=\\color{blue}{D_2}\n                \\]\n            </div>\n</li>\n<li>\n            odpowiednie boki są proporcjonalne:\n            <div class=\"table_wrapper\">\n                \\[\n                \\color{red}{\\frac{A_2B_2}{A_1B_1}}=\\color{green}{\\frac{B_2C_2}{B_1C_1}}=\\color{orange}{\\frac{C_2D_2}{C_1D_1}}=\\color{blue}{\\frac{D_2A_2}{D_1A_1}}\n                \\]\n            </div>\n</li>\n</ul>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/czworokaty_podobne_def_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wartość każdego ułamka z powyższych to <strong>skala podobieństwa</strong> czworokąta \\(A_2B_2C_2D_2\\) do \\(A_1B_1C_1D_1\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wszystkie poniższe własności podobieństwa są prawdziwe dla wszelkich figur podobnych, nie tylko dla czworokątów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jeśli \n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            wielokąt \\(W_2\\) jest podobny do wielokąta \\(W_1\\) w skali \\(k\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        to\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            nie tylko boki odpowiednie wielokątów są proporcjonalne, lecz też inne <strong>odpowiednie</strong> długości, np. wysokości, przekątne i obwód.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Dokładniej, jeśli \\(d_1\\) to długość w wielokącie \\(W_1\\), a \\(d_2\\) to odpowiadająca jej długość w wielokącie \\(W_2\\), to\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(d_2=d_1\\cdot k\\quad\\) albo równoważnie \\(\\quad k=\\frac{d_2}{d_1}\\)\n    "
+    },
+    {
+      "type": "image",
+      "media_src": "static/podobienstwo_skala_dlugosci.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<small>\n            Zwróć uwagę:\n        </small>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "wielokąt",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(W_2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "podobny do",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(W_1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "w skali \\(k\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "stosunek",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(d_2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "do",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(d_1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=k\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\"></p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "W tym aplecie możesz zobaczyć, co oznaczają \"odpowiednie długości\" na przykładzie dwóch trójkątów podobnych.",
+      "body": "\n\n<ul class=\"nolist\">\n<li>\n                W górnym trójkącie możesz dowolnie przesunąć każdy wierzchołek, by nadać my porządany kształt.\n            </li>\n<li>\n                Dolny trójkąt jest cały czas podobny do górnego. Jego wielkość i położenie możesz zmienić przesuwając wierzchołki niebieskiego boku.\n            </li>\n<li>\n                Boki <span style=\"color: yellow\">żółty</span>, <span style=\"color: blue\">niebieski</span> i <span style=\"color: green\">zielony</span> sobie odpowiadają, czyli pozostają w tej samej proporcji.\n            </li>\n<li>\n                W górnym trójkącie możesz też zmieniać położenie czerwonego odcinka. Odpowiadający mu odcinek widzisz w dolnym trójkącie.\n            </li>\n<li>\n                Oznacza to, że gdyby przekształcić trójkąt górny w dolny tak, by boki gónego zamieniły się w odpowiednie boki dolnego, wówczas czerwony górny odcinek zmieniłby się w dolny.  \n            </li>\n</ul>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"700px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/pzefamnn/width/650/height/700/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"podobne\" width=\"650px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Rysunek przedstawia dwa czworokąty podobne \\(PRST\\sim ABCD\\). \n        </p>\n<p>\n            Kąty wewnętrzne czworokątów zaznaczone tymi samymi kolorami mają tę samą miarę.\n        </p>\n<p>\n            Punkty \\(E\\), \\(F\\), \\(U\\) i \\(W\\) są środkami boków \\(AB\\), \\(BC\\), \\(PR\\) i \\(RS\\) odpowiednio.\n        </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_1120_1.png\" style=\"max-height: 300px;\"/>\n</figure>\n<p>\n            W tabeli wpisz odcinki odpowiadające danym.\n        </p>\n<p>\n<strong>Uwaga</strong>! W każdym polu wpisz dwie wielkie litery (końce odcinka) w kolejności alfabetycznej.\n        </p>\n"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "czworokąt \\(ABCD\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(AB\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(BC\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(AC\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(AD\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(BD\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(DF\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(DE\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(EF\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "czworokąt \\(PRST\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(PR\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(RS\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(PS\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input table_input_50\" placeholder=\"??\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input table_input_50\" placeholder=\"??\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input table_input_50\" placeholder=\"??\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input table_input_50\" placeholder=\"??\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input table_input_50\" placeholder=\"??\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n    Świetnie!\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "potrzebujesz pomocy?",
+      "body": "\n\n<p>\n        Poniżej widzisz, jak na zielono zaznaczane są jednocześnie odpowiadające sobie odcinki.\n    </p>\n<figure>\n<img src=\"static/podobienstwo_odpowiednie_odcinki.gif\" style=\"max-height: 300px;\"/>\n</figure>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Czworokąt \\(A_2B_2C_2D_2\\) jest podobny do czworokąta \\(A_1B_1C_1D_1\\). Kąty wewenętrzne pierwszego wielokąta w wierzchołkach \\(A_1\\), \\(B_1\\), \\(C_1\\) i \\(D_1\\) są równe kątom wewnętrznym drugiego wielokąta w wierzchołkach \\(A_2\\), \\(B_2\\), \\(C_2\\) i \\(D_2\\) odpowiednio.\n        </p>\n<p>\n            Obwód czworokąta \\(A_1B_1C_1D_1\\) jest równy \\(28\\) centymetrów, a obwód czworokąta \\(A_2B_2C_2D_2\\) jest równy \\(42\\) centymetrów.\n        </p>\n<ol class=\"bold\">\n<li>\n                Jaka jest skala podobieństwa czworokąta \\(A_2B_2C_2D_2\\) do czworokąta \\(A_1B_1C_1D_1\\)?\n            </li>\n</ol>\n<p>\n            Odcinek \\(B_1C_1\\) jest długości \\(8\\) centymetrów.\n        </p>\n<ol class=\"bold\" start=\"2\">\n<li>\n                Jaka jest długość odcinka \\(B_2C_2\\)?\n            </li>\n</ol>\n<p>\n            Odcinek \\(A_2D_2\\) jest długości \\(9\\) centymetrów.\n        </p>\n<ol class=\"bold\" start=\"3\">\n<li>\n                Jaka jest długość odcinka \\(A_1D_1\\)?\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Oznaczmy dla ułatwienia\n                </p>\n<ul class=\"nolist\">\n<li>\n                        wielokąt \\(A_1B_1C_1D_1\\) przez \\(W_1\\),\n                    </li>\n<li>\n                        wielokąt \\(A_2B_2C_2D_2\\) przez \\(W_2\\).\n                    </li>\n</ul>\n<p>\n                    Odpowiemy na trzy pytania po kolei.\n                </p>\n<ol class=\"bold\">\n<li>\n                        Jaka jest skala podobieństwa czworokąta \\(A_2B_2C_2D_2\\) do czworokąta \\(A_1B_1C_1D_1\\)?\n                    </li>\n</ol>\n<div class=\"switch_line\">\n                    Tę skalę podobieństwa, \\(k\\), obliczymy z wyrażenia \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{28}{42}\\)</div>\n<div class=\"switch_value\">\\(\\frac{42}{28}\\)</div>\n<div class=\"switch_value\">\\(\\frac{42-28}{28}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Zgadza się, \n                </p>\n<ul class=\"nolist\">\n<li>\n                        aby znaleźć skalę podobieństwa wielokąta \\(W_2\\) do wielokąta \\(W_1\\), \n                    </li>\n<li>\n                        dzielimy długość z wielokąta \\(W_2\\) przez odpowiednią długość z wielokąta \\(W_1\\), \n                    </li>\n<li>\n                        na przykład obwód \\(W_2\\) przez obwód \\(W_1\\).\n                    </li>\n</ul>\n<p>\n                    Tak więc skala podobieństwa:\n                </p>\n                \\[\n                k=\\frac{42}{28}=\\frac{3}{2}\n                \\]\n                <hr/>\n<p>\n                    Teraz wiedząc, że odcinek \\(B_1C_1\\) jest długości \\(8\\) centymetrów, odpowiemy na pytanie:\n                </p>\n<ol class=\"bold\" start=\"2\">\n<li>\n                        Jaka jest długość odcinka \\(B_2C_2\\)?\n                    </li>\n</ol>\n<div class=\"switch_line\">\n                    Obliczymy ją z równania\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(B_2C_2=\\frac{3}{2}\\cdot B_1C_1\\)</div>\n<div class=\"switch_value\">\\(B_1C_1=\\frac{3}{2}\\cdot B_2C_2\\)</div>\n<div class=\"switch_value\">\\(B_2C_2=\\frac{3}{2}+B_1C_1\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Jak pamiętamy, jeśli \\(d_1\\) to długość w wielokącie \\(W_1\\), a \\(d_2\\) to odpowiadająca jej długość z wielokąta \\(W_2\\), to:\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\" style=\"font-size: small;\">\n<tr>\n<td>wielokąt</td>\n<td>\\(W_2\\)</td>\n<td>jest podobny do</td>\n<td>\\(W_1\\)</td>\n<td>w skali \\(k\\) więc</td>\n</tr>\n<tr>\n<td>stosunek</td>\n<td>\\(d_2\\)</td>\n<td>do</td>\n<td>\\(d_1\\)</td>\n<td>\\(=k\\)</td>\n</tr>\n</table>\n</div>\n<p>\n                    W naszej sytuacji:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    B_2C_2&amp;=\\frac{3}{2}\\cdot B_1C_1\\\\\n                    B_2C_2&amp;=\\frac{3}{2}\\cdot 8\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Stąd długość odcinka \\(B_2C_2\\) jest równa\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(12\\)</div>\n<div class=\"switch_value\">\\(16\\)</div>\n<div class=\"switch_value\">\\(5\\tfrac{1}{3}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div> cm.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Na zakończenie, wiedząc, że odcinek \\(A_2D_2\\) jest długości \\(9\\) centymetrów, odpowiemy na pytanie:\n                </p>\n<ol class=\"bold\" start=\"3\">\n<li>\n                        Jaka jest długość odcinka \\(A_1D_1\\)?\n                    </li>\n</ol>\n<div class=\"switch_line\">\n                    Znajdziemy ją z równania\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(A_1D_1=\\frac{3}{2}\\cdot A_2D_2\\)</div>\n<div class=\"switch_value\">\\(A_2D_2=\\frac{3}{2}\\cdot A_1D_1\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Czyli\n                </p>\n                \\[\n                9=\\frac{3}{2}\\cdot A_1D_1\n                \\]\n                <div class=\"switch_line\">\n                    Stąd długość \\(A_1D_1\\) jest równa\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(6\\)</div>\n<div class=\"switch_value\">\\(13,5\\)</div>\n<div class=\"switch_value\">\\(7,5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>cm.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Podsumowując:\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\\(W_1\\)</td>\n<td>\\(\\xrightarrow[]{\\quad\\cdot \\frac{3}{2}\\quad}\\)</td>\n<td>\\(W_1\\)</td>\n</tr>\n<tr>\n<td>obwód \\(=28\\)</td>\n<td>\\(\\xrightarrow[]{\\quad\\cdot \\frac{3}{2}\\quad}\\)</td>\n<td>obwód \\(=42\\)</td>\n</tr>\n<tr>\n<td>\\(B_1C_1=8\\) cm</td>\n<td>\\(\\xrightarrow[]{\\quad\\cdot \\frac{3}{2}\\quad}\\)</td>\n<td>\\(B_2C_2=12\\) cm</td>\n</tr>\n<tr>\n<td>\\(A_1D_1=6\\) cm</td>\n<td>\\(\\xrightarrow[]{\\quad\\cdot \\frac{3}{2}\\quad}\\)</td>\n<td>\\(A_2D_2=9\\) cm</td>\n</tr>\n</table>\n</div>\n</div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "730fb8ccd8f600cdf462c3b6cd02241d5940c88b10859c87fda83eb6f3adeccf"
+}

@@ -1,0 +1,50 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Ustaliliśmy, że jeśli \\((a_n)\\) jest ciągiem geometrycznym to\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    (a_n)^2=a_{n-1}a_{n+1}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważ, że w bardzo podobny sposób, zamiast brać \"sąsiadów\", czyli przesuwać się o krok wstecz (do \\(a_{n-1}\\)) i krok wprzód (do \\(a_{n+1}\\)) moglibyśmy zrobić po dwa kroki w obie strony.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wówczas uzyskalibyśmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    (a_n)^2=a_{n-2}a_{n+2}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Moglibyśmy też zrobić po trzy kroki:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    (a_n)^2=a_{n-3}a_{n+3}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    albo i inną liczbę kroków:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    (a_n)^2=a_{n-k}a_{n+k}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Oznacza to, że\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Jeśli weźmiemy dwa wyrazy w tej samej odległości od wyrazu \\(a_n\\), to kwadrat wyrazu \\(a_n\\) jest równy iloczynowi tych dwóch wyrazów.\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "71c20668d2475b8416d05ff7fc056c68fce9e344fe9bc103be7cb4504cbda185"
+}

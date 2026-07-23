@@ -1,0 +1,94 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Tabela poniżej pokazuje wydatki z karty kredytowej Mateusza w kolejnych miesiącach:\n        </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "miesiąc",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "suma wydatków",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "styczeń",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\;020\\) zł",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "luty",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\;942\\) zł",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "marzec",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\;115\\) zł",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "kwiecień",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\;265\\) zł",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>Jakie są średnie wydatki z karty kredytowej Mateusza na przestrzeni tych czterech miesięcy?</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"fill_steps\">\n<p>\n            Użyjemy średniej arytmetycznej.\n            \\[\n            S=\\frac{a_1+a_2+a_3+ ...+ a_n}{n}\n            \\]\n        </p>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                Liczby \\(a_1, a_2\\) itd to kwoty z tabeli.\n            </p>\n            Natomiast wartość \\(n\\) jest równa\n            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n            \\(S=\\frac{4\\;020+1\\;942+2\\;115+3\\;265}{4}=\\frac{11\\;342}{4}=\\)\n            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</div>\n</div>",
+      "reason": "interactive_widget (Group B): fill_answer,fill_show_next,fill_step"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "9abf7c56742e1e4ceffc5362cb91a524c8c3b4f8d7ab2bf6070c7c037618d093"
+}

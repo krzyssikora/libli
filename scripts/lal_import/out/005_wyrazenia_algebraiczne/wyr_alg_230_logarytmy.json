@@ -1,0 +1,169 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Przypomnij sobie wzory na działania na potęgach i sprawdź, czy dobrze pamiętasz.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(a^n\\cdot a^k=a^{n+k}\\)",
+      "body": "\n                    \\(a^n\\cdot a^k=a^{n+k}\\)\n                "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(a^n: a^k=a^{n-k}\\)",
+      "body": "\n                    \\(a^n: a^k=a^{n-k}\\)\n                "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(\\left(a^n\\right)^k=a^{nk}\\)",
+      "body": "\n                    \\(\\left(a^n\\right)^k=a^{nk}\\)\n                "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(a^nb^n=(ab)^{n}\\)",
+      "body": "\n                    \\(a^nb^n=(ab)^{n}\\)\n                "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(a^n:b^n=\\left(\\frac{a}{b}\\right)^n=\\frac{a^n}{b^n}\\)",
+      "body": "\n                    \\(a^n:b^n=\\left(\\frac{a}{b}\\right)^n=\\frac{a^n}{b^n}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jak wiemy, logarytm to wykładnik potęgi. Powyższe wzory dotyczą potęg i ich wykładników, więc można sformułować także wzory na działania na logarymach. Oto one.\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(\\log_a x+\\log_a y=\\log_a (x\\cdot y)\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\log_a x-\\log_a y=\\log_a \\left(\\frac{x}{y}\\right)\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\log_a \\left(n^s\\right)=s\\cdot\\log_a n\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\log_a b=\\frac{\\log_c b}{\\log_c a}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wszystkie te wzory można uzasadnić z użyciem znanych nam działań na potęgach. To możemy zostawić na później. Teraz przyjrzyjmy się przykładom ilustrującym działanie tych wzorów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W każdym z poniższych zadań przyjrzyj się przykładowi, a następnie wpisz liczby w puste pola.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(\\log_6 2\\sqrt{6}+\\log_6 3\\sqrt{6}=\\log_6 (2\\sqrt{6}\\cdot 3\\sqrt{6})=\\log_6 (2\\cdot 3\\cdot 6)=\\log_6 36=2\\)\n        </p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n            \\(\\log_2 \\sqrt{2}+\\log_2 \\sqrt{2}=\\log_2 \\)\n            ￿0￿\n            \\(=\\)\n            ￿1￿\n",
+      "blanks": [
+        [
+          "2"
+        ],
+        [
+          "1"
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(\\log_7 98-\\log_7 2=\\log_7 \\frac{98}{2}=\\log_7 49=2\\)\n        </p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n            \\(\\log_3 45-\\log_3 5=\\log_3 \\)\n            ￿0￿\n            \\(=\\)\n            ￿1￿\n",
+      "blanks": [
+        [
+          "9"
+        ],
+        [
+          "2"
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(\\log_3 9^{14}=14\\log_3 9=14\\cdot 2=28\\)\n        </p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n            \\(\\log_2 4^{11}=\\)\n            ￿0￿\n            \\(\\log_2 4=\\)\n            ￿1￿\n            \\(\\cdot 2=\\)\n            ￿2￿\n",
+      "blanks": [
+        [
+          "11"
+        ],
+        [
+          "11"
+        ],
+        [
+          "22"
+        ]
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(\\log_{27} 81=\\frac{\\log_3 81}{\\log_3 27}=\\frac{4}{3}\\)\n        </p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n            \\(\\log_{16} 8=\\frac{\\log_2 8}{\\log_2 16}=\\)\n            ￿0￿\n",
+      "blanks": [
+        [
+          "3/4"
+        ]
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "673eb048e581345ee42467cd1eb281a5b538ca3add4c60d5babe1084f7e20377"
+}

@@ -1,0 +1,88 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli w trójkącie znamy dwa boki i kąt między nimi, to pole takiego trójkąta jest ustalone.  Wynika to z tego, że na mocy zasady bok-kąt-bok wszystkie tego typu trójkąty są przystające, czyli mają takie samo pole.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Tylko jak to pole znaleźć? Spójrzmy na przykładowe zadanie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W trójkącie \\(ABC\\) boki \\(AB\\) i \\(AC\\) mają długości \\(5\\) i \\(4\\) odpowiednio, a kąt \\(A\\) ma miarę \\(30^{\\circ}\\) .\n        </p>\n<p>\n            Znajdź pole trójkąta \\(ABC\\).\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Zacznijmy od rysunku:\n                <div class=\"centered\">\n<img alt=\"pole trójkąta\" height=\"200\" src=\"static/pole_trojkata_bkb_zad_1.png\"/>\n</div>\n                Aby znaleźć pole trójkąta potrzebujemy podstawy i wysokości. Podstawa to na przykład bok \\(AB\\) o długości \\(5\\). Oznaczmy wysokość literą \\(h\\).\n                <div class=\"centered\">\n<img alt=\"pole trójkąta\" height=\"200\" src=\"static/pole_trojkata_bkb_zad_2.png\"/>\n</div>\n                Pomyślmy o trójkącie prostokątnym zaznaczonym niżej na czerwono, w którym przyprostokątna naprzeciwko kąta \\(A\\) ma długość \\(h\\), a przeciwprostokątna to \\(AC\\) o długości \\(4\\).\n                <div class=\"centered\">\n<img alt=\"pole trójkąta\" height=\"200\" src=\"static/pole_trojkata_bkb_zad_3.png\"/>\n</div>\n<div class=\"switch_line\">\n                    Użyjemy funkcji trygonometrycznej kąta \\(30^{\\circ}\\), która jest równa stosunkowi \\(h\\) do \\(4\\). Ta funkcja to\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sin 30^{\\circ}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\cos 30^{\\circ}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\text{tg} 30^{\\circ}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\text{ctg} 30^{\\circ}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Ponieważ\n                \\[\n                \\sin 30^{\\circ}=\\frac{h}{4}\n                \\]\n                <div class=\"switch_line\">\n                    a \\(\\sin 30^{\\circ}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\frac{1}{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\frac{\\sqrt{2}}{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\frac{\\sqrt{3}}{2}\\)\n                    </div>\n                    ,\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                otrzymujemy równanie\n                \\[\n                \\frac{1}{2}=\\frac{h}{4}\n                \\]\n                <div class=\"switch_line\">\n                    z którego wyliczamy, że\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(h=2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(h=4\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(h=8\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                I teraz jesteśmy już gotowi do obliczenia pola trójkąta\n                \\[\n                P=\\frac{1}{2}\\cdot 5\\cdot 2\n                \\]\n                <div class=\"switch_line\">\n                    czyli pole\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(P=20\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(h=10\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(h=5\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Pole trójkąta \\(ABC\\) jest równe \\(5\\).\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poszukajmy wzoru, by na przyszłość było nam łatwiej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Trójkąt ma dwa boki o długości \\(a\\) i \\(b\\), a kąt między tymi bokami ma miarę \\(\\gamma\\).\n        </p>\n        Oblicz pole trójkąta.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Spróbuj samodzielnie ustalić wzór na pole, \\(P\\), w zależności od \\(a\\), \\(b\\) i \\(\\gamma\\).</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "skorzystaj ze wskazówek w razie potrzeby",
+      "body": "\n\n<ol class=\"bold\">\n<li>\n                Rozwiązanie dla kąta ostrego jest właściwie identyczne, jak w powyższym zadaniu, a tylko nieznacznie inne, gdy kąt \\(\\gamma\\) jest rozwarty.\n                <br/>\n                Czerwony trójkąt prostokątny znajdzie się wówczas na zewnątrz danego trójkąta, a kąt ostry w czerwonym trójkącie będzie miał miarę \\(180^{\\circ}-\\gamma\\).\n                <div style=\"width: 100%; overflow: scroll; overflow: auto;\">\n<div class=\"centered\">\n<img alt=\"pole trójkąta\" src=\"static/pole_trojkata_bkb.png\" style=\"max-width: 1000px; min-width: 700px;\" width=\"100%\"/>\n</div>\n</div>\n</li>\n<li>\n                Wysokość wyliczamy z sinusa kąta \\(\\gamma\\) w czerwonym trójkącie. Gdy \\(\\gamma\\) jest kątem ostrym:\n                \\[\n                h=b\\cdot\\sin\\gamma\n                \\]\n                a gdy jest kątem rozwartym\n                \\[\n                h=b\\cdot\\sin(180^{\\circ}-\\gamma)=b\\cdot\\sin\\gamma\n                \\]\n            </li>\n<li>\n                Kończymy podstawiając \\(h\\) do podstawowego wzoru na pole trójkąta:\n                \\[\n                P=\\frac{1}{2}ah=\\frac{1}{2}a b\\sin\\gamma\n                \\]\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"pole trójkąta\" height=\"200\" src=\"static/pole_trojkata_bkb_wzor.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n    Jeśli boki trójkąta mają długości \\(a\\), \\(b\\) oraz \\(c\\), a przeciwległe im kąty mają miary odpowiednio \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\), to pole trójkąta \\(P\\) jest dane wzorem\n    \\[\n    P=\\frac{1}{2}ab\\sin\\gamma=\\frac{1}{2}ac\\sin\\beta=\\frac{1}{2}bc\\sin\\alpha\n    \\]\n    Co oznacza, że pole jest połową iloczynu długości boków i sinusa kąta między nimi.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz pole trójkąta mając dane długości dwóch boków i miarę kąta między nimi, a następnie sprawdź swój wynik.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(8\\)",
+      "body": "\n                        \\(6\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(7\\)",
+      "body": "\n                        \\(\\tfrac{21}{2}\\sqrt{2}\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(6\\)",
+      "body": "\n                        \\(6\\sqrt{3}\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W trójkącie \\(ABC\\) boki \\(AB\\) i \\(AC\\) mają długości \\(5\\) i \\(4\\sqrt{2}\\) odpowiednio, a pole trójkąta to \\(10\\).\n        </p>\n<p>\n            Znajdź miarę kąta \\(BAC\\).\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Przyjmijmy oznaczenia:\n                <ul class=\"nolist\">\n<li>\n                        \\(c=5\\) (bok \\(AB\\) jest naprzeciwko \\(C\\))\n                    </li>\n<li>\n                        \\(b=4\\sqrt{2}\\) (bok \\(AC\\) jest naprzeciwko \\(B\\))\n                    </li>\n<li>\n                        kąt \\(BAC=\\alpha\\) (wierzchołek w punkcie \\(A\\))\n                    </li>\n</ul>\n                Podstawiając do wzoru:\n                \\[\n                P=\\frac{1}{2}bc\\sin\\alpha\n                \\]\n                otrzymamy\n                \\[\n                10=\\frac{1}{2}\\cdot 4\\sqrt{2}\\cdot 5\\cdot \\sin\\alpha\n                \\]\n                <div class=\"switch_line\">\n                    Z równania wyliczamy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sin \\alpha=\\sqrt{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sin \\alpha=1-\\sqrt{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sin \\alpha=\\frac{\\sqrt{2}}{2}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Liczba \\(\\frac{\\sqrt{2}}{2}\\) to wartość\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sin 30^{\\circ}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sin 45^{\\circ}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sin 60^{\\circ}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Pamiętajmy jednak, że istnieje też kąt rozwarty o takiej samej wartości sinusa. Ten kąt to\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\( 150^{\\circ}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\( 135^{\\circ}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\( 120^{\\circ}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Kąt \\(BAC\\) ma miarę albo \\( 45^{\\circ}\\) albo \\( 135^{\\circ}\\).\n                <div class=\"centered\">\n<img alt=\"pole trójkąta\" height=\"200\" src=\"static/pole_trojkata_bkb_zad_22.png\"/>\n</div>\n</div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8dd27fa4946163ee6db344f4a330fd06e65924a85452d498ad1a628294babc29"
+}

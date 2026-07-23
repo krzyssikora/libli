@@ -1,0 +1,56 @@
+[
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a>",
+    "unit_json": "060_kombinatoryka.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
+    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a>",
+    "unit_json": "060_kombinatoryka.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-2-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-2-1\" id=\"tab-2-1\">część <strong>A</strong></a>",
+    "unit_json": "060_kombinatoryka.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-2-2",
+    "raw_excerpt": "<a href=\"#tabcontent-2-2\" id=\"tab-2-2\">część <strong>B</strong></a>",
+    "unit_json": "060_kombinatoryka.json"
+  },
+  {
+    "kind": "quiz_stem_media",
+    "reason": "<figure> cannot live in a sanitized stem",
+    "raw_excerpt": "<figure>\n<img src=\"static/white_red_cubes.png\"/>\n</figure>",
+    "unit_json": "150_kombinatoryka_quiz.json"
+  },
+  {
+    "kind": "quiz_stem_media",
+    "reason": "<figure> cannot live in a sanitized stem",
+    "raw_excerpt": "<figure>\n<img src=\"static/white_red_cubes.png\"/>\n</figure>",
+    "unit_json": "150_kombinatoryka_quiz.json"
+  },
+  {
+    "kind": "table_span",
+    "reason": "table uses rowspan/colspan",
+    "raw_excerpt": "<table class=\"my_table_noborder narrow_table\" id=\"pascal_triangle_table\" style=\"font-size: x-small;\">\n<tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td><",
+    "unit_json": "240_kombinatoryka.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a>",
+    "unit_json": "280_kombinatoryka.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
+    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a>",
+    "unit_json": "280_kombinatoryka.json"
+  }
+]

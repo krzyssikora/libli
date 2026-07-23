@@ -1,0 +1,147 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wskaż\n    <strong>\n        wszystkie\n    </strong>\n    równości prawdziwe.\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(\\sin 126^{\\circ}=\\sin 54^{\\circ}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sin 126^{\\circ}=-\\sin 54^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sin 126^{\\circ}=\\sin 36^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sin 126^{\\circ}=-\\sin 36^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\cos 126^{\\circ}=\\sin 54^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\cos 126^{\\circ}=-\\sin 54^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\cos 126^{\\circ}=\\sin 36^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\cos 126^{\\circ}=-\\sin 36^{\\circ}\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wskaż\n    <strong>\n        wszystkie\n    </strong>\n    równości prawdziwe.\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(\\sin 205^{\\circ}=\\sin 25^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sin 205^{\\circ}=-\\sin 25^{\\circ}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sin 205^{\\circ}=\\sin 65^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\sin 205^{\\circ}=-\\sin 65^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\cos 205^{\\circ}=\\sin 25^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\cos 205^{\\circ}=-\\sin 25^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\cos 205^{\\circ}=\\sin 65^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\cos 205^{\\circ}=-\\sin 65^{\\circ}\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wskaż\n    <strong>\n        wszystkie\n    </strong>\n    równości prawdziwe.\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(\\text{tg } 303^{\\circ}=\\text{tg } 33^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\text{tg } 303^{\\circ}=-\\text{tg } 33^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\text{tg } 303^{\\circ}=\\text{tg } 57^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\text{tg } 303^{\\circ}=-\\text{tg } 57^{\\circ}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\text{ctg } 303^{\\circ}=\\text{tg } 33^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\text{ctg } 303^{\\circ}=-\\text{tg } 33^{\\circ}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\text{ctg } 303^{\\circ}=\\text{tg } 57^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\text{ctg } 303^{\\circ}=-\\text{tg } 57^{\\circ}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8ec5fb8b94687ecdfa4ae8cc343fcd419acfb845684b4416bba97b592b64d0e4"
+}

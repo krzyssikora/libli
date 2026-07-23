@@ -1,0 +1,246 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów możemy ustawić <strong>dwie</strong> osoby w rzędzie? \n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "sprawdź",
+      "body": "\n\n            Oznaczmy te osoby przez <strong style=\"color: gray\">A</strong> i <strong style=\"color: blue\">B</strong>. \n            Możemy ustawić je w rzędzie na dwa sposoby:\n            <ol class=\"bold\">\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong>\n</li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów możemy ustawić <strong>trzy</strong> osoby w rzędzie? \n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "sprawdź",
+      "body": "\n\n            Oznaczmy te osoby przez <strong style=\"color: gray\">A</strong>, <strong style=\"color: blue\">B</strong> i <strong style=\"color: green\">C</strong>. \n            Możemy ustawić je w rzędzie na sześć sposobów:\n            <ol class=\"bold\">\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong>\n</li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów możemy ustawić <strong>cztery</strong> osoby w rzędzie? \n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "sprawdź",
+      "body": "\n\n            Oznaczmy te osoby przez <strong style=\"color: gray\">A</strong>, <strong style=\"color: blue\">B</strong>, <strong style=\"color: green\">C</strong> i <strong class=\"yellow_on_gray\">D</strong>. \n            Możemy ustawić je w rzędzie na dwadzieścia cztery sposoby:\n            <ol class=\"bold\">\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong>\n</li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n    Ustawienie \\(n\\) obiektów w rzędzie będziemy nazywać <strong>permutacją</strong>.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Podsumujmy:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "liczba osób",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "liczba permutacji",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(24\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czy te liczby coś Ci przypominają?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": ""
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "liczba permutacji<br/>zbioru \\(n\\)-elementowego",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(n!\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(24\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(24\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n    Liczba permutacji zbioru \\(n\\)-elementowego jest równa \\(n!\\).\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dlaczego tak jest? Obejrzyj animację w poniższym przykładzie dla \\(n=5\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów możemy ustawić <strong>cztery</strong> osoby w rzędzie? \n        </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/permutacja_przyklad.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "174c79dde1079f1e81181aa6cf5ec8de77090f5a51af9d507c17a647abeda5de"
+}

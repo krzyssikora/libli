@@ -51,14 +51,33 @@ nie blokuje niczego i nie przyznaje punktów.
 
 ## {el:filltable} Tabela do uzupełnienia
 
-Edytor tabeli — ta sama siatka, przełączniki wiersza/kolumny nagłówkowej i
-style obramowania co w elemencie [Tabela](content-editors) — z jednym
-dodatkiem: przycisk paska narzędzi **Komórka z odpowiedzią** zamienia
-komórkę na pole przyjmujące ciąg akceptowanej odpowiedzi zamiast treści
-sformatowanej. Komórki statyczne pozostają edytowalnym tekstem/wzorem jak w
-zwykłej tabeli; komórki z odpowiedzią są sprawdzane po stronie serwera dla
-każdej komórki osobno, w miarę wpisywania przez ucznia. Nie przyznaje
-punktów i niczego nie odsłania.
+Edytor tabeli — ta sama siatka, przełączniki wiersza/kolumny nagłówkowej,
+style obramowania oraz narzędzia scalania/rozdzielania komórek co w
+elemencie [Tabela](content-editors) — z jednym dodatkiem: przycisk paska
+narzędzi **Komórka z odpowiedzią** zamienia komórkę na pole przyjmujące ciąg
+akceptowanej odpowiedzi zamiast treści sformatowanej. Komórki statyczne
+pozostają edytowalnym tekstem/wzorem jak w zwykłej tabeli; komórki z
+odpowiedzią są sprawdzane po stronie serwera dla każdej komórki osobno, w
+miarę wpisywania przez ucznia. Zaznacz zakres komórek kombinacją
+Shift+kliknięcie albo rozszerzaj go pole po polu skrótem
+**Alt+Shift+strzałka**, a następnie kliknij **Scal komórki**, aby połączyć
+zaznaczenie w jedną komórkę — przetrwa tylko komórka w lewym górnym rogu,
+razem ze swoim rodzajem, więc scalenie obejmujące komórkę z odpowiedzią lub
+komórkę z obrazem usuwa jej akceptowaną odpowiedź lub obraz razem z resztą
+zaznaczenia; jeśli którakolwiek z pochłanianych komórek nie była pusta,
+najpierw zostaniesz poproszony o potwierdzenie. **Rozdziel komórkę** cofa
+scalenie, zwracając zwolnione komórki jako puste komórki statyczne.
+**Komórka nagłówkowa** przełącza pojedynczą komórkę między zwykłym a
+nagłówkowym stylem; jest wyszarzona — niedostępna, dopóki komórkę obejmuje
+opcja wiersza lub kolumny nagłówkowej — gdy komórkę obejmuje już
+**Wiersz nagłówkowy** lub **Kolumna nagłówkowa**. W tabeli z włączoną opcją
+**Kolumna nagłówkowa** scalenie usuwające pierwszą komórkę wiersza sprawia,
+że kolejna komórka tego wiersza staje się dla uczniów nagłówkiem, mimo że
+edytor nadal pokazuje ją jako zwykłą komórkę. Tabeli nie można powiększyć
+ponad 50 wierszy na 20 kolumn; zaimportowana tabela większa niż ten limit
+pozostaje w pełni zapisywalna, dopóki nie spróbujesz powiększyć jej jeszcze
+bardziej, ale zmniejszenie jej poniżej limitu jest jednokierunkowe. Nie
+przyznaje punktów i niczego nie odsłania.
 
 ## {el:spoiler} Rozwijana treść
 

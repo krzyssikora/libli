@@ -1,0 +1,101 @@
+{
+  "part": {
+    "source_folder": "120_wartosc_bezwzgledna",
+    "order": 17,
+    "title": "wartosc bezwzgledna"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "wartosc_bezwzgledna_10.json",
+          "source_html": "wartosc_bezwzgledna_10.html",
+          "source_dir": "120_wartosc_bezwzgledna",
+          "unit_type": "lesson",
+          "title": "Wartość bezwzględna"
+        },
+        {
+          "order": 1,
+          "unit_json": "wartosc_bezwzgledna_20.json",
+          "source_html": "wartosc_bezwzgledna_20.html",
+          "source_dir": "120_wartosc_bezwzgledna",
+          "unit_type": "lesson",
+          "title": "Definicja wartości bezwzględnej"
+        },
+        {
+          "order": 2,
+          "unit_json": "wartosc_bezwzgledna_30.json",
+          "source_html": "wartosc_bezwzgledna_30.html",
+          "source_dir": "120_wartosc_bezwzgledna",
+          "unit_type": "lesson",
+          "title": "Obliczanie wartości bezwzględnej"
+        },
+        {
+          "order": 3,
+          "unit_json": "wartosc_bezwzgledna_40.json",
+          "source_html": "wartosc_bezwzgledna_40.html",
+          "source_dir": "120_wartosc_bezwzgledna",
+          "unit_type": "lesson",
+          "title": "Odległość między liczbami"
+        },
+        {
+          "order": 4,
+          "unit_json": "wartosc_bezwzgledna_45_quiz.json",
+          "source_html": "wartosc_bezwzgledna_45_quiz.html",
+          "source_dir": "120_wartosc_bezwzgledna",
+          "unit_type": "quiz",
+          "title": "wartosc bezwzgledna 45 quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "wartosc_bezwzgledna_50.json",
+          "source_html": "wartosc_bezwzgledna_50.html",
+          "source_dir": "120_wartosc_bezwzgledna",
+          "unit_type": "lesson",
+          "title": "Równania"
+        },
+        {
+          "order": 1,
+          "unit_json": "wartosc_bezwzgledna_60.json",
+          "source_html": "wartosc_bezwzgledna_60.html",
+          "source_dir": "120_wartosc_bezwzgledna",
+          "unit_type": "lesson",
+          "title": "Równania - ćwiczenie"
+        },
+        {
+          "order": 2,
+          "unit_json": "wartosc_bezwzgledna_70.json",
+          "source_html": "wartosc_bezwzgledna_70.html",
+          "source_dir": "120_wartosc_bezwzgledna",
+          "unit_type": "lesson",
+          "title": "Nierówności 1"
+        },
+        {
+          "order": 3,
+          "unit_json": "wartosc_bezwzgledna_80.json",
+          "source_html": "wartosc_bezwzgledna_80.html",
+          "source_dir": "120_wartosc_bezwzgledna",
+          "unit_type": "lesson",
+          "title": "Nierówności 2"
+        },
+        {
+          "order": 4,
+          "unit_json": "wartosc_bezwzgledna_85_quiz.json",
+          "source_html": "wartosc_bezwzgledna_85_quiz.html",
+          "source_dir": "120_wartosc_bezwzgledna",
+          "unit_type": "quiz",
+          "title": "wartosc bezwzgledna 85 quiz"
+        }
+      ]
+    }
+  ]
+}

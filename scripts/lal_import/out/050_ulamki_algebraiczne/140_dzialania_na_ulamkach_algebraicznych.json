@@ -1,0 +1,55 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Czas na bardziej skomplikowane zadanie!\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz i przedstaw wynik w najprostszej postaci\n        <div class=\"table_wrapper\">\\[\n        \\frac{6x^2-19x+15}{9x^2-25}:\\frac{2x^2-5x+3}{3x+5}+\\frac{x+1}{x^2-x}\n        \\]</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Możesz spróbować rozwiązać zadanie samodzielnie, w razie potrzeby korzystając ze wskazówek, albo obejrzeć moje rozwiązanie.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li><a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagrania</a></li>\n<li><a href=\"#tabcontent-1-2\" id=\"tab-1-2\">wskazówki</a></li>\n</ul>"
+    },
+    {
+      "type": "spoiler",
+      "label": "krok 1. Zamiana dzielenia na mnożenie.",
+      "body": "\n\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/dzialania_na_ulamkach_alg_01.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "krok 2. Mnożenie: rozkład liczników i mianowników na czynniki.",
+      "body": "\n\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/dzialania_na_ulamkach_alg_02.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "krok 3. Mnożenie: skracanie ułamków.",
+      "body": "\n\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/dzialania_na_ulamkach_alg_03.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "krok 4. Dodawanie: wspólny mianownik.",
+      "body": "\n\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/dzialania_na_ulamkach_alg_04.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "krok 5. Dodawanie i ostateczny wynik.",
+      "body": "\n\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/dzialania_na_ulamkach_alg_05.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                    Najpierw zamień dzielenie na mnożenie przez odwrotność drugiego ułamka.\n                </li>\n<li>\n                    Rozłóż liczniki i mianowniki w obu mnożonych ułamkach na czynniki.\n                </li>\n<li>\n                    Skróć ułamki.\n                </li>\n<li>\n                    Znajdź wspólny mianownik dla wyniku mnożenia i trzeciego ułamka.\n                </li>\n<li>\n                    Dodaj ułamki.\n                </li>\n<li>\n                    Uprość wynik.\n                </li>\n</ol>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "02f4e4bc9c6aaca3b0683416d22581e53be836eb9788f344b475198a4d008542"
+}

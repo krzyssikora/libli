@@ -1,0 +1,178 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz pole trójkąta, którego dwa boki są długości 8 cm i 3 cm, a kąt między nimi ma miarę 40°.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Obejrzyj nagrania z rozwiązaniem i komentarzami, lub przeczytaj rozwiązanie krok po kroku.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    nagrania\n                </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    krok po kroku\n                </a>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Rozwiązanie zadania:\n            </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/tryg_pole_trojkata_1.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Pierwszy komentarz: co, gdybyśmy zaczęli inaczej:\n            </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/tryg_pole_trojkata_2.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Drugi komentarz: uogólnienie problemu:\n            </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/tryg_pole_trojkata_3.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Dodatkowy komentarz: wzory w\n                <a href=\"https://www.cke.gov.pl/images/_EGZAMIN_MATURALNY_OD_2023/Informatory/wybrane_wzory_matematyczne_EM2023.pdf\">\n                    pliku z wybranymi wzorami matematycznymi\n                </a>\n                :\n            </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/tryg_pole_trojkata_4.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Na rysunku poniżej zaznaczone są wszystkie dane: długości 8 i 3 (cm) oraz kąt 40°.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"trygonometria - pole trójkąta 1\" height=\"239\" src=\"static/tryg_pole_trojkata_1.png\" style=\"width: 802px; height: 239px;\" width=\"802\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Do obliczenia pola trójkąta chcielibyśmy użyć znanego wzoru:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        \\(\\text{Pole}=\\frac{1}{2}\\cdot\\text{podstawa}\\cdot\\text{wysokość}\\)\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        który zwykle zapisujemy w uproszczeniu jako:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        \\(P_{\\Delta}=\\frac{1}{2}\\cdot a\\cdot h\\)\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        gdzie\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul style=\"list-style: none\">\n<li>\n                            \\(a\\) to długość podstawy,\n                        </li>\n<li>\n                            \\(h\\) to długość wysokości opuszczonej na tę podstawę.\n                        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Wartość \\(a\\) to w naszej sytuacji 8, wartości \\(h\\) nie znamy i musimy ją znaleźć.\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"trygonometria - pole trójkąta 2\" height=\"222\" src=\"static/tryg_pole_trojkata_2.png\" style=\"width: 800px; height: 222px;\" width=\"800\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Aby znaleźć wartość \\(h\\) użyjemy trygonometrii w trójkącie prostokątnym po lewej stronie wysokości, zaznaczonego poniżej na żółto.\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"trygonometria - pole trójkąta 3\" height=\"229\" src=\"static/tryg_pole_trojkata_3.png\" style=\"width: 800px; height: 229px;\" width=\"800\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        W żółtym trójkącie\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul style=\"list-style: none\">\n<li>\n                            \\(h\\) to przyprostokątna naprzeciwległa do kąta 40°,\n                        </li>\n<li>\n                            bok o długości 3 to przeciwprostokątna.\n                        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Stosunek długości przyprostokątnej naprzeciwległej do kąta ostrego do długości przeciwprostokątnej to sinus, czyli\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span class=\"myequation\">\n                            \\(\\sin 40^{\\circ}=\\frac{h}{3}\\)\n                        </span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>a stąd</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span class=\"myequation\">\n                            \\(h=3\\cdot \\sin 40^{\\circ}\\)\n                        </span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Widząc, że \\(a=8\\) oraz \\(h=3\\cdot \\sin 40^{\\circ}\\) możemy wrócić do wzoru na pole trójkąta:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        \\(P_{\\Delta}=\\frac{1}{2}\\cdot a\\cdot h = \\frac{1}{2}\\cdot 8\\cdot \\)\n                        <span class=\"myequation\">\n                            \\(3\\cdot \\sin 40^{\\circ}\\)\n                        </span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span class=\"myequation\">\n                            \\(P_{\\Delta}=\\frac{1}{2}\\cdot 8\\cdot 3\\cdot \\sin 40^{\\circ}\\)\n                        </span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        W tablicach wartości funkcji trygonometrycznych znajdujemy wartość sinusa 40°:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"\" height=\"430\" src=\"static/tryg_pole_trojkata_4.png\" style=\"width: 600px; height: 430px;\" width=\"600\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span class=\"myequation\">\n                            \\(\\sin 40^{\\circ}\\approx 0,6428\\)\n                        </span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        i stąd już tylko krok do wyliczenia pola trójkąta:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span class=\"myequation\">\n                            \\(P_{\\Delta}=\\frac{1}{2}\\cdot 8\\cdot 3\\cdot \\sin 40^{\\circ}=\\frac{1}{2}\\cdot 8\\cdot 3\\cdot 0,6428\\approx 7,7136\\)\n                        </span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Pole trójkąta to w przybliżeniu 7,7 cm\n                        <sup>\n                            2\n                        </sup>\n                        .\n                    </p>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "0a13f34b9257c4ef6aad473b06feee796a61e32203ffb563afccd0c352e7bdd6"
+}

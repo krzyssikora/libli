@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Być może zauważyłaś/-eś, że zawsze, gdy wprowadzaliśmy nowe rodzaje wyrażeń i operacji algebraicznych, niedługo potem rozwiązywaliśmy adekwatne równania i przyglądaliśmy się bazującym na takich wyrażeniach funkcjom. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Nie inaczej będzie i tym razem. Poznaliśmy wyrażenia wymierne, rozwiązywaliśmy równania wymierne, więc chyba czas… na funkcje wymierne?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Funkcje wymierne to, mówiąc króko, takie, które można zdefiniować za pomocą ułamka wymiernego. Przyjrzymy się ich prostszym rodzajom. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Najprostszy rodzaj funkcji wymiernej już znasz. Jest to omawiana przez nas wcześniej funkcja proporcjonalności odwrotnej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Możesz przypomnieć sobie proporcjonalność prostą dokładnie, wracając <a href=\"/jump_to_id/3072f628746c4dcf9613abeb56b8de3b\">do tego rozdziału</a>.\n    A tu powtórzmy ją w wielkim skrócie.\n</p>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "9e6f72dbf4993c94e03b1c0476302e2c5491704055358195f046becd8e912e87"
+}

@@ -1,0 +1,141 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>Pole kwadratu jest równe \\(18\\). Długość przekątnej to</p>",
+      "value": "6",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Przekątne równoległoboku są długości \\(8\\) i \\(11\\), a kąt między nimi ma miarę \\(30^{\\circ}\\). Pole tego równoległoboku jest równe</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(44\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(44\\sqrt{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(44\\sqrt{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(22\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(22\\sqrt{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(22\\sqrt{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Bok prostokąta ma długość \\(5\\), a jego przekątna \\(13\\).</p><p>Pole prostokąta jest równe</p>",
+      "value": "60",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Bok rombu ma długość \\(4\\), a kąt między bokami ma miarę \\(45^{\\circ}\\).</p><p>Pole rombu jest równe</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(8\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(8\\sqrt{2}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(8\\sqrt{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4\\sqrt{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(4\\sqrt{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Pole rombu jest równe \\(21\\), a jedna z przekątnych ma długość \\(7\\).</p><p>Długość drugiej przekątnej to</p>",
+      "value": "6",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Boki równoległoboku są długości \\(4\\) i \\(9\\), a</p><p>wysokość równoległoboku ma długość \\(6\\).</p><p>Pole równoległoboku jest równe</p>",
+      "value": "24",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Kąt wewnętrzny między bokami równoległoboku ma miarę \\(60^{\\circ}\\). Jeden z boków ma długość \\(8\\), a pole równoległoboku to \\(72\\).</p><p>Długość drugiego boku to</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(6\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(6\\sqrt{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(6\\sqrt{3}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(12\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(12\\sqrt{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(12\\sqrt{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "bc24067a3d474e68b8ea1dba7fe287caff4855305db78b78382b55f94f80fb87"
+}

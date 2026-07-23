@@ -1,0 +1,14 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Czym jest wyraz algebraiczny?\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/wyrazy.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "34bd0db52bd6a8516c6173e0ddfaa0b49f9833d2596d85d4bd474fba7402be98"
+}

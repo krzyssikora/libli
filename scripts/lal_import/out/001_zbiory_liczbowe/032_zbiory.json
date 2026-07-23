@@ -1,0 +1,19 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie klikaj na obszary oznaczone liczbami (1), (2), (3) i (4), aby zacieniować wskazany zbiór.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/bbgwtvrg/width/800/height/700/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8dea4b84623cde53bc30e2d51def282fbce8feb8fbb4be773f54278a97c4da8c"
+}

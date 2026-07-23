@@ -1,0 +1,230 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Dany jest trójkąt o bokach \\(a\\), \\(b\\), \\(c\\). Niech \\(p\\) oznacza połowę obwódu trójkąta, tzn.\n    \\[\n    p=\\frac{a+b+c}{2}\n    \\]\n    a \\(r\\) niech oznacza długość promienia okręgu wpisanego.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wówczas pole trójkąta \\(P\\) dane jest wzorem\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    P=pr\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Trójkąt ma boki długości \\(13\\), \\(14\\) i \\(15\\). Promień okręgu wpisanego w ten trójkąt ma długość \\(4\\).\n        <p>\n            Jakie jest pole trójkąta?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        Połowa obwodu to\n        <span class=\"myequation\">\n            \\(p=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n        .\n        <p>\n            Na mocy wzoru\n        </p>\n        \\[\n        P=pr\n        \\]\n        pole trójkąta jest równe\n        <span class=\"myequation\">\n            \\(P=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n        .\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n    Świetnie!\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Mając dane długości boków \\(a\\), \\(b\\), \\(c\\) i pole trójkąta \\(P\\), oblicz połowę długości obwodu trójkąta \\(p\\) i długość promienia okręgu wpisanego w ten trójkąt \\(r\\).\n    "
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(a\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(b\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(c\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(P\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(p\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(r\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(9\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(17\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(36\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(11\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(13\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(20\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(66\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(7\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(15\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(20\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(42\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(13\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(15\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(24\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n    Doskonale!\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Znajdź długość promienia okręgu wpisanego w trójkąt o bokach długości \\(10\\), \\(13\\), \\(13\\).\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Tym razem nie mamy danego pola. Możemy je jednak łatwo policzyć, korzystając z faktu, że dany trójkąt jest\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        prostokątny\n                    </div>\n<div class=\"switch_value\">\n                        równoramienny\n                    </div>\n<div class=\"switch_value\">\n                        równoboczny\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\" style=\"min-height: 320px;\">\n<img alt=\"pole trójkąta\" height=\"300\" src=\"static/pole_trojkata_kbk_zad_11.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n                Dzięki temu, możemy go podzielić wysokością (zaznaczoną na rysunku literą \\(h\\)) na dwa przystające trójkąty prostokątne.\n                <div class=\"switch_line\">\n                    I teraz możęmy obliczyć wysokość z twierdzenia Pitagorasa:\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(h^2+5^2=13^2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(h^2=13^2+5^2\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Otrzymujemy \\(h=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(8\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(144\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(12\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I stąd pole trójkąta \\(P=\\frac{1}{2}\\cdot 10\\cdot 12=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(60\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(30\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(120\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Przyda nam się jeszcze połowa obwodu \\(p=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(15\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(18\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(35\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(36\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                I na zakończenie, mając dane pole równe \\(60\\) i połowę obwodu równą \\(18\\) możemy skorzystać ze wzoru\n                \\[\n                P=pr\n                \\]\n                <div class=\"switch_line\">\n                    aby znaleźć długość promienia okręgu wpisanego \\(r=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(3\\tfrac{1}{3}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(0,3\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Długość promienia okręgu wpisanego \\(r=3\\tfrac{1}{3}\\).\n            </div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "78655e4dde92079c3d80b734b35fe44fd79199d2e8f56cb9638d49d083240511"
+}

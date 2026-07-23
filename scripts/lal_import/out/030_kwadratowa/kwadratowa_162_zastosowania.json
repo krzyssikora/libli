@@ -1,0 +1,166 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Z wieży, z wysokości 18 metrów wystrzelono pocisk.\n        </p>\n<p>\n            W odległości 28 metrów od wieży (mierzonej w poziomie) pocisk osiąnął maksymalną wysokość 24 metrów.\n        </p>\n<p>\n            Przyjmując, że trajektoria lotu pocisku to parabola, oblicz, w jakiej odległości od wieży pocisk spadł na ziemię.\n        </p>\n<p>\n            Przesuwaj powoli punkt symulujący pocisk, aby prześledzić etapy lotu pocisku.\n        </p>\n<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"300px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/m75vfj2n/width/800/height/300/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"funkcja kwadratowa - zastosowania - pocisk\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Ponownie masz do wyboru: możesz obejrzeć rozwiązanie, lub je przeczytać.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-2-3\" id=\"tab-2-1\">\n                nagranie\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-2-4\" id=\"tab-2-2\">\n                opis\n            </a>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Analiza zadania:\n        </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/pocisk_1.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wyznaczenie równania paraboli:\n        </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/pocisk_2.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Obliczenie szukanej odległości:\n        </p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/pocisk_3.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Narysujmy tę sytuację w układzie współrzędnych, umieszczając jego początek na dole wieży.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"\" height=\"423\" src=\"static/zastosowania_3.png\" style=\"width: 891px; height: 314px;\" width=\"1200\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p style=\"color: blue\">\n            Znajdźmy równanie paraboli wskazującej trajektorię lotu pocisku.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znamy jej wierzchołek \\(W=(28,24)\\), więc skorzystamy z postaci kanonicznej:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(y=a(x-p)^2+q\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            gdzie\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(p=28, q=24\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            czyli parabola ma równanie:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(y=a(x-28)^2+24\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Aby znaleźć brakujący parametr \\(a\\), użyjemy punktu \\((0,18)\\):\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(y=a(x-28)^2+24\\quad\\quad \\leftarrow\\quad\\quad x=0, y=18\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(18=a(0-28)^2+24\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\((-28)^2a=18-24\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(784a=-6\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(a=-\\frac{6}{784}=-\\frac{3}{392}\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znaleźliśmy równanie paraboli:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(y=-\\frac{3}{392}(x-28)^2+24\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p style=\"color: blue\">\n            Teraz musimy znaleźć punkt, w którym pocisk uderza w ziemię.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Poziom ziemi to oś \\(x\\), więc szukamy miejsca, w którym parabola przecina oś \\(x\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Innymi słowy szukamy miesjca zerowego:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(0=-\\frac{3}{392}(x-28)^2+24\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(\\frac{3}{392}(x-28)^2=24\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Podzielmy równanie przez ułamek \\(\\frac{3}{392}\\):\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\((x-28)^2=24\\cdot \\frac{392}{3}=3136\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            I teraz wystarczy spierwiastkować:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(x-28=\\pm 56\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            czyli\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            \\(x=-28\\) lub \\(x=84\\)\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyjmy się jeszcze raz powyższemu rysunkowi. Jak widzimy, interesuje nas tylko miejsce zerowe umieszczone\n            <strong>\n                w prawo od osi \\(y\\)\n            </strong>\n            , czyli \\(x=84\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Stąd widzimy, że pocisk uderzył w ziemię w odległości 84 metrów od wieży.\n        </p>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "65a9474a3833d71fd23ca086ddf8447205e1e01e148687ea85c6c67c75408137"
+}

@@ -1,0 +1,10 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/potegi_calkowite.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "aae6020aabb1bd863c15eaf8a6ddfa90b31c1b304f1026a441d4cdfdf9428ed6"
+}

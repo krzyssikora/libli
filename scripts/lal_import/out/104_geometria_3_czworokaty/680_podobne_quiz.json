@@ -1,0 +1,69 @@
+{
+  "elements": [
+    {
+      "type": "numeric",
+      "stem": "<p>Dane są dwa trapezy podobne. Wysokość jednego z nich jest trzykrotnie większa od wysokości drugiego. Jaki jest stosunek pól większego do mniejszego trapezu?</p>",
+      "value": "9",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Pierwszy romb ma bok długości \\(6\\) i kąt wewnętrzny \\(54^{\\circ}\\).</p><p>Drugi romb ma bok długości \\(11\\) i kąt wewnętrzny \\(126^{\\circ}\\).</p><p>Czy te romby są podobne?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "nie",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Pierwszy równoległobok ma boki długości \\(4\\) i \\(6\\) i kąt wewnętrzny \\(50^{\\circ}\\).</p><p>Drugi równoległobok ma boki długości \\(6\\) i \\(9\\) i kąt wewnętrzny \\(130^{\\circ}\\).</p><p>Czy te równoległoboki są podobne?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "nie",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Pierwszy równoległobok ma boki długości \\(6\\) i \\(8\\) i kąt wewnętrzny \\(50^{\\circ}\\).</p><p>Drugi równoległobok ma boki długości \\(8\\) i \\(10\\) i kąt wewnętrzny \\(50^{\\circ}\\).</p><p>Czy te równoległoboki są podobne?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "nie",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Dane są dwa romby podobne. Pole jednego z nich jest o \\(75\\%\\) mniejsze od drugiego.</p><p>Ilokrotnie dłuższy jest bok większego od boku mniejszego rombu?</p><p>(wpisz liczbę)</p>",
+      "value": "2",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "5746435b403649954d10db519793670fff5bbf37a41d32109eb386066130ec96"
+}

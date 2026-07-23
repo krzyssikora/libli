@@ -1,0 +1,341 @@
+{
+  "part": {
+    "source_folder": "001_zbiory_liczbowe",
+    "order": 0,
+    "title": "zbiory liczbowe"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "005_zbiory.json",
+          "source_html": "005_zbiory.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Zbiory - pojęcia podstawowe"
+        },
+        {
+          "order": 1,
+          "unit_json": "010_zbiory.json",
+          "source_html": "010_zbiory.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Zbiory - pojęcia podstawowe - podsumowanie"
+        },
+        {
+          "order": 2,
+          "unit_json": "020_zbiory.json",
+          "source_html": "020_zbiory.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Działania na zbiorach"
+        },
+        {
+          "order": 3,
+          "unit_json": "030_zbiory.json",
+          "source_html": "030_zbiory.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Działania na zbiorach - podsumowanie"
+        },
+        {
+          "order": 4,
+          "unit_json": "032_zbiory.json",
+          "source_html": "032_zbiory.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Sprawdź się!"
+        },
+        {
+          "order": 5,
+          "unit_json": "035_zbiory.json",
+          "source_html": "035_zbiory.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Działania na zbiorach - ćwiczenie"
+        },
+        {
+          "order": 6,
+          "unit_json": "037_zbiory.json",
+          "source_html": "037_zbiory.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Działania na zbiorach - ćwiczenie"
+        },
+        {
+          "order": 7,
+          "unit_json": "039_zbiory_quiz.json",
+          "source_html": "039_zbiory_quiz.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "quiz",
+          "title": "zbiory quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "040_liczby_r.json",
+          "source_html": "040_liczby_r.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Klasyfikacja liczb rzeczywistych"
+        },
+        {
+          "order": 1,
+          "unit_json": "050_liczby_r.json",
+          "source_html": "050_liczby_r.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Jak klasyfikować liczby rzeczywiste?"
+        },
+        {
+          "order": 2,
+          "unit_json": "060_liczby_r.json",
+          "source_html": "060_liczby_r.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "liczby r"
+        },
+        {
+          "order": 3,
+          "unit_json": "070_liczby_r.json",
+          "source_html": "070_liczby_r.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "liczby r"
+        },
+        {
+          "order": 4,
+          "unit_json": "074_liczby_r_quiz.json",
+          "source_html": "074_liczby_r_quiz.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "quiz",
+          "title": "liczby r quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "075_liczby_r_przedzialy.json",
+          "source_html": "075_liczby_r_przedzialy.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Przedziały"
+        },
+        {
+          "order": 1,
+          "unit_json": "080_liczby_r_przedzialy.json",
+          "source_html": "080_liczby_r_przedzialy.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "liczby r przedzialy"
+        },
+        {
+          "order": 2,
+          "unit_json": "090_liczby_r_przedzialy.json",
+          "source_html": "090_liczby_r_przedzialy.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Działania na przedziałach"
+        },
+        {
+          "order": 3,
+          "unit_json": "100_liczby_r_przedzialy.json",
+          "source_html": "100_liczby_r_przedzialy.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Działania na przedziałach - ćwiczenie"
+        },
+        {
+          "order": 4,
+          "unit_json": "110_liczby_r_przedzialy.json",
+          "source_html": "110_liczby_r_przedzialy.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "liczby r przedzialy"
+        },
+        {
+          "order": 5,
+          "unit_json": "113_liczby_r_przedzialy_quiz.json",
+          "source_html": "113_liczby_r_przedzialy_quiz.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "quiz",
+          "title": "liczby r przedzialy quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "115_liczby_r_zast.json",
+          "source_html": "115_liczby_r_zast.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Słowo wstępu"
+        },
+        {
+          "order": 1,
+          "unit_json": "120_liczby_r_zast.json",
+          "source_html": "120_liczby_r_zast.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Równania i nierówności"
+        },
+        {
+          "order": 2,
+          "unit_json": "130_liczby_r_zast.json",
+          "source_html": "130_liczby_r_zast.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Procenty"
+        },
+        {
+          "order": 3,
+          "unit_json": "140_liczby_r_zast.json",
+          "source_html": "140_liczby_r_zast.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Procenty i punkty procentowe"
+        },
+        {
+          "order": 4,
+          "unit_json": "150_liczby_r_zast.json",
+          "source_html": "150_liczby_r_zast.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Błędy"
+        },
+        {
+          "order": 5,
+          "unit_json": "160_liczby_r_zast.json",
+          "source_html": "160_liczby_r_zast.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Szacowanie"
+        },
+        {
+          "order": 6,
+          "unit_json": "170_liczby_r_zast.json",
+          "source_html": "170_liczby_r_zast.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Reguła przybliżania"
+        },
+        {
+          "order": 7,
+          "unit_json": "178_liczby_r_zast_quiz.json",
+          "source_html": "178_liczby_r_zast_quiz.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "quiz",
+          "title": "liczby r zast quiz"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "__PLACEHOLDER chapter 5__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "180_liczby_q.json",
+          "source_html": "180_liczby_q.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Działania na ułamkach"
+        },
+        {
+          "order": 1,
+          "unit_json": "190_liczby_n.json",
+          "source_html": "190_liczby_n.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "liczby n"
+        },
+        {
+          "order": 2,
+          "unit_json": "200_liczby_n.json",
+          "source_html": "200_liczby_n.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Liczby pierwsze i złożone"
+        },
+        {
+          "order": 3,
+          "unit_json": "210_liczby_n.json",
+          "source_html": "210_liczby_n.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Liczby pierwsze i złożone - pytania"
+        },
+        {
+          "order": 4,
+          "unit_json": "220_liczby_n.json",
+          "source_html": "220_liczby_n.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Podzielność"
+        },
+        {
+          "order": 5,
+          "unit_json": "230_liczby_n.json",
+          "source_html": "230_liczby_n.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Podzielność - zadania"
+        },
+        {
+          "order": 6,
+          "unit_json": "240_liczby_n.json",
+          "source_html": "240_liczby_n.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Największy wspólny dzielnik i najmniejsza wspólna wielokrotność"
+        },
+        {
+          "order": 7,
+          "unit_json": "250_liczby_n.json",
+          "source_html": "250_liczby_n.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "NWD, NWW - ćwiczenie"
+        },
+        {
+          "order": 8,
+          "unit_json": "260_liczby_n_quiz.json",
+          "source_html": "260_liczby_n_quiz.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "quiz",
+          "title": "liczby n quiz"
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "title": "__PLACEHOLDER chapter 6__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "300_podsumowanie.json",
+          "source_html": "300_podsumowanie.html",
+          "source_dir": "001_zbiory_liczbowe",
+          "unit_type": "lesson",
+          "title": "Zbiory"
+        }
+      ]
+    }
+  ]
+}

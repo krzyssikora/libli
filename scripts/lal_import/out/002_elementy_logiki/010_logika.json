@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n<strong>\n        Zdanie logiczne\n    </strong>\n    to taki rodzaj wypowiedzi, która może być\n    <strong>\n        prawdziwa\n    </strong>\n    lub\n    <strong>\n        fałszywa\n    </strong>\n    .\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Obejrzyj nagranie z przykładami zdań logicznych.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/zdania_logiczine.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Z kolejnego nagrania dowiesz się o wartościach logicznych zdań logicznych.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/prawdziwosc_zdan.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fa9a4d5a8f6a79609ebed493ef80d98dd1fa3029f7018b7a091ed5d960c03a85"
+}

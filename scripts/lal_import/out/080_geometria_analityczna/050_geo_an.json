@@ -1,0 +1,58 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dany jest odcinek \\(AB\\), gdzie\n        </p>\n        \\[\n        A=\\left(x_A, y_A\\right),\\quad\\quad B=\\left(x_B, y_B\\right)\n        \\]\n        <p>\n            Znajdź współrzędne punktu \\(S\\), środka odcinka \\(AB\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Aby znaleźć współrzędne punktu \\(S\\), musimy najpierw znaleźć współrzędną \\(x\\)-ową.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"środek odcinka, współrzędna x\" src=\"static/srodek_odcinka_x.png\" width=\"400\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                W podobny sposób znajdziemy współrzędną \\(y\\)-ową.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"środek odcinka, współrzędna y\" src=\"static/srodek_odcinka_y.png\" width=\"400\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                I tak uzyskujemy wzór na współrzędne punktu \\(S\\), środka odcinka \\(AB\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"środek odcinka\" src=\"static/srodek_odcinka.png\" width=\"400\"/>\n"
+    },
+    {
+      "type": "math",
+      "latex": "\n                S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n                "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d6c06dd65a0db187c783683afae48f9886d71ba3322fd67fa71fb5cfc6957b93"
+}

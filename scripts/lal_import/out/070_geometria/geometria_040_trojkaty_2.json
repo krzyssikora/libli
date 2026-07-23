@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Przystawanie i podobieństwo trójkątów\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "\n        w tej lekcji\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n<a href=\"#przystawanie\">\n                Przystawanie trójkątów\n            </a>\n<ul>\n<li>\n<a href=\"#zasady_przystawaniwa\">\n                        Zasady przystawania\n                    </a>\n</li>\n</ul>\n</li>\n<li>\n<a href=\"#podobienstwo\">\n                Podobieństwo trójkątów\n            </a>\n<ul>\n<li>\n<a href=\"#zasady_podobienstwa\">\n                        Zasady podobieństwa\n                    </a>\n</li>\n<li>\n<a href=\"#skala_podobienstwa\">\n                        Skala podobieństwa\n                    </a>\n</li>\n</ul>\n</li>\n</ol>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "a1ae96aa59a8638b702aa19887542d1ff0894a3d5d2ce3dcc1714707cd2fdc88"
+}

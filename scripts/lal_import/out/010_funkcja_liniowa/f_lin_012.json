@@ -1,0 +1,62 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Zależność między ilością wody w naczyniu a czasem nalewania można opisać za pomocą równania.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        \\(x\\) oznacza czas (w sekundach)\n    </li>\n<li>\n        \\(y\\) oznacza ilość nalanej wody (w centymetrach sześciennych)\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    to wówczas\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"centered\">\n    \\(y=5x\\)\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"centered\">\n    (ilość wody) = \\(5\\cdot\\)(czas nalewania)\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    To równanie opisuje\n    <span style=\"text-decoration: underline;\">\n<strong>\n            proporcjonalność prostą\n        </strong>\n</span>\n    pomiędzy ilością wody a czasem nalewania.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Mówimy, że:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"centered\">\n    \"ilość wody w naczyniu jest\n    <span style=\"text-decoration: underline;\">\n<strong>\n            wprost proporcjonalna\n        </strong>\n</span>\n    do czasu nalewania\"\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"justified\">\n    Liczba 5 nazywana jest\n    <span style=\"text-decoration: underline;\">\n<strong>\n            stałą proporcjonalności\n        </strong>\n</span>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"justified\">\n        Bardziej ogólnie, mówimy, że\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"centered\">\n        \"zmienna \\(y\\) jest\n        <strong>\n            wprost proporcjonalna\n        </strong>\n        do zmiennej \\(x\\) ze stałą proporcjonalności \\(a\\)\"\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"justified\">\n        jeśli:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"centered\">\n        \\(y=ax\\)\n    </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e195c86e5142acd9a46519297e2fa27719e9c5ef72a7ba7786d2aa955f3c7412"
+}

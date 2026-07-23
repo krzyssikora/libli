@@ -1,0 +1,130 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Pole koła o promieniu \\(4\\) cm jest równe</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(4\\pi\\) cm\\(^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(8\\pi\\) cm\\(^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(12\\pi\\) cm\\(^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(16\\pi\\) cm\\(^2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(32\\pi\\) cm\\(^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Obwód koła o promieniu \\(6\\) cm jest równy</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(6\\pi\\) cm",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(12\\pi\\) cm",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(18\\pi\\) cm",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(24\\pi\\) cm",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(36\\pi\\) cm",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Obwód koła jest równy \\(14\\pi\\) cm. Pole tego koła jest równe</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(14\\pi\\) cm\\(^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(28\\pi\\) cm\\(^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(49\\pi\\) cm\\(^2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(196\\pi\\) cm\\(^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wycinek koła o promieniu \\(8\\) cm ma kąt środkowy o mierze \\(45^{\\circ}\\).\n</p><p>Pole powierzchni wycinka jest równe</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(8\\pi\\) cm\\(^2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(10\\tfrac{2}{3}\\pi\\) cm\\(^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(16\\pi\\) cm\\(^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(32\\pi\\) cm\\(^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>\n    Koło ma promień \\(12\\) cm. Wycinek tego koła jest ograniczony łukiem o długości \\(8\\pi\\) cm.\n</p><p>\n    Podaj miarę kąta środkowego tego wycinka w stopniach.\n</p>",
+      "value": "120",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "35bb9c0f1d20125a7cbef3eaf0da6dabb5b71d1151f20a827a067e4a0034e986"
+}

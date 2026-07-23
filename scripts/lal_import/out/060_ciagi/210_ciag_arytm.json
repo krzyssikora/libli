@@ -1,0 +1,111 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>Ciąg arytmetyczny</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>to taki ciąg \\((a_n)\\), w którym różnica:\n    \\[\n    a_n-a_{n-1}=r\n    \\]\n    jest stała dla \\(n=2, 3, 4, \\dots\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wzór na \\(n\\)-ty wyraz ciągu to\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    a_n=a_1+(n-1)r\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wzór łączący dowolne wyrazy o numerach \\(n\\) i \\(k\\):\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    a_n-a_k=(n-k)r\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyj się animacji w poniższym zadaniu. Pokazuje ona strukturę ciągu arytmetycznego: \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<span style=\"color: red;\">kolejne wyrazy otrzymujemy dodając różnicę \\(r\\) do poprzednich</span>\n</li>\n<li>\n<span style=\"color: purple;\">poprzednie wyrazy otrzymujemy odejmując różnicę \\(r\\) od kolejnych</span>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Ustal związek między trzema kolejnymi wyrazami ciągu arytmetycznego \\((a_n)\\).\n        <figure>\n<video autoplay=\"\" loop=\"\" muted=\"\" width=\"100%\">\n<source src=\"static/arytmetyczny_rr.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n        W tym celu:\n        <ol class=\"bold\">\n<li>\n                zapisz równania łączące\n                <ul>\n<li>\n                        wyraz \\(a_n\\) z wyrazem poprzednim, \\(a_{n-1}\\) oraz \n                    </li>\n<li>\n                        wyraz \\(a_n\\) z wyrazem kolejnym, \\(a_{n+1}\\). \n                    </li>\n</ul>\n</li>\n<li>\n                wyeliminuj \\(r\\) z obu równań.\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<p>\n                Jak widzisz w animacji, równania łączące wyraz \\(a_n\\) z wyrazem poprzednim i kolejnym wyglądają tak:\n            </p>\n            \\[\n            \\begin{cases}\n            \\begin{align}\n            a_{n-1}+r&amp;=a_n\\\\\n            a_n+r&amp;=a_{n+1}\n            \\end{align}\n            \\end{cases}\n            \\]\n            <div class=\"switch_step\">\n                Wyliczmy \\(r\\) z pierwszego równania (\\(r=a_n-a_{n-1}\\)) i podstawmy do drugiego.\n                <div class=\"switch_line\">\n                    Otrzymamy:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2a_n+a_{n-1}=a_{n+1}\\)</div>\n<div class=\"switch_value\">\\(a_n-2a_{n-1}=a_{n+1}\\)</div>\n<div class=\"switch_value\">\\(2a_n-a_{n-1}=a_{n+1}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                I teraz z równania\n                \\[\n                2a_n-a_{n-1}=a_{n-1}\n                \\]\n                <div class=\"switch_line\">\n                    wyliczamy \\(a_n\\) i dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_n=2a_{n-1}+2a_{n+1}\\)</div>\n<div class=\"switch_value\">\\(a_n=\\frac{a_{n-1}+a_{n+1}}{2}\\)</div>\n<div class=\"switch_value\">\\(a_n=a_{n-1}+a_{n+1}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Związek między trzema kolejnymi wyrazami ciągu arytmetycznego:\n                \\[\n                a_n=\\frac{a_{n-1}+a_{n+1}}{2}\n                \\]\n                Pamiętasz, jak nazywa się tak wyliczona wartość?\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Związek między trzema kolejnymi wyrazami ciągu arytmetycznego:\n    \\[\n    a_n=\\frac{a_{n-1}+a_{n+1}}{2}\n    \\]\n    Oznacza to, że każdy</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<sup>(*)</sup>",
+      "reason": "unmapped <sup> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "<p>wyraz ciągu (czyli \\(a_n\\)) jest</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>średnią arytmetyczną</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>swoich sąsiadów (\\(a_{n-1}\\) i \\(a_{n+1}\\)).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>\n<sup>(*)</sup> każdy, który ma sąsiadów, czyli nie pierwszy, a w przypadku ciągów skończonych - też nie ostatni.\n        </small>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Użyjmy tego wzoru w dwóch zadaniach\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Czternasty wyraz ciągu arytmetycznego to \\(21\\).\n        </p>\n<p>\n            Szesnasty wyraz tego ciągu to \\(15\\).\n        </p>\n<p>\n            Znajdź wartość piętnastego wyrazu.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Skorzystamy z wzoru\n                \\[\n                a_n=\\frac{a_{n-1}+a_{n+1}}{2}\n                \\]\n                dla \\(n=15\\)\n                <div class=\"switch_line\">\n                    Podstawiwszy wartości otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_{15}=\\frac{14+16}{2}\\)</div>\n<div class=\"switch_value\">\\(a_{15}=\\frac{21+15}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I stąd \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_{15}=18\\)</div>\n<div class=\"switch_value\">\\(a_{15}=28,5\\)</div>\n<div class=\"switch_value\">\\(a_{15}=13\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Piętnasty wyraz to \\(18\\).\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Jedenasty wyraz ciągu arytmetycznego to \\(34\\).\n        </p>\n<p>\n            Dwunasty wyraz tego ciągu to \\(41\\).\n        </p>\n<p>\n            Znajdź wartość dziesiątego wyrazu.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                W zadaniu jest mowa o wyrazach o numerach \\(10\\), \\(11\\) i \\(12\\), więc\n                skorzystamy z wzoru\n                \\[\n                a_n=\\frac{a_{n-1}+a_{n+1}}{2}\n                \\]\n                <div class=\"switch_line\">\n                    dla\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(n=10\\)</div>\n<div class=\"switch_value\">\\(n=11\\)</div>\n<div class=\"switch_value\">\\(n=12\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dzięki temu użyjemy trzech wspomnianych wyrazów ciągu:\n                \\[\n                a_{11}=\\frac{a_{10}+a_{12}}{2}\n                \\]\n                <div class=\"switch_line\">\n                    Podstawiając dane otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_{10}=\\frac{34+41}{2}\\)</div>\n<div class=\"switch_value\">\\(34=\\frac{a_{10}+41}{2}\\)</div>\n<div class=\"switch_value\">\\(41=\\frac{34+a_{10}}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Rozwiązując równanie\n                \\[\n                34=\\frac{a_{10}+41}{2}\n                \\]\n                <div class=\"switch_line\">\n                    dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_{10}=27\\)</div>\n<div class=\"switch_value\">\\(a_{10}=7\\)</div>\n<div class=\"switch_value\">\\(a_{10}=37,5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dziesiąty wyraz ciągu ma wartość \\(27\\).\n            </div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "2459f354ff8343c2f9d908128d9567ec22f9c8a04020d63648b2814b5411c59b"
+}

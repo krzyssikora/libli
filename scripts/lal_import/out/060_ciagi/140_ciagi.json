@@ -1,0 +1,414 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy:\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "jeśli \\(\\downarrow\\) (dla każdego \\(n\\))",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\quad\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "lub jeśli \\(a_n\\gt 0\\) i \\(\\downarrow\\) (dla każdego \\(n\\))",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\quad\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "to ciąg \\((a_n)\\) jest \\(\\downarrow\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(a_{n+1}-a_n\\gt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{a_{n+1}}{a_n}\\gt 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rosnący",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(a_{n+1}-a_n\\ge 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{a_{n+1}}{a_n}\\ge 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "niemalejący",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(a_{n+1}-a_n = 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{a_{n+1}}{a_n} = 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "stały",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(a_{n+1}-a_n\\le 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{a_{n+1}}{a_n}\\le 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nierosnący",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(a_{n+1}-a_n\\lt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{a_{n+1}}{a_n}\\lt 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "malejący",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Uwaga</strong>! Równoważnie moglibyśmy sprawdzać różnicę lub iloraz wyrazów \\(a_n\\) i \\(a_{n-1}\\) - także dwóch kolejnych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzymy się teraz monotoniczności dwóch rodzajów ciągów rekurencyjnych:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        \\(a_{n+1}=a_n + r\\) - kolejny wyraz powstaje przez dodanie stałej \\(r\\) do poprzedniego\n    </li>\n<li>\n        \\(a_{n+1}=a_n\\cdot q\\) - kolejny wyraz powstaje przez pomnożenie poprzedniego przez stałą \\(q\\gt 0\\)\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Rozpatrzmy ciąg \\((a_n)\\) zdefiniowany równaniem rekurencyjnym \n    \\[\n    a_{n+1}=a_n + r\\quad\\text{dla }n\\in\\mathbb{N}\n    \\]\n    przy czym pierwszy wyraz ciągu, \\(a_1\\),  jest dowolną liczbą rzeczywistą, a \\(r\\) jest pewną stałą.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wówczas\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            jeśli \\(r\\gt 0\\) to ciąg \\((a_n)\\) jest rosnący\n        </li>\n<li>\n            jeśli \\(r = 0\\) to ciąg \\((a_n)\\) jest stały\n        </li>\n<li>\n            jeśli \\(r\\lt 0\\) to ciąg \\((a_n)\\) jest malejący\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się, dlaczego powyższe twierdzenie jest prawdziwe. Czy umiesz je udowodnić korzystając ze sposobów badania monotoniczności, które poznaliśmy?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic dowodu",
+      "body": "\n\n        Monotoniczność takiego ciągu możemy zbadać za pomocą różnicy kolejnych wyrazów, \\(a_{n+1}-a_n\\).\n        <div class=\"table_wrapper\">\n            \\[\n            \\begin{align}\n            \\color{blue}{a_{n+1}}-a_n&amp;=&amp;\\text{z definicji ciągu, }\\color{blue}{a_{n+1}=a_n + r}\\\\\n            &amp;=(\\color{blue}{a_n + r})-a_n=&amp;\\text{uprośćmy wyrażenie}\\\\\n            &amp;=a_n+r-a_n=\\\\\n            &amp;=r\n            \\end{align}\n            \\]\n        </div>\n        I teraz wyciągamy wnioski z metody badania monotoniczności za pomocą takiej różnicy:\n        <div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\\(r\\gt 0\\)</td>\n<td>\\(a_{n+1}-a_n\\gt 0\\)</td>\n<td>\\((a_n)\\) jest rosnący</td>\n</tr>\n<tr>\n<td>\\(r = 0\\)</td>\n<td>\\(a_{n+1}-a_n = 0\\)</td>\n<td>\\((a_n)\\) jest stały</td>\n</tr>\n<tr>\n<td>\\(r\\lt 0\\)</td>\n<td>\\(a_{n+1}-a_n\\lt 0\\)</td>\n<td>\\((a_n)\\) jest malejący</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Rozpatrzmy ciąg \\((a_n)\\), którego</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<stron>wszystkie</stron>",
+      "reason": "unmapped <stron> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "<p>wyrazy są</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>dodatnie</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>, zdefiniowany równaniem rekurencyjnym \n    \\[\n    a_{n+1}=a_n \\cdot q\\quad\\text{dla }n\\in\\mathbb{N}\n    \\]\n    przy czym pierwszy wyraz ciągu, \\(a_1\\),  jest dowolną</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>dodatnią</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>liczbą rzeczywistą, a \\(q\\) jest pewną</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>dodatnią</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>stałą.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Wówczas\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            jeśli \\(q\\gt 1\\) to ciąg \\((a_n)\\) jest rosnący\n        </li>\n<li>\n            jeśli \\(q = 1\\) to ciąg \\((a_n)\\) jest stały\n        </li>\n<li>\n            jeśli \\(q\\lt 1\\) to ciąg \\((a_n)\\) jest malejący\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się, dlaczego powyższe twierdzenie jest prawdziwe. Czy umiesz je udowodnić korzystając ze sposobów badania monotoniczności, które poznaliśmy?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "szkic dowodu",
+      "body": "\n\n        Skoro wszystkie wyrazy ciągu są dodatnie, jego monotoniczność możemy zbadać za pomocą ilorazu kolejnych wyrazów, \\(\\frac{a_{n+1}}{a_n}\\).\n        <div class=\"table_wrapper\">\n            \\[\n            \\begin{align}\n            \\frac{\\color{blue}{a_{n+1}}}{a_n}&amp;=&amp;\\text{z definicji ciągu, }\\color{blue}{a_{n+1}=a_n \\cdot q}\\\\\n            &amp;=\\frac{\\color{blue}{a_n \\cdot q}}{a_n}=&amp;\\text{skróćmy ułamek}\\\\\n            &amp;=q\n            \\end{align}\n            \\]\n        </div>\n        I teraz wyciągamy wnioski z metody badania monotoniczności za pomocą takiego ilorazu:\n        <div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\\(q\\gt 1\\)</td>\n<td>\\(\\frac{a_{n+1}}{a_n}\\gt 1\\)</td>\n<td>\\((a_n)\\) jest rosnący</td>\n</tr>\n<tr>\n<td>\\(q = 1\\)</td>\n<td>\\(\\frac{a_{n+1}}{a_n} = 1\\)</td>\n<td>\\((a_n)\\) jest stały</td>\n</tr>\n<tr>\n<td>\\(q\\lt 1\\)</td>\n<td>\\(\\frac{a_{n+1}}{a_n}\\lt 1\\)</td>\n<td>\\((a_n)\\) jest malejący</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Wskaż, co wiemy na temat monotoniczności podanych ciągów.\n        </p>\n"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{cases}\n    \\begin{align}\n    a_1&=12\\\\\n    a_n&=a_{n-1} - 3&\\text{ dla }n\\ge 2\n    \\end{align}\n    \\end{cases}\n    "
+    },
+    {
+      "type": "text",
+      "body": "rosnący"
+    },
+    {
+      "type": "text",
+      "body": "stały"
+    },
+    {
+      "type": "text",
+      "body": "malejący"
+    },
+    {
+      "type": "text",
+      "body": "nie monotoniczny"
+    },
+    {
+      "type": "text",
+      "body": ""
+    },
+    {
+      "type": "text",
+      "body": "potwierdź "
+    },
+    {
+      "type": "text",
+      "body": "\n            Brawo! To jest poprawna odpowiedź.\n        "
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{cases}\n    \\begin{align}\n    b_1&=-17\\\\\n    b_{n+1}&=b_n + 2&\\text{ dla }n\\ge 1\n    \\end{align}\n    \\end{cases}\n    "
+    },
+    {
+      "type": "text",
+      "body": "rosnący"
+    },
+    {
+      "type": "text",
+      "body": "stały"
+    },
+    {
+      "type": "text",
+      "body": "malejący"
+    },
+    {
+      "type": "text",
+      "body": "nie monotoniczny"
+    },
+    {
+      "type": "text",
+      "body": ""
+    },
+    {
+      "type": "text",
+      "body": "potwierdź "
+    },
+    {
+      "type": "text",
+      "body": "\n            Brawo! To jest poprawna odpowiedź.\n        "
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{cases}\n    \\begin{align}\n    c_1&=12\\\\\n    c_n&=c_{n-1} \\cdot \\tfrac{1}{2}&\\text{ dla }n\\ge 2\n    \\end{align}\n    \\end{cases}\n    "
+    },
+    {
+      "type": "text",
+      "body": "rosnący"
+    },
+    {
+      "type": "text",
+      "body": "stały"
+    },
+    {
+      "type": "text",
+      "body": "malejący"
+    },
+    {
+      "type": "text",
+      "body": "nie monotoniczny"
+    },
+    {
+      "type": "text",
+      "body": ""
+    },
+    {
+      "type": "text",
+      "body": "potwierdź "
+    },
+    {
+      "type": "text",
+      "body": "\n            Brawo! To jest poprawna odpowiedź.\n        "
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{cases}\n    \\begin{align}\n    d_1&=5\\\\\n    d_{n+1}&=d_n \\cdot (-2)&\\text{ dla }n\\ge 1\n    \\end{align}\n    \\end{cases}\n    "
+    },
+    {
+      "type": "text",
+      "body": "rosnący"
+    },
+    {
+      "type": "text",
+      "body": "stały"
+    },
+    {
+      "type": "text",
+      "body": "malejący"
+    },
+    {
+      "type": "text",
+      "body": "nie monotoniczny"
+    },
+    {
+      "type": "text",
+      "body": ""
+    },
+    {
+      "type": "text",
+      "body": "potwierdź "
+    },
+    {
+      "type": "text",
+      "body": "\n            Brawo! To jest poprawna odpowiedź.\n        "
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "200d4b82a231e01eb97f23e2350ad2176b23465562ba416a6b7cabd62047141e"
+}

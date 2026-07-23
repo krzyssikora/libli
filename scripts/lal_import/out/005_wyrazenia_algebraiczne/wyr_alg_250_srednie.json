@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przykładem wzorów używanych w matematyce są wzory na średnie. Średnie służą do pokazania tendencji w większej grupie liczb.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Istnieją różne rodzaje średnich, pasujące w różnych sytuacjach. Zajmiemy się trzema rodzajami i pokażemy ich zastosowanie na małych zbiorach liczbowych, dla zachowania jasności.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<strong>\n                Średnia arytmetyczna\n            </strong>\n            liczb \\(a_1, a_2, a_3, ..., a_n\\) jest dana wzorem:\n                                                                                                \\[\n                                                                                                S=\\frac{a_1+a_2+a_3+ ...+ a_n}{n}\n                                                                                                \\]\n            <small>\n                czyli dodajemy wszystkie liczby i dzielimy wynik przez to, ile ich jest.\n            </small>\n</li>\n<li>\n<strong>\n                Średnia ważona\n            </strong>\n            to uogólnienie średniej arytmetycznej. Tym razem liczbom \\(a_1, a_2, a_3, ..., a_n\\) przypisujemy wagi, odpowiednio \\(w_1, w_2, w_3, ..., w_n\\). Średnia ważona zdefiniowana jest wzorem:\n                                                                                                \\[\n                                                                                                S=\\frac{a_1\\cdot w_1+a_2\\cdot w_2+a_3\\cdot w_3+ ...+ a_n\\cdot w_n}{w_1+w_2+w_3+ ...+ w_n}\n                                                                                                \\]\n            <small>\n                czyli dodajemy wszystkie liczby pomnożone przez ich wagi i dzielimy wynik przez sumę wag.\n            </small>\n</li>\n<li>\n<strong>\n                Średnia geometryczna\n            </strong>\n            liczb \\(a_1, a_2, a_3, ..., a_n\\) jest dana wzorem:\n                                                                                                \\[\n                                                                                                S=\\sqrt[n]{a_1\\cdot a_2\\cdot a_3\\cdot ...\\cdot a_n}\n                                                                                                \\]\n        </li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "1a04aeedeeb636e49db3a385f7aac0e2643aa8fb7e747b67de693df8f0f49a99"
+}

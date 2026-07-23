@@ -1,0 +1,316 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Z wykresu dość łatwo można \"odczytać\" monotoniczność funkcji.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Podsumowanie\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rozważając monotoniczność funkcji, sprawdzamy, co wynika z nierówności\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\nx_1\\lt x_2\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    dla dowolnej pary argumentów \\(x_1, x_2\\) wziętych ze zbioru, na którym badamy monotoniczność.\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "wniosek",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rodzaj funkcji",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "inny zapis wniosku",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(f(x_1)\\lt f(x_2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rosnąca",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(f(x_1)- f(x_2)\\lt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(f(x_1)\\gt f(x_2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "malejąca",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(f(x_1)- f(x_2)\\gt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(f(x_1)= f(x_2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "stała",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(f(x_1)-f(x_2)= 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(f(x_1)\\le f(x_2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "niemalejąca",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(f(x_1)- f(x_2)\\le 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(f(x_1)\\ge f(x_2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nierosnąca",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(f(x_1)- f(x_2)\\ge 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W zadaniach użyjemy obserwacji z ostatniej kolumny tabeli. Widzimy z niej, że założywszy, że \\(x_1\\lt x_2\\) (albo alternatywnie, że \\(z_1-x_2\\lt 0\\)), wystarczy sprawdzić, co wyjdzie z różnicy \\(f(x_1)-f(x_2)\\), a dokładniej - jaki będzie jej znak.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność funkcji \\(f:\\mathbb{R}\\longrightarrow\\mathbb{R}\\) zdefiniowanej równaniem \\(f(x)=-5x+7\\).\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Przypuśćmy, że argumenty \\(x_1, x_2\\in\\mathbb{R}\\) mają tę własność, że \\(x_1\\lt x_2\\), czyli inaczej\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            x_1-x_2\\lt 0\\quad\\quad\\quad\\quad\\quad\\quad (*)\n            "
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Zgodnie z obserwacją spod tabeli, rozważmy teraz różnicę \\(f(x_1)-f(x_2)=(-5x_1+7)-(-5x_2+7)=-5x_1+7+5x_2\\)\n                \n\n\n\n￿0￿",
+      "options": [
+        "\\(+7\\)",
+        "\\(-7\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(f(x_1)-f(x_2)=-5x_1+7+5x_2-7=-5x_1+5x_2=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                [wyłączmy \\(-5\\) przed nawias]\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(=-5(x_1-x_2)\\)</p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Z założenia (oznaczonego wyżej \\((*)\\)) widzimy, że liczba w nawiasie jest\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "dodatnia",
+        "ujemna",
+        "równa zero"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Tak więc wynikiem \\(f(x_1)-f(x_2)\\) jest iloczyn ujemnej liczby \\(-5\\) oraz ujemnej liczby \\(x_1-x_2\\), czyli wynik jest\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "dodatni",
+        "ujemny"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Otrzymaliśmy \\(f(x_1)-f(x_2)\\gt 0\\) co oznacza, że funkcja \\(f\\) jest\n                \n\n\n\n\n\n￿0￿\n                (jeśli nie masz pewności, sprawdź w tabeli powyżej).\n            ",
+      "options": [
+        "rosnąca",
+        "malejąca",
+        "stała",
+        "niemalejąca",
+        "nierosnąca"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "math",
+      "latex": "\n            x_1-x_2\\lt 0 \\Rightarrow f(x_1)-f(x_2)\\gt 0\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                co oznacza, że funkcja \\(f\\) jest\n                <strong>\n                    malejąca\n                </strong>\n                .\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zbadaj monotoniczność funkcji \\(f:(2, +\\infty)\\longrightarrow\\mathbb{R}\\) zdefiniowanej równaniem \\(f(x)=\\frac{5}{2-x}\\).\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Przypuśćmy, że argumenty \\(x_1, x_2\\in(2, +\\infty)\\) mają tę własność, że \\(x_1\\lt x_2\\), czyli inaczej\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            x_1-x_2\\lt 0\\quad\\quad\\quad\\quad\\quad\\quad (*)\n            "
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Rrozważmy różnicę \\(f(x_1)-f(x_2)=\\frac{5}{2-x_1}-\\frac{5}{2-x_2}\\). Aby tę różnicę obliczyć, musimy\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "odjąć liczniki i mianowniki",
+        "znaleźć wspólny mianownik"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Wspólnym mianownikiem będzie iloczyn dwóch mianowników, więc\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n            f(x_1)-f(x_2)=\\frac{5}{2-x_1}-\\frac{5}{2-x_2}=\\frac{5(2-x_2)}{(2-x_1)(2-x_2)}-\\frac{5(2-x_1)}{(2-x_2)(2-x_1)}=\\frac{5(2-x_2)-5(2-x_1)}{(2-x_1)(2-x_2)}\n            \\]\n            Uprośćmy licznik, czyli górę tego ułamka:\n            \\[\n            5(2-x_2)-5(2-x_1)=10-5x_2-10+5x_1=-5x_2+5x_1=5(x_1-x_2)\n            "
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Ze względu na założenie \\((*)\\), wyrażenie to jest\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "dodatnie",
+        "ujemne",
+        "równe zero"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Teraz przyjrzyjmy się mianownikowi, czyli najpierw wyrażeniu \\(2-x_1\\), a potem \\(2-x_2\\).\n            </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Skoro \\(x_1\\in(2,+\\infty)\\), czyli \\(x_1\\gt 2\\), więc odejmując od \\(2\\) liczbę większą niż \\(2\\) otrzymujemy wynik \\(2-x_1\\) będący liczbą\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "dodatnią",
+        "ujemną"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Analogicznie \\(2-x_2\\) jest też ujemne, więc cały mianownik jest\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "dodatni",
+        "ujemny"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Z powyższego wynika, że licznik jest ujemny, a mianownik dodatni, czyli całe wyrażenie \\(f(x_1)-f(x_2)=\\frac{5(x_1-x_2)}{(2-x_1)(2-x_2)}\\) jest\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "dodatnie",
+        "ujemne"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>Otrzymaliśmy \\(f(x_1)-f(x_2)\\lt 0\\) co oznacza, że funkcja \\(f\\) jest</p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n\n\n\n\n\n\n￿0￿\n                (jeśli nie masz pewności, sprawdź w tabeli powyżej).\n            ",
+      "options": [
+        "rosnąca",
+        "malejąca",
+        "stała",
+        "niemalejąca",
+        "nierosnąca"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "math",
+      "latex": "\n            x_1-x_2\\lt 0 \\Rightarrow f(x_1)-f(x_2)\\lt 0\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                co oznacza, że funkcja \\(f\\) jest\n                <strong>\n                    rosnąca\n                </strong>\n                .\n            </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "830b0289301e2e805a3e3dc8fdd5567cd2adb0497a3f7b91fa449c19af9e01e9"
+}

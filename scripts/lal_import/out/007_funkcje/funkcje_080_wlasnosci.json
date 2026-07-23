@@ -1,0 +1,10 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/dziedzina.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6022878de4673265386242a6a7636326cd1c24727b9655a2d58431daa8edf535"
+}

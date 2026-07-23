@@ -1,0 +1,183 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Spróbuj samodzielnie rozwiązać poniższe zadania. Jeśli chcesz, skorzystaj z ukrytych wskazówek.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dwóch mechaników, Marek i Piotr, pracują nad naprawą samochodów w warsztacie.\n        </p>\n<p>\n            Marek potrzebowałby 2 godzin więcej niż Piotr, aby samodzielnie naprawić jeden samochód.\n        </p>\n<p>\n            Marek i Piotr zaczęli pracować razem nad naprawą samochodu, ale po godzinie Marek musiał opuścić warsztat. W rezultacie Piotr dokończył naprawę sam. Cała naprawa zajęła im <u>łącznie</u> 2,5 godziny.\n        </p>\n<p>\n            Ile czasu każdemu z nich zajęłaby samodzielna naprawa samochodu?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "niewiadoma",
+      "body": "\n\n        \\(x\\) - liczba godzin potrzebna Markowi, by naprawił samochód.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "równanie",
+      "body": "\n\n        \\(\\frac{1}{x}+\\frac{1,5}{x-2}=1\\)\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(x=\\frac{1}{2}\\) lub \\(x=4\\)\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        Marek potrzebuje 4 godzin, a Piotr 2 godzin, by samodzielnie naprawić samochód.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W pewnej firmie dwie osoby, Ania i Michał, są odpowiedzialni za wprowadzanie danych do systemu. Pracują ze stałą prędkością. \n        </p>\n<p>\n            Gdyby pracowali razem, skończyliby wprowadzanie kompletu danych w 2 godziny 55 minut.\n        </p>\n<p>\n            Gdyby Ania pracowała samodzielnie, wprowadzenie całego zestawu danych zajęłoby jej 2 godziny więcej niż Michałowi, gdyby on pracował samodzielnie.\n        </p>\n<p>\n            Ile czasu Ania pracowałaby nad wprowadzeniem danych, gdyby pracowała samodzielnie?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "niewiadoma",
+      "body": "\n\n        \\(x\\) - liczba godzin potrzebna Ani na samodzielne wprowadzenie danych.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "równanie",
+      "body": "\n\n        \\(\\left(\\frac{1}{x}+\\frac{1}{x-2}\\right)\\cdot\\left(2\\tfrac{11}{12}\\right)=1\\)\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(x=\\frac{5}{6}\\) lub \\(x=7\\)\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        Ania pracowałaby 7 godzin, by wprowadzić dane samodzielnie.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Krzysztof i Piotr myją okna w biurowcu. Krzysztof potrzebuje 10 godzin, aby samodzielnie umyć okna na jednym piętrze, jeśli jednak pracują we dwóch, potrzebują tylko 3 godzin i 45 minut.\n        </p>\n<p>\n            Ile czasu Piotr potrzebuje na umycie okien z jednego piętra?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "niewiadoma",
+      "body": "\n\n        \\(x\\) - czas (w godzinach) potrzebny Piotrowi na samodzielne umycie okien z jednego piętra\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "równanie",
+      "body": "\n\n        \\(\\left(\\frac{1}{10}+\\frac{1}{x}\\right)\\cdot 3\\tfrac{3}{4} = 1\\)\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(x=6\\)\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        Piotr potrzebuje 6 godzin na umycie okien z jednego piętra.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dwie pompy wodne napełniają zbiornik wodą. \n        </p>\n<p>\n            Gdyby obie pompy działały razem, napełniłyby zbiornik o 3 godziny i 12 minut szybciej, niż gdyby działała tylko szybsza z dwóch pomp. \n        </p>\n<p>\n            Wolniejsza pompa napełniłaby zbiornik w 12 godzin.\n        </p>\n<p>\n            Obie pompy zaczynają napełniać zbiornik razem, ale po pewnym czasie szybsza pompa się wyłącza, a druga kontynuuje pracę sama. Zbiornik został całkowicie napełniony w 5 godzin.\n        </p>\n<p>\n            Ile czasu pracowała szybsza pompa, zanim się wyłączyła?\n        </p>\n<p>\n<small>\n<strong>UWAGA!</strong> To zadanie jest trochę dłuższe - nie wystarczy obliczyć czasu samodzielnej pracy szybszej pompy.\n            </small>\n</p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "niewiadoma",
+      "body": "\n\n        \\(x\\) - liczba godzin potrzebna szybszej pompie do napełnienia całego zbiornika\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "równanie",
+      "body": "\n\n        \\(\\frac{1}{x}+\\frac{1}{12}=\\frac{1}{x-3\\tfrac{1}{5}}\\)\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(x=-4,8\\) lub \\(x=8\\)\n        <p>\n            Oznacza to, że szybsza pompa potrzebuje 8 godzin, by napełnić zbiornik. Nie wiemy jeszcze, ile czasu pracowała, zanim się wyłączyła.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "drugie równanie",
+      "body": "\n\n<p>\n            Niech \\(t\\) oznacza czas pracy szybszej pompy, zanim się wyłączyła.\n        </p>\n<p>\n            Przez \\(t\\) godzin pracowały obie pompy, a przez pozostałe \\(5-t\\) godzin tylko wolniejsza pompa.\n        </p>\n        \\(\\left(\\frac{1}{8}+\\frac{1}{12}\\right)t+\\frac{1}{12}(5-t)=1\\)\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(t=4\\tfrac{2}{3}\\), więc szybsza pompa pracowała 4 godziny i 40 minut, zanim się wyłączyła.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Albert i Piotr mają do pomalowania płot. Albert mógłby samodzielnie pomalować cały płot 2 godziny wolniej niż Piotr. Zaczęli malować razem, ale po 2 godzinach i 15 minutach Albert musiał przerwać pracę z powodu zmęczenia, a Piotr sam kontynuował malowanie przez kolejne 2 godziny, aby dokończyć pracę. \n        </p>\n<p>\n            Jak długo Albert malowałby płot samodzielnie?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "niewiadoma",
+      "body": "\n\n        \\(x\\) - liczba godzin potrzebnych Albertowi na samodzielne pomalowanie całego płotu\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "równanie",
+      "body": "\n\n        \\(\\left(\\frac{1}{x}+\\frac{1}{x-2}\\right)\\cdot\\frac{9}{4}+\\frac{3}{x-2}=1\\)\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(x=\\frac{1}{2}\\) lub \\(x=9\\)\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        Albert malowałby płot samodzielnie przez 9 godzin.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Liczbę 2 zapisano jako ułamek.\n        </p>\n<p>\n            Gdyby do licznika tego ułamka dodać 30, a od mianownika odjąć 15, otrzymalibyśmy liczbę o 3 większą od liczby powstałej przez odjęcie 30 od licznika pierwotnego ułamka i jednoczesne dodanie 15 do mianownika.\n        </p>\n<p>\n            Jaki jest licznik pierwotnego ułamka?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "niewiadoma",
+      "body": "\n\n        \\(x\\) - licznik pierwotnego ułamka\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "równanie",
+      "body": "\n\n        \\(\\frac{2x+30}{x-15}=3+\\frac{2x-30}{x+15}\\)\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n        \\(x=-5\\) lub \\(x=45\\)\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        Licznik pierwotnego ułamka to 45.\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2759084e6f30ae2281e3f4418641d9188b9ec681791ea4fe7be4ec9d37c44724"
+}

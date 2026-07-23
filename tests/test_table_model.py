@@ -28,6 +28,31 @@ def test_normalize_rectangularises_ragged_without_truncating():
     assert d["cells"][0][1]["html"] == ""  # padded
 
 
+def test_normalize_spanning_table_keeps_ragged_and_span_fields():
+    # A colspan/rowspan table is NOT rectangularised (padding would break layout);
+    # header/colspan/rowspan survive normalize, and non-spanning cells stay lean.
+    d = TableElement.normalize_data(
+        {
+            "cells": [
+                [{"html": "wide", "colspan": 2, "header": True}],
+                [_cell("a"), {"html": "b", "rowspan": 2}],
+            ]
+        }
+    )
+    assert [len(r) for r in d["cells"]] == [1, 2]  # ragged preserved
+    assert d["cells"][0][0]["colspan"] == 2 and d["cells"][0][0]["header"] is True
+    assert d["cells"][1][1]["rowspan"] == 2
+    assert "colspan" not in d["cells"][1][0] and "header" not in d["cells"][1][0]
+
+
+def test_normalize_ignores_span_of_one_and_bad_values():
+    d = TableElement.normalize_data(
+        {"cells": [[{"html": "x", "colspan": 1, "rowspan": True, "header": False}]]}
+    )
+    cell = d["cells"][0][0]
+    assert "colspan" not in cell and "rowspan" not in cell and "header" not in cell
+
+
 def test_normalize_fills_missing_cell_keys():
     d = TableElement.normalize_data({"cells": [[{"html": "x"}]]})
     c = d["cells"][0][0]

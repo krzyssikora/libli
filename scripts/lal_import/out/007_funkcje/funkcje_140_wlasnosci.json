@@ -1,0 +1,88 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spójrz na trzy wykresy funkcji poniżej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"funkcja monotoniczna\" src=\"static/monotonicznosc_0.png\" width=\"250\"/>\n<img alt=\"funkcja monotoniczna\" src=\"static/monotonicznosc_1.png\" width=\"250\"/>\n<img alt=\"funkcja monotoniczna\" src=\"static/monotonicznosc_2.png\" width=\"250\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Którą z tych funkcji nazwał(a)byś\n            <strong>\n                rosnącą\n            </strong>\n            , którą\n            <strong>\n                malejącą\n            </strong>\n            , a którą\n            <strong>\n                stałą\n            </strong>\n            ?\n        </p>"
+    },
+    {
+      "type": "choice_grid",
+      "columns": [
+        "rosnąca",
+        "malejąca",
+        "stała"
+      ],
+      "rows": [
+        {
+          "statement": "Funkcja z wykresem zielonym",
+          "correct": 2
+        },
+        {
+          "statement": "Funkcja z wykresem czerwonym",
+          "correct": 0
+        },
+        {
+          "statement": "Funkcja z wykresem niebieskim",
+          "correct": 1
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>Funkcja nazywana jest</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n        monotoniczną\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>, gdy posiada jedną z poniższych cech:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            jest\n            <strong>\n                rosnąca\n            </strong>\n</li>\n<li>\n            jest\n            <strong>\n                malejąca\n            </strong>\n</li>\n<li>\n            jest\n            <strong>\n                niemalejąca\n            </strong>\n</li>\n<li>\n            jest\n            <strong>\n                nierosnąca\n            </strong>\n</li>\n<li>\n            jest\n            <strong>\n                stała\n            </strong>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Skoro masz pomysł, co oznaczają \"\n        <em>\n            funkcja rosnąca\n        </em>\n        \" i \"\n        <em>\n            funkcja malejąca\n        </em>\n        \", zastanów się, co mogą oznaczać pozostałe 3 terminy. Jak wygląda wykres takiej funkcji? Jak taką funkcję formalnie zdefiniować?\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zanim odpowiemy na powyższe pytania, przyjrzyjmy się poniższemu przykładowi, ilustrującemu sensowność sprawdzania, kiedy funkcja jest rosnąca, a kiedy malejąca.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Funkcja, której wykres widzimy poniżej, opisuje zużycie energii elektrycznej w pewnym domu na przestrzeni roku.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"funkcja fragmentami monotoniczna\" src=\"static/monotonicznosc_elektrycznosc.png\" width=\"600\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy widzisz, w których miesiącach zużycie energii\n            <strong>\n                rosło\n            </strong>\n            , w których\n            <strong>\n                malało\n            </strong>\n            , a w których było\n            <strong>\n                stałe\n            </strong>\n            ?\n        </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "67904a4a2f9947618fed381fc9a8960228ad6c26b50a17aad6b1414c3cf34994"
+}

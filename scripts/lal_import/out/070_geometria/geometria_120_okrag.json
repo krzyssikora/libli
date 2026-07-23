@@ -1,0 +1,210 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"okrąg i styczne - zadanie 1\" height=\"400\" src=\"static/okrag_styczne_zad_1.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n            Rysunek przedstawia trójkąt \\(ABC\\) i okrąg o środku w punkcie \\(O\\).\n        </p>\n<ul class=\"nolist\">\n<li>\n                Bok \\(BC\\) jest styczny do okręgu w punkcie \\(L\\).\n            </li>\n<li>\n                Przedłużenie boku \\(AB\\) jest styczne do okręgu w punkcie \\(K\\).\n            </li>\n<li>\n                Przedłużenie boku \\(AC\\) jest styczne do okręgu w punkcie \\(M\\).\n            </li>\n</ul>\n<p>\n            Długość odcinka \\(AM\\) jest równa \\(21\\) centymetrów.\n        </p>\n<p>\n            Znajdź obwód trójkąta \\(ABC\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            zacznij rozwiązanie\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Z twierdzenia zilustrowanego poniższym rysunkiem\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"okrąg i styczne - zadanie 1\" src=\"static/okrag_styczne_zad_1_1.png\" width=\"320\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>wynika, że dlugość odcinka \\(AK\\) to</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(21\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(29\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(20\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Z tego samego twierdzenia i z tego rysunku:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"okrąg i styczne - zadanie 1\" src=\"static/okrag_styczne_zad_1_2.png\" width=\"320\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>wnioskujemy, że</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(BK=CM\\) i \\(BL=CK\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(BK=BL\\) i \\(CL=CM\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(BK=CK\\) i \\(BL=CM\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Wiemy więc, że\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                            \\(AK=AM=21\\) oraz\n                        </li>\n<li>\n                            \\(BK=BL\\) i \\(CL=CM\\)\n                        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Czas zająć się obwodem. Obwód trójkąta \\(ABC\\) to oczywiście\n                    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                        AB+AC+BC\n                                                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>Odcinek \\(BC\\) jest podzielony punktem \\(L\\) na dwa krótsze odcinki, więc obwód trójkąta \\(ABC\\) jest równy \\(AB+AC+BC=AB+AC+\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(BM+CM\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(BL+CL\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(BK+CK\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Teraz skorzystajmy z wcześniejszej obserwacji nr\n                        <strong>\n                            2\n                        </strong>\n                        , by przedstawić obwód jako\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(AB+AC+BC=AB+AC+BL+CL=AB+AC+\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(BK+CM\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(CK+BM\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Przepiszmy otrzymane wyrażenie:\n                    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                        \\begin{align*}\n                                                        \\text{obwód }ABC&=AB+AC+BC=\\\\\n                                                        &=AB+AC+BL+CL=\\\\\n                                                        &=AB+AC+BK+CM=\\quad\\quad\\leftarrow\\text{tyle ustaliliśmy wcześniej}\\\\\n                                                        &=AB+BK+AC+CM=\\\\\n                                                        &=(AB+BK)+(AC+CM)\n                                                        \\end{align*}\n                                                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>Odcinki \\(AB\\) i \\(BK\\) tworzą razem \\(AK\\). Odcinki \\(AC\\) i \\(CM\\) tworzą razem \\(AM\\), tak więc obwód to \\(AK+AM\\). Teraz pozostaje użyć wcześniejszej obserwacji nr</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n                            1\n                        </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>, by obliczyć, że długość obwodu trójkąta \\(ABC\\) to</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(21\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(42\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(63\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Rozwiązaliśmy to zadanie korzystając trzykrotnie z tego samego twierdzenia o stycznych z jednego punktu.\n                    </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "276ad2f2dd0cb3aba290131b9feb526aad18cfc7a857001f4b489645605cb6f9"
+}

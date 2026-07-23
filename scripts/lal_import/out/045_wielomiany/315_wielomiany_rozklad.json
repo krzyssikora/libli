@@ -1,0 +1,58 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Czy każdy wielomian można przedstawić jako iloczyn dzielników liniowych i kwadratowych?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>\n        TAK\n    </strong>\n    !\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Każdy wielomian o współczynnikach rzeczywistych można przedstawić w postaci iloczynu czyników liniowych i kwadratowych, przy czym te kwadratowe już są nierozkładalne (tzn dla każdego z nich \\(\\Delta\\lt 0\\)).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wynika to z\n    <a href=\"https://pl.wikipedia.org/wiki/Zasadnicze_twierdzenie_algebry\">\n        Zasadniczego Twierdzenia Algebry\n    </a>\n    , którego tu przedstawiać nie będziemy, bo wymaga ono znajomości liczb nierzeczywistych, zwanych zespolonymi.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Ile pierwiastków może mieć wielomian stopnia \\(n\\)?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Z powyższego wynika, że:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<strong>\n            Maksymalna\n        </strong>\n        liczba pierwiastków wielomianu o stopniu \\(n\\) jest równa \\(n\\) - jest tak wtedy, gdy możemy rozłożyć wielomian na \\(n\\) czynników liniowych.\n        <br/>\n        Jeśli chcemy, by pierwiastki były różne (czyli licząc je nie uwzględniamy krotności), wówczas czynniki liniowe muszą być różne.\n    </li>\n<li>\n        Pierwiasków może być mniej - gdy w rozkładzie wielomianu znajdują się nierozkładalne czynniki kwadratowe.\n        <br/>\n        Jeśli pierwiastki wielokrotne liczymy pojedynczo (bez krotności), to pierwiastków jest mniej niż \\(n\\) także wtedy, gdy wielomian ma choćby jeden pierwiastek wielokrotny.\n    </li>\n<li>\n        Wielomiany stopnia\n        <strong>\n            nieparzystego\n        </strong>\n        mają co najmniej jeden pierwiastek rzeczywisty.\n        <br/>\n<small>\n            (Zastanów się, dlaczego.)\n        </small>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Jak szukać pierwiastków, które nie są wymierne (a tym bardziej całkowite)?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    I to jest najtrudniejsze pytanie. Otóż jakkolwiek wiemy już dokładnie, jak szukać pierwiastków wymiernych, tak nie zawsze będziemy w stanie porawdzić sobie ze znalezieniem pierwiastków niewymiernych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Za chwilę przypomnimy sobie i poznamy wzory, które czasem mogą być pomocne.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jednak w wielu przypadkach poszukiwanie pierwiastków niewymiernych jest dość skomplikowane. Na tyle, że w zastosowaniach matematyki nie szuka się ich ręcznie, lecz z użyciem kalkulatorów lub komputerów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Jakie problemy możemy rozwiązać z użyciem wielomianów?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjdzie czas, żeby odpowiedzieć i na to pytanie, ale jeszcze nie teraz. Cierpliwości!\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "234a3b13c4850e12cad73639643b99848b66b4d60c43a07e555fa702f4fe255e"
+}

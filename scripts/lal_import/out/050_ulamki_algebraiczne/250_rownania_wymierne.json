@@ -1,0 +1,57 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyjmy się kolejnemu zadaniu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Licznik ułamka jest o 80 większy od mianownika. \n        </p>\n<p>\n            Gdyby licznik ułamka zmniejszyć dwukrotnie, a mianownik zwiększyć o 8, tak otrzymany ułamek byłby od pierwotnego mniejszy o 4.\n        </p>\n<p>\n            Znajdź wartość początkowego ułamka.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li><a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a></li>\n<li><a href=\"#tabcontent-1-2\" id=\"tab-1-2\">opis</a></li>\n</ul>"
+    },
+    {
+      "type": "spoiler",
+      "label": "krok 1. Analiza zadania i równanie.",
+      "body": "\n\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/rownania_wymierne_txt_2_1.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "krok 2. Rowiązanie równania - przekształcenie równania wymiernego w kwadratowe.",
+      "body": "\n\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/rownania_wymierne_txt_2_2.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "krok 3. Rowiązanie równania.",
+      "body": "\n\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/rownania_wymierne_txt_2_3.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "krok 1. Analiza zadania.",
+      "body": "\n\n<p>\n                    Czytajmy po kolei:\n                </p>\n<blockquote>\n                    Licznik ułamka jest o 80 większy od mianownika.\n                </blockquote>\n<p>\n                    Przyjmijmy, że mianownik to \\(x\\) (przy czym oczywiście \\(x\\ne 0\\)). Wówczas ułamek ma postać\n                </p>\n<div class=\"table_wrapper\">\\[\n                \\frac{x+80}{x}\n                \\]</div>\n<blockquote>\n                    Gdyby licznik ułamka zmniejszyć dwukrotnie, a mianownik zwiększyć o 8...\n                </blockquote>\n<p>\n                    taki nowy ułamek miałby postać:\n                </p>\n<div class=\"table_wrapper\">\\[\n                \\frac{(x+80):2}{x+8}\n                \\]</div>\n<p>\n                    Uprośćmy to wyrażenie:\n                </p>\n<div class=\"table_wrapper\">\\[\n                \\frac{(x+80):2}{x+8}=\\frac{\\tfrac{1}{2}(x+80)}{x+8}\\cdot\\frac{2}{2}=\\frac{x+80}{2x+16}\n                \\]</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "krok 2. Równanie.",
+      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n                                pierwotny ułamek\n                            </td>\n<td>\n                                \\(\\frac{x+80}{x}\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                ułamek po zmianie\n                            </td>\n<td>\n                                \\(\\frac{x+80}{2x+16}\\)\n                            </td>\n</tr>\n</table>\n<p>\n                        no i teraz...\n                    </p>\n<blockquote>\n                        tak otrzymany ułamek byłby od pierwotnego mniejszy o 4...\n                    </blockquote>\n<p>\n                        czyli\n                    </p>\n<div class=\"table_wrapper\">\\[\n                    \\frac{x+80}{x} - 4 = \\frac{x+80}{2x+16}\n                    \\]</div>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "krok 3. Rowiązanie równania - przekształcenie równania wymiernego w kwadratowe.",
+      "body": "\n\n<div class=\"table_wrapper\">\\[\n                \\frac{x+80}{x} - 4 = \\frac{x+80}{2x+16}\n                \\]</div>\n<p>\n                    Po lewej stronie równania mamy liczbę \\(4\\), czyli \\(\\frac{4x}{x}\\):\n                </p>\n<div class=\"table_wrapper\">\\[\n                \\begin{align*}\n                \\frac{x+80}{x} - \\frac{4x}{x} &amp;= \\frac{x+80}{2x+16}\\\\\n                \\frac{x+80-4x}{x} &amp;= \\frac{x+80}{2x+16}\\\\\n                \\frac{80-3x}{x} &amp;= \\frac{x+80}{2x+16}\\\\\n                \\end{align*}\n                \\]</div>\n<p>\n                    Założenia są proste: \\(x\\ne 0\\) i \\(2x+16\\ne 0\\), czyli \\(x\\ne -8\\).\n                </p>\n<p>\n                    A metoda rozwiązania to mnożenie na skos:\n                </p>\n<div class=\"table_wrapper\">\\[\n                (80-3x)(2x+16)=x(x+80)\n                \\]</div>\n<p>\n                    Wymnóżmy wyrażenia, przenieśmy wszystkie wyrazy na jedną stronę i zredukujmy wyrazy podobne:\n                </p>\n<div class=\"table_wrapper\">\\[\n                \\begin{align*}\n                (80-3x)(2x+16) &amp;= x(x+80)\\\\\n                160x+1280-6x^2-48x &amp;= x^2+80x\\\\\n                -7x^2+32x+1280 &amp;=0\\\\\n                7x^2-32x-1280 &amp;=0\\\\\n                \\end{align*}\n                \\]</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "krok 4. Rowiązanie równania.",
+      "body": "\n\n<p>\n                    Rozwiązujemy równanie z pomocą wzorów z deltą:\n                </p>\n<div class=\"table_wrapper\">\\[\n                \\begin{align*}\n                \\Delta &amp;= (-32)^2-4\\cdot 7\\cdot (-1280)=36864=192^2\\\\\n                x &amp;= \\frac{-(-32)\\pm\\sqrt{192^2}}{2\\cdot 7}=\\\\\n                 &amp;= \\frac{32\\pm 192}{14}=\\\\\n                 &amp;= -\\frac{160}{14},\\quad\\quad \\frac{224}{14}=\\\\\n                 &amp;= -\\frac{80}{7},\\quad\\quad 16\\\\\n                \\end{align*}\n                \\]</div>\n<p>\n                    Pierwsze rozwiązanie nie ma sensu - po pierwsze jest ujemne, po drugie - niecałkowite. Oznacza to, że mianownik ułamka to \\(16\\).\n                </p>\n<p>\n                    Początkowy ułamek to\n                </p>\n<div class=\"table_wrapper\">\\[\n                \\frac{16+80}{16}=\\frac{96}{16}=6\n                \\]</div>\n<p>\n                    Wartość liczbowa początkowego ułamka to \\(6\\).\n                </p>\n"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "314c10e7d95f043813d8c93d35644b8565682aa452c668e612e45c7bdeb66515"
+}

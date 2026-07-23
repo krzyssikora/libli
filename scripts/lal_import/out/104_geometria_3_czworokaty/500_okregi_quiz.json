@@ -1,0 +1,68 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Równoległobok wpisany w koło zawsze jest (wskaż wszystkie poprawne odpowiedzi):</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "rombem",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "prostokątem",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "kwadratem",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Równoległobok opisany na kole zawsze jest (wskaż wszystkie poprawne odpowiedzi):</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "rombem",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "prostokątem",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "kwadratem",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>W czworokącie \\(ABCD\\) wpisanym w koło miara kąta w wierzchołku \\(A\\) jest równa \\(110^{\\circ!}\\), a w wierzchołku \\(D\\) - \\(48^{\\circ}\\).</p><p>Podaj miary pozostałych kątów wewnętrznych czworokąta.  Wpisz same liczby, bez znaku stopnia.</p><p>Miara kąta w wierzchołku \\(C\\):</p>",
+      "value": "70",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Miara kąta w wierzchołku \\(D\\):</p>",
+      "value": "132",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Trapez równoramienny o ramionach długości \\(11\\) i jednej podstawie długości  \\(18\\) jest opisany na kole.</p><p>Podaj długość drugiej podstawy.</p>",
+      "value": "4",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a5d5d54847d10afdd0e7387e56d72020bfb743203a8f38eece7564739039a524"
+}

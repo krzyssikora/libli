@@ -1,0 +1,58 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jakiś czas temu zadaliśmy sobie kilka ważnych pytań. Zaczęliśmy od:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Co już wiedzieliśmy?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n        co to jest dzielnik wielomianu\n    </li>\n<li>\n        jak, mając dane dzielniki liniowe (stopnia \\(1\\)) znaleźć dzielniki kwadratowe (stopnia \\(2\\))\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Następnie przeszliśmy do:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Czego jeszcze nie wiedzieliśmy?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Od tego czasu sporo się nauczyliśmy. Zastanów się, czy znasz odpowiedzi na poniższe pytania i sprawdź moje wyjaśnienia, klikając na pytania.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" start=\"3\">\n<li>\n<details style=\"margin-left: 0;\">\n<summary>\n                jak dzielić wielomiany?\n            </summary>\n<!-- INTERNAL LINK 1-->\n            Poznaliśmy trzy metody dzielenia wielomianów:\n            <ul>\n<li>\n                    \"pod kreską\",\n                </li>\n<li>\n                    schemat Hornera,\n                </li>\n<li>\n                    dopasowanie wyrazów.\n                </li>\n</ul>\n</details>\n</li>\n<li>\n<details style=\"margin-left: 0;\">\n<summary>\n                czy dane wyrażenie jest dzielnikiem danego wielomianu?\n            </summary>\n<p>\n                Żeby to sprawdzić, zawsze możemy podzielić wielomian przez to wyrażenie.\n            </p>\n<p>\n                Jednak jeśli wyrażenie jest liniowe, istnieje znacznie prostsza metoda - twierdzenie Bézout.\n            </p>\n<p>\n<small>\n                    Wystarczy znaleźć wartość \\(x\\), dla której to wyrażenie liniowe jest równe \\(0\\) (czyli miejsce zerowe tego wyrażenia), i sprawdzić, czy ten \\(x\\) jest miejscem zerowym danego wielomianu.\n                </small>\n</p>\n</details>\n</li>\n<li>\n<details style=\"margin-left: 0;\">\n<summary>\n                jak znaleźć (jakikolwiek) dzielnik liniowy danego wielomianu?\n            </summary>\n            Używaliśmy do tego dwóch twierdzeń:\n            <!-- INTERNAL LINK 1 -->\n<ul>\n<li>\n                    twierdzenia o pierwiastkach całkowitych wielomianu\n                </li>\n<li>\n                    twierdzenia o pierwiastkach wymiernych wielomianu\n                </li>\n</ul>\n</details>\n</li>\n<li>\n<details style=\"margin-left: 0;\">\n<summary>\n                czy każdy wielomian można przedstawić jako iloczyn dzielników liniowych?\n            </summary>\n            Już wiemy, że nie każdy. Przedstawiliśmy wielomian\n            \\[\n            W(x)=18x^5-63x^4+52x^3+52x^2-6x-5\n            \\]\n            w postaci\n            \\[\n            W(x)=(2x+1)(3x-1)(3x+1)(x^2-4x+5)\n            \\]\n            a trójmianu kwadratowego \\((x^2-4x+5)\\) już nie da się rozłożyć na czynniki liniowe.\n            <p>\n                No to może należy zadań pytanie, czy każdy wielomian można przedstawić jako iloczyn dzielników\n                <strong>\n                    liniowych i kwadratowych\n                </strong>\n                ?\n            </p>\n</details>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Warto dodać:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Co jeszcze wiemy?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" start=\"7\">\n<li>\n<details style=\"margin-left: 0;\">\n<summary>\n                czym jest pierwiastek wielokrotny?\n            </summary>\n<!-- INTERNAL LINK 1 -->\n<p>\n                Taki pierwiastek, że czynnik, z którego pochodzi (wg. twierdzenia Bézout) pojawia się w rozkładzie wielomianu więcej niż raz.\n            </p>\n<p>\n                Potęgę, do jakiej podniesiony jest taki czynnik w rozkładzie nazywamy krotnością pierwiastka.\n            </p>\n</details>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    I czas na dodatkowe pytania:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Czego jeszcze nie wiemy?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" start=\"8\">\n<li>\n        czy każdy wielomian można przedstawić jako iloczyn dzielników liniowych i kwadratowych?\n    </li>\n<li>\n        ile pierwiastków może mieć wielomian stopnia \\(n\\)?\n    </li>\n<li>\n        jak szukać pierwiastków, które nie są wymierne (a tym bardziej całkowite)?\n    </li>\n<li>\n        jakie problemy możemy rozwiązać z użyciem wielomianów?\n    </li>\n</ol>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7166aa709a1fdd30a0c28232230e78afcaf159cc39838fc74ad90048dbcd9d61"
+}

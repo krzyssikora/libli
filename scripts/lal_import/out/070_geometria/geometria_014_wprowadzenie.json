@@ -1,0 +1,10 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/odleglosc.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7f49127f23b8f450b221d1f55ebb3014d08f84a50a41227e3e8e69c246871439"
+}

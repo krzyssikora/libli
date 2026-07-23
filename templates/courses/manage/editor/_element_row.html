@@ -133,6 +133,50 @@
     {% endfor %}
   </div>
 </li>
+{% elif el.content_type.model == "spoilerelement" and el.parent_id is None %}
+<li class="el-row el-row--spoiler{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
+    data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">
+  <div class="el-row__head">
+    <button type="button" class="iconbtn ica--grip" draggable="true"
+            aria-label="{% trans 'Drag to reorder' %}" title="{% trans 'Drag to reorder' %}">⠿</button>
+    <div class="el-row__body">
+      <div class="el-row__top">
+        <span class="el-tag">{% element_type_label el.content_type obj %}</span>
+        <span class="el-actions">
+          <button type="button" class="iconbtn el-select el-act-edit" data-element-id="{{ el.pk }}"
+                  data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}"
+                  aria-label="{% trans 'Edit' %}" title="{% trans 'Edit' %}">✎</button>
+          <button type="button" class="iconbtn el-act-cancel" data-cancel-edit
+                  aria-label="{% trans 'Cancel' %}" title="{% trans 'Cancel' %}">✕</button>
+          {% include "courses/manage/editor/_element_row_controls.html" with el=el unit=unit %}
+        </span>
+      </div>
+      <button type="button" class="el-select el-row__label" data-element-id="{{ el.pk }}"
+              data-form-url="{% url 'courses:manage_element_form' slug=unit.course.slug pk=el.pk %}">{% if el.title %}{{ el.title }}{% else %}{{ obj|element_summary }}{% endif %}</button>
+    </div>
+  </div>
+  <div class="el-edit-slot" data-edit-slot>{% if open_form_pk == el.pk|stringformat:'s' %}{{ open_form|safe }}{% endif %}</div>
+
+  {% comment %}
+  Single implicit slot. Recursive include terminates: a nested spoiler (el.parent_id
+  set) does NOT match this branch (falls to {% else %}), and the resolve_scope/loader
+  depth guards forbid a container child, so the realized depth is exactly 2.
+  {% endcomment %}
+  <div class="el-row__spoiler">
+    <ol class="element-list element-list--nested">
+      {% for child in obj.resolved_children %}
+        {% include "courses/manage/editor/_element_row.html" with el=child obj=child.content_object unit=unit open_form=open_form open_form_pk=open_form_pk %}
+      {% empty %}
+        {% if obj.body %}
+          <li class="empty-state">{% trans "This spoiler shows saved text (edit it with the pencil). Add an element below to start nesting content." %}</li>
+        {% else %}
+          <li class="empty-state">{% trans "This spoiler is empty." %}</li>
+        {% endif %}
+      {% endfor %}
+    </ol>
+    {% include "courses/manage/editor/_add_menu.html" with nested=True in_spoiler=True parent=el.pk tab=obj.SLOT_ID %}
+  </div>
+</li>
 {% else %}
 <li class="el-row{% if open_form_pk == el.pk|stringformat:'s' %} el-row--editing{% endif %}"
     data-element="{{ el.pk }}" data-updated="{{ unit.updated.isoformat }}" data-unit="{{ unit.pk }}">

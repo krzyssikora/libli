@@ -1,0 +1,14 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Związki między bokami w trójkątach o kątach 45°, 45° i 90° oraz 30°, 60° i 90°:\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/30_45_60.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8568bbf31dea1f7afac053910deb49f58879dc6c2ba5f3d76293cb76e935939a"
+}

@@ -1,0 +1,386 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n<p>\n                Jeśli \\(k\\) jest liczbą\n                <strong>\n                    parzystą\n                </strong>\n</p>\n            \\[\n                                                                                                \\text{funkcja }(k\\cdot 90^{\\circ}\\pm\\alpha)=\\square\\,\\text{funkcja }\\alpha\n                                                                                                \\]\n        </li>\n<li>\n<p>\n                Jeśli \\(k\\) jest liczbą\n                <strong>\n                    nieparzystą\n                </strong>\n</p>\n            \\[\n                                                                                                \\text{funkcja }(k\\cdot 90^{\\circ}\\pm\\alpha)=\\square\\,\\text{kofunkcja }\\alpha\n                                                                                                \\]\n            <p>\n                \\(\\square\\quad\\) to \"\\(+\\)\" lub \"\\(-\\)\" zależnie od ćwiartki, w której znajduje się kąt \\((k\\cdot 90^{\\circ}\\pm\\alpha)\\).\n            </p>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<u>\n        Kofunkcje\n    </u>"
+    },
+    {
+      "type": "text",
+      "body": "<p>:\n                                                                                        \\[\\sin\\quad\\leftrightarrow\\quad\\cos\\]\n                                                                                        \\[\\text{tg }\\quad\\leftrightarrow\\quad\\text{ctg}\\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź dokładną wartość \\(\\cos 120^{\\circ}\\).\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zrobimy to na dwa sposoby.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n<u>\n                        Sposób pierwszy\n                    </u>\n                    .\n                </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zauważmy, że \\(120^{\\circ}=90^{\\circ}+\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(60\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(30\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(^{\\circ}\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>W wyrażeniu\n                                                                                                \\[\n                                                                                                90^{\\circ}+30^{\\circ}\n                                                                                                \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>kąt \\(90^{\\circ}\\) pojawia się raz, czyli</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    parzystą\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    nieparzystą\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>liczbę razy.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Według reguły zapisanej na górze, jeśli \\(90^{\\circ}\\) użyte jest nieparzystą liczbę razy, to funkje zmieniają się w kofunkcje.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Oznacza to, że \\(\\cos 120^{\\circ}=\\cos(90^{\\circ}+30^{\\circ})=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\square\\cos 30^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\square\\sin 30^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>,</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>gdzie w miejsce kwadratu wstawimy zaraz odpowiedni znak.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Jaki to znak?\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Kąt \\(120^{\\circ}\\) jest wyznaczony przez punkt w</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    pierwszej\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    drugiej\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    trzeciej\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    czwartej\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>ćwiartce układu współrzędnych.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>W drugiej ćwiartce na mocy reguły</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n                    W\n                    <u>\n                        S\n                    </u>\n                    TeCz\n                </strong>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    tylko sinus jest dodatni\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    tylko cosinus jest dodatni\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    tylko tangens (i cotangens) są dodatnie\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    wszystkie funkcje są dodatnie\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>I dlatego \\(\\cos 120^{\\circ}\\lt 0\\), czyli</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\cos 120^{\\circ}= -\\sin 30^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\cos 120^{\\circ}= \\sin 30^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\cos 120^{\\circ}= -\\cos 30^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\cos 120^{\\circ}= \\cos 30^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>A ponieważ \\(\\sin 30^{\\circ}=\\frac{1}{2}\\), więc:\n                                                                                                \\[\n                                                                                                \\cos 120^{\\circ}= -\\sin 30^{\\circ}=-\\frac{1}{2}\n                                                                                                \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n<u>\n                        Sposób drugi\n                    </u>\n                    .\n                </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zauważmy, że \\(120^{\\circ}=180^{\\circ}-\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(60\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(30\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(^{\\circ}\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>W wyrażeniu\n                                                                                                \\[\n                                                                                                180^{\\circ}-60^{\\circ}=2\\cdot 90^{\\circ}-60^{\\circ}\n                                                                                                \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>kąt \\(90^{\\circ}\\) pojawia się dwukrotnie, czyli</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    parzystą\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    nieparzystą\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>liczbę razy.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Według reguły zapisanej na górze, jeśli \\(90^{\\circ}\\) użyte jest parzystą liczbę razy, to funkje zostają bez zmiany.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Oznacza to, że \\(\\cos 120^{\\circ}=\\cos(180^{\\circ}-60^{\\circ})=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\square\\cos 60^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\square\\sin 60^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>,</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>gdzie w miejsce kwadratu wstawimy zaraz odpowiedni znak.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Jaki to znak? To ustaliliśmy już wcześniej.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Kąt \\(120^{\\circ}\\) jest wyznaczony przez punkt w drugiej ćwiartce układu współrzędnych, gdzie na mocy reguły</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n                    W\n                    <u>\n                        S\n                    </u>\n                    TeCz\n                </strong>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    cosinus jest dodatni\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    cosinus jest ujemny\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>I dlatego \\(\\cos 120^{\\circ}\\lt 0\\), czyli</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\cos 120^{\\circ}= -\\sin 60^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\cos 120^{\\circ}= \\sin 60^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\cos 120^{\\circ}= -\\cos 60^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\cos 120^{\\circ}= \\cos 60^{\\circ}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Tak więc, podobnie jak poprzednio:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                \\cos 120^{\\circ}= -\\cos 60^{\\circ}=-\\frac{1}{2}\n                                                                                                "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c4eb3b4b4c00d7f35a05a1e72edfe82467b77b8e3a1856841fdf50c7554ffb27"
+}

@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Na poniższym rysunku widzisz punkt \\(A=(5, 8)\\) oraz punkt \\(B\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Punkt \\(B\\) został uzyskany przez przesunięcie punktu \\(A\\) o wektor \\(\\color{blue}{\\vec{w}=[8,-5]}\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    (Mówimy, że punkt \\(B\\) jest obrazem punktu \\(A\\) w przesunięciu o wektor \\(\\color{blue}{\\vec{w}}\\)).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"przesunięcie o wektor\" src=\"static/przesuniecie_o_wektor.png\" style=\"width: 600px;\" width=\"600\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n    Współrzędne punktu \\(B\\) obliczamy dodając do współrzenych punktu \\(A\\) współrzędne wektora \\(\\color{blue}{\\vec{w}}\\):\n                                                    \\[\n                                                    B=(5+\\color{blue}{8}, 8+\\color{blue}{(-5)})=(13, 3)\n                                                    \\]\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d79c740669e18d47d3cf1960e76e73729192a89e2aec817d01f9846d75c925b5"
+}

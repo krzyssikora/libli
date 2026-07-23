@@ -1,0 +1,171 @@
+{
+  "elements": [
+    {
+      "type": "spoiler",
+      "label": "jeśli nie pamiętasz, co to jest silnia...",
+      "body": "\n\n<div class=\"important\">\n<strong>Silnia</strong> liczby naturalnej \\(n\\), zapisywana jako \\(n!\\), to iloczyn liczb naturalnych od \\(1\\) do \\(n\\):\n        <div class=\"table_wrapper\">\n            \\[\n            n!=1\\cdot 2\\cdot\\dots(n-1)\\cdot n\n            \\]\n        </div>\n<hr/>\n        albo rekurencyjnie:\n        <div class=\"table_wrapper\">\n            \\[\n            n!=\\begin{cases}\n            1&amp;\\text{jeśli }n=0\\\\\n            n\\cdot(n-1)!&amp;\\text{jeśli }n\\gt 0\n            \\end{cases}\n            \\]\n        </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Oblicz\n        </p>\n        \\[\n        \\frac{13!}{11!}\n        \\]\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"steps\">\n<p>\n                Normalnie nie będziemy tego robić, ale ten pierwszy, jeden raz rozpiszmy obie silnie, by dostrzec zależności:\n            </p>\n<div class=\"table_wrapper\">\n                \\[\n                \\frac{13!}{11!}=\\frac{1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\cdot 6\\cdot 7\\cdot 8\\cdot 9\\cdot 10\\cdot 11\\cdot 12\\cdot 13}{1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\cdot 6\\cdot 7\\cdot 8\\cdot 9\\cdot 10\\cdot 11}\n                \\]\n            </div>\n<p>\n                Widzisz?\n            </p>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<div class=\"table_wrapper\">\n                    \\[\n                    \\frac{13!}{11!}=\\frac{\\color{red}{1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\cdot 6\\cdot 7\\cdot 8\\cdot 9\\cdot 10\\cdot 11}\\cdot 12\\cdot 13}{\\color{red}{1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\cdot 6\\cdot 7\\cdot 8\\cdot 9\\cdot 10\\cdot 11}}\n                    \\]\n                </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Liczba \\(11!\\) jest czynnikiem liczby \\(13!\\), co możemy lepiej i krócej zapisać tak:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\frac{13!}{11!}=\\frac{\\color{red}{11!}\\cdot 12\\cdot 13}{\\color{red}{11!}}\n                    \\]\n                </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    I teraz możemy skrócić wspólny czynnik w liczniku i mianowniku:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\frac{13!}{11!}=\\frac{\\require{cancel}\\cancel{\\color{red}{11!}}\\cdot 12\\cdot 13}{\\require{cancel}\\cancel{\\color{red}{11!}}}=12\\cdot 13=156\n                    \\]\n                </div>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli \\(n\\gt k\\) to \\(n!\\) jest podzielne przez \\(k!\\):</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        n!=k!\\cdot (k+1)\\cdot(k+1)\\cdot \\dots\\,\\cdot (n-1)\\cdot n\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\n            \\begin{align}\n            \\frac{128!}{125!}&amp;=126\\cdot 127\\cdot 128\\\\\n            \\frac{41!}{39!}&amp;=40\\cdot 41\n            \\end{align}\n            \\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wybierz właściwą odpowiedź.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\frac{16!}{14!}=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "&gt;&gt; wybierz &gt;&gt;"
+    },
+    {
+      "type": "text",
+      "body": "\\(15\\cdot 16\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\(14\\cdot 15\\cdot 16\\)"
+    },
+    {
+      "type": "text",
+      "body": "zatwierdź"
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\frac{20!}{16!}=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "&gt;&gt; wybierz &gt;&gt;"
+    },
+    {
+      "type": "text",
+      "body": "\\(16\\cdot 17\\cdot 18\\cdot 19\\cdot 20\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\(17\\cdot 20\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\(17\\cdot 18\\cdot 19\\cdot 20\\)"
+    },
+    {
+      "type": "text",
+      "body": "zatwierdź"
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\frac{24!}{21!}=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "&gt;&gt; wybierz &gt;&gt;"
+    },
+    {
+      "type": "text",
+      "body": "\\(22\\cdot 24\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\(23\\cdot 24\\)"
+    },
+    {
+      "type": "text",
+      "body": "\\(22\\cdot 23\\cdot 24\\)"
+    },
+    {
+      "type": "text",
+      "body": "zatwierdź"
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            Brawo!\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Doprowadź wyrażenie do najprostszej postaci:\n        <div class=\"table_wrapper\">\n            \\[\n            14!\\cdot 30-15!\n            \\]\n        </div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Na początek zauważmy, że \\(30=15\\cdot 2\\), więc \\(14!\\cdot 30=14!\\cdot 15\\cdot 2=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(28!\\cdot 30\\)</div>\n<div class=\"switch_value\">\\(15!\\cdot 2\\)</div>\n<div class=\"switch_value\">\\(420\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Aby uprościć to wyrażenie, wyłączymy największy wspólny czynnik przed nawias.\n                </p>\n<div class=\"switch_line\">\n                    Największym wspólnym czynnikiem liczb \\(15!\\cdot 2\\) oraz \\(15!\\) jest \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(15!\\)</div>\n<div class=\"switch_value\">\\(14!\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I dlatego \\(15!\\cdot 2-15!=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(15!(2-0)\\)</div>\n<div class=\"switch_value\">\\(15!(2-1)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Tak więc\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    14!\\cdot 30-15!&amp;=15!\\cdot 2-15!=\\\\\n                    &amp;=15!(2-1)=\\\\\n                    &amp;=15!\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Doprowadź wyrażenie do najprostszej postaci:\n        <div class=\"table_wrapper\">\n            \\[\n            16!\\cdot 170+17!\\cdot 8\n            \\]\n        </div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Najpierw zauważmy, że \\(16!\\cdot 170=16!\\cdot 17\\cdot 10=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(170!\\)</div>\n<div class=\"switch_value\">\\(17!\\cdot 10\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Teraz możemy wyłączyć czynnik \\(17!\\) przed nawias.\n                </p>\n<div class=\"switch_line\">\n                    \\(17!\\cdot 10+17!\\cdot 8=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(17!(10+8)\\)</div>\n<div class=\"switch_value\">\\(17!(10-8)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    A liczba \\(17!(10+8)\\) może być dalej przekształcona: \\(17!(10+8)=17!\\cdot 18=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(18!\\)</div>\n<div class=\"switch_value\">\\(17!\\cdot 18!\\)</div>\n<div class=\"switch_value\">\\(17\\cdot 18\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Czyli:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    16!\\cdot 170+17!\\cdot 8&amp;=17!\\cdot 10+17!\\cdot 8=\\\\\n                    &amp;=17!(10+8)=\\\\\n                    &amp;=17!\\cdot 18=\\\\\n                    &amp;=18!\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Oblicz:\n        <div class=\"table_wrapper\">\n            \\[\n            \\frac{9!}{6!\\cdot 3!}\n            \\]\n        </div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Najpierw skrócmy \\(9!\\) z \\(6!\\), korzystając z tego, że \\(\\frac{9!}{6!}=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(6\\cdot 7\\cdot 8\\cdot 9\\)</div>\n<div class=\"switch_value\">\\(7\\cdot 8\\cdot 9\\)</div>\n<div class=\"switch_value\">\\(7\\cdot 9\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Czyli\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    \\frac{9!}{6!\\cdot 3!}&amp;=\\frac{7\\cdot 8\\cdot 9}{3!}=\\\\\n                    &amp;=\\frac{7\\cdot 8\\cdot 9}{1\\cdot 2\\cdot 3}\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    I teraz wystarczy skrócić licznik z mianownikiem, a dokładniej \\(8\\) z \\(2\\) oraz \\(9\\) z \\(3\\), by dostać:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(7\\cdot 4\\cdot 3\\)</div>\n<div class=\"switch_value\">\\(7\\cdot 4\\cdot 6\\)</div>\n<div class=\"switch_value\">\\(7\\cdot 6\\cdot 3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    \\frac{9!}{6!\\cdot 3!}&amp;=\\frac{7\\cdot 8\\cdot 9}{3!}=\\\\\n                    &amp;=\\frac{7\\cdot 8\\cdot 9}{1\\cdot 2\\cdot 3}=\\\\\n                    &amp;=\\frac{7\\cdot 4\\cdot 3}{1\\cdot 1\\cdot 1}=\\\\\n                    &amp;=7\\cdot 4\\cdot 3=\\\\\n                    &amp;=84\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "08a8c83b35c4c6d306185c67af88b17e68d3a900fffc9a0c96922030c68c9b53"
+}

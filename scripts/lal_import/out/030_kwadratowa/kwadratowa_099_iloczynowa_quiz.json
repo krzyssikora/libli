@@ -1,0 +1,114 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Funkcja kwadratowa ma następującą postać iloczynową:</p><p>\\[</p><p>f(x)=\\tfrac{3}{2}(x-2)(x+3)</p><p>\\]</p><p>Miejsca zerowe tej funkcji to:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x=2\\), \\(x=3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=-2\\), \\(x=3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x=-3\\), \\(x=2\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Miejsca zerowe funkcji kwadratowej \\(f\\) to liczby \\(1\\) i \\(4\\).\n</p><p>\n    Funkcja może mieć następującą postać iloczynową (zaznacz wszystkie odpowiedzi):\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(f(x)=3(x-1)(x-4)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(f(x)=3(x-1)(4x-1)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(f(x)=-\\tfrac{1}{2}(x-4)(x-1)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(f(x)=2(x+1)(x+4)\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Miejsca zerowe funkcji kwadratowej \\(f\\) to liczby \\(-2\\) i \\(-3\\).\n</p><p>\n    Funkcja może mieć następującą postać iloczynową (zaznacz wszystkie odpowiedzi):\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(f(x)=\\tfrac{2}{3}(x+3)(x+2)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(f(x)=5(2x+1)(3x+1)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(f(x)=-2(x-2)(x-3)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(f(x)=-(x+2)(x+3)\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Miejsca zerowe funkcji kwadratowej \\(f\\) to liczby \\(-\\tfrac{1}{2}\\) i \\(3\\).\n</p><p>\n    Funkcja może mieć następującą postać iloczynową (zaznacz wszystkie odpowiedzi):\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(f(x)=3(x+3)(x-\\tfrac{1}{2})\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(f(x)=\\tfrac{1}{2}(x-\\tfrac{1}{2})(x+3)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(f(x)=-\\tfrac{1}{2}(x+\\tfrac{1}{2})(x-3)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(f(x)=2(x-3)\\)(x+\\tfrac{1}{2})",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "ab8dd6e9986f0ec5ba47a442e2df97f913e9904017019ec75328d07d5229a842"
+}

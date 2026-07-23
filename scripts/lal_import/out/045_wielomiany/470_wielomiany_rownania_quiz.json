@@ -1,0 +1,210 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Dany jest wielomian</p><p>\\(W(x)=8x^5+ax^3-3x^2+bx+10\\)</p><p>gdzie \\(a\\) i \\(b\\) to pewne liczby całkowite.</p><p>Wskaż wszystkie liczby z poniższych, które, zgodnie z twierdzeniem o pierwiastkach całkowitych wielomianu, mogą być pierwiastkami \\(W(x)\\).</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(-1\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(6\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(8\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-10\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Dany jest wielomian</p><p>\\(W(x)=8x^5+ax^3-3x^2+bx+15\\)</p><p>gdzie \\(a\\) i \\(b\\) to pewne liczby całkowite.</p><p>Wskaż wszystkie liczby z poniższych, które, zgodnie z twierdzeniem o pierwiastkach wymiernych wielomianu, mogą być pierwiastkami \\(W(x)\\).</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(\\frac{1}{8}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{2}{5}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-\\frac{1}{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-\\frac{3}{2}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-\\frac{15}{4}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\frac{5}{4}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(-\\frac{5}{3}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Dany jest wielomian</p><p>\\(W(x)=2x^8-3x^6+ax^4+2x^3+bx^2+cx+1\\)</p><p>gdzie \\(a\\), \\(b\\) i \\(c\\) to pewne liczby całkowite.</p><p>Ile różnych liczb całkowitych może być pierwiastkami tego wielomianu?</p>",
+      "value": "2",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Liczba \\(x=-5\\) jest pierwiastkiem wielomianu \\(W(x)\\).</p><p>Oznacza to, że wielomian \\(W(x)\\) jest podzielny przez</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x-5\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x+5\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5x-1\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5x+1\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Wielomian \\(W(x)\\) jest podzielny przez \\(x-2\\).</p><p>Wynika stąd, że pierwiastkiem wielomianu jest liczba</p>",
+      "value": "2",
+      "tolerance": "0"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Liczba \\(x=-\\tfrac{2}{5}\\) jest pierwiastkiem wielomianu \\(W(x)\\).</p><p>Oznacza to, że wielomian \\(W(x)\\) jest podzielny przez</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(2x-5\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2x+5\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5x+2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5x-2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Które z poniższych równań opisuje zadanie o treści</p><p>\"Suma sześcianów dwóch kolejnych liczb nieparzystych jest równa \\(1\\,072\\).</p><p>Znajdź te liczby.\"</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\((2x-1)^3(2x+1)^3=1072\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((2x-1)^3+(2x+1)^3=1072\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\((2x+3)^3=(2x+1)^3+1072\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Które z poniższych równań opisuje zadanie o treści</p><p>\"Graniastosłup prawidłowy czworokątny ma wysokość o \\(3\\,\\text{cm}\\) dłuższą od krawędzi podstawy.</p><p>Objętość graniastosłupa jest równa \\(972\\,\\text{cm}^3\\). Znajdź długość krawędzi podstawy.\"</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x^2(x+3)=972\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\((x+3)^2\\cdot x=972\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x^2\\cdot 3x=972\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e47bee0dcf91a1f2e785b66668627de77f789754d644e906d2b3a6b3a7418c2a"
+}

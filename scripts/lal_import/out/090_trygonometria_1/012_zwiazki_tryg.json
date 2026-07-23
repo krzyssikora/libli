@@ -1,0 +1,10 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/trygonometria_motywacja.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e2d519e8ed437fc84405a2707fb6322f61e2505c0603235e2d1fa3dab93b20e6"
+}

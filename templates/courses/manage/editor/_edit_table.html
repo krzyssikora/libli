@@ -3,13 +3,20 @@
 SOLE authoritative input; the controls strip and grid are name-less JS UI that
 table_editor.js mirrors into it. Grid + controls are server-rendered from the
 normalised stored data so an existing table shows its saved state.{% endcomment %}
-{% with d=form.instance.normalized_data %}
+{% with d=form.grid_data %}
 {% comment %}data-msg-* carry the grid-handle labels: table_editor.js injects the
 row/column handles client-side and cannot call {% templatetag openblock %} trans
 {% templatetag closeblock %} itself.{% endcomment %}
 <div class="el-editor el-editor--table" data-table-editor
      data-msg-row-insert="{% trans 'Insert row below' %}" data-msg-row-delete="{% trans 'Delete row' %}"
-     data-msg-col-insert="{% trans 'Insert column right' %}" data-msg-col-delete="{% trans 'Delete column' %}">
+     data-msg-col-insert="{% trans 'Insert column right' %}" data-msg-col-delete="{% trans 'Delete column' %}"
+     data-msg-merge="{% trans 'Merge cells' %}"
+     data-msg-header="{% trans 'Header cell' %}"
+     data-msg-merge-confirm="{% trans 'Merging will discard the content of the other selected cells.' %}"
+     data-msg-merge-too-big="{% trans 'The selection is larger than a table may be.' %}"
+     data-msg-header-locked="{% trans 'Unavailable while the row or column header option covers this cell.' %}"
+     data-msg-range-selected="{% trans 'Range selected' %}"
+     data-msg-range-cleared="{% trans 'Range cleared' %}">
   <input type="hidden" name="data" value="{{ form.data.data|default:'' }}">
 
   <div class="table-editor__controls">
@@ -40,19 +47,44 @@ row/column handles client-side and cannot call {% templatetag openblock %} trans
       <button type="button" class="rte-btn" data-valign="middle" title="{% trans 'Align middle' %}" aria-label="{% trans 'Align middle' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-middle"/></svg></button>
       <button type="button" class="rte-btn" data-valign="bottom" title="{% trans 'Align bottom' %}" aria-label="{% trans 'Align bottom' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-bottom"/></svg></button>
     </span>
+    <span class="rte-sep"></span>
+    <button type="button" class="rte-btn" data-merge disabled
+            title="{% trans 'Merge cells' %}" aria-label="{% trans 'Merge cells' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-merge"/></svg></button>
+    <button type="button" class="rte-btn" data-split disabled
+            title="{% trans 'Split cell' %}" aria-label="{% trans 'Split cell' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-split"/></svg></button>
+    <button type="button" class="rte-btn" data-header-toggle disabled aria-pressed="false"
+            title="{% trans 'Header cell' %}" aria-label="{% trans 'Header cell' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-header"/></svg></button>
   </div>
 
+  {% comment %}Cells carry their spans so the browser lays the EDITING grid out
+  with the same geometry the student sees, and serialize() can read them back.
+  A cell's own `header` flag wins over the header_row/header_col toggles --
+  mirroring the render templates, where the cell.header branch comes first. The
+  toggles themselves deliberately do NOT promote cells to <th> here: if they
+  did, serialize() would start writing header:true for cells that never had it
+  and break byte-identity for every existing header-row table.{% endcomment %}
   <div class="table-editor__grid" data-table-grid>
     <table>
       {% for row in d.cells %}
       <tr>
         {% for cell in row %}
+        {% if cell.header %}
+        <th contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
+            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</th>
+        {% else %}
         <td contenteditable="true" class="ta-{{ cell.halign }} va-{{ cell.valign }}"
-            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}">{{ cell.html|safe }}</td>
+            data-halign="{{ cell.halign }}" data-valign="{{ cell.valign }}"{% if cell.colspan %} colspan="{{ cell.colspan }}"{% endif %}{% if cell.rowspan %} rowspan="{{ cell.rowspan }}"{% endif %}>{{ cell.html|safe }}</td>
+        {% endif %}
         {% endfor %}
       </tr>
       {% endfor %}
     </table>
   </div>
+
+  {% comment %}Range membership is announced here rather than with aria-selected,
+  which is only meaningful on gridcell/option/row roles and is ignored (and
+  axe-flagged) on a bare <td>. Giving the editing table role="grid" would mean
+  owning full grid keyboard semantics -- out of scope.{% endcomment %}
+  <p class="visually-hidden" data-range-status aria-live="polite"></p>
 </div>
 {% endwith %}

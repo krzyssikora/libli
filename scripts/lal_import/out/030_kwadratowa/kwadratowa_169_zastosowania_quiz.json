@@ -1,0 +1,88 @@
+{
+  "elements": [
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<p>Wszystkie pytania dotyczą następującego zadania:</p>",
+      "reason": "stem had no answer DSL"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Niech \\(x\\) będzie pierwszą liczbą, a \\(y\\) drugą. Wówczas:\n</p><p>\\[</p><p>x+3y=42</p><p>\\]</p><p>\n    Szukamy największego iloczynu \\(x\\) i \\(y\\), i chcemy go przedstawić jako funkcja zmiennej \\(x\\), z użyciem powyższego równania.\n</p><p>\n    Wyrażenie opisujące iloczyn liczb \\(x\\) i \\(y\\) jako funkcja zmiennej \\(x\\) to:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x\\left(42-3x\\right)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\left(\\frac{42-y}{3}\\right)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(x\\left(\\frac{42-x}{3}\\right)\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Aby powyższe wyrażenie miało największą wartość, musimy znaleźć współrzędną \\(x\\)-ową wierzchołka. Jej wartość to:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(7\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(14\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(21\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(42\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    A druga liczba (\\(y\\)), dla której iloczyn jest największy to:\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(7\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(14\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(21\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(42\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "da1402a311361185cc538c58bbc371799358d6c4ee6230f168d6416bfb1e0cb1"
+}

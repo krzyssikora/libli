@@ -1,0 +1,124 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zbiór \\(A\\) jest dowolnym,\n            <strong>\n                niepustym\n            </strong>\n            zbiorem.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Klikaj pola zaznaczone na niebiesko, aż zobaczysz działanie prawdziwe\n            <strong>\n                dla każdego niepustego\n            </strong>\n            zbioru \\(A\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pamiętaj, że symbol \"\\(\\emptyset\\)\" oznacza\n            <strong>\n                zbiór pusty\n            </strong>\n            .\n        </p>"
+    },
+    {
+      "type": "switch_grid",
+      "prompt": "",
+      "lines": [
+        {
+          "stem": "\n\n                \\(A\\cap\\emptyset=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 0
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(A\\cup\\emptyset=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(A\\setminus\\emptyset=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(\\emptyset\\cap A=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 0
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(\\emptyset\\setminus A=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 0
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(A\\cup A=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(A\\cap A=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(A\\setminus A=\\)\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\emptyset\\)",
+                "\\(A\\)"
+              ],
+              "answer": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "505807a075c717692cdf1c7121d01046b61b12ee838ecf96598ce15f7de81c1b"
+}

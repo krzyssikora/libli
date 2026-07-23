@@ -1,0 +1,22 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Cechy podzielności przez liczby od \\(2\\) do \\(10\\) z wyjątkiem \\(7\\)\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/podzielnosc_1.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Cechy podzielności przez \\(7\\) i przez \\(11\\)\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/podzielnosc_2.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "37323a16176628d72a3c50ee9f3b987649573203896ecc435e864a6f8d10459e"
+}

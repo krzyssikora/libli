@@ -1,0 +1,162 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n    Długość odcinka \\(AB\\), gdzie\n                                                    \\[\n                                                    A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n                                                    \\]\n                                                    jest dana wzorem\n                                                    \\[\n                                                    AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n                                                    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Oblicz długość odcinka \\(AB\\) jeśli \\(A=(-1,5)\\) i \\(B=(4,-7)\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(AB=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\sqrt{3^2+2^2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\sqrt{5^2+12^2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\sqrt{3^2+12^2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\sqrt{5^2+2^2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>Czyli \\(AB=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(169\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(13\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(17\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(12\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n            Długość odcnika \\(AB\\) to \\(13\\).\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Oblicz długość odcinka \\(AB\\) jeśli \\(A=(2,5)\\) i \\(B=(-3,15)\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(AB=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\sqrt{5^2+10^2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\sqrt{1^2+10^2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\sqrt{1^2+20^2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\sqrt{5^2+20^2}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>Czyli \\(AB=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(125\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(5\\sqrt{5}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(25\\sqrt{5}\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(25\\)\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    zatwierdź\n                "
+    },
+    {
+      "type": "text",
+      "body": "\n            Długość odcnika \\(AB\\) to \\(5\\sqrt{5}\\).\n        "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b9cfbafc782f8c6a781d0250c12dee6b9921c69f316413fecfb3b25955087cd7"
+}

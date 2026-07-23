@@ -1,0 +1,114 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Odległość \\(d\\) punktu \\((-3,1)\\) od prostej \\(4x+5y-2=0\\) dana jest wzorem</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(d=\\frac{4\\cdot 3+5\\cdot 1+2}{\\sqrt{4^2+5^2}}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(d=\\frac{|4(-3)+5\\cdot 1-2|}{\\sqrt{5^2+(-2)^2}}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(d=\\frac{|4(-3)+5\\cdot 1-2|}{\\sqrt{4^2+5^2}}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(d=\\frac{|4\\cdot 3+5\\cdot 1-2|}{\\sqrt{4^2+5^2}}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wzór</p><p>\n    \\(d=\\frac{|2\\cdot(-3)-7\\cdot 5+11|}{\\sqrt{2^2+7^2}}\\)\n</p><p>opisuje odległość, \\(d\\), punktu \\(A\\) od prostej \\(2x-7y+11=0\\). Wówczas</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(A=(3, 5)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(A=(-3,5)\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(A=(-3,-5)\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(A=(3,-5)\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Odległość \\(d\\) między prostymi \\(6x-5x+4=0\\) i \\(6x-5x+11=0\\) opisana jest wzorem</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(d=\\frac{|4+11|}{\\sqrt{6^2+5^2}}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(d=\\frac{|4-11|}{\\sqrt{6^2+5^2}}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(d=\\frac{|4+11|}{\\sqrt{6^2-5^2}}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(d=\\frac{|4-11|}{\\sqrt{6^2-5^2}}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Wzór</p><p>\n    \\(d=\\frac{4}{\\sqrt{5^2+2^2}}\\)\n</p><p>opisuje odległość, \\(d\\), prostej \\(5x+2y+3=0\\) od prostej (wskaż wszystkie możliwości)</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(5x+2y-7=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5x+2y-1=0\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5x+2y+1=0\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(5x+2y+7=0\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "d4f9e705fb33c69c0f9d650fdf4085d570ff144f09870e1a93e59267dba69c6a"
+}

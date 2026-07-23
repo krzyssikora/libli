@@ -1,0 +1,120 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Funkcja wykładnicza\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy sobie bardzo krótko podstawowe działania na potęgach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Przyjrzyj się poznanym wcześniej wzorom i uzupełnij brakujące pola.\n    "
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(a^n\\cdot a^k=a^{n+k}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\n                            \\(2^3\\cdot 2^4=2\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(a^n: a^k=a^{n-k}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\n                            \\(3^{11}: 3^6=3\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\left(a^n\\right)^k=a^{n\\cdot k}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\n                            \\(\\left(3^4\\right)^5=3\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\n                            \\(25^6=5\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(a^{-n}=\\frac{1}{a^n}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\n                            \\(\\frac{1}{8}=2\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(a^{\\frac{1}{n}}=\\sqrt[n]{a}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\n                            \\(\\sqrt[5]{3}=3\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\n                            \\(\\sqrt[5]{9}=3\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n        Doskonale!\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "089bacc85c24abb2acaaa876374859881d85dd867154561493dfece7d79c3d34"
+}

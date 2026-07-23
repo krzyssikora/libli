@@ -1,0 +1,18 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3 id=\"skala_podobienstwa\">\n    Skala podobieństwa\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n    Czym jest skala podobieństwa?\n</h4>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/skala_podobienstwa.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "afeb281ae99fcebb24528580e8b3191379c025f0f1cee0d1e3a1bff6b8b41a04"
+}

@@ -1,0 +1,140 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Z proporcjonalnością prostą zetknąłeś/-aś się najprawdopodobniej w szkole podstawowej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<div style=\"display: inline-block; width: 130px;\">\n</div>\n<div style=\"display: inline-block;\">\n<img alt=\"\" src=\"static/water_poured.gif\" style=\"width: 300px; border: 5px solid #ccc;\"/>\n</div>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Mamy z nią do czynienia, gdy obserwujemy zmianę, która następuje w stałym tempie. Na przykład, gdy nalewamy wodę do naczynia ze stałą prędkością. Przyjmijmy dla przykładu, że\n    <strong>\n        w każdej sekundzie\n    </strong>\n    wlewamy do naczynia\n    <strong>\n        5cm\n        <sup>\n            3\n        </sup>\n</strong>\n    wody.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"\" src=\"static/water_to_glass_2.gif\" style=\"width: 300px; border: 5px solid #ccc;\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przypuśćmy, że nasze naczynie początkowo było puste.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Możemy powiedzieć, że:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        po czasie 0 sekund w naczyniu było 0cm\n        <sup>\n            3\n        </sup>\n        wody,\n    </li>\n<li>\n        po czasie 1 sekundy w naczyniu było 5cm\n        <sup>\n            3\n        </sup>\n        wody,\n    </li>\n<li>\n        i tak dalej\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Uzupełnij tabelę.\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "czas\n                    <br/>\n                    [sekundy]",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "ilość wody\n                    <br/>\n                    [centymetry sześcienne]",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<div class=\"success hidden\" id=\"success_question10\">\n        Świetnie!\n    </div>\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "414346228dbfb9e8c8b50f7439967b60f2a7e9a8bbaaaff14ba210cc12094064"
+}

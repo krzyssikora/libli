@@ -1,0 +1,217 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Jak pamiętasz, w ciągu arytmetycznym każdy kolejny wyraz tworzymy z poprzedniego przez <strong>dodanie</strong> stałej liczby, zwanej <strong>różnicą</strong> ciągu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Teraz poznamy inny rodzaj ciągu, tworzony według trochę innej reguły.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Pomyśl i wpisz dwa kolejne wyrazy każdego z podanych ciągów.\n    "
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(1,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(16,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<div class=\"success hidden\" id=\"success_question410\">Świetnie!</div>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(320,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(160,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(80,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(40,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(20,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<div class=\"success hidden\" id=\"success_question415\">Świetnie!</div>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(1,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-3,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(9,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-27,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(81,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<div class=\"success hidden\" id=\"success_question420\">Świetnie!</div>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(64,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(96,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(144,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(216,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(324,\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<div class=\"success hidden\" id=\"success_question425\">Świetnie!</div>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Opisz w najprostszy możliwy sposób regułę, zgodnie z którą powstają kolejne wyrazy każdego z powyższych ciągów. Porównaj swoją odpowiedź z moją.\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "sprawdź",
+      "body": "\n\n        W każdym z powyższych ciągów każdy wyraz (poza pierwszym) powstaje przez pomnożenie poprzedniego wyrazu przez pewną stałą liczbę.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"important\">\n    Ciągi takie, jak powyższe, nazywamy <strong>geometrycznymi</strong>.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "bd943c9a1d8883e5b74d02a7fe01ba9469bd082fbfc44dd4a15b7cae1f778894"
+}

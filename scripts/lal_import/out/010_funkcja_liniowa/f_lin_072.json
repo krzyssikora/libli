@@ -1,0 +1,50 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Znajdź równanie prostej równoległej do\n            \\[y=\\frac{2}{3}x-1\\]\n            i przechodzącej przez punkt \\((4, -1)\\).\n        </p>\n<p>\n            Spróbuj rozwiązać to zadanie samodzielnie, używając w razie potrzeby poniższych wskazówek.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Szukamy prostej równoległej, więc jej współczynnik kierunkowy jest identyczny, jak danej prostej, czyli \\(\\frac{2}{3}\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Szukana prosta ma więc równanie postaci\n                \\[y=\\frac{2}{3}x+b\\]\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Wiemy, że przechodzi przez punkt \\((4, -1)\\), więc współrzędne tego punktu \\((x=4, y=-1)\\) spełniają równanie szukanej prostej.\n            \\[y=\\frac{2}{3}x+b\\quad\\quad\\leftarrow\\quad\\quad x=4, y=-1\\]\n            Podstawiwszy współrzędne punktu do równania prostej otrzymujemy:\n            \\[-1=\\frac{2}{3}\\cdot 4+b\\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Obliczmy \\(b\\):\n            \\[-1=\\frac{8}{3}+b\\]\n            \\[b=-1-\\frac{8}{3}=-\\frac{11}{3}\\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Szukana prosta równoległa ma więc równanie:\n            \\[y=\\frac{2}{3}x-\\frac{11}{3}\\]\n        "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "188753f36f638026de6361eda4ab92532c770798433f0ad6adfa4d525dcf9d2e"
+}

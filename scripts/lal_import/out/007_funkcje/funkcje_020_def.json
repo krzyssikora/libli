@@ -1,0 +1,67 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n    Będziemy zajmować się prawie wyłącznie\n    <strong>\n        funkcjami liczbowymi\n    </strong>\n    , czyli takimi, dla których dziedzina oraz zbiór wartości są zbiorami liczbowymi. A dokładniej, na nasze potrzeby, pewnymi podzbiorami zbioru liczb rzeczywistych.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czyli od teraz, zgodnie z wprowadzonym wcześniej zapisem:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    f:A\\longrightarrow B\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        gdzie:\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            zbiór \\(A\\subset \\mathbb{R}\\) to dziedzina\n            <br/>\n            (elementy tego zbioru nazywamy argumentami)\n        </li>\n<li>\n            zbiór \\(B\\subset \\mathbb{R}\\) to przeciwdziedzina\n            <br/>\n            (elementy tego zbioru nazywamy wartościami)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<h2>\n    Sposoby zapisywania funkcji\n</h2>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Sposoby zapisywania funkcji zilustrujemy na następującym przykładzie:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n    Cena przejazdu taksówką jest sumą stałej kwoty \\(8\\) złotych, niezależnej od przejechanej odległości, oraz \\(3\\) złotych za każdy przejechany kilometr.\n</blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W tym przykładzie cena będzie wartością funkcji, a odległość argumentem.\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Sposób pierwszy: opis słowny",
+      "body": "\n\n<p>\n        Powyższe zdanie definiujące cenę przejazdu w zależności od przejechanej odległości może być traktowane jako\n        <strong>\n            słowny opis\n        </strong>\n        funkcji. Nie jest to opis w pełni precyzyjny. Przede wszystkim, brakuje w nim informacji o dziedzinie. Przyjmijmy, dla uproszczenia, że dziedziną jest zbiór liczb naturalnych \\(\\mathbb{N}\\), to znaczy, że możemy przejechać taksówką \\(0\\), \\(1\\), \\(2\\), \\(3\\), \\(4\\), \\(5\\), ... kilometrów.\n    </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Sposób drugi: graf",
+      "body": "\n\n<p>\n        Na samym początku ilustorwaliśmy funkcje schematycznie za pomocą\n        <strong>\n            grafów\n        </strong>\n        , i tak możemy też zrobić w tej sytuacji.\n    </p>\n<div class=\"centered\">\n<img alt=\"graf\" src=\"static/funkcja_graf.png\" width=\"600\"/>\n</div>\n<p>\n        Zbiór po lewej to dziedzina, jego elementy mówią o przejechanej odległości w kilometrach.\n    </p>\n<p>\n        Zbiór po prawej to przeciwdziedzina, jego elementy mówią o cenie poróży w złotych.\n    </p>\n<p>\n        Taki sposób zapisu funkcji ma jedną istotną wadę: nie bardzo jest jak go używać, gdy argumentów (elementów dziedziny) jest więcej, dużo więcej.\n    </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Sposób trzeci: tabela",
+      "body": "\n\n<p>\n        Podobna wada obciąża kolejny sposób zapisu funkcji, czyli\n        <strong>\n            tabelę\n        </strong>\n        . Tabela ma też jednak zalety, pozwala się zorientować, jak funkcja zmienia się przynajmniej \"lokalnie\", dla wybranych argumentów.\n    </p>\n<p>\n        Niech zmienna \\(x\\) oznacza liczbę przejechanych kilometrów.\n    </p>\n<p>\n        Niech zmienna \\(y\\) oznacza cenę kursu w złotych.\n    </p>\n<p>\n        Wartości przedstawione w grafie możemy zapisać w tabeli:\n    </p>\n<div class=\"centered\" style=\"display: flex; justify-content: center;\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_xy\">\n<tr>\n<td>\n                        \\(x\\)\n                    </td>\n<td>\n                        \\(0\\)\n                    </td>\n<td>\n                        \\(1\\)\n                    </td>\n<td>\n                        \\(2\\)\n                    </td>\n<td>\n                        \\(3\\)\n                    </td>\n<td>\n                        \\(4\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        \\(y\\)\n                    </td>\n<td>\n                        \\(8\\)\n                    </td>\n<td>\n                        \\(11\\)\n                    </td>\n<td>\n                        \\(14\\)\n                    </td>\n<td>\n                        \\(17\\)\n                    </td>\n<td>\n                        \\(20\\)\n                    </td>\n</tr>\n</table>\n</div>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Sposób czwarty: wykres",
+      "body": "\n\n<p>\n        Skoro argumenty oznaczyliśmy przez \\(x\\), a wartości przez \\(y\\), to argumenty z przypisanymi im wartościami tworzą punkty \\((x, y)\\):\n    </p>\n    \\[\n    (0,8),\\quad(1,11),\\quad(2,14)\\quad(3,17),\\quad(4,20),\\dots\n    \\]\n    <p>\n        Takie punkty zaznaczone w układzie współrzędnych tworzą\n        <strong>\n            wykres funkcji\n        </strong>\n        .\n    </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n<img alt=\"wykres - punkty\" height=\"600\" src=\"static/funkcja_wykres_1.png\"/>\n</td>\n<td>\n<img alt=\"wykres - linia\" height=\"600\" src=\"static/funkcja_wykres_2.png\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>\n<p>\n        Wykres funkcji, o jakiej piszemy, to ten z lewej. Argumenty to liczby naturalne, więc punkty wykresu mają tylko naturalne współrzęne \\(x\\)-owe.\n    </p>\n<p>\n        Wykres po prawej, czyli niebieska półprosta, wskazuje, jaka byłaby sytuacja, gdyby cena za kurs była naliczana z dowolną dokładnością: choćby co metr, czy nawet co centymetr (choć wiemy, że nie jest to założenie realistyczne). W takiej sytuacji dziedziną funkcji byłby zbiór \\(\\langle 0, +\\infty)\\).\n    </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Sposób piąty: równanie",
+      "body": "\n\n<p>\n        Przeanalizujmy, jak otrzymujemy wartości tej funkcji.\n    </p>\n<div class=\"centered\" style=\"display: flex; justify-content: center;\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_xy\">\n<tr>\n<td>\n                        \\(x\\) kilometrów\n                    </td>\n<td>\n                        \\(y\\) złotych\n                    </td>\n</tr>\n<tr>\n<td>\n                        \\(0\\)\n                    </td>\n<td>\n                        \\(8+3\\cdot 0=8\\;\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        \\(1\\)\n                    </td>\n<td>\n                        \\(8+3\\cdot 1=11\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        \\(2\\)\n                    </td>\n<td>\n                        \\(8+3\\cdot 2=14\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        \\(3\\)\n                    </td>\n<td>\n                        \\(8+3\\cdot 3=17\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        \\(4\\)\n                    </td>\n<td>\n                        \\(8+3\\cdot 4=20\\)\n                    </td>\n</tr>\n<tr>\n<td>\n</td>\n<td>\n</td>\n</tr>\n</table>\n</div>\n</div>\n<p>\n        Z powyższego wynika, że \\(y\\) możemy uzyskać z \\(x\\)-a za pomocą równania:\n    </p>\n    \\[\n    y=8+3x\n    \\]\n    <p>\n        Żeby zdefiniować tę funkcję w pełni formalnie, nazwijmy ją \\(f\\) i zapiszmy:\n    </p>\n    \\[\n    f:\\mathbb{N}\\longrightarrow\\mathbb{N}\n    \\]\n    \\[\n    f(x)=3x+8\n    \\]\n    <p>\n        Zauważ, że o ile dziedzina jest określona bardzo precyzyjnie (bo określamy wartości dla wszystkich liczb naturalnych, i dla żadnej innej), o tyle przeciwdziedzina już nie. Wartości funkcji \\(f\\) (\\(8\\), \\(11\\), \\(14\\), ...) nie wyczerpują zbioru liczb naturalnych.\n    </p>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "09359708b67c0aa0867ae5e6c08b77bfcd2c2b84283706ca4c6adfc66f56805b"
+}

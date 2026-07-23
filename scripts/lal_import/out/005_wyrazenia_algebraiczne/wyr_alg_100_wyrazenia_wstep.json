@@ -1,0 +1,68 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Wyrazy podobne to takie, które (po uproszczeniu) mają</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n            dokładnie takie same zmienne\n        </li>\n<li>\n            w dokładnie takich samych potęgach\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy następujące wyrazy są podobne?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Odpowiedz, a następnie sprawdź swoją odpowiedź.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dla Twojej wygody wyrazy są już uproszczone.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(-3x^2y^3\\) oraz \\(2x^2y^3\\)",
+      "body": "\n                        tak, \\(x^2=x^2\\), \\(y^3=y^3\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(-5a^4b\\) oraz \\(-5a^4\\)",
+      "body": "\n                        nie, \\(b^1\\ne b^0\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(3c^2d^3\\) oraz \\(3c^3d^2\\)",
+      "body": "\n                        nie, \\(c^2\\ne c^3\\), \\(d^3\\ne d^2\\)\n                    "
+    },
+    {
+      "type": "spoiler",
+      "label": "\\(-4st^2\\) oraz \\(4t^2s\\)",
+      "body": "\n                        tak, \\(s=s\\), \\(t^2=t^2\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wskaż wyrazy podobne do tego po lewej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uwaga! Nie wszystkie wyrazy są uproszczone\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\(-3x^3y\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(6xyx^2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(-5xy^3\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(5x^2y\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(-7yx^3\\)\n        </div>\n</div>\n<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\(ab\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(a^2b^2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(1000ab\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(7a^7b\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(-ba\\)\n        </div>\n</div>\n<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\(4c^2d^4\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\((2c^2d^2)^2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(-d^2c^2d^2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\((2cd^2)^2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(-3d^2c^4d^2\\)\n        </div>\n</div>\n<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\(2ps^2t^3\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(7tps^2t^2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(2p(st)^3\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\((3t)^3ps^2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            \\(4s^2t^3\\)\n        </div>\n</div>\n<div class=\"confirm_multiple ks_button\">\n        potwierdź\n    </div>",
+      "reason": "interactive_widget (Group B): confirm_multiple,multi_many_ans,multi_many_option"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "d3309a5ce1fbc1945881b9446d27e00c0ae1fc6d26a2ad8ecf03a78fc4d9b70a"
+}

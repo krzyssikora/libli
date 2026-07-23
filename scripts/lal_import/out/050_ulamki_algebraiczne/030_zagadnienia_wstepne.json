@@ -1,0 +1,63 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Postać iloczynowa funkcji kwadratowej\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli funkcja kwadratowa:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    y=ax^2+bx+c\n    \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>ma miejsca zerowe \\(x_1\\) oraz \\(x_2\\), to możemy ją zapisać w</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n        postaci iloczynowej\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    y=a(x-x_1)(x-x_2)\n    \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W postaci iloczynowej\n    <strong>\n        odejmujemy\n    </strong>\n    miejsca zerowe od \\(x\\)-ów w nawiasach, więc znaki są przeciwne:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Dla miejsc zerowych \\(x_1=\\color{red}{-}1\\) oraz \\(x_2=\\color{red}{+}3\\) postać iloczynowa wygląda tak:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n\\begin{align*}\ny&amp;=a(x-(-1))(x-(+3))=\\\\\ny&amp;=a(x\\color{red}{+}1)(x\\color{red}{-}3)\n\\end{align*}\n\\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Parametr \\(a\\) nie ma wpływu na miejsca zerowe, a jedynie na kształt paraboli, czyli wykresu funkcji kwadratowej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Aby rozłożyć wyrażenie kwadratowe na czynniki, warto znleźć jego miejsca zerowe.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Miejsca zerowe funkcji kwadratowej\n</h3>"
+    },
+    {
+      "type": "spoiler",
+      "label": "przypomnij sobie metodę obliczania miejsc zerowych",
+      "body": "\n\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/kwadratowa_wzor.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "80aef8b56799ac9c19de2045aa633123aba661e0bf1526d767d40e41c98ccf82"
+}

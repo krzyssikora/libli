@@ -1,0 +1,23 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Obejrzyj poniższe nagranie.\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/tap_water.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czy w tym nagraniu jest coś związanego z matematyką? Czy możesz postawić pytania ciekawe z punktu widzenia matematyki?\n</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://edpuzzle.com/embed/media/63fdefbfd6b9684157f590c5",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "cca68d98ce58acf90884401fc7d2cae22a20c193f13cdc627e988bb2334560ba"
+}

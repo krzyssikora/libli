@@ -1,0 +1,31 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie widzisz cztery koła symbolizujące omówione wcześniej zbiory liczbowe.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Możesz zmieniać ich położenie (przesuwając środki) oraz wielkość (przesuwając punkty na brzegu).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Twoim zadaniem jest tak ułożyć zbiory, by widać było, który jest podzbiorem którego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zadanie zostanie poprawnie wykonane, gdy pasek z napisem \"progres\" będzie zielony.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/f6wxyukk/width/800/height/700/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b3690d3760f61ecca890b9f7c5278369aca80543a049fa9940024de5ea965d39"
+}

@@ -1,0 +1,19 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<div style=\"float: right; max-height: 320px;\">\n<img src=\"static/klasyfikacja_czworokatow.png\" style=\"height: 300px;\"/>\n</div>\n<p>\n            Poniżej widzisz rysunki sześciu czworokątów.\n        </p>\n<p>\n            Boki równoległe zaznaczone są strzałkami na tych bokach. Boki równej długości zaznaczone są krótkimi odcinkami prostopadłymi w tej samej liczbie.\n        </p>\n<p>\n            Które z tych czworokątów są\n        </p>\n<ul>\n<li>kwadratami,</li>\n<li>rombami,</li>\n<li>prostokątami,</li>\n<li>równoległobokami,</li>\n<li>deltoidami,</li>\n<li>trapezami,</li>\n<li>trapezoidami?</li>\n</ul>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder narrow_table\">\n<tr>\n<th>A</th>\n<th>B</th>\n<th>C</th>\n<th>D</th>\n<th>E</th>\n<th>F</th>\n</tr>\n<tr>\n<td><img src=\"static/geometria_3_wstep_cwiczenia_01.png\" style=\"max-height: 250px;\"/></td>\n<td><img src=\"static/geometria_3_wstep_cwiczenia_02.png\" style=\"max-height: 250px;\"/></td>\n<td><img src=\"static/geometria_3_wstep_cwiczenia_03.png\" style=\"max-height: 250px;\"/></td>\n<td><img src=\"static/geometria_3_wstep_cwiczenia_04.png\" style=\"max-height: 250px;\"/></td>\n<td><img src=\"static/geometria_3_wstep_cwiczenia_05.png\" style=\"max-height: 250px;\"/></td>\n<td><img src=\"static/geometria_3_wstep_cwiczenia_06.png\" style=\"max-height: 250px;\"/></td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th></th>\n<th>A</th>\n<th>B</th>\n<th>C</th>\n<th>D</th>\n<th>E</th>\n<th>F</th>\n</tr>\n<tr>\n<td>kwadrat</td>\n<td>❌</td>\n<td>❌</td>\n<td>❌</td>\n<td>❌</td>\n<td>❌</td>\n<td>❌</td>\n</tr>\n<tr>\n<td>prostokąt</td>\n<td>❌</td>\n<td>❌</td>\n<td>✔</td>\n<td>❌</td>\n<td>❌</td>\n<td>❌</td>\n</tr>\n<tr>\n<td>romb</td>\n<td>❌</td>\n<td>❌</td>\n<td>❌</td>\n<td>❌</td>\n<td>❌</td>\n<td>✔</td>\n</tr>\n<tr>\n<td>równoległobok</td>\n<td>❌</td>\n<td>✔</td>\n<td>✔</td>\n<td>❌</td>\n<td>❌</td>\n<td>✔</td>\n</tr>\n<tr>\n<td>deltoid</td>\n<td>❌</td>\n<td>❌</td>\n<td>❌</td>\n<td>✔</td>\n<td>❌</td>\n<td>✔</td>\n</tr>\n<tr>\n<td>trapez</td>\n<td>✔</td>\n<td>✔</td>\n<td>✔</td>\n<td>❌</td>\n<td>❌</td>\n<td>✔</td>\n</tr>\n<tr>\n<td>trapezoid</td>\n<td>❌</td>\n<td>❌</td>\n<td>❌</td>\n<td>✔</td>\n<td>✔</td>\n<td>❌</td>\n</tr>\n</table>\n</div>\n<p>✔ - tak, ❌ - nie</p>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "05e81d12f3e5afa2138338746c31f3fb5d2b6f651b106ada996231baf979370c"
+}

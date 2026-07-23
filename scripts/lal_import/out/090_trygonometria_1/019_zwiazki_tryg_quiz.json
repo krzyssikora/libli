@@ -1,0 +1,60 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Dla każdego kąta \\(\\alpha\\) wartość \\(\\text{tan}(90^{\\circ}-\\alpha)\\) jest taka sama jak:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\sin\\alpha\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\cos\\alpha\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\text{tg }\\alpha\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\text{ctg }\\alpha\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Dla każdego kąta \\(\\alpha\\) wartość \\(\\sin(90^{\\circ}-\\alpha)\\) jest taka sama jak:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\sin\\alpha\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\cos\\alpha\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\text{tg }\\alpha\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(\\text{ctg }\\alpha\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a6700385569444fde97885f640c25cfa16fea0ca1d9795f3119a06bbcb05e23c"
+}

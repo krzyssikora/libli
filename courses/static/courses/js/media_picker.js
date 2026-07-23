@@ -19,6 +19,7 @@
     var targetSelect = null;     // the <select name="media"> we are picking for
     var targetPreview = null;    // its sibling [data-media-preview]
     var appendTarget = null;     // [data-gallery-editor] host when in "append mode"
+    var fillTargetCb = null;     // callback from filltable_editor.js when in "cell" mode
 
     function removeOverlay() {
       if (overlay) { overlay.remove(); overlay = null; }
@@ -34,6 +35,13 @@
     // url is optional — stored as data-media-url on [data-media-preview] so other
     // modules (e.g. zone-editor.js) can read the chosen image URL without an extra fetch.
     function selectAsset(id, name, url) {
+      if (fillTargetCb) {
+        var cb = fillTargetCb;
+        fillTargetCb = null;
+        closeModal();
+        cb(id, name, url);   // id is a STRING (data-asset-id)
+        return;
+      }
       if (appendTarget && window.libliGalleryAdd) {
         window.libliGalleryAdd(appendTarget, id, name, url);
         appendTarget = null;
@@ -90,6 +98,10 @@
       appendTarget = pick.getAttribute("data-pick-mode") === "append"
         ? pick.closest("[data-gallery-editor]")
         : null;
+      fillTargetCb = null;
+      if (pick.getAttribute("data-pick-mode") === "cell" && window.libliFillTablePickImage) {
+        fillTargetCb = window.libliFillTablePickImage(pick);  // editor returns a callback
+      }
       var url = root.dataset.pickerUrl + "?kind=" + encodeURIComponent(kind);
       fetch(url, { headers: { "X-Requested-With": "fetch" } })
         .then(function (r) { return r.text(); })

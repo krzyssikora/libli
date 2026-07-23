@@ -1,0 +1,69 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n    Suma pierwszych \\(n\\) wyrazów ciągu arytmetycznego \\((a_n)\\) dana jest wzorem: \n    \\[\n    S_n=\\frac{a_1+a_n}{2}\\cdot n\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A gdyby zadania, które rozwiązaliśmy korzystając z tego wzoru, brzmiały trochę inaczej?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W pierwszym rzędzie w amfiteatrze jest 60 miejsc, a w każdym kolejnym rzędzie - o dwa miejsca więcej.\n        </p>\n<p>\n            Ile jest miejsc we wszystkich 31 rzędach amfiteatru?\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Pan Tadeusz w pierwszym miesiącu zaoszczędził \\(1\\,000\\) złotych, a w każdym kolejnym o \\(100\\) złotych więcej, niż w poprzednim.\n        </p>\n<p>\n            Ile zaoszczędził przez 16 miesięcy?\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zauważ, że teraz w obu zadaniach pytamy tylko o <strong>sumę</strong>, jednak żeby obliczyć sumę, i tak musimy wcześniej obliczyć ostatni, \\(n\\)-ty wyraz ciągu (w zdaniu pierwszym - trzydziesty pierwszy, w zadaniu drugim - szesnasty). \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<u>Czy aby na pewno musimy</u>?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>TAK</strong>, jeśli chcemy skorzystać ze wzoru powyżej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>NIE</strong>, jeśli skorzystamy z drugiego wzoru:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Suma pierwszych \\(n\\) wyrazów ciągu arytmetycznego \\((a_n)\\) dana jest wzorem: \n    \\[\n    S_n=\\frac{2a_1+(n-1)r}{2}\\cdot n\n    \\]\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "uzasadnienie wzoru",
+      "body": "\n\n<div id=\"question360\">\n<div class=\"steps\">\n            Użyjemy dwóch znanych nam wzorów:\n            <div class=\"table_wrapper\">\n                \\[\n                \\begin{align}\n                S_n&amp;=\\frac{a_1+a_n}{2}\\cdot n&amp;\\textbf{(1)}\\\\\n                a_n&amp;=a_1+(n-1) r&amp;\\textbf{(2)}\n                \\end{align}\n                \\]\n            </div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Podstawmy teraz \\(\\color{red}{a_n=a_1+(n-1)r}\\) z wzoru <strong>(2)</strong> do wzoru <strong>(1)</strong>:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    S_n=\\frac{a_1+\\color{red}{a_1+(n-1)r}}{2}\\cdot n\n                    \\]\n                </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Opraszczamy wyrazy podobne (\\(a_1\\)) i otrzymujemy:\n                </p>\n                \\[\n                S_n=\\frac{2a_1+(n-1)r}{2}\\cdot n\n                \\]\n            </div>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przyjrzyj się rozwiązaniom obu zdań. Zwróć uwagę, że z użyciem tego wzoru rozwiązania są bardzo krótkie. Wystarczy podstawić dane do wzoru i wykonać obliczenia.\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanieZadania 1",
+      "body": "\n\n<div id=\"question370\">\n<div class=\"steps\">\n<p>\n                Niech wyrazy ciągu arytmetycznego \\((a_n)\\) oznaczają liczbę miejsc w kolejnych rzędach amfiteatru.\n            </p>\n<blockquote>\n                W pierwszym rzędzie w amfiteatrze jest 60 miejsc...\n            </blockquote>\n<p>\n                czyli \\(a_1=60\\)\n            </p>\n<blockquote>\n                ...a w każdym kolejnym rzędzie - o dwa miejsca więcej.\n            </blockquote>\n<p>\n                czyli \\(r=2\\)\n            </p>\n<blockquote>\n                Ile jest miejsc we wszystkich 31 rzędach amfiteatru?\n            </blockquote>\n<p>\n                czyli szukamy sumy 31 wyrazów, \\(S_{31}\\).\n            </p>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Użyjemy wzoru:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    S_n=\\frac{2a_1+(n-1)r}{2}\\cdot n\n                    \\]\n                </div>\n                gdzie:\n                <ul class=\"nolist\">\n<li>\\(n=31\\)</li>\n<li>\\(a_1=60\\)</li>\n<li>\\(r=2\\)</li>\n</ul>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    S_{31}&amp;=\\frac{2\\cdot 60+(31-1)\\cdot 2}{2}\\cdot 31=\\\\\n                    &amp;=\\frac{120+30\\cdot 2}{2}\\cdot 31=\\\\\n                    &amp;=90\\cdot 31=\\\\\n                    &amp;=2\\,790\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    W amfiteatrze jest \\(2\\,790\\) miejsc.\n                </p>\n</div>\n</div>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanieZadania 2",
+      "body": "\n\n<div id=\"question380\">\n<div class=\"steps\">\n<p>\n                W tym zadaniu wyrazy ciągu arytmetycznego \\((b_n)\\) będą oznaczały kwoty zaoszczędzone w kolejnych miesiącach.\n            </p>\n<blockquote>\n                Pan Tadeusz w pierwszym miesiącu zaoszczędził \\(1\\,000\\) złotych...\n            </blockquote>\n<p>\n                czyli \\(b_1=1\\,000\\)\n            </p>\n<blockquote>\n                ...a w każdym kolejnym o \\(100\\) złotych więcej, niż w poprzednim.\n            </blockquote>\n<p>\n                czyli \\(r=100\\)\n            </p>\n<blockquote>\n                Ile zaoszczędził przez 16 miesięcy?\n            </blockquote>\n<p>\n                czyli szukamy sumy szesnastu wyrazów, \\(S_{16}\\).\n            </p>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Skorzystamy ze wzoru:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    S_n=\\frac{2b_1+(n-1)r}{2}\\cdot n\n                    \\]\n                </div>\n                gdzie:\n                <ul class=\"nolist\">\n<li>\\(n=16\\)</li>\n<li>\\(a_1=1\\,000\\)</li>\n<li>\\(r=100\\)</li>\n</ul>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    S_{16}&amp;=\\frac{2cdot 1\\,000+(16-1)\\cdot 100}{2}\\cdot 16=\\\\\n                    &amp;=\\frac{2\\,000+1\\,500}{2}\\cdot 16=\\\\\n                    &amp;=\\frac{3\\,500}{2}\\cdot 16=\\\\\n                    &amp;=3\\,500\\cdot 8=\\\\\n                    &amp;=28\\,000\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Przez szesnaście miesięcy pan Tadeusz odłożył \\(28\\,000\\) złotych.\n                </p>\n</div>\n</div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c32aeb57814a93405241a2364545cba7ed0fa5742fb24418864a05187666555d"
+}

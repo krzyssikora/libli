@@ -1,0 +1,374 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li style=\"margin-bottom: 20px;\">\n            \\(\\sin^2\\alpha+\\cos^2\\alpha=1\\) (tzw.\n            <strong>\n                jedynka trygonometryczna\n            </strong>\n            )\n        </li>\n<li style=\"margin-bottom: 20px;\">\n            \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\) oraz \\(\\text{ctg }\\alpha = \\frac{\\cos\\alpha}{\\sin\\alpha}\\)\n        </li>\n<li>\n            \\(\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dany jest kąt \\(\\alpha\\), gdzie \\(180^{\\circ}\\lt\\alpha\\lt 270^{\\circ}\\), a \\(\\text{tg }\\alpha=2,5\\).\n        </p>\n<p>\n            Znajdź dokładne wartości pozostałych trzech funkcji trygonometrycznych kąta \\(\\alpha\\).\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Rozwiążemy to zadanie na dwa sposoby: pierwszy - bardziej formalny, drugi - trochę krótszy.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n        Sposób pierwszy\n    </h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Obejrzyj nagranie z rozwiązaniem, albo przeczytaj rozwiązanie krok po kroku.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    nagranie\n                </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    krok po kroku\n                </a>\n</li>\n</ul>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/tryg_tozsamosc_dowolne_1.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Na chwilę zapomnijmy o dziedzinie kąta \\(\\alpha\\) i rozwiązujmy zadanie tak, jakby kąt był ostry.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Najłatwiejsze będzie obliczenie cotangensa. Od tego zaczniemy.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Skorzystamy z tożsamości\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n                                                                                                        \\text{tg }\\alpha\\cdot\\text{ctg }\\alpha=1\n                                                                                                        \\]\n                                                                                                        Stąd \\(\\text{ctg }\\alpha=\\frac{1}{\\text{tg }\\alpha}=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Aby znaleźć \\(\\sin\\alpha\\) i \\(\\cos\\alpha\\) użyjemy dwóch tożsamości:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                            \\(\\text{tg }\\alpha=\\frac{\\sin\\alpha}{\\cos\\alpha}\\)\n                        </li>\n<li>\n                            \\(\\sin^2\\alpha+\\cos^2\\alpha=1\\)\n                        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Z pierwszej tożsamości i z treści zadania wiemy, że</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span class=\"myequation\">\n                        \\(\\sin\\alpha=\\)\n                        <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n                        \\(\\cdot\\cos\\alpha\\)\n                    </span>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Podstawiając tak wyliczony \\(\\sin\\alpha\\) do drugiej tożsamości otrzymujemy\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n                                                                                                        (2,5\\cos\\alpha)^2+cos^2\\alpha=1\n                                                                                                        \\]\n                                                                                                        A ponieważ \\((2,5)^2=6,25\\), otrzymujemy równanie</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span class=\"myequation\">\n<span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n                        \\(\\cdot \\cos^2\\alpha=1\\)\n                    </span>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        I dzieląc obie strony przez \\(7,25\\):\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n                                                                                                        \\cos^2\\alpha=\\frac{1}{7,25}\\cdot\\frac{4}{4}=\\frac{4}{29}\n                                                                                                        \\]\n                                                                                                        czyli</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(\\cos\\alpha=\\frac{2}{\\sqrt{29}}\\quad\\) lub \\(\\quad\\cos\\alpha=-\\frac{2}{\\sqrt{29}}\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        No właśnie, \"\\(+\\)\" czy \"\\(-\\)\"?\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wiemy, że kąt \\(\\alpha\\) jest wyznaczony przez punkt z trzeciej ćwiartki (\\(180^{\\circ}\\lt\\alpha\\lt 270^{\\circ}\\)), a to oznacza, że</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span class=\"myequation\">\n                        \\(\\sin\\alpha\\)\n                        <span>\n<input class=\"fill_answer\" placeholder=\"&gt; czy &lt;?\" type=\"text\"/>\n</span>\n                        \\(0\\)\n                    </span>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    pokaż dalej\n                "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Czyli \\(\\sin\\alpha=-\\frac{2}{\\sqrt{29}}\\)\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Natomias</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span class=\"myequation\">\n                        \\(\\cos\\alpha=\\frac{5}{2}\\cdot \\left(-\\frac{2}{\\sqrt{29}}\\right)=\\)\n                        <span>\n<input class=\"fill_answer\" placeholder='\"-\" czy \"+\"?' type=\"text\"/>\n</span>\n                        \\(\\frac{5}{\\sqrt{29}}\\)\n                    </span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Ostatecznie:\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                    \\(\\sin\\alpha=-\\frac{2}{\\sqrt{29}}\\), \n                                                                                                        \\(\\cos\\alpha=-\\frac{5}{\\sqrt{29}}\\), \n                                                                                                        \\(\\text{tg }\\alpha=\\frac{5}{2}\\), \n                                                                                                        \\(\\text{ctg }\\alpha=\\frac{2}{5}\\).\n                "
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n        Sposób drugi\n    </h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Obejrzyj nagranie z rozwiązaniem, albo przeczytaj rozwiązanie krok po kroku.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-2-1\" id=\"tab-2-1\">\n                    nagranie\n                </a>\n</li>\n<li>\n<a href=\"#tabcontent-2-2\" id=\"tab-2-2\">\n                    krok po kroku\n                </a>\n</li>\n</ul>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/tryg_tozsamosc_dowolne_2.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Na chwilę zapomnijmy o dziedzinie kąta \\(\\alpha\\) i zacznijmy rozwiązywać to zadanie, jakby \\(\\alpha\\) była kątem ostrym.\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        W takiej sytuacji moglibyśmy naszkicować trójkąt prostokątny z kątem \\(\\alpha\\):\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"trójkąt prostokątny\" src=\"static/prostokatny_xyr_nieznane.png\" width=\"400\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Skoro \\(\\text{tg }\\alpha=2,5=\\frac{5}{2}\\) to możemy przyjąć, że</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(x=5\\) i \\(y=2\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(x=2\\) i \\(y=5\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(x=2\\) i \\(r=5\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(y=2\\) i \\(r=5\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"trójkąt prostokątny\" src=\"static/prostokatny_xyr_2boki.png\" width=\"400\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Teraz możemy policzyć przeciwprostokątną \\(r\\) z twierdzenia Pitagorasa, by otrzymać</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r=\\sqrt{29}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r=29\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r=7\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(r=\\sqrt{7}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"trójkąt prostokątny\" src=\"static/prostokatny_xyr_dane.png\" width=\"400\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Z rysunku odczytujemy, że \\(\\sin\\alpha=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(\\tfrac{2}{\\sqrt{29}}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(\\tfrac{2}{5}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(\\tfrac{5}{\\sqrt{29}}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>Podobnie \\(\\cos\\alpha=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(\\tfrac{2}{\\sqrt{29}}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(\\tfrac{2}{5}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(\\tfrac{5}{\\sqrt{29}}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>Natomiast \\(\\text{ctg }\\alpha=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(\\tfrac{2}{\\sqrt{29}}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(\\tfrac{2}{5}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(\\tfrac{5}{\\sqrt{29}}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        I to byłby koniec rozwiązania, gdyby \\(\\alpha\\) była kątem ostrym. Jednak \\(180^{\\circ}\\lt\\alpha\\lt 270^{\\circ}\\), czyli jest wskazany przez punkt w trzeciej ćwiartce.\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>A w trzeciej ćwiartce dodatnie są tylko</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            tangens i cotangens\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            sinus i cosinus\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            sinus i tangens\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            cosinus i cotangens\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Natomiast sinus i cosinus są ujemne. I stąd rozwiązaniami zadania są:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(\\sin\\alpha=-\\frac{2}{\\sqrt{29}}\\), \n                        \\(\\cos\\alpha=-\\frac{5}{\\sqrt{29}}\\), \n                        \\(\\text{tg }\\alpha=\\frac{5}{2}\\), \n                        \\(\\text{ctg }\\alpha=\\frac{2}{5}\\).\n                    "
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "e8bb884d43c51ab4fdc3b82ce6a50a97d0739612a88a3ac2b1234088d84d2a6c"
+}

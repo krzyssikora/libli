@@ -1,0 +1,118 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Klasyfikacja kątów ze względu na miarę\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Gdy klikniesz \"start\" w poniższym aplecie, zobaczysz niebieski kąt rosnący od zerowego (0°) do pełnego (360°) wraz z nazwami odpowiednimi dla takiego kąta.\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"691px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/fdhaunyz/width/800/height/691/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"klasyfikacja kątów ze względu na miary\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n<p>\n            Przyjrzyj się dokładnie wszystkim nazwom rodzajów kątów, zastanów się, jak je zdefiniować i sprawdź swoje odpowiedzi poniżej.\n        </p>\n<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n                            kąt zerowy\n                        </td>\n<td>\n<div class=\"show_solution ks_button\">\n                                zobacz\n                            </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                                kąt o mierze 0°\n                            </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n                            kąt ostry\n                        </td>\n<td>\n<div class=\"show_solution ks_button\">\n                                zobacz\n                            </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                                kąt o mierze między 0° a 90°\n                            </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n                            kąt wypukły\n                        </td>\n<td>\n<div class=\"show_solution ks_button\">\n                                zobacz\n                            </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                                kąt o mierze między 0° a 180°\n                            </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n                            kąt prosty\n                        </td>\n<td>\n<div class=\"show_solution ks_button\">\n                                zobacz\n                            </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                                kąt o mierze 90°\n                            </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n                            kąt rozwarty\n                        </td>\n<td>\n<div class=\"show_solution ks_button\">\n                                zobacz\n                            </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                                kąt o mierze między 90° a 180°\n                            </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n                            kąt półpełny\n                        </td>\n<td>\n<div class=\"show_solution ks_button\">\n                                zobacz\n                            </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                                kąt o mierze 180°\n                            </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n                            kąt wklęsły\n                        </td>\n<td>\n<div class=\"show_solution ks_button\">\n                                zobacz\n                            </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                                kąt o mierze między 180° a 360°\n                            </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n                            kąt pełny\n                        </td>\n<td>\n<div class=\"show_solution ks_button\">\n                                zobacz\n                            </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                                kąt o mierze między 360°\n                            </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dla podanych kątów wskaż wszystkie pasujące do nich nazwy.\n        </p>\n<p>\n            Uwaga! Do niektórych kątów pasuje więcej niż jedna nazwa.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            20°\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            ostry\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            rozwarty\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            wklęsły\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            wypukły\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            100°\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            ostry\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            rozwarty\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            wklęsły\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            wypukły\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            220°\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            ostry\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            rozwarty\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            wklęsły\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            wypukły\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            310°\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            ostry\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            rozwarty\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            wklęsły\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            wypukły\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n        potwierdź\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawne odpowiedzi zaznaczone są na zielono.\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2ffefaf3e30585c3daa9c88aadf4b656756800669892e6b2c0e51493b61998de"
+}

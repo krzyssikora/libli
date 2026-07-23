@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy sobie krótko, jak obliczamy funkcje trygonometryczne kąta ostrego w trójkącie prostokątnym.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"definicje stosunków trygonometrycznych\" src=\"static/trojkaty_definicje.png\" width=\"600\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(\\sin\\alpha= \\frac{y}{r}\\)\n        <span style=\"display: inline-block; width: 100px;\">\n</span>\n        \\(\\cos\\alpha= \\frac{x}{r}\\)\n        <span style=\"display: inline-block; width: 100px;\">\n</span>\n        \\(\\text{tg}\\alpha= \\frac{y}{x}\\)\n        <span style=\"display: inline-block; width: 100px;\">\n</span>\n        \\(\\text{ctg}\\alpha= \\frac{x}{y}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A jak jest z funkcjami trygonometrycznymi kątów innych niż ostre?\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/okrag_jednostkowy.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "88f0f9eea8412f35dfce2b7ea1d8d063a059883e650a79c64df27f6e49433e0a"
+}

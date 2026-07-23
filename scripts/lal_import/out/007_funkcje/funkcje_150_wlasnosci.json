@@ -1,0 +1,129 @@
+{
+  "elements": [
+    {
+      "type": "spoiler",
+      "label": "funkcja rosnąca",
+      "body": "\n\n<div class=\"important\">\n        Funkcja \\(f:A\\longrightarrow B\\) nazywana jest\n        <strong>\n            rosnącą\n        </strong>\n        , gdy dla dowolnych argumentów \\(x_1, x_2\\in A\\) zachodzi implikacja:\n        <div class=\"centered\">\n            jeśli \\(\\quad x_1\\lt x_2\\quad \\) to \\(\\quad f(x_1)\\lt f(x_2)\\).\n        </div>\n<div class=\"centered\">\n<img alt=\"funkcja rosnąca\" src=\"static/monotonicznosc_3.png\" width=\"400\"/>\n</div>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "funkcja malejąca",
+      "body": "\n\n<div class=\"important\">\n        Funkcja \\(f:A\\longrightarrow B\\) nazywana jest\n        <strong>\n            malejącą\n        </strong>\n        , gdy dla dowolnych argumentów \\(x_1, x_2\\in A\\) zachodzi implikacja:\n        <div class=\"centered\">\n            jeśli \\(\\quad x_1\\lt x_2\\quad \\) to \\(\\quad f(x_1)\\gt f(x_2)\\).\n        </div>\n<div class=\"centered\">\n<img alt=\"funkcja malejąca\" src=\"static/monotonicznosc_4.png\" width=\"400\"/>\n</div>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "funkcja stała",
+      "body": "\n\n<div class=\"important\">\n        Funkcja \\(f:A\\longrightarrow B\\) nazywana jest\n        <strong>\n            stałą\n        </strong>\n        , gdy dla dowolnych argumentów \\(x_1, x_2\\in A\\) zachodzi implikacja:\n        <div class=\"centered\">\n            jeśli \\(\\quad x_1\\lt x_2\\quad \\) to \\(\\quad f(x_1)= f(x_2)\\).\n        </div>\n<div class=\"centered\">\n<img alt=\"funkcja stała\" src=\"static/monotonicznosc_5.png\" width=\"400\"/>\n</div>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "funkcja niemalejąca",
+      "body": "\n\n<div class=\"important\">\n        Funkcja \\(f:A\\longrightarrow B\\) nazywana jest\n        <strong>\n            niemalejącą\n        </strong>\n        , gdy dla dowolnych argumentów \\(x_1, x_2\\in A\\) zachodzi implikacja:\n        <div class=\"centered\">\n            jeśli \\(\\quad x_1\\lt x_2\\quad \\) to \\(\\quad f(x_1)\\le f(x_2)\\).\n        </div>\n<div class=\"centered\">\n<img alt=\"funkcja rosnąca\" src=\"static/monotonicznosc_6.png\" width=\"400\"/>\n</div>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "funkcja nierosnąca",
+      "body": "\n\n<div class=\"important\">\n        Funkcja \\(f:A\\longrightarrow B\\) nazywana jest\n        <strong>\n            nierosnącą\n        </strong>\n        , gdy dla dowolnych argumentów \\(x_1, x_2\\in A\\) zachodzi implikacja:\n        <div class=\"centered\">\n            jeśli \\(\\quad x_1\\lt x_2\\quad \\) to \\(\\quad f(x_1)\\ge f(x_2)\\).\n        </div>\n<div class=\"centered\">\n<img alt=\"funkcja malejąca\" src=\"static/monotonicznosc_7.png\" width=\"400\"/>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Podsumowanie\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rozważając monotoniczność funkcji, spawdzamy, co wynika z nierówności\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\nx_1\\lt x_2\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    dla dowolnej pary argumentów \\(x_1, x_2\\) wziętych ze zbioru, na którym badamy monotoniczność.\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "wniosek",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rodzaj funkcji",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(f(x_1)\\lt f(x_2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rosnąca",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(f(x_1)\\gt f(x_2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "malejąca",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(f(x_1)= f(x_2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "stała",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(f(x_1)\\le f(x_2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "niemalejąca",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(f(x_1)\\ge f(x_2)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nierosnąca",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b5b8d6fc17f59f05a3089639cc7cdf91b6fd545f308cc856fc3d71e24ce2af8a"
+}

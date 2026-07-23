@@ -1,0 +1,597 @@
+{
+  "part": {
+    "source_folder": "060_ciagi",
+    "order": 10,
+    "title": "ciagi"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "010_ciagi.json",
+          "source_html": "010_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ciąg"
+        },
+        {
+          "order": 1,
+          "unit_json": "020_ciagi.json",
+          "source_html": "020_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Definicja"
+        },
+        {
+          "order": 2,
+          "unit_json": "030_ciagi.json",
+          "source_html": "030_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Wzór ogólny"
+        },
+        {
+          "order": 3,
+          "unit_json": "040_ciagi.json",
+          "source_html": "040_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 4,
+          "unit_json": "050_ciagi.json",
+          "source_html": "050_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Wzór rekurencyjny - wprowadzenie"
+        },
+        {
+          "order": 5,
+          "unit_json": "060_ciagi.json",
+          "source_html": "060_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Wzór rekurencyjny - definicja"
+        },
+        {
+          "order": 6,
+          "unit_json": "070_ciagi.json",
+          "source_html": "070_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Wzór rekurencyjny - przykłady"
+        },
+        {
+          "order": 7,
+          "unit_json": "080_ciagi.json",
+          "source_html": "080_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Wzór rekurencyjny - użyteczność"
+        },
+        {
+          "order": 8,
+          "unit_json": "090_ciagi.json",
+          "source_html": "090_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 9,
+          "unit_json": "095_ciagi.json",
+          "source_html": "095_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Podsumowanie"
+        },
+        {
+          "order": 10,
+          "unit_json": "100_ciagi_quiz.json",
+          "source_html": "100_ciagi_quiz.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "quiz",
+          "title": "ciagi quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "110_ciagi.json",
+          "source_html": "110_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Monotoniczność - definicja"
+        },
+        {
+          "order": 1,
+          "unit_json": "120_ciagi.json",
+          "source_html": "120_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Określanie monotoniczności przez różnicę \\(a_{n+1}-a_n\\)"
+        },
+        {
+          "order": 2,
+          "unit_json": "130_ciagi.json",
+          "source_html": "130_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Określanie monotoniczności przez iloraz \\(\\frac{a_{n+1}}{a_n}\\)"
+        },
+        {
+          "order": 3,
+          "unit_json": "140_ciagi.json",
+          "source_html": "140_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Monotoniczność ciągów rekurencyjnych"
+        },
+        {
+          "order": 4,
+          "unit_json": "150_ciagi.json",
+          "source_html": "150_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 5,
+          "unit_json": "155_ciagi.json",
+          "source_html": "155_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Podsumowanie"
+        },
+        {
+          "order": 6,
+          "unit_json": "160_ciagi_quiz.json",
+          "source_html": "160_ciagi_quiz.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "quiz",
+          "title": "ciagi quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "170_ciag_arytm.json",
+          "source_html": "170_ciag_arytm.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Wprowadzenie"
+        },
+        {
+          "order": 1,
+          "unit_json": "180_ciag_arytm.json",
+          "source_html": "180_ciag_arytm.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Definicja"
+        },
+        {
+          "order": 2,
+          "unit_json": "190_ciag_arytm.json",
+          "source_html": "190_ciag_arytm.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Wzór ogólny"
+        },
+        {
+          "order": 3,
+          "unit_json": "200_ciag_arytm.json",
+          "source_html": "200_ciag_arytm.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Związek między dowolnymi wyrazami ciągu arytmetycznego"
+        },
+        {
+          "order": 4,
+          "unit_json": "210_ciag_arytm.json",
+          "source_html": "210_ciag_arytm.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Związek między trzema kolejnymi wyrazami"
+        },
+        {
+          "order": 5,
+          "unit_json": "220_ciag_arytm.json",
+          "source_html": "220_ciag_arytm.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Związek między trzema kolejnymi wyrazami - rozszerzenie"
+        },
+        {
+          "order": 6,
+          "unit_json": "230_ciag_arytm.json",
+          "source_html": "230_ciag_arytm.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 7,
+          "unit_json": "235_ciag_arytm.json",
+          "source_html": "235_ciag_arytm.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Monotoniczność ciągu arytmetycznego"
+        },
+        {
+          "order": 8,
+          "unit_json": "240_ciag_arytm.json",
+          "source_html": "240_ciag_arytm.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Suma skończonego ciągu arytmetycznego - wprowadzenie"
+        },
+        {
+          "order": 9,
+          "unit_json": "250_ciag_arytm.json",
+          "source_html": "250_ciag_arytm.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Suma skończonego ciągu arytmetycznego - \"mały Gauss\""
+        },
+        {
+          "order": 10,
+          "unit_json": "260_ciag_arytm.json",
+          "source_html": "260_ciag_arytm.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Suma skończonego ciągu arytmetycznego - wzór 1"
+        },
+        {
+          "order": 11,
+          "unit_json": "270_ciag_arytm.json",
+          "source_html": "270_ciag_arytm.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Suma skończonego ciągu arytmetycznego - wzór 2"
+        },
+        {
+          "order": 12,
+          "unit_json": "280_ciag_arytm.json",
+          "source_html": "280_ciag_arytm.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 13,
+          "unit_json": "290_ciag_arytm.json",
+          "source_html": "290_ciag_arytm.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Podsumowanie"
+        },
+        {
+          "order": 14,
+          "unit_json": "300_ciag_arytm_quiz.json",
+          "source_html": "300_ciag_arytm_quiz.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "quiz",
+          "title": "ciag arytm quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "310_ciag_geom.json",
+          "source_html": "310_ciag_geom.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Wprowadzenie"
+        },
+        {
+          "order": 1,
+          "unit_json": "320_ciag_geom.json",
+          "source_html": "320_ciag_geom.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Definicja"
+        },
+        {
+          "order": 2,
+          "unit_json": "330_ciag_geom.json",
+          "source_html": "330_ciag_geom.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Wzór ogólny"
+        },
+        {
+          "order": 3,
+          "unit_json": "340_ciag_geom.json",
+          "source_html": "340_ciag_geom.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Związek między dowolnymi wyrazami ciągu geometrycznego"
+        },
+        {
+          "order": 4,
+          "unit_json": "350_ciag_geom.json",
+          "source_html": "350_ciag_geom.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Związek między trzema kolejnymi wyrazami"
+        },
+        {
+          "order": 5,
+          "unit_json": "360_ciag_geom.json",
+          "source_html": "360_ciag_geom.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Związek między trzema kolejnymi wyrazami - rozszerzenie"
+        },
+        {
+          "order": 6,
+          "unit_json": "370_ciag_geom.json",
+          "source_html": "370_ciag_geom.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 7,
+          "unit_json": "375_ciag_geom.json",
+          "source_html": "375_ciag_geom.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Monotoniczność ciągu geometrycznego"
+        },
+        {
+          "order": 8,
+          "unit_json": "380_ciag_geom.json",
+          "source_html": "380_ciag_geom.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Suma skończonego ciągu geometrycznego 1"
+        },
+        {
+          "order": 9,
+          "unit_json": "390_ciag_geom.json",
+          "source_html": "390_ciag_geom.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Suma skończonego ciągu geometrycznego 2"
+        },
+        {
+          "order": 10,
+          "unit_json": "400_ciag_geom.json",
+          "source_html": "400_ciag_geom.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Suma skończonego ciągu geometrycznego 3"
+        },
+        {
+          "order": 11,
+          "unit_json": "410_ciag_geom.json",
+          "source_html": "410_ciag_geom.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 12,
+          "unit_json": "420_ciag_geom.json",
+          "source_html": "420_ciag_geom.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Podsumowanie"
+        },
+        {
+          "order": 13,
+          "unit_json": "430_ciag_geom_quiz.json",
+          "source_html": "430_ciag_geom_quiz.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "quiz",
+          "title": "ciag geom quiz"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "__PLACEHOLDER chapter 5__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "440_ciag_zastosowania.json",
+          "source_html": "440_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ciągi arytmetyczne i geometryczne 1"
+        },
+        {
+          "order": 1,
+          "unit_json": "450_ciag_zastosowania.json",
+          "source_html": "450_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ciągi arytmetyczne i geometryczne 2"
+        },
+        {
+          "order": 2,
+          "unit_json": "460_ciag_zastosowania.json",
+          "source_html": "460_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ciągi arytmetyczne i geometryczne 3"
+        },
+        {
+          "order": 3,
+          "unit_json": "470_ciag_zastosowania.json",
+          "source_html": "470_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 4,
+          "unit_json": "480_ciag_zastosowania.json",
+          "source_html": "480_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Co wynika z wzoru na sumę?"
+        },
+        {
+          "order": 5,
+          "unit_json": "490_ciag_zastosowania.json",
+          "source_html": "490_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 6,
+          "unit_json": "500_ciag_zastosowania.json",
+          "source_html": "500_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Jeszcze o sumach 1"
+        },
+        {
+          "order": 7,
+          "unit_json": "510_ciag_zastosowania.json",
+          "source_html": "510_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Jeszcze o sumach 2"
+        },
+        {
+          "order": 8,
+          "unit_json": "520_ciag_zastosowania.json",
+          "source_html": "520_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 9,
+          "unit_json": "530_ciag_zastosowania.json",
+          "source_html": "530_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Lokaty bankowe"
+        },
+        {
+          "order": 10,
+          "unit_json": "540_ciag_zastosowania.json",
+          "source_html": "540_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Procent prosty i składany"
+        },
+        {
+          "order": 11,
+          "unit_json": "550_ciag_zastosowania.json",
+          "source_html": "550_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Procent prosty"
+        },
+        {
+          "order": 12,
+          "unit_json": "560_ciag_zastosowania.json",
+          "source_html": "560_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Procent składany 1"
+        },
+        {
+          "order": 13,
+          "unit_json": "570_ciag_zastosowania.json",
+          "source_html": "570_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Procent składany 2"
+        },
+        {
+          "order": 14,
+          "unit_json": "580_ciag_zastosowania.json",
+          "source_html": "580_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 15,
+          "unit_json": "590_ciag_zastosowania.json",
+          "source_html": "590_ciag_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Spłata kredytu"
+        },
+        {
+          "order": 16,
+          "unit_json": "610_ciagi_zastosowania.json",
+          "source_html": "610_ciagi_zastosowania.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Podsumowanie"
+        },
+        {
+          "order": 17,
+          "unit_json": "620_ciag_zastosowania_quiz.json",
+          "source_html": "620_ciag_zastosowania_quiz.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "quiz",
+          "title": "ciag zastosowania quiz"
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "title": "__PLACEHOLDER chapter 6__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "620_ciagi.json",
+          "source_html": "620_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Podsumowanie"
+        },
+        {
+          "order": 1,
+          "unit_json": "700_ciagi.json",
+          "source_html": "700_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Nie daj się oszukać"
+        },
+        {
+          "order": 2,
+          "unit_json": "710_ciagi.json",
+          "source_html": "710_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Wieże Hanoi"
+        },
+        {
+          "order": 3,
+          "unit_json": "720_ciagi.json",
+          "source_html": "720_ciagi.html",
+          "source_dir": "060_ciagi",
+          "unit_type": "lesson",
+          "title": "Ciąg Fibonacciego i złoty podział"
+        }
+      ]
+    }
+  ]
+}

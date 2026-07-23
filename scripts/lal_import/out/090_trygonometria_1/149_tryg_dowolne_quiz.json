@@ -1,0 +1,92 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Czy \\(\\sin 130^{\\circ}\\gt 0\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "nie",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy \\(\\cos 130^{\\circ}\\gt 0\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "nie",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy \\(\\text{tg } 340^{\\circ}\\gt 0\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "nie",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Czy \\(\\text{ctg } 220^{\\circ}\\gt 0\\)?</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "tak",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "nie",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jaki kąt w pierwszej ćwiartce układu współrzędnych ma wartości funkcji trygonometrycznych takie same (z dokładnością do znaku) jak kąta \\(115^{\\circ}\\)?</p><p>Wpisz tylko liczbę, bez słowa / znaku stopnia.</p>",
+      "value": "65",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jaki kąt w pierwszej ćwiartce układu współrzędnych ma wartości funkcji trygonometrycznych takie same (z dokładnością do znaku) jak kąta \\(200^{\\circ}\\)?</p><p>Wpisz tylko liczbę, bez słowa / znaku stopnia.</p>",
+      "value": "20",
+      "tolerance": "0"
+    },
+    {
+      "type": "numeric",
+      "stem": "<p>Jaki kąt w pierwszej ćwiartce układu współrzędnych ma wartości funkcji trygonometrycznych takie same (z dokładnością do znaku) jak kąta \\(345^{\\circ}\\)?</p><p>Wpisz tylko liczbę, bez słowa / znaku stopnia.</p>",
+      "value": "15",
+      "tolerance": "0"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "4ef8c4b100edf4b4296ac3ceec5e3124bd35cdfbb459e3663c050b633052dff6"
+}

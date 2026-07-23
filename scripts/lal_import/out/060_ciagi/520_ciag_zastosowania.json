@@ -1,0 +1,93 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Suma pierwszych dwunastu wyrazów ciągu arytmetycznego to \\(300\\), a suma wyrazów od dwudziestego czwartego do dwudziestego dziewiątego (włącznie) to \\(630\\).\n        </p>\n<p>\n            Oblicz pierwszy wyraz i różnicę ciągu.\n        </p>\n"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n<details>\n<summary><strong>metoda</strong></summary>\n            \\(S_{12}=300\\), \\(S_{29}-S_{23}=630\\)\n        </details>\n<details>\n<summary><strong>odpowiedź</strong></summary>\n            \\(a_1=3\\), \\(r=4\\)\n        </details>\n</div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": ""
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">zobacz</div>",
+      "reason": "show_solution button without solution"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Średnia arytmetyczna pierwszych dziewięciu wyrazów ciągu arytmetycznego jest równa \\(23\\).\n        </p>\n<p>\n            Średnia arytmetyczna pierwszych trzynastu wyrazów ciągu arytmetycznego jest równa \\(33\\).\n        </p>\n<p>\n            Znajdź jedenasty wyraz tego ciągu.\n        </p>\n"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n<details>\n<summary><strong>równania na średnie</strong></summary>\n            \\(\\frac{S_9}{9}=23\\), \\(\\frac{S_{13}}{13}=33\\)\n        </details>\n<details>\n<summary><strong>pierwszy wyraz i różnica</strong></summary>\n            \\(a_1=3\\), \\(r=5\\)\n        </details>\n<details>\n<summary><strong>odpowiedź</strong></summary>\n            \\(a_{11}=53\\)\n        </details>\n</div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": ""
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">zobacz</div>",
+      "reason": "show_solution button without solution"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź sumę wszystkich liczb nieparzystych między \\(100\\) a \\(500\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(60\\,000\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź sumę wszystkich wielokrotności liczby \\(7\\) między \\(200\\) a \\(500\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(15\\,050\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź sumę wszystkich wielokrotności liczby \\(11\\) między \\(300\\) a \\(700\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(18\\,018\\)\n    "
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "1511502ec317529a0d030306eb986aa7a60470add786913179a1cc55e93aa1fe"
+}

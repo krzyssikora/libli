@@ -1,0 +1,97 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "\n<strong>\n        Zaprzeczeniem\n    </strong>\n    zdania \\(p\\) jest zdanie \"nieprawda, że \\(p\\)\", które zapisujemy jako \\(\\neg p\\).\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n        Przykłady\n    </strong>\n</p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(p\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\neg p\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "Dziś jest środa.",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "Dziś nie jest środa.",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "Nie lubię pierogów.",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "Lubię pierogi.",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Jak wyglądają zaprzeczenia trochę bardziej skomplikowanych zdań?\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>\n            W poniższych wyjaśnieniach \\(x\\) będzie oznaczało zmienną liczbową, natomiast \\(p(x)\\) zdanie logiczne, w którym występuje zmienna \\(x\\), czyli zdanie zależne od \\(x\\). Takie zdanie nazywamy czasem\n            <strong>\n                formą zdaniową\n            </strong>\n            .\n        </small>\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Zaprzeczenie kwantyfikatora szczególnego",
+      "body": "\n\n<p>\n            Aby zaprzeczyć zdaniu \"Istnieje człowiek mający co najmniej 4 metry wzrostu\" należy stwierdzić, że\n            <strong>\n                takiego człowieka nie ma\n            </strong>\n            , czyli że\n            <strong>\n                wszyscy ludzie\n            </strong>\n            są niżsi niż 4 metry.\n        </p>\n<p>\n            Innymi słowy trzeba stwierdzić, że\n            <strong>\n                dla każdego człowieka\n            </strong>\n            prawdziwe jest zdanie przeciwne, czyli że ma poniżej 4 metrów wzrostu.\n        </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\n                            zdanie\n                        </th>\n<th>\n                            zaprzeczenie\n                        </th>\n</tr>\n<tr>\n<td>\n                            \\(\\lor_{x}\\quad p(x)\\)\n                        </td>\n<td>\n                            \\(\\land_{x}\\quad \\neg p(x)\\)\n                        </td>\n</tr>\n</table>\n</div>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Zaprzeczenie kwantyfikatora ogólnego",
+      "body": "\n\n<p>\n            Aby zaprzeczyć zdaniu \"Każdy pies ma ogon\" należy stwierdzić, że\n            <strong>\n                nie każdy\n            </strong>\n            , czyli że\n            <strong>\n                istnieje pies\n            </strong>\n            bez ogona.\n        </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\n                            zdanie\n                        </th>\n<th>\n                            zaprzeczenie\n                        </th>\n</tr>\n<tr>\n<td>\n                            \\(\\land_{x}\\quad p(x)\\)\n                        </td>\n<td>\n                            \\(\\lor_{x}\\quad \\neg p(x)\\)\n                        </td>\n</tr>\n</table>\n</div>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Zaprzeczenie alternatywy",
+      "body": "\n\n<p>\n            Aby zaprzeczyć zdaniu \"pójdę do kina lub pójdę do teatru\" należy stwierdzić, że\n            <strong>\n                nie pójdę ani tu ani tu\n            </strong>\n            , czyli że nie pójdę do kina\n            <strong>\n                oraz\n            </strong>\n            nie pójdę do teatru.\n        </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\n                            zdanie\n                        </th>\n<th>\n                            zaprzeczenie\n                        </th>\n</tr>\n<tr>\n<td>\n                            \\(p\\vee q\\)\n                        </td>\n<td>\n                            \\(\\neg p \\wedge \\neg q\\)\n                        </td>\n</tr>\n</table>\n</div>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Zaprzeczenie koniunkcji",
+      "body": "\n\n<p>\n            Aby zaprzeczyć zdaniu \"kupię książkę i zjem lody\" należy stwierdzić, że nie zrobię\n            <strong>\n                przynajmniej jednej\n            </strong>\n            z dwóch czynności, czyli że nie kupię książki\n            <strong>\n                lub\n            </strong>\n            nie zjem lodów.\n        </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\n                            zdanie\n                        </th>\n<th>\n                            zaprzeczenie\n                        </th>\n</tr>\n<tr>\n<td>\n                            \\(p\\wedge q\\)\n                        </td>\n<td>\n                            \\(\\neg p \\vee \\neg q\\)\n                        </td>\n</tr>\n</table>\n</div>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Zapis formalny zaprzeczeń",
+      "body": "\n\n    Każde z zaprzeczeń możemy zapisać wg schematu:\n    <blockquote class=\"centered\">\n        Zdanie \"nieprawda, że zdanie \\(p\\)\"\n        <span style=\"color: red;\">\n            jest równoważne\n        </span>\n        zaprzeczeniu zdania \\(p\\)\n    </blockquote>\n    przy czym sformułowanie \"\n    <span style=\"color: red;\">\n        jest równoważne\n    </span>\n    \" zastąpimy znakiem równoważności: \\(\\color{red}{\\Leftrightarrow}\\).\n    <div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\n                        rodzaj zdania\n                    </th>\n<th>\n                        formalny zapis zaprzeczenia\n                    </th>\n</tr>\n<tr>\n<td>\n                        kwantyfikator szczególny\n                    </td>\n<td>\n                        \\(\\neg \\left(\\lor_{x} p(x)\\right)\\color{red}{\\Leftrightarrow}w \\left(\\land_{x} \\neg p(x)\\right)\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        kwantyfikator ogólny\n                    </td>\n<td>\n                        \\(\\neg \\left(\\land_{x} p(x)\\right)\\color{red}{\\Leftrightarrow}w \\left(\\lor_{x} \\neg p(x)\\right)\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        alternatywa\n                    </td>\n<td>\n                        \\(\\neg \\left(p\\vee q\\right)\\color{red}{\\Leftrightarrow} \\left(\\neg p \\wedge \\neg q\\right)\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        koniunkcja\n                    </td>\n<td>\n                        \\(\\neg \\left(p\\wedge q\\right)\\color{red}{\\Leftrightarrow} \\left(\\neg p \\vee \\neg q\\right)\\)\n                    </td>\n</tr>\n</table>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przejdź dalej, żeby przeczytać o zaprzeczeniu implikacji.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2317ed910e88a262082da1d18b5b9c61b4fd75eefc115f727d111b8efb170094"
+}

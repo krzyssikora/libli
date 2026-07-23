@@ -1,0 +1,22 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Nauczymy się teraz więcej o prostych w układzie współrzędnych. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poświęciliśmy im już uprzednio dużo uwagi - zajrzyj do rozdziału o <a href=\"/jump_to_id/fbc819931db64e0e90d3ba05d25782d2\">funkcji liniowej</a>.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Proste w układzie współrzędnych (<span title=\"wykres funkcji może nie zawierać dwóch punktów o tej samej współrzędnej x-owej\"><u>z wyjątkiem pionowych</u></span>) to wykresy funkcji liniowych. \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Równanie funkcji liniowej, równanie postaci \\(y=ax+b\\), nazywamy <strong>równaniem kierunkowym prostej</strong>.\n</p>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "206d286c0ca50e8dc62147a4c299f1c7a05bec8a9c1ba40b5781dd40432f2da7"
+}

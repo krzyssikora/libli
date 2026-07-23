@@ -1,0 +1,141 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Jesli wyrazy \\(a_1\\), \\(a_5\\) i \\(a_{13}\\) pewnego ciągu \\((a_n)\\) są także kolejnymi wyrazami ciągu geometrycznego,  to:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(a_5=a_1\\cdot q^4\\) oraz \\(a_{13}=a_1\\cdot q^{12}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((a_5)^2=a_1\\cdot a_{13}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(a_5=a_1\\cdot a_{13}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(a_5=\\sqrt{a_1\\cdot a_{13}}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Jeśli pierwszy, czwarty i szósty wyraz ciągu geometrycznego \\((a_n)\\) o ilorazie \\(q\\) są też kolejnymi wyrazami ciągu arytmetycznego,  to:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(a_1\\cdot q^3=\\frac{a_1+a_1\\cdot q^5}{2}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(a_4=a_1+3r\\) oraz \\(a_6=a_1+5r\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\((a_4)^2=a_1\\cdot a_6\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(a_1\\cdot q^4=\\frac{a_1+a_1\\cdot q^6}{2}\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Kwotę \\(2000\\) złotych wpłacono na roczną lokatę odnawialną o oprocentowaniu w skali roku \\(6\\%\\) z kapitalizacją na koniec roku. Po odnowieniu lokaty odsetki były przelewane na oddzielne konto.</p><p>Całkowity</p><p>z lokaty po pięciu latach jest opisany wyrazeniem:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(2000\\cdot(1+ 5\\cdot\\frac{6}{100} )\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2000\\cdot 5\\cdot 6 \\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2000\\cdot 5\\cdot\\frac{6}{100} \\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2000\\cdot 1,06^5-2000\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Pewną kwotę wpłacono na roczną lokatę odnawialną o oprocentowaniu w skali roku \\(8\\%\\) z kapitalizacją na koniec roku. Po odnowieniu lokaty odsetki były przelewane na oddzielne konto. Po siedmiu latach zysk z lokaty wyniósł \\(2240\\) złotych.  Początkową kwotę wpłaconą na lokatę,  \\(K_0\\), możemy wyliczyć z rownania:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(2240=K_0\\cdot 7\\frac{8}{100}\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(K_0=2240\\cdot 7\\frac{8}{100}\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(2240=K_0\\cdot 1,08^7\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(K_0=2240\\cdot 1,08^7\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Kwotę \\(3000\\) złotych wpłacono na roczną lokatę odnawialną o oprocentowaniu w skali roku \\(4\\%\\) z kapitalizacją na koniec roku. Po odnowieniu lokaty odsetki były dołączane do kapitału lokaty.</p><p>Całkowity</p><p>lokaty po pięciu latach jest opisany wyrazeniem:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(3000\\cdot(1+ 5\\cdot\\frac{4}{100} )\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3000\\cdot 5\\cdot 4 \\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3000\\cdot 1,04^5-3000\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(3000\\cdot 1,04^5\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "41f5be647a4f6e18875a52bf1a2be9c303141de7828c2be101288503ff6e5d9e"
+}

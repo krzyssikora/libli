@@ -1,0 +1,27 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n        Jak zapewne pamiętasz,\n        <strong>\n            średnia arytmetyczna\n        </strong>\n        (często nazywana po prostu średnią) to ich suma podzielona przez to, ile ich jest.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Dla dwóch liczb, \\(a\\) i \\(b\\), ich średnia to po prostu \\(\\frac{a+b}{2}\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Przyjrzyj się poniższym liczbom, ich średniej, i położeniu wszystkich trzech liczb na osi liczbowej.\n        </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\n                            liczba\n                        </th>\n<th>\n                            liczba\n                        </th>\n<th>\n                            średnia\n                        </th>\n<th>\n                            położenie na osi\n                        </th>\n</tr>\n<tr>\n<td>\n                            \\(4\\)\n                        </td>\n<td>\n                            \\(18\\)\n                        </td>\n<td>\n                            \\(11\\)\n                        </td>\n<td>\n<img alt=\"średnia na osi liczbowej\" src=\"static/srednia_1.png\" width=\"500\"/>\n</td>\n</tr>\n<tr>\n<td>\n                            \\(-3\\)\n                        </td>\n<td>\n                            \\(15\\)\n                        </td>\n<td>\n                            \\(6\\)\n                        </td>\n<td>\n<img alt=\"średnia na osi liczbowej\" src=\"static/srednia_2.png\" width=\"500\"/>\n</td>\n</tr>\n<tr>\n<td>\n                            \\(-8,5\\)\n                        </td>\n<td>\n                            \\(-1,3\\)\n                        </td>\n<td>\n                            \\(-4,9\\)\n                        </td>\n<td>\n<img alt=\"średnia na osi liczbowej\" src=\"static/srednia_3.png\" width=\"500\"/>\n</td>\n</tr>\n<tr>\n<td>\n                            \\(45\\)\n                        </td>\n<td>\n                            \\(113\\)\n                        </td>\n<td>\n                            \\(79\\)\n                        </td>\n<td>\n<img alt=\"średnia na osi liczbowej\" src=\"static/srednia_4.png\" width=\"500\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "Co dostrzegasz?",
+      "body": "\n\n<div class=\"important\">\n        Średnia liczb \\(a\\) i \\(b\\) wyznacza środek odcinka osi liczbowej o końcach wskazanych przez \\(a\\) i \\(b\\).\n        <div class=\"centered\">\n<img alt=\"średnia na osi liczbowej\" src=\"static/srednia_a_srodek.png\" width=\"600\"/>\n</div>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b2e716e4c2fed0abba5f31fe35fff238803f9881bf9fc285ea49653254ab08f8"
+}

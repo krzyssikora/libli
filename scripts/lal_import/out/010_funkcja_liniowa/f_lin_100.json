@@ -1,0 +1,58 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Funkcja liniowa - warto wiedzieć\n</h1>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W zadaniach, z jakimi się wcześniej zetknęliśmy, była mowa o stosowaniu funkcji liniowej do opisu relacji między rzeczywistymi wielkościami. Przyjrzyjmy się temu zagadnieniu.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Poniżej widzisz dziesięć punktów, nad którymi wyświetlona jest liczba nazwana \\(r\\). Gdy przesuniesz którykolwiek z nich, wartość \\(r\\) zmieni się.\n        </p>\n<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"660px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/wgzr7tsu/width/880/height/660/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"korelacja 1\" width=\"880px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>\n<p>\n            Przesuwaj punkty dowolnie, ale w taki sposób, by móc odpowiedzieć na poniższe pytania.\n        </p>\n<p>\n            (Dla swojej wygody możesz oznaczyć.)\n        </p>\n<ol>\n<li>\n<div>\n<div class=\"mark_done statement\" data-width=\"400px\">\n                        Jaka jest najmniejsza możliwa wartość \\(r\\)?\n                    </div>\n<input type=\"checkbox\"/>\n</div>\n</li>\n<li>\n<div>\n<div class=\"mark_done statement\" data-width=\"400px\">\n                        Jaka jest największa możliwa wartość \\(r\\)?\n                    </div>\n<input type=\"checkbox\"/>\n</div>\n</li>\n<li>\n<div>\n<div class=\"mark_done statement\" data-width=\"400px\">\n                        Jak ustawić punkty, żeby uzyskać \\(r=-1\\)?\n                    </div>\n<input type=\"checkbox\"/>\n</div>\n</li>\n<li>\n<div>\n<div class=\"mark_done statement\" data-width=\"400px\">\n                        Jak ustawić punkty, żeby uzyskać \\(r=0\\)?\n                    </div>\n<input type=\"checkbox\"/>\n</div>\n</li>\n<li>\n<div>\n<div class=\"mark_done statement\" data-width=\"400px\">\n                        Jak ustawić punkty, żeby uzyskać \\(r=1\\)?\n                    </div>\n<input type=\"checkbox\"/>\n</div>\n</li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Gdy zakończysz to ćwiczenie...\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    kliknij, by zobaczyć ciąg dalszy\n"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n                Liczba \\(r\\) nazywana jest\n                <strong>\n                    współczynnikiem korelacji\n                </strong>\n                między liczbami wyrażonymi przez współrzędne \\(x\\)-owe i \\(y\\)-oew punktów.\n            </li>\n<li>\n                Współczynnik \\(r\\) przyjmuje wartości między \\(-1\\) a \\(1\\), tzn. \\(-1\\le r\\le 1\\).\n            </li>\n<li>\n                Współczynnik \\(r\\) jest tym bliższy wartości \\(1\\), im bliżej punkty układają się jakiejś\n                <strong>\n                    rosnącej\n                </strong>\n                prostej.\n                <br/>\n                Mówimy wówczas, że wielkości \\(x\\) i \\(y\\) są dodatnio skorelowane.\n            </li>\n<li>\n                Współczynnik \\(r\\) jest tym bliższy wartości \\(-1\\), im bliżej punkty układają się jakiejś\n                <strong>\n                    malejącej\n                </strong>\n                prostej.\n                <br/>\n                Mówimy wówczas, że wielkości \\(x\\) i \\(y\\) są ujemnie skorelowane.\n            </li>\n<li>\n                Współczynnik \\(r\\) jest tym bliższy wartości \\(0\\), im mniej dostrzegalna jest korelacja między wielkościami \\(x\\) i \\(y\\).\n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Im bliżej współczynnikowi korelacji do wartości \\(-1\\) lub \\(1\\) (czyli do doskonałej korelacji), tym większy sens ma szukanie\n        <strong>\n            linii trendu\n        </strong>\n        . Taka linia przechodzi przez punkt \"średni\", tj. taki, którego współrzędna \\(x\\)-owa jest średnią wszystkich wartości \\(x\\), a współrzędna \\(y\\)-owa jest średnią wszystkich wartości \\(y\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Kliknij odpowiednie\n        <em>\n            checkboxy\n        </em>\n        poniżej, aby zobaczyć punkt \"średni\" i linię trendu. Przesuwaj dalej punkty, by sprawdzać, jak linia się zmienia.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zwróć uwagę, że wartość współczynnika korelacji nie jest ściśle związana ze współczynnikiem kierunkowym linii trendu. Zawsze są jednak tego samego znaku.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"660px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/safjjtdz/width/880/height/660/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"korelacja 2\" width=\"880px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli chcesz dowiedzieć się więcej na temat korelacji i linii trendu, możesz zacząć tutaj:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<a href=\"https://predictivesolutions.pl/wspolczynnik-korelacji-r-pearsona\" target=\"_blank\">\n                    predictivesolutions.pl\n                </a>\n</li>\n<li>\n<a href=\"https://www.youtube.com/watch?v=b1JaPluBUc0\" rel=\"noopener\" target=\"_blank\" title=\"Khan Academy po polsku (video)\">\n                    Khan Academy po polsku (video)\n                </a>\n</li>\n<li>\n<a href=\"https://www.youtube.com/watch?v=2-VEwB8n7Fo\" rel=\"noopener\" target=\"_blank\" title=\"Statystyka ludzkim głosem (video)\">\n                    Statystyka ludzkim głosem (video)\n                </a>\n</li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "4ca52dfd7db1f25a0298bfadd0b9f0fa06cd20dc865c61050b9417cdd2fc20b8"
+}

@@ -1,0 +1,196 @@
+{
+  "elements": [
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "Równanie\n                    <strong>\n                        kierunkowe\n                    </strong>\n                    prostej:",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=ax+b\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "Równanie\n                    <strong>\n                        ogólne\n                    </strong>\n                    prostej:",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(Ax+By+C=0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Równoległość prostych o równaniach kierunkowych\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n        Przypomnienie:\n    </strong>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Proste\n        <div class=\"centered\">\n            \\(y=a_1x+b_1\\quad\\quad\\) oraz \\(\\quad\\quad y=a_2x+b_2\\)\n        </div>\n        są równoległe jeśli:\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<div class=\"one_choice ks_button\">\n                \\(a_1=a_2\\)\n                <span style=\"visibility: hidden;\">\n                    1\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                \\(b_1=b_2\\)\n                <span style=\"visibility: hidden;\">\n                    1\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                \\(a_1\\cdot a_2=-1\\)\n                <span style=\"visibility: hidden;\">\n                    1\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                \\(a_1\\cdot a_2=1\\)\n                <span style=\"visibility: hidden;\">\n                    1\n                </span>\n</div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n        potwierdź\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Brawo! To jest poprawna odpowiedź.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Współczynniki kierunkowe prostych równoległych są równe.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Równoległość prostych o równaniach ogólnych\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zwróćmy uwagę, że prosta o równaniu ogólnym\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\color{red}{A}x+\\color{orange}{B}y+C=0\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    po zamianie na równanie kierunkowe przyjmuje postać\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\ny=-\\frac{\\color{red}{A}}{\\color{orange}{B}}x-\\frac{C}{B}\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Prosta o równaniu kierunkowym jest równoległa do tej powyższej, jeśli ma taki sam współczynnik kierunkowy, tj. \\(\\frac{\\color{red}{A}}{\\color{orange}{B}}\\).\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>A z tego wynika, że:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Proste o równaniach</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(A_1x+B_1y+C_1=0\\) oraz\n        </li>\n<li>\n            \\(A_2x+B_2y+C_2=0\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>są równolegle,  jeśli</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(A_1=A_2\\) oraz\n        </li>\n<li>\n            \\(B_1=B_2\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n    Uwaga!\n</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Powyższe twierdzenie jest prawdziwe, ale nie jest to cała prawda!\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rzeczywiście,\n    <u>\n        jeśli\n    </u>\n    odpowiednie współczynniki są sobie równe,\n    <u>\n        to wtedy\n    </u>\n    proste są równolegle. Jednak nie tylko wtedy. Dlaczego?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        Jeśli pomnożymy jedno z równań przez jakąś liczbę (różną od zera), to współczynniki już nie będą takie same, ale równania pozostaną równoważne,  więc proste będą nadal równoległe.\n    </li>\n<li>\n        Z innej strony patrząc,  jeśli ułamek (\\frac{\\color{red}{A}}{\\color{orange}{B}}\\) skrócimy lub rozszerzymy, współczynniki \\(A\\) i \\(B\\) zmienią wartość,  ale współczynnik kierunkowy nie, więc proste będą nadal równoległe.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Proste o równaniach</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n            \\(\\color{red}{A_1}x+\\color{orange}{B_1}y+C_1=0\\) oraz\n        </li>\n<li>\n            \\(\\color{red}{A_2}x+\\color{orange}{B_2}y+C_2=0\\)\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>są równolegle,  wtedy i tylko wtedy, gdy</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n<strong>\n                albo\n            </strong>\n            współczynniki \\(\\color{red}{A_1}\\), \\(\\color{red}{A_2}\\) oraz \\(\\color{orange}{B_1}\\), \\(\\color{orange}{B_2}\\) są proporcjonalne, tj. pozostają w tym samym stosunku, czyli\n        </li>\n<ul class=\"nolist\">\n<li>\n                \\(\\frac{\\color{red}{A_1}}{\\color{red}{A_2}}=\\frac{\\color{orange}{B_1}}{\\color{orange}{B_2}}\\)\n            </li>\n<li>\n                lub równoważnie \\(\\frac{\\color{red}{A_1}}{\\color{orange}{B_1}}=\\frac{\\color{red}{A_2}}{\\color{orange}{B_2}}\\).\n            </li>\n</ul>\n<li>\n<strong>\n                albo\n            </strong>\n            \\(\\color{red}{A_1}=\\color{red}{A_2}=0\\)\n        </li>\n<li>\n<strong>\n                albo\n            </strong>\n            \\(\\color{orange}{B_1}=\\color{orange}{B_2}=0\\)\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n    Uwaga!\n</strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Warunek proporcjonalności zapisaliśmy na dwa sposoby (przypadek\n    <strong>\n        1\n    </strong>\n    ). Są one równoważne (wystarczy wymnożyć proporcje na krzyż, by zobaczyć, że otrzymamy identyczne rownania). Jednak aby proporcjonalność miała rzeczywisty sens, wszystkie cztery współczynniki muszą być różne od zera.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli któraś para współczynników jest równa zeru (przypadki\n    <strong>\n        2\n    </strong>\n    i\n    <strong>\n        3\n    </strong>\n    ), mamy do czynienia albo z prostymi pionowymi, albo z prostymi poziomymi - a i te, i te są do siebie równoległe.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Poniżej widzisz trzy pary równań prostych równoległych. Wskaż odpowiednie uzasadnienie równoległości.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"list\">\n<li>\n<u>\n                proporcjonalne\n            </u>\n            - współczynniki \\(x\\)-a oraz \\(y\\)-a są proporcjonalne,\n        </li>\n<li>\n<u>\n                pionowe\n            </u>\n            - obie proste są pionowe,\n        </li>\n<li>\n<u>\n                poziome\n            </u>\n            - obie proste są poziome.\n        </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n<strong>\n                    1.\n                </strong>\n                \\(5x-12=0\\) oraz \\(2x+8=0\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                proporcjonalne\n            </div>\n<div class=\"one_choice ks_button\">\n                pionowe\n            </div>\n<div class=\"one_choice ks_button\">\n                poziome\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n<strong>\n                    2.\n                </strong>\n                \\(6x-9y+14=0\\) oraz \\(-4x+6y+15=0\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                proporcjonalne\n            </div>\n<div class=\"one_choice ks_button\">\n                pionowe\n            </div>\n<div class=\"one_choice ks_button\">\n                poziome\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n<strong>\n                    3.\n                </strong>\n                \\(7y+14=0\\) oraz \\(4y-10=0\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                proporcjonalne\n            </div>\n<div class=\"one_choice ks_button\">\n                pionowe\n            </div>\n<div class=\"one_choice ks_button\">\n                poziome\n            </div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n        potwierdź\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Brawo! Wszystkie odpowiedzi sa poprawne.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                Są to dwie proste pionowe o równaniach \\(x=\\tfrac{12}{5}\\) i \\(x=-4\\).\n            </li>\n<li>\n                Współczynniki są proporcjonalne \\(\\frac{6}{-9}=\\frac{-4}{6}\\quad\\left(=-\\tfrac{2}{3}\\right)\\).\n            </li>\n<li>\n                Są to dwie proste poziome o równaniach \\(y=-2\\) i \\(y=\\tfrac{5}{2}\\).\n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi:\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "52635c42582ac3806d539a19a5d30e74ebccacbcf190258edb6b2c257e5501c6"
+}

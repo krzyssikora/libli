@@ -1,0 +1,62 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>Aby odpowiedzieć na takie pytanie, wystarczy</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n        podstawić jedną współrzędną do równania prostej,\n    </li>\n<li>\n        wyliczyć drugą\n    </li>\n<li>\n        i sprawdzić, czy otrzymaliśmy poprawny wynik.\n    </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Czy punkt \\(B=(7,-2)\\) leży na prostej o równaniu \\(y=-\\frac{3}{7}x+1\\)?\n    "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n<p>\n            Punkt \\(B\\) ma dwie współrzędne:\n        </p>\n<p>\n            \\(x=7\\) oraz \\(y=-2\\).\n        </p>\n<p>\n            Podstawmy \\(x=7\\) do równania prostej:\n        </p>\n<p>\n            \\(y=-\\frac{3}{7}\\cdot 7+1\\)\n        </p>\n<p>\n            i wyliczmy wartość \\(y\\):\n        </p>\n<p>\n            \\(y=-\\frac{3}{7}\\cdot 7+1=-3+1=-2\\)\n        </p>\n<p>\n            Wyszło nam \\(y=-2\\), czyli dokładniej współrzędna \\(y\\) punktu \\(B\\). Oznacza to, że punkt \\(B\\) leży na prostej.\n        </p>\n</div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n        Spróbuj odpowiedzieć na to pytanie samodzielnie, a następnie sprawdź rozwiązanie poniżej.\n    "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">\n        Rozwiązanie zadania - zobacz\n    </div>",
+      "reason": "show_solution button without solution"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Odpowiedz na każde z pytań, a potem sprawdź swoje odpowiedzi.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Czy punkt \\((2,4)\\) leży na prostej o równaniu \\(y=-2x+6\\)?\n            </div>\n<div class=\"truth ks_button\">\n                prawda\n            </div>\n<div class=\"false ks_button\">\n                fałsz\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Czy punkt \\((-3,1)\\) leży na prostej o równaniu \\(y=\\frac{3}{4}x+3\\frac{1}{4}\\)?\n            </div>\n<div class=\"truth ks_button\">\n                prawda\n            </div>\n<div class=\"false ks_button\">\n                fałsz\n            </div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n        potwierdź\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        Brawo! To już koniec tej sekcji.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n        To nie jest dobra odpowiedź, spróbuj jeszcze raz.\n    "
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "3e78746c11725662df6c07229f24719ec672ae43175bf5eb798f2a9bd4d83ff1"
+}

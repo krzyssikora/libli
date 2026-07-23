@@ -1,0 +1,171 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Przyjrzyj się poniższej animacji.\n        <div class=\"centered\">\n<img src=\"static/slope.gif\" width=\"720\"/>\n</div>\n<p>\n            Które z wejść jest bardziej strome? Dlaczego?\n        </p>\n<p>\n            Uwaga!\n        </p>\n<ul class=\"nolist\">\n<li>\n                Nie chodzi o to, które wzniesienie jest wyższe.\n            </li>\n<li>\n                Nie chodzi o to, która droga na szczyt jest dłuższa.\n            </li>\n<li>\n                Chodzi o to, które wejście jest bardziej strome.\n            </li>\n</ul>\n"
+    },
+    {
+      "type": "video",
+      "media_src": "static/LAL_f_lin_3_cut.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czy teraz znasz odpowiedź na pytanie, które wejście jest bardziej strome?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Poćwicz samodzielnie: przeciągaj\n        <strong>\n<span style=\"color: #ff6600;\">\n                pomarańczowy punkt\n            </span>\n</strong>\n        , aby uzyskać odcinki o wszystkich nachyleniach z poniższej listy.\n        <br/>\n        Dla swojej wygody możesz kliknąć już uzyskane nachylenie, by je oznaczyć.\n    "
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(\\frac{1}{2}\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(\\frac{5}{3}\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(-1\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(-\\frac{3}{2}\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(\\frac{7}{2}\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\(2\\)\n        "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<input type=\"checkbox\"/>",
+      "reason": "unmapped <input> in lesson body"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/vxhwg9fc/width/800/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        W tabeli wpisz nachylenie każdego z odcinków przedstwionych na rysunkach. Ułamki zapisuj za pomocą znaku \"/\", czyli na przykład ułamek \"\\(-\\frac{7}{3}\\)\" zapisz jako \"-7/3\".\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "<img height=\"120\" src=\"static/slope_1.png\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<img height=\"120\" src=\"static/slope_2.png\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<img height=\"120\" src=\"static/slope_3.png\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<img height=\"120\" src=\"static/slope_4.png\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<img height=\"120\" src=\"static/slope_5.png\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<input class=\"table_input\" placeholder=\"nachylenie\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"nachylenie\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"nachylenie\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"nachylenie\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<input class=\"table_input\" placeholder=\"nachylenie\" type=\"text\"/>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n    Brawo! Wiesz już, czym jest nachylenie prostej. Czas zbliżyć się do całego równania prostej. Przejdź dalej.\n"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "e145305963e23aaa1e5fb0e603768097e693001c0cb39cead139d551c7457f61"
+}

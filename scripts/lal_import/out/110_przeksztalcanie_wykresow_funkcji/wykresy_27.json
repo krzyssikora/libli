@@ -1,0 +1,35 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Kliknij, by zobaczyć opis każdego z poniższych pojęć.\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "długość wektora",
+      "body": "\n\n<div class=\"important\">\n<p>\n            Długość wektora liczymy z użyciem twierdzenia Pitagorasa\n        </p>\n<div>\n<img alt=\"wektor\" src=\"static/dlugosc_wektora.png\" width=\"600\"/>\n</div>\n        \\[|\\vec{w}|=\\sqrt{(x_w)^2+(y_w)^2}\\]\n    </div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "wektor przeciwny",
+      "body": "\n\n<div class=\"important\">\n        Wektor przeciwny ma:\n        <ul>\n<li>\n                tę samą długość,\n            </li>\n<li>\n                ten sam kierunek,\n            </li>\n<li>\n                przeciwny zwrot\n            </li>\n</ul>\n        do danego wektora.\n        <p>\n            Obie współrzędne wektora przeciwnego do danego mają przeciwne znaki do współrzędnych danego wektora, jak na rysunku:\n        </p>\n<div>\n<img alt=\"wektor\" src=\"static/wektor_przeciwny.png\" width=\"600\"/>\n</div>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "mnożenie wektora przez liczbę",
+      "body": "\n\n<div class=\"important\">\n        Gdy mnożymy wektor przez liczbę \\(k\\):\n        <ul>\n<li>\n                gdy \\(k\\gt 1\\), wydłużamy wektor,\n            </li>\n<li>\n                gdy \\(0\\lt k\\lt 1\\), skracamy wektor,\n            </li>\n<li>\n                gdy \\(k\\lt 0\\), zmieniamy zwrot wektora.\n            </li>\n</ul>\n        Tak zmieniony wektor pozostaje równoległy do danego.\n        <div>\n<img alt=\"wektor\" src=\"static/mnozenie_wektora_przez_liczbe.png\" width=\"600\"/>\n</div>\n</div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "dodawanie wektorów",
+      "body": "\n\n<div class=\"important\">\n<p>\n            Suma dwóch wektorów \\(\\vec{u}\\) i \\(\\vec{w}\\) to taki wektor, który opisuje wynik przesunięcia najpierw o \\(\\vec{u}\\), a potem o \\(\\vec{w}\\) (lub odwrotnie).\n        </p>\n<div>\n<img alt=\"wektor\" src=\"static/dodawanie_wektorow.png\" width=\"600\"/>\n</div>\n<p>\n            Współrzędne sumy wektorów otrzymujemy dodając do siebie odpowiednie współrzędne danych wektorów:\n        </p>\n<p>\n            jeśli \\(\\vec{u}=[x_u,y_u]\\) a \\(\\vec{w}=[x_w, y_w]\\) to wówczas suma tych wektorów to\n        </p>\n        \\[\\vec{u}+\\vec{w}=[x_u+x_w, y_u+y_w]\\]\n        <p>\n            Zauważ, że\n        </p>\n        \\[\\vec{u}+\\vec{w}=\\vec{w}+\\vec{u}\\]\n    </div>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odejmowanie wektorów",
+      "body": "\n\n<div class=\"important\">\n<p>\n            Różnica dwóch wektorów \\(\\vec{u}\\) i \\(\\vec{w}\\) to po prostu suma wektora \\(\\vec{u}\\) i wektora przeciwnego do \\(\\vec{w}\\), czyli \\(-\\vec{w}\\).\n        </p>\n<div>\n<img alt=\"wektor\" src=\"static/odejmowanie_wektorow.png\" width=\"600\"/>\n</div>\n<p>\n            Współrzędne różnicy wektorów otrzymujemy odejmując od siebie odpowiednie współrzędne danych wektorów:\n        </p>\n<p>\n            jeśli \\(\\vec{u}=[x_u,y_u]\\) a \\(\\vec{w}=[x_w, y_w]\\) to wówczas różnica tych wektorów to\n        </p>\n        \\[\\vec{u}-\\vec{w}=[x_u-x_w, y_u-y_w]\\]\n        <p>\n            Zauważ, że\n        </p>\n        \\[\\vec{u}-\\vec{w}\\ne\\vec{w}-\\vec{u}\\]\n    </div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "8465608ddb2ab940be1cd8ed7ef345876784bae47978cd83ab3a440fb6970ef1"
+}

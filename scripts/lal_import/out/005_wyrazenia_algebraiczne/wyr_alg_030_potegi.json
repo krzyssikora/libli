@@ -1,0 +1,84 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Przyjrzyj się poznanym wcześniej wzorom i uzupełnij brakujące pola.\n    "
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(a^n\\cdot a^k=a^{n+k}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "9"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "answer",
+              "answer": "20"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(a^n: a^k=a^{n-k}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "6"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\left(a^n\\right)^k=a^{n\\cdot k}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "35"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "f87f967bc3b454829f78471b488bd59d7679957e485a5a3d5b29d0962c8e054b"
+}

@@ -1,0 +1,84 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Wysokość trapezu o polu \\(14\\) jest równa \\(3\\).\n        </p>\n<p>\n            Wysokość drugiego trapezu, podobnego do tego pierwszego, jest równa \\(6\\).\n        </p>\n<p>\n            Jakie jest pole drugiego trapezu?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(56\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Wysokość trapezu o polu \\(16\\) jest równa \\(5\\).\n        </p>\n<p>\n            Pole drugiego trapezu, podobnego do tego pierwszego, jest równe \\(144\\).\n        </p>\n<p>\n            Jaka jest wysokość drugiego trapezu?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(15\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Skala podobieństwa dwóch kwadratów jest równa \\(2\\). Pole większego kwadratu jest o \\(24\\,\\text{cm}^2\\) większe od pola mniejszego kwadratu.\n        </p>\n<p>\n            Oblicz długość boku mniejszego kwadratu.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(2\\sqrt{2}\\,\\text{cm}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Obwód czworokąta jest równy \\(20\\), a jego pole \\(16\\).\n        </p>\n<p>\n            Obwód drugiego czworokąta, podobnego do pierwszego, jest równy \\(15\\).\n        </p>\n<p>\n            Jakie jest pole drugiego czworokąta?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(9\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dany jest prostokąt o polu równym \\(54\\). Prostokąt ten jest podobny do innego prostokąta, o bokach długości \\(3\\) i \\(2\\).\n        </p>\n<p>\n            Jakie są długości boków danego prostokąta?\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(9\\) i \\(6\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Pola dwóch prostokątów podobnych różnią się o \\(10\\,\\text{cm}^2\\). Obwody tych prostokątów to \\(12\\,\\text{cm}\\) i \\(18\\,\\text{cm}\\).\n        </p>\n<p>\n            Znajdź pole większego prostokąta.\n        </p>\n"
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(18\\,\\text{cm}^2\\)\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "54246f8652e43809b1c64d6c500007d2a3b39b1bdcf8214da6b9b9d7f624d4e7"
+}

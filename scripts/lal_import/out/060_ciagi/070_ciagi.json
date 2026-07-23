@@ -1,0 +1,124 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Wzory rekurencyjne mogą być bardzo różne. Przyjrzyjmy się kilku przykładom pokazującym tę różnorodność.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    W każdym przypadku \n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n        upewnij się, że definicja ciągu jest zgodna z opisem,\n    </li>\n<li>\n        oblicz kilka pierwszych wyrazów ciągu (możesz sprawdzić swoje wyniki)\n    </li>\n<li>\n        zastanów się, czy wiesz, jaki jest <em>wzór ogólny</em> takiego ciągu.\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>Spróbuj! Tak naprawdę tylko dwa ostatnie przykłady są trudne.</small>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<em>Kolejny wyraz jest dwukrotnie większy od poprzedniego.</em>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n    \\begin{cases}\n    \\begin{align}\n    a_1&=1\\\\\n    a_n&=2\\cdot a_{n-1}&\\text{ dla }n\\ge 2\n    \\end{align}\n    \\end{cases}\n    \\]\n    Ten przykład jest podobny do równań z zadania o rosnących pensjach.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "początkowe wyrazy",
+      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n<td>\\(6\\)</td>\n</tr>\n<tr>\n<th>\\(a_n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(4\\)</td>\n<td>\\(8\\)</td>\n<td>\\(16\\)</td>\n<td>\\(32\\)</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<em>Kolejny wyraz jest o \\(2\\) większy od poprzedniego.</em>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{cases}\n    \\begin{align}\n    b_1&=0\\\\\n    b_{n+1}&=b_{n}+2&\\text{ dla }n\\ge 1\n    \\end{align}\n    \\end{cases}\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "początkowe wyrazy",
+      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n<td>\\(6\\)</td>\n</tr>\n<tr>\n<th>\\(b_n\\)</th>\n<td>\\(0\\)</td>\n<td>\\(2\\)</td>\n<td>\\(4\\)</td>\n<td>\\(6\\)</td>\n<td>\\(8\\)</td>\n<td>\\(10\\)</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<em>Kolejny wyraz powstaje z dodania kolejnej liczby nieparzystej do poprzedniego wyrazu.</em>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{cases}\n    \\begin{align}\n    c_1&=1\\\\\n    c_n&=c_{n-1}+2n-1&\\text{ dla }n\\ge 2\n    \\end{align}\n    \\end{cases}\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "początkowe wyrazy",
+      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n<td>\\(6\\)</td>\n</tr>\n<tr>\n<th>\\(c_n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(4\\)</td>\n<td>\\(9\\)</td>\n<td>\\(16\\)</td>\n<td>\\(25\\)</td>\n<td>\\(36\\)</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<em>Kolejny wyraz powstaje z pomnożenia poprzedniego przez numer wyrazu.</em>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{cases}\n    \\begin{align}\n    d_1&=1\\\\\n    d_n&=n\\cdot d_{n-1}&\\text{ dla }n\\ge 2\n    \\end{align}\n    \\end{cases}\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "początkowe wyrazy",
+      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n<td>\\(6\\)</td>\n</tr>\n<tr>\n<th>\\(d_n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(6\\)</td>\n<td>\\(24\\)</td>\n<td>\\(120\\)</td>\n<td>\\(720\\)</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<em>Równania definiujące tzw. <a href=\"https://pl.wikipedia.org/wiki/Ci%C4%85g_Fibonacciego\">ciąg Fibonacciego</a>.</em>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{cases}\n    \\begin{align}\n    f_1&=1\\\\\n    f_2&=1\\\\\n    f_n&=f_{n-1}+f_{n-2}&\\text{ dla }n\\ge 3\n    \\end{align}\n    \\end{cases}\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "początkowe wyrazy",
+      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n<td>\\(6\\)</td>\n</tr>\n<tr>\n<th>\\(f_n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(5\\)</td>\n<td>\\(8\\)</td>\n</tr>\n</table>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<em>Równania ilustrujące tzw. <a href=\"https://pl.wikipedia.org/wiki/Wie%C5%BCe_Hanoi\">problem wież Hanoi</a>.</em>"
+    },
+    {
+      "type": "math",
+      "latex": "\n    \\begin{cases}\n    \\begin{align}\n    h_1&=1\\\\\n    h_n&=2h_{n-1}+1&\\text{ dla }n\\ge 2\n    \\end{align}\n    \\end{cases}\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "początkowe wyrazy",
+      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n<td>\\(6\\)</td>\n</tr>\n<tr>\n<th>\\(h_n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(3\\)</td>\n<td>\\(7\\)</td>\n<td>\\(15\\)</td>\n<td>\\(31\\)</td>\n<td>\\(63\\)</td>\n</tr>\n</table>\n</div>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b6e3a2442fdbd3313e0d45e062ddff8d9ae6ba92538b4e7f76d12d8c511bc065"
+}

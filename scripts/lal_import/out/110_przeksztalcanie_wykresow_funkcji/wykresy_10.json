@@ -1,0 +1,14 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/wektor.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Będziemy mówić teraz głównie o przesuwaniu wykresów funkcji. A skoro mowa o wykresach funkcji, to narysujemy je w układzie współrzędnych. Musimy więc i wektory umieścić w układzie współrzędnych.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "bb6e382ccf82fa182d7d437b6485552518c555cda65cb64edc8877652ced18bc"
+}

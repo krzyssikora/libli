@@ -1,0 +1,28 @@
+{
+  "elements": [
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<table class=\"my_table_TL\">\n<tr>\n<td colspan=\"2\">\n                Funkcję kwadratową zapisujemy w jednej z trzech postaci:\n            </td>\n</tr>\n<tr>\n<td>\n                ogólna\n            </td>\n<td>\n                \\(y=ax^2+bx+c\\)\n            </td>\n</tr>\n<tr>\n<td>\n                kanoniczna\n            </td>\n<td>\n                \\(y=a(x-p)^2+q\\)\n            </td>\n</tr>\n<tr>\n<td>\n                iloczynowa\n            </td>\n<td>\n                \\(y=a(x-x_1)(x-x_2)\\)\n            </td>\n</tr>\n</table>",
+      "reason": "table uses rowspan/colspan"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Miejsca zerowe \\(x_1\\), \\(x_2\\) obliczne są według wzorów:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    wyróżnik: \\(\\Delta=b^2-4ac\\)\n    <br/>\n<br/>\n    \\(x_1=\\frac{-b-\\sqrt{\\Delta}}{2a}\\quad\\) oraz \\(\\quad x_2=\\frac{-b+\\sqrt{\\Delta}}{2a}\\)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wierzchołek paraboli ma współrzędne \\((p, q)\\), gdzie:\n</p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n\\begin{align*}\np&=-\\frac{b}{2a}\\\\\nq&=-\\frac{\\Delta}{4a}\n\\end{align*}\n"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "c7185d9dccf69343610bafb07588892d7f1570af6c5d7b3b90d3bdad3beba0a3"
+}

@@ -1,0 +1,60 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Przeczytaj następujące zadania.\n        <ol>\n<li>\n                Znajdź równanie funkcji kwadratowej, której wykres ma wierzchołek w punkcie \\((2,-3)\\) i przechodzi przez punkt \\((4,-1)\\).\n            </li>\n<li>\n                Znajdź równanie funkcji kwadratowej o miejscach zerowych \\(-3\\) i \\(-1\\), której wykres przechodzi przez punkt \\((-4,9)\\).\n            </li>\n<li>\n                Znajdź równanie funkcji kwadratowej, której wykres jest symetryczny względem prostej \\(x=3\\) i przechodzi przez punkty \\((1,0)\\) i \\((6,-2\\frac{1}{2})\\).\n            </li>\n</ol>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n</p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<table class=\"my_table_TL\">\n<tr>\n<td colspan=\"2\">\n                Jak pamiętamy funkcję kwadratową zapisujemy w jednej z trzech postaci:\n            </td>\n</tr>\n<tr>\n<td>\n                ogólna\n            </td>\n<td>\n                \\(y=ax^2+bx+c\\)\n            </td>\n</tr>\n<tr>\n<td>\n                kanoniczna\n            </td>\n<td>\n                \\(y=a(x-p)^2+q\\)\n            </td>\n</tr>\n<tr>\n<td>\n                iloczynowa\n            </td>\n<td>\n                \\(y=a(x-x_1)(x-x_2)\\)\n            </td>\n</tr>\n</table>",
+      "reason": "table uses rowspan/colspan"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Od której z nich należy zacząć rozwiązując każde z tych zadań?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n    Wstęp do wszystkich trzech zadań\n</h4>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_wlasnosci_rownanie_1.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n    Wstęp do zadania 1.\n</h4>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_wlasnosci_rownanie_2.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n    Wstęp do zadania 2.\n</h4>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_wlasnosci_rownanie_3.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n    Wstęp do zadania 3.\n</h4>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_wlasnosci_rownanie_4.mp4"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "425006665dbc0fb8e6e943e3816ada023a14a5c01575d23e024a416cec30b0e6"
+}

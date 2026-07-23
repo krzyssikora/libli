@@ -4,5 +4,11 @@
     <span class="spoiler__label spoiler__label--show">{% if el.label %}{{ el.label }}{% else %}{% trans "Reveal" %}{% endif %}</span>
     <span class="spoiler__label spoiler__label--hide">{% trans "Hide" %}</span>
   </summary>
-  <div class="el el--text spoiler__body">{{ el.body|sanitize }}</div>
+  {% if children %}
+    {% for child in children %}
+      <div class="spoiler__child">{% render_element child %}</div>
+    {% endfor %}
+  {% elif el.body %}
+    <div class="el el--text spoiler__body">{{ el.body|sanitize }}</div>
+  {% endif %}
 </details>

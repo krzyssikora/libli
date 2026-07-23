@@ -1,0 +1,342 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Sytuacja jest trochę bardziej skomplikowana, jeśli dziedziną funkcji kwadratowej jest\n    <strong>\n        domknięty i ograniczony\n    </strong>\n    podzbiór zbioru liczb rzeczywistych, czyli zbiór postaci\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n\\langle a, b\\rangle\n\\]\ngdzie \\(a, b\\in \\mathbb{R}\\) i \\(a\\lt b\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            W poniższym aplecie widzisz wykres funkcji kwadratowej zdefiniowanej na przedziale domkniętym, czyli na białym polu. Możesz:\n        </p>\n<ul>\n<li>\n                zmienić położenie końców przedziału przesuwając niebieskie punkty na dole,\n            </li>\n<li>\n                przesunąć parabolę przesuwając jej wierzchołek,\n            </li>\n<li>\n                odwrócić ją \"do góry nogami\" klikając przycisk \"odwróć\".\n            </li>\n</ul>\n<div>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"662px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/kmjvhupy/width/800/height/662/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"wartości na przedziale domkniętym\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<p>\n            Używaj tych opcji w ten sposób, by sprawdzić, jak wygląda zbiór wartości (oznaczony na pomarańczowo na osi OY) funkcji kwadratowej na domkniętym, ograniczonym przedziale, gdy:\n        </p>\n<ul>\n<li>\n                wierzchołek mieści się w przedziale, albo się w nim nie mieści,\n            </li>\n<li>\n                ramiona paraboli skierowane są do góry albo do dołu.\n            </li>\n</ul>\n<p>\n            Zastanów się, jak należy ustalić zbiór wartości funkcji kwadratowej na pzedziale \\(\\langle a, b\\rangle\\). Co trzeba policzyć? Co sprawdzić? Następnie porównaj swoje pomysły z moimi wskazówkami.\n        </p>\n<div class=\"question_solution hidden\">\n<p>\n                Najpierw warto sprawdzić, czy wierzchołek jest w przedziale, czy poza nim.\n            </p>\n<p>\n                Jeśli\n                <u>\n                    wierzchołek jest w przedziale\n                </u>\n                \\(\\langle a, b\\rangle\\), to współrzędna \\(y\\)-owa wierzchołka wyznacza jeden z końców zbioru wartości (mniejszy, gdy ramiona paraboli są skierowane do góy, większy w przeciwnym przypadku). Drugi koniec zbioru wartości wyznaczymy licząc wartości funkcji dla \\(x=a\\) oraz \\(x=b\\).\n            </p>\n<p>\n                Jeśli\n                <u>\n                    wierzchołek jest poza przedziałem\n                </u>\n                \\(\\langle a, b\\rangle\\), końce zbioru wartości są wyznaczone przez wartości funkcji dla \\(x=a\\) oraz \\(x=b\\).\n            </p>\n</div>\n<div class=\"question_answer\">\n</div>\n<div class=\"show_solution ks_button\">\n            zobacz\n        </div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Rozwiążemy teraz dwa zadania.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź zbiór wartości funkcji \\(f(x)=2x^2-12x+15\\) zdefiniowanej na przedziale \\(\\langle 2, 5\\rangle\\).\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź zbiór wartości funkcji \\(g(x)=-\\frac{1}{4}x^2-\\frac{5}{2}x-\\frac{17}{4}\\) zdefiniowanej na przedziale \\(\\langle -3, 1\\rangle\\).\n    "
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                Zadanie 2.\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                Zadanie 3.\n            </a>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n                Znajdź zbiór wartości funkcji \\(f(x)=2x^2-12x+15\\) zdefiniowanej na przedziale \\(\\langle 2, 5\\rangle\\).\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Sprawdźmy, czy wierzchołek leży w przedziale \\(\\langle 2, 5\\rangle\\). W tym celu oblicz współrzędną \\(x\\)-ową wierzchołka:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(p=-\\frac{b}{2a}=-\\frac{(-12)}{2\\cdot 2}=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-12\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(12\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-3\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(3\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        \\(2\\lt 3\\lt 5\\), więc wierzchołek leży w przedziale.\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Współczynnik \\(a=2\\gt 0\\), czyli ramiona paraboli są skierowane do góry, co oznacza, że wierzchołek jest na dole, a jego współrzędna \\(y\\)-owa wyznacza początek zbiory wartości. Znajdźmy ją. Najpierw wyliczmy:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\Delta = b^2-4ac=(-12)^2-4\\cdot 2\\cdot 15=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-264\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(24\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-24\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(264\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        A teraz policzymy współrzędną \\(y\\)-ową wierzchołka:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(q=-\\frac{\\Delta}{4a}=-\\frac{24}{4\\cdot 2}=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-3\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(3\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(12\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-12\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        I to jest najmniejsza wartość funkcji. Żeby znaleźć największą, musimy policzyć wartości na końcach dziedziny, czyli dla \\(x=2\\) i dla \\(x=5\\).\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(f(2)=2\\cdot 2^2-12\\cdot 2+15=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(1\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(23\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-1\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(47\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>,</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(f(5)=2\\cdot 5^2-12\\cdot 5+15=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-5\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(5\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(125\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-125\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Największą wartością jest większa z dwóch powyższych, czyli \\(5\\). I dlatego zbiorem wartości funkcji \\(f\\) jest zbiór \\(\\langle -3, 5\\rangle\\).\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"success\">\n                        Brawo!\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                Znajdź zbiór wartości funkcji \\(g(x)=-\\frac{1}{4}x^2-\\frac{5}{2}x-\\frac{17}{4}\\) zdefiniowanej na przedziale \\(\\langle -3, 1\\rangle\\).\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Sprawdźmy najpierw, czy wierzchołek leży w przedziale \\(\\langle -3, 1\\rangle\\). W tym celu oblicz współrzędną \\(x\\)-ową wierzchołka:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(p=-\\frac{b}{2a}=-\\frac{\\left(-\\tfrac{5}{2}\\right)}{2\\cdot \\left(-\\frac{1}{4}\\right)}=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-\\tfrac{5}{4}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(\\tfrac{5}{4}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-5\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(5\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        \\(-5\\lt -3\\), więc wierzchołek leży poza przedziałem \\(\\langle -3, 1\\rangle\\), więc zbiór wartości jest wyznaczony przez wartości w końcach dziedziny, czyli dla \\(x=-3\\) i dla \\(x=1\\). Policzmy je:\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(g(-3)=-\\frac{1}{4}\\cdot(-3)^2-\\frac{5}{2}\\cdot(-3)-\\frac{17}{4}=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(1\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-1\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-\\tfrac{9}{2}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-4\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>,</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(g(1)=-\\frac{1}{4}\\cdot 1^2-\\frac{5}{2}\\cdot 1-\\frac{17}{4}=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(7\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-7\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-\\tfrac{13}{2}\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            \\(-2\\)\n                        "
+    },
+    {
+      "type": "text",
+      "body": "\n                            zatwierdź\n                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Największą wartością jest \\(1\\), a najmniejszą \\(-7\\), więc biorem wartości funkcji \\(g\\) jest zbiór \\(\\langle -7,1 \\rangle\\).\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"success\">\n                        Świetnie!\n                    </p>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "04bfd4d4301ffcc9df97ef4830a37242cdeb47f238fd7156f79b8326eeb20235"
+}

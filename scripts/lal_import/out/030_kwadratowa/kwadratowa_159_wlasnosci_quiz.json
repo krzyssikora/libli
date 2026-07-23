@@ -1,0 +1,107 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>Przeczytaj zadanie:</p><p>\n<u>\n        Nie musisz rozwiązywać zadania.\n    </u>\n    Zastanów się, i wskaż, od której postaci równania funkcji kwadratowej powinno się zacząć rozwiązanie tego zadania, by rozwiązać je jak najszybciej?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "ogólnej, tj. \\(y=ax^2+bx+c\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "kanonicznej, tj. \\(y=a(x-p)^2+q\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "iloczynowej, tj. \\(y=a(x-x_1)(x-x_2)\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Przeczytaj zadanie:</p><p>\n<u>\n        Nie musisz rozwiązywać zadania.\n    </u>\n    Zastanów się, i wskaż, od której postaci równania funkcji kwadratowej powinno się zacząć rozwiązanie tego zadania, by rozwiązać je jak najszybciej?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "ogólnej, tj. \\(y=ax^2+bx+c\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "kanonicznej, tj. \\(y=a(x-p)^2+q\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "iloczynowej, tj. \\(y=a(x-x_1)(x-x_2)\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Rysunek przedstawia wykres funkcji \\(f(x)=\\tfrac{1}{2}(x-1)^2-5\\).\n</p><div class=\"centered\">\n<img alt=\"zbiór wartości funkcji kwadratowej na przedziale domkniętym ograniczonym - quiz\" height=\"400\" src=\"static/wartosci_kwadratowej_quiz_1.png\"/>\n</div><p>\n    Rozważymy wartości tej funkcji na dwóch przedziałach: najpierw \\(\\langle -1, 5 \\rangle\\), później \\(\\langle -3, -1 \\rangle\\).\n</p><p>\n    Wskaż zdania prawdziwe.\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "Najmniejszą wartością funkcji \\(f\\) na przedziale \\(\\langle -1, 5 \\rangle\\) jest \\(-3\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Najmniejszą wartością funkcji \\(f\\) na przedziale \\(\\langle -1, 5 \\rangle\\) jest \\(-1\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Najmniejszą wartością funkcji \\(f\\) na przedziale \\(\\langle -1, 5 \\rangle\\) jest \\(-5\\).",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Największą wartością funkcji \\(f\\) na przedziale \\(\\langle -1, 5 \\rangle\\) jest \\(3).",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Największą wartością funkcji \\(f\\) na przedziale \\(\\langle -1, 5 \\rangle\\) jest \\(5\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Największą wartością funkcji \\(f\\) na przedziale \\(\\langle -1, 5 \\rangle\\) jest \\(1\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Najmniejszą wartością funkcji \\(f\\) na przedziale \\(\\langle -3, -1 \\rangle\\) jest \\(-3\\).",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "Najmniejszą wartością funkcji \\(f\\) na przedziale \\(\\langle -3, -1 \\rangle\\) jest \\(-5\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Największą wartością funkcji \\(f\\) na przedziale \\(\\langle -3, -1 \\rangle\\) jest \\(-1\\).",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "Największą wartością funkcji \\(f\\) na przedziale \\(\\langle -3, -1 \\rangle\\) jest \\(3\\).",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "9c27f207680e8ca0fb7fbdf43a4922587a3786386db3e26e2983e63c6a5ddd51"
+}

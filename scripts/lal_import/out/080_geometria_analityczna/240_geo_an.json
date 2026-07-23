@@ -1,0 +1,427 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź równanie okręgu opisanego na trójkącie prostokątnym \\(ABC\\), gdzie \\(A=(-11, 11)\\), \\(B=(-11, 1)\\), a \\(C=(1, 7)\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "czego nie będziemy robić?",
+      "body": "\n\n        Nie warto zaczynać od kanonicznego równania okręgu:\n        \\[\n        (x-a)^2+(y-b)^2=r^2\n        \\]\n        i podstawiać do niego współrzędnych punktów \\(A\\), \\(B\\), \\(C\\). Dlaczego?\n        <p>\n            Oto, co byśmy otrzymali:\n        </p>\n        \\[\n        \\begin{cases}\n        (-11-a)^2+(1-b)^2&amp;=r^2\\\\\n        (-11-a)^2+(11-b)^2&amp;=r^2\\\\\n        (1-a)^2+(7-b)^2&amp;=r^2\n        \\end{cases}\n        \\]\n        Trzy równania z trzema niewiadomymi (\\(a\\), \\(b\\) i \\(c)), które można rozwiązać. Jednak nie jest to standardowy układ równań i nie będziemy się takimi teraz zajmować.  (Choć jeśli masz ochotę, zachęcam - spróbuj samodzielnie!)\n    &lt;/details&gt;\n    &lt;details&gt;\n        &lt;summary&gt;\n            rozwiązanie\n        &lt;/summary&gt;\n        Rozwiążemy to zadanie geometrycznie, czyli będziemy myśleć w taki sposób, jakbyśmy chcieli skonstruować okrąg opisany na trójkącie. A w tym celu musimy najpierw znaleźć środek okręgu.\n        &lt;div class=\"switch_steps\"&gt;\n            &lt;div class=\"switch_step\"&gt;\n                &lt;div class=\"switch_line\"&gt;\n                    Środek okręgu opisanego na trójkącie to punkt przecięcia\n                    &lt;div class=\"switch_value\"&gt;\n                        &gt;&gt; wybierz &gt;&gt;\n                    &lt;/div&gt;\n                    &lt;div class=\"switch_value\"&gt;\n                        dwusiecznych kątów\n                    &lt;/div&gt;\n                    &lt;div class=\"switch_value\"&gt;\n                        symetralnych boków\n                    &lt;/div&gt;\n                    &lt;div class=\"switch_value\"&gt;\n                        środkowych\n                    &lt;/div&gt;\n                    &lt;div class=\"switch_value\"&gt;\n                        wysokości\n                    &lt;/div&gt;\n                    trójkąta.\n                    &lt;div class=\"switch_show_next ks_button\"&gt;\n                        zatwierdź\n                    &lt;/div&gt;\n                &lt;/div&gt;\n            &lt;/div&gt;\n            &lt;div class=\"switch_step hidden\"&gt;\n                &lt;p&gt;\n                    Wystarczą nam dwie symetralne. Jedną z nich można znaleźć bardzo łatwo, i od tej zaczniemy.\n                &lt;/p&gt;\n                &lt;div class=\"switch_line\"&gt;\n                    Przyjrzyjmy się współrzędnym wierzchołków \\(A=(-11, 11)\\) i \\(B=(-11, 1)\\), i zwróćmy uwagę, że bok \\(AB\\) jest\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        pionowy\n                    </div>\n<div class=\"switch_value\">\n                        poziomy\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Skoro tak, to symetralna boku \\(AB\\) to prosta</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n                    pozioma\n                </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>przechodząca przez środek boku.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "środek odcinka - przypomnienie",
+      "body": "\n\n<div class=\"important\">\n<p>\n                            Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:\n                        </p>\n                        \\[\n                        S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n                        \\]\n                    </div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Środek boku \\(AB\\) to punkt \\(M=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        &gt;&gt; wybierz &gt;&gt;\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\((-11, 5)\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\((-11, 6)\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\((0, 5)\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        zatwierdź\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Symetralna boku, czyli linia pozioma przechodząca przez środek \\(M=(-11, 6)\\) to linia o równaniu</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        &gt;&gt; wybierz &gt;&gt;\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(x=6\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(x=-11\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(y=6\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(y=-11\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        zatwierdź\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Jak na razie wszystko świetnie:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"okrąg opisany na trójkącie - pierwsza symetralna\" height=\"400\" src=\"static/okrag_na_trojkacie_1.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Czas na drugą symetralną, na przykład boku \\(AC\\). Zacznimy od środka boku.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Skoro \\(A=(-11, 11)\\) i \\(C=(1, 7)\\), to środek boku \\(AC\\) to punkt \\(N=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        &gt;&gt; wybierz &gt;&gt;\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\((-5,9)\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\((-10,18)\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\((-6,9)\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        zatwierdź\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Znamy punkt, przez który ma przechodzić symetralna, ale nie znamy jej kierunku. Wiemy, że jest prostopadła do boku \\(AC\\). Zacznijmy więc od ustalenia, jakie jest nachylenie boku \\(AC\\).</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "nachylenie odcinka - przypomnienie",
+      "body": "\n\n<div class=\"important\">\n                        Nachylenie odcinka / prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(C=(x_C, y_C)\\) to liczba\n                        \\[\n                        \\frac{\\text{SKOK}}{\\text{KROK}}=\\frac{y_C-y_A}{x_C-x_A}\n                        \\]\n                    </div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Możemy obliczyć, że nachylenie odcinka \\(AC\\) ma wartość</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        &gt;&gt; wybierz &gt;&gt;\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(\\tfrac{1}{3}\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(-\\tfrac{1}{3}\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(3\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(-3\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        zatwierdź\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Nachylenie boku \\(AC\\) to \\(-\\frac{1}{3}\\), a jakie jest nachylenie symetralnej tego boku?</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "nachylenie odcinków prostopadłych - przypomnienie",
+      "body": "\n\n<div class=\"important\">\n                        Liczby \\(a_1\\) i \\(a_2\\) są nachyleniami odcinków (współczynnikami kierunkowymi prostych) prostopadłych, jeśli\n                        <ul class=\"nolist\">\n<li>\n                                \\(a_1\\cdot a_2=-1\\)\n                            </li>\n<li>\n                                lub równoważnie \\(a_2=-\\frac{1}{a_1}\\).\n                            </li>\n</ul>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Nachylenie symetralnej odcinka \\(AC\\) ma wartość</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        &gt;&gt; wybierz &gt;&gt;\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(\\tfrac{1}{3}\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(-\\tfrac{1}{3}\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(3\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(-3\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        zatwierdź\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Symetralna boku \\(AC\\) to prosta o nachyleniu \\(3\\) przechodząca przez punkt \\(N=(-5,9)\\). Jest to więc prosta o równaniu\n                \\[\n                y=3x+b\n                \\]\n                Współczynnik \\(b\\) obliczymy podstawiając współrzędne punktu \\(N\\):\n                \\[\n                9=3\\cdot(-5)+b\n                \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>I dlatego</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        &gt;&gt; wybierz &gt;&gt;\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(b=24\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(b=-6\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(b=6\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        zatwierdź\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Symetralna boku \\(AC\\) ma równanie \\(y=3x+24\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"okrąg opisany na trójkącie - druga symetralna\" height=\"400\" src=\"static/okrag_na_trojkacie_2.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>Teraz powinniśmy obliczyć współrzędne środka okręgu opisanego - czyli punku przecięcia symetralnych. Należy to zrobić rozwiązując układ równań:\n                \\[\n                \\begin{cases}\n                y&=6\\\\\n                y&=3x+24\n                \\end{cases}\n                \\]\n                Jest to o tyle proste, że współrzędna \\(y\\) jest już dana (\\(y=6\\)), i teraz wystarczy ją podstawić do drugiego równania:\n                \\[\n                6=3x+24\n                \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Stąd wyliczamy, że</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        &gt;&gt; wybierz &gt;&gt;\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(x=6\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(x=-6\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(x=10\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        zatwierdź\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Środek okręgu to punkt \\(S=(-6,6)\\). Aby znaleźć równanie okręgu, potrzebujemy już tylko promienia. A promień to odległość od środka \\(S\\) do dowolnego punktu na okręgu, czyli albo do \\(A\\), albo do \\(B\\), albo do \\(C\\).\n                Obliczmy na przykład odległość od \\(A\\) do \\(S\\).</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "odległość między punktami - przypomnienie",
+      "body": "\n\n<div class=\"important\">\n                        Długość odcinka \\(AS\\), gdzie\n                        \\[\n                        A=(x_A, y_A),\\quad\\quad S=(x_S,y_S)\n                        \\]\n                        jest dana wzorem\n                        \\[\n                        AS=\\sqrt{(x_S-x_A)^2+(y_S-y_A)^2}\n                        \\]\n                    </div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(AS=\\sqrt{(-6-(-11))^2+(6-11)^2}=\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        &gt;&gt; wybierz &gt;&gt;\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(\\sqrt{50}\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(\\sqrt{314}\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\(34\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        zatwierdź\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Środek okręgu to punkt \\(S=\\left(-6, 6\\right)\\), a promień to \\(\\sqrt{50}\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Równanie okręgu to</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        &gt;&gt; wybierz &gt;&gt;\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\((x-6)^2+(y+6)^2=50\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\((x+6)^2+(y-6)^2=50\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\((x-6)^2+(y+6)^2=\\sqrt{50}\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "\n                        \\((x+6)^2+(y-6)^2=\\sqrt{50}\\)\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                        zatwierdź\n                    "
+    },
+    {
+      "type": "text",
+      "body": "<p>Równanie okręgu to \\((x+6)^2+(y-6)^2=50\\), a okrąg i trójkąt wyglądają tak:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"okrąg opisany na trójkącie prostokątnym\" height=\"400\" src=\"static/okrag_na_trojkacie_3.png\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Poniżej dwa podobne zadania - ale już bez rozwiązań. Możesz je rozwiązać samodzielnie i sprawdzić odpowiedzi.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź równanie okręgu opisanego na trójkącie \\(ABC\\), gdzie \\(A=(-1, -2)\\), \\(B=(1, 6)\\), a \\(C=(-7, -2)\\).\n    "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n        \\( (x + 4)^2 + (y - 3)^2 = 34\\)\n    </div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+      "reason": "show_solution button without solution"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź równanie okręgu opisanego na trójkącie \\(ABC\\), gdzie \\(A=(0, -4)\\), \\(B=(4, 2)\\), a \\(C=(-11, 7)\\).\n    "
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n        \\((x + 4)^2 + (y - 3)^2=65\\)\n    </div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "\n"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
+      "reason": "show_solution button without solution"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "5293b110d230db79dadbd790de37f3acb69c7574d97b613dd4f887d0e454199d"
+}

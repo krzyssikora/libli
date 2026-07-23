@@ -1,0 +1,86 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przed nami dwa cele. Nauczymy się:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n        rozkładać wielomiany na czynniki - liniowe i kwadratowe,\n    </li>\n<li>\n        rowiązywać równania wielomianowe.\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Równania wielomianowe to takie, które można zapisać w postaci\n                                                                                        \\[\n                                                                                        W(x)=0\n                                                                                        \\]\n                                                                                        gdzie \\(W(x)\\) jest wielomianem.\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Oto przykład równania wielomianowego.\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                        x^5-2x^4-13x^3+28x^2+46x-60=0\n                                                                                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jak rozwiązać takie równanie?\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n<u>\n                        Gdybyśmy wiedzieli\n                    </u>\n</strong>\n                , na przykład, że wielomian po lewej stronie jest podzielny przez \\((x-1)\\), moglibyśmy podzielić ten wielomian:\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                \\frac{x^5-2x^4-13x^3+28x^2+46x-60}{x-1}=x^4-x^3-14x^2+14x+60\n                                                                                                \\]\n                                                                                                i tym samym powyższe równanie zamienilibyśmy na równanie równoważne:\n                                                                                                \\[\n                                                                                                (x-1)(x^4-x^3-14x^2+14x+60)=0\n                                                                                                "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>A takie równanie możemy rozbić na dwa:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n                \\(x-1=0\\quad\\) lub \\(\\quad x^4-x^3-14x^2+14x+60=0\\)\n            "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                To z lewej daje wynik \\(x=1\\), a to z prawej jest trochę prostszym (bo niższego stopnia) równaniem wielomianowym.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n<u>\n                        Gdybyśmy wiedzieli\n                    </u>\n</strong>\n                , na przykład, że wielomian z tego równania jest podzielny przez \\((x+2)\\)...\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                No dobrze, czyli równanie wielomianowe moglibyśmy rozwiązać rozkładając go na czynniki, czyli znajdując kolejne dzielniki tego wielomianu.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Ale skąd mamy znać te kolejne dzielniki: \\((x-1)\\), \\((x+2)\\)...?\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Do tego przyda nam się\n                <strong>\n                    twierdzenie o podzielności wielomianu przez dwumian\n                </strong>\n                zwane także\n                <strong>\n                    twierdzeniem Bézout\n                </strong>\n                .\n            </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a9a7eca92cf4bd08e6336949fa516843f5f0714645fc10afc59666c24f76c7f0"
+}

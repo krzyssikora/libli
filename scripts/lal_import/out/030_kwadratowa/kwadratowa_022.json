@@ -1,0 +1,125 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3>\n    Postać kanoniczna - podsumowanie\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"important\">\n<img alt=\"postać kanoniczna funkcji kwadratowej\" height=\"562\" src=\"static/parabola_kanoniczna.png\" style=\"width: 800px; height: 562px;\" width=\"800\"/>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jeśli wszystko powyższe wydaje Ci się bardzo łatwe, możesz pominąć poniższe pytanie. Jeśli jednak masz jakiekolwiek wątpliwości, rozwiąż je, żeby się sprawdzić.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question_text\">\n        Uzupełnij poniższą tabelę według wzoru w pierwszym wierszu.\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "równanie funkcji",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wierzchołek",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "oś symetrii",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(y=3(x-1)^2+5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((1,5)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x=1\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(y=-\\frac{2}{3}(x+1)^2+1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\n                                (\n                                <input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n                                ,\n                                <input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n                                )\n                            </span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\n                                \\(x=\\)\n                                <input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n</span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<span class=\"myequation\">\n                                \\(y=-(x+\\)\n                                <input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n                                \\()^2+\\)\n                                <input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n</span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((-2, -3)\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\n                                \\(x=\\)\n                                <input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n</span>",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "<span class=\"myequation\">\n                                \\(y=\\frac{1}{4}(x+\\)\n                                <input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n                                \\()^2+3\\)\n                            </span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "<span class=\"myequation\">\n                                (\n                                <input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n                                ,\n                                <input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n                                )\n                            </span>",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x=-5\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "\n        Doskonale! Czas na kolejne wyzwanie.\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "276adbb71c5b5d308fac221e3412e18d3a9d99e4a20ef955f6eefd342297d7ef"
+}

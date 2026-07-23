@@ -1,0 +1,90 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rysunek poniżej przedstawia wykres funkcji \\(g\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_11.png\" width=\"600\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Z wykresu możemy odczytać dziedzinę funkcji \\(f\\), szukając wszystkich \\(x\\)-ów, dla których istnieją punkty na wykresie.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zwróć uwagę, że jakkolwiek wykres funkcji przerywa się w \\(x=-1\\), tak nie ma tam przerwy w dziedzinie. Lewy, niższy fragment wykresu odpowiada argumentom \\(x\\lt-1\\), a prawy, wyższy - argumentowm \\(x\\gt -1\\).\n            </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Dziedziną funkcji \\(g\\) jest więc spójny przedział\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\langle-5,2\\rangle\\)",
+        "\\((-5,2)\\)",
+        "\\((-5,2\\rangle\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Dziedzina jest zaznaczona na rysunku poniżej.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_12.png\" width=\"600\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Analogicznie do poprzedniego przykładu,\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                    największa wartość funkcji to \\(y=5\\),\n                </li>\n<li>\n                    najmniejszej wartości funkcja nie przyjmuje, ale wartości są ograniczone \"od dołu\" przez \\(y=-1\\), to znaczy żadna nie jest niższa, a istnieją wartości dowolnie bliskie \\(y=-1\\).\n                </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Te dwie ograniczające wartości widzimy na rysunku poniżej.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_13.png\" width=\"600\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zwróć uwagę, że zbiór wartości funkcji \\(g\\) to tym razem nie jest przedział między tymi wartościami, czyli \\((-1,5\\rangle\\). Żółta, przerywana, pozioma linia wskazuje na jedną z wartości, które nie są wartościami funkcji, bo nie odpowiadają żadnemu punktowi na wykresie.\n            </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Z tego powodu zbiór wartości funkcji \\(g\\) jest sumą dwóch przedziałów, a dokładniej.\n                \n                    najmniejsza wartość\n                \n                funkcji \\(f\\) to\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\((-1,1)\\cup\\langle 2, 5\\rangle\\)",
+        "\\((-1,1\\rangle\\cup(2, 5\\rangle\\)",
+        "\\((-1,-1)\\cup\\langle -1, 5\\rangle\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Zbiór wartości widzisz zaznaczony na rysunku poniżej.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_14.png\" width=\"600\"/>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Możemy teraz bardziej precyzyjnie zapisać funkcję \\(g\\):\n            </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                                g:(-5,2\\rangle\\longrightarrow(-1,1)\\cup\\langle 2, 5\\rangle\n                                                                                                "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "e9b821f22bcbd7d98545ba78b185c7d557138466bc8ba754e3cafda58d928217"
+}

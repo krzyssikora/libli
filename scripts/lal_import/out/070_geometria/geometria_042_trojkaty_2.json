@@ -1,0 +1,22 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h3 id=\"zasady_przystawania\">\n    Zasady przystawania\n</h3>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/zasady_przystawania.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n<u>\n                ZASADY PRZYSTAWANIA TRÓJKĄTÓW\n            </u>\n</strong>\n        (kliknij, żeby zobaczyć opis)\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<details>\n<summary>\n<strong>\n                        bok-bok-bok\n                    </strong>\n</summary>\n<p>\n                    Trójkąty są przystające, jeśli mają trzy boki identycznej długości.\n                </p>\n</details>\n</li>\n<li>\n<details>\n<summary>\n<strong>\n                        bok-kąt-bok\n                    </strong>\n</summary>\n<p>\n                    Trójkąty są przystające, jeśli mają dwa boki identycznej długości i kąt między nimi o tej samej mierze.\n                </p>\n</details>\n</li>\n<li>\n<details>\n<summary>\n<strong>\n                        kąt-bok-kąt\n                    </strong>\n</summary>\n<p>\n                    Trójkąty są przystające, jeśli mają jeden bok identycznej długości i przyległe do niego kąty tej samej miary.\n                </p>\n</details>\n</li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "987239dab6cd7570f2569ba86ade13dbe87868f715bd7282a52645486a7e4875"
+}

@@ -1,0 +1,90 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wykładowca Analizy Matematycznej ustalił kryteria końcowej oceny i zapisał je w tabeli:\n        </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "składnik oceny",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "waga",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "egzamin",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "kolokwia",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "kartkówki",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wszystkie oceny były wystawiane w skali procentowej \\(0-100\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz końcową ocenę studenta, którego wyniki były następujące:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                egzamin: \\(70\\%\\)\n            </li>\n<li>\n                kolokwia: \\(55\\%\\)\n            </li>\n<li>\n                kartkówki: \\(80\\%\\)\n            </li>\n</ul>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"fill_steps\">\n<p>\n            Użyjemy średniej ważonej.\n        </p>\n        \\[\n        S=\\frac{a_1\\cdot w_1+a_2\\cdot w_2+a_3\\cdot w_3+ ...+ a_n\\cdot w_n}{w_1+w_2+w_3+ ...+ w_n}\n        \\]\n        <div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                Liczby są następujące:\n            </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder left\">\n<tr>\n<td>\n                            ocena z egzaminu:\n                        </td>\n<td>\n                            \\(a_1=70\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            średnia ocena z kolokwiów:\n                        </td>\n<td>\n                            \\(a_2=55\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            średnia ocena z kartkówek:\n                        </td>\n<td>\n                            \\(a_3=80\\)\n                        </td>\n</tr>\n</table>\n</div>\n<p>\n                Natomiast wagi:\n            </p>\n<ul class=\"nolist\">\n<li>\n                    \\(w_1=\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n</ul>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<ul class=\"nolist\">\n<li>\n                    \\(w_2=\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n</ul>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<ul class=\"nolist\">\n<li>\n                    \\(w_3=\\)\n                    <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n</ul>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n            \\(S=\\frac{70\\cdot 5+55\\cdot 2+80\\cdot 1}{5+2+1}=\\frac{540}{8}=\\)\n            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n                (wpisz samą liczbę, bez znaku procenta)\n            </span>\n</div>\n</div>",
+      "reason": "interactive_widget (Group B): fill_answer,fill_show_next,fill_step"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "018ebc9efe1be748608f5cfe2bc7ad0e9c4d73256438aa267fc92c708493f9b4"
+}

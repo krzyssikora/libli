@@ -1,0 +1,84 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź odległość punktu \\((-5,-3)\\) od prostej \\(x+5y-32=0\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(2\\sqrt{26}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź odległość punktu \\((-10,1)\\) od prostej \\(5x+3y-4=0\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(\\frac{3}{2}\\sqrt{34}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź odległość punktu \\((1,5)\\) od prostej \\(y=-\\frac{3}{2}x-6\\tfrac{1}{2}\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(2\\sqrt{13}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź odległość punktu \\((-10,2)\\) od prostej \\(y=3x+7\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\(\\frac{5}{2}\\sqrt{10}\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź punkty leżące na prostej \\(7x+23y+125=0\\) leżące w odległości \\(17\\) od prostej \\(8x-15y+19=0\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\((-31,4)\\) i \\((15,-10)\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\"></p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Znajdź punkty leżące na prostej \\(x+7y+4=0\\) leżące w odległości \\(10\\) od prostej \\(3x-4y-13=0\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "odpowiedź",
+      "body": "\n\n        \\((-11,1)\\) i \\((17,-3)\\)\n    "
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "56d1bc1abe1ba655de26dd01ec6f7502f75476e721072f40bca0e68e5a3f71be"
+}

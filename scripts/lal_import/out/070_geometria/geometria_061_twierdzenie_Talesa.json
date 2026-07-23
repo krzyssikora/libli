@@ -1,0 +1,14 @@
+{
+  "elements": [
+    {
+      "type": "video",
+      "media_src": "static/twierdzenie_Talesa.mp4"
+    },
+    {
+      "type": "text",
+      "body": "\n<strong>\n        Twierdzenie Talesa\n    </strong>\n    mówi, że jeżeli pewna liczba prostych parami równoległych przecina dwie nierównoległe do siebie proste \\(k\\), \\(m\\), to odpowiednie odcinki wyznaczone przez proste równoległe na prostej \\(k\\) są proporcjonalne do odpowiednich odcinków wyznaczonych przez te same proste na prostej \\(m\\).\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "94489810eda1f330b8aa6a48ed28ff5cca85d598488b428980250ba950bcdc09"
+}

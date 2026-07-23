@@ -1,0 +1,99 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Przypomnijmy, że naszym najbliższym celem jest nauczyć się rozkładać wielomiany na czynniki.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Z twierdzenia Bézout wiemy, że aby znaleźć dzielnik wielomianu (czyli czynniki w jego rozkładzie), wystarczy znać jego pierwiastek.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Ale skąd wziąć pierwiastek / pierwiastki?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Tu może nam pomóc następujące twierdzenie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>\n            Twierdzenie o pierwiastkach całkowitych wielomianu\n        </strong>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<em>\n<strong>\n            jeśli\n        </strong>\n</em>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n        liczba całkowita \\(a\\in\\mathbb{Z}\\) jest pierwiaskiem wielomianu o współczynnikach całkowitych \\(W(x)\\) (tj. \\(W(a)=0\\))\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<em>\n<strong>\n            to\n        </strong>\n</em>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<span style=\"display: inline-block; width: 50px;\">\n</span>\n        \\(a\\) jest dzielnikiem wyrazu wolnego wielomianu.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<u>\n        Dokładniej\n    </u>"
+    },
+    {
+      "type": "text",
+      "body": "<p>: jeśli wielomian zapiszemy w postaci:\n                                                                                        \\[\n                                                                                        W(x)=a_nx^n+a_{n-1}x^{n-1}+\\dots+a_2x^2+a_1x+\\color{red}{a_0}\n                                                                                        \\]\n                                                                                        to</p>"
+    },
+    {
+      "type": "text",
+      "body": "<span style=\"color: red\">\n        pierwiastek całkowity wielomianu, \\(a\\), jest dzielnikiem wyrazu \\(a_0\\)\n    </span>"
+    },
+    {
+      "type": "text",
+      "body": "<p>.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Rozpatrzmy wielomian\n    </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                                                                                        W(x)=x^5-2x^4-13x^3+28x^2+46x-60\n                                                                                        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Jakie są możliwe całkowite pierwiastki tego wielomianu?\n    </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "przeczytaj",
+      "body": "\n\n<p>\n<strong>\n                Jeśli\n            </strong>\n            wielomian \\(W(x)\\) ma pierwiastek\n            <u>\n                całkowity\n            </u>\n            , to jest on dzielnikiem wyrazu wolnego, czyli liczby \\(-60\\).\n        </p>\n<p>\n            Liczba \\(60\\) ma sporo dzielników, więc żeby żadnego nie przeoczyć, najlepiej wypisywać je parami: pierwszy od najmiejszego do największego, a drugi taki, by iloczyn był równy \\(60\\):\n        </p>\n        \\[\n        \\begin{align*}\n        1\\cdot 60&amp;=60\\\\\n        2\\cdot 30&amp;=60\\\\\n        3\\cdot 20&amp;=60\\\\\n        4\\cdot 15&amp;=60\\\\\n        5\\cdot 12&amp;=60\\\\\n        6\\cdot 10&amp;=60\n        \\end{align*}\n        \\]\n        <p>\n            I tyle, czyli znaleźliśmy dzielniki: \\(1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60\\).\n        </p>\n<p>\n            Ale powinniśmy wziąć też pod uwagę dzielniki ujeme. I dlatego mamy aż \\(24\\) liczby całkowite, które mogą być pierwiastkami wielomianu \\(W(x)\\):\n        </p>\n        \\[\n        \\pm 1, \\pm 2, \\pm 3, \\pm 4, \\pm 5, \\pm 6, \\pm 10, \\pm 12, \\pm 15, \\pm 20, \\pm 30, \\pm 60\n        \\]\n        <p>\n            Oczywiście tylko niektóre z nich będą pierwiastkami wielomianu \\(W(x)\\).\n        </p>\n<p>\n            Jednak już teraz wiemy, że\n            <strong>\n                żadna inna liczba całkowita\n            </strong>\n            nie może być pierwiastkiem tego wielomianu.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Dany jest wielomian\n        </p>\n        \\[\n        W(x)=2x^3+Bx^2-11x+6\n        \\]\n        gdzie \\(B\\) jest pewną liczbą całkowitą.\n        <p>\n            Wskaż w kolejności rosnącej (tj. od najmniejszej do największej) wszystkie liczby całkowite, które mogą być pierwiastkami tego wielomianu.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Są to: \\(1\\),\n        <input class=\"table_input\" placeholder=\"??\" type=\"text\"/>\n        ,\n        <input class=\"table_input\" placeholder=\"??\" type=\"text\"/>\n        oraz \\(6\\).\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Świetnie!</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Potencjalnymi całkowitymi pierwiastkami są oczywiście także liczby przeciwne do powyższych, czyli \\(-1\\), \\(-2\\), \\(-3\\) i \\(-6\\).\n        </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b83ecf5988a771ada381459717f5a4c194a19c8177c541d82a5f09180918dc8a"
+}

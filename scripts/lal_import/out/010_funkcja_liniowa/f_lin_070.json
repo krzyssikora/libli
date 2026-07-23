@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<h1>\n    Proste równoległe i prostopadłe\n</h1>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/LAL_f_lin_6_cut.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>Żeby znaleźć prostą \\(y=ax+b\\) równoległą lub prostopadłą do danej, musimy:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n            najpierw znaleźć \\(a\\),\n            <strong>\n                współczynnik kierunkowy\n            </strong>\n            szukanej prostej\n        </li>\n<li>\n            a potem znaleźć \\(b\\),\n            <strong>\n                wyraz wolny\n            </strong>\n            , używając punktu, przez który szukana prosta ma przechodzić.\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zacznijmy od współczynnika kierunkowego.</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "fee792e8dac4384087c65f18d1e3f30381fe0a7dba9b571a83231ec0f265e2a3"
+}

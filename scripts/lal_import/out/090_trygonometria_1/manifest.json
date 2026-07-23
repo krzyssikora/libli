@@ -1,0 +1,429 @@
+{
+  "part": {
+    "source_folder": "090_trygonometria_1",
+    "order": 13,
+    "title": "trygonometria 1"
+  },
+  "chapters": [
+    {
+      "order": 0,
+      "title": "__PLACEHOLDER chapter 1__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "010_zwiazki_tryg.json",
+          "source_html": "010_zwiazki_tryg.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "zwiazki tryg"
+        },
+        {
+          "order": 1,
+          "unit_json": "011_zwiazki_tryg.json",
+          "source_html": "011_zwiazki_tryg.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Rozgrzewka"
+        },
+        {
+          "order": 2,
+          "unit_json": "012_zwiazki_tryg.json",
+          "source_html": "012_zwiazki_tryg.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "zwiazki tryg"
+        },
+        {
+          "order": 3,
+          "unit_json": "013_zwiazki_tryg.json",
+          "source_html": "013_zwiazki_tryg.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Funkcje trygonometryczne: sinus, cosinus, tangens i cotangens"
+        },
+        {
+          "order": 4,
+          "unit_json": "014_zwiazki_tryg.json",
+          "source_html": "014_zwiazki_tryg.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "zwiazki tryg"
+        },
+        {
+          "order": 5,
+          "unit_json": "015_zwiazki_tryg.json",
+          "source_html": "015_zwiazki_tryg.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "zwiazki tryg"
+        },
+        {
+          "order": 6,
+          "unit_json": "016_zwiazki_tryg.json",
+          "source_html": "016_zwiazki_tryg.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "zwiazki tryg"
+        },
+        {
+          "order": 7,
+          "unit_json": "017_zwiazki_tryg.json",
+          "source_html": "017_zwiazki_tryg.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "zwiazki tryg"
+        },
+        {
+          "order": 8,
+          "unit_json": "019_zwiazki_tryg_quiz.json",
+          "source_html": "019_zwiazki_tryg_quiz.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "quiz",
+          "title": "zwiazki tryg quiz"
+        }
+      ]
+    },
+    {
+      "order": 1,
+      "title": "__PLACEHOLDER chapter 2__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "020_trygonometria_zastosowania.json",
+          "source_html": "020_trygonometria_zastosowania.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "trygonometria zastosowania"
+        },
+        {
+          "order": 1,
+          "unit_json": "021_trygonometria_zastosowania.json",
+          "source_html": "021_trygonometria_zastosowania.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "trygonometria zastosowania"
+        },
+        {
+          "order": 2,
+          "unit_json": "022_trygonometria_zastosowania.json",
+          "source_html": "022_trygonometria_zastosowania.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Zastosowania - podjazd dla wózków"
+        },
+        {
+          "order": 3,
+          "unit_json": "023_trygonometria_zastosowania.json",
+          "source_html": "023_trygonometria_zastosowania.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Zastosowania - pole trójkąta"
+        },
+        {
+          "order": 4,
+          "unit_json": "024_trygonometria_zastosowania.json",
+          "source_html": "024_trygonometria_zastosowania.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "trygonometria zastosowania"
+        },
+        {
+          "order": 5,
+          "unit_json": "029_trygonometria_zastosowania_quiz.json",
+          "source_html": "029_trygonometria_zastosowania_quiz.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "quiz",
+          "title": "trygonometria zastosowania quiz"
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "title": "__PLACEHOLDER chapter 3__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "030_tryg_30_45_60.json",
+          "source_html": "030_tryg_30_45_60.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "tryg 30 45 60"
+        },
+        {
+          "order": 1,
+          "unit_json": "031_tryg_30_45_60.json",
+          "source_html": "031_tryg_30_45_60.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Związki między długościami boków trójkątów prostokątnych o kątach ostrych 30° i 60° lub 45°"
+        },
+        {
+          "order": 2,
+          "unit_json": "032_tryg_30_45_60.json",
+          "source_html": "032_tryg_30_45_60.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "tryg 30 45 60"
+        },
+        {
+          "order": 3,
+          "unit_json": "033_tryg_30_45_60.json",
+          "source_html": "033_tryg_30_45_60.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "tryg 30 45 60"
+        },
+        {
+          "order": 4,
+          "unit_json": "034_tryg_30_45_60.json",
+          "source_html": "034_tryg_30_45_60.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Wartości funkcji trygonometrycznych kątów 30°, 45° i 60°"
+        },
+        {
+          "order": 5,
+          "unit_json": "035_tryg_30_45_60.json",
+          "source_html": "035_tryg_30_45_60.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "tryg 30 45 60"
+        },
+        {
+          "order": 6,
+          "unit_json": "036_tryg_30_45_60.json",
+          "source_html": "036_tryg_30_45_60.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "tryg 30 45 60"
+        },
+        {
+          "order": 7,
+          "unit_json": "037_tryg_30_45_60.json",
+          "source_html": "037_tryg_30_45_60.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "tryg 30 45 60"
+        },
+        {
+          "order": 8,
+          "unit_json": "039_tryg_30_45_60_quiz.json",
+          "source_html": "039_tryg_30_45_60_quiz.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "quiz",
+          "title": "tryg 30 45 60 quiz"
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "title": "__PLACEHOLDER chapter 4__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "040_tryg_tozsamosci.json",
+          "source_html": "040_tryg_tozsamosci.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "tryg tozsamosci"
+        },
+        {
+          "order": 1,
+          "unit_json": "041_tryg_tozsamosci.json",
+          "source_html": "041_tryg_tozsamosci.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "tryg tozsamosci"
+        },
+        {
+          "order": 2,
+          "unit_json": "042_tryg_tozsamosci.json",
+          "source_html": "042_tryg_tozsamosci.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "tryg tozsamosci"
+        },
+        {
+          "order": 3,
+          "unit_json": "043_tryg_tozsamosci.json",
+          "source_html": "043_tryg_tozsamosci.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "tryg tozsamosci"
+        },
+        {
+          "order": 4,
+          "unit_json": "044_tryg_tozsamosci.json",
+          "source_html": "044_tryg_tozsamosci.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "tryg tozsamosci"
+        },
+        {
+          "order": 5,
+          "unit_json": "045_tryg_tozsamosci.json",
+          "source_html": "045_tryg_tozsamosci.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "tryg tozsamosci"
+        },
+        {
+          "order": 6,
+          "unit_json": "049_tryg_tozsamosci_quiz.json",
+          "source_html": "049_tryg_tozsamosci_quiz.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "quiz",
+          "title": "tryg tozsamosci quiz"
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "title": "__PLACEHOLDER chapter 5__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "050_tryg_podsumowanie.json",
+          "source_html": "050_tryg_podsumowanie.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Podsumowanie"
+        },
+        {
+          "order": 1,
+          "unit_json": "060_tryg_dowolne_katy.json",
+          "source_html": "060_tryg_dowolne_katy.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Funkcje trygonometryczne dowolnego kąta - okrąg jednostkowy"
+        },
+        {
+          "order": 2,
+          "unit_json": "070_tryg_dowolne_katy.json",
+          "source_html": "070_tryg_dowolne_katy.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Funkcje trygonometryczne kąta wyznaczonego przez punkt w układzie współrzędnych"
+        },
+        {
+          "order": 3,
+          "unit_json": "080_tryg_dowolne_katy.json",
+          "source_html": "080_tryg_dowolne_katy.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Ćwiczenia"
+        },
+        {
+          "order": 4,
+          "unit_json": "090_tryg_dowolne_katy.json",
+          "source_html": "090_tryg_dowolne_katy.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Kąty wyznaczone przez punkty na osiach"
+        },
+        {
+          "order": 5,
+          "unit_json": "100_tryg_dowolne_katy.json",
+          "source_html": "100_tryg_dowolne_katy.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Funkcje trygonometryczne dowolnego kąta"
+        },
+        {
+          "order": 6,
+          "unit_json": "110_tryg_dowolne_katy.json",
+          "source_html": "110_tryg_dowolne_katy.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Kąty 30, 45, 60 stopni i ich wielokrotności"
+        },
+        {
+          "order": 7,
+          "unit_json": "120_tryg_dowolne_katy.json",
+          "source_html": "120_tryg_dowolne_katy.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Ćwiczenie"
+        },
+        {
+          "order": 8,
+          "unit_json": "130_tryg_dowolne_katy.json",
+          "source_html": "130_tryg_dowolne_katy.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Dodatnie i ujemne wartości funkcji trygonometrycznych"
+        },
+        {
+          "order": 9,
+          "unit_json": "140_tryg_dowolne_katy.json",
+          "source_html": "140_tryg_dowolne_katy.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Ćwiczenie"
+        },
+        {
+          "order": 10,
+          "unit_json": "149_tryg_dowolne_quiz.json",
+          "source_html": "149_tryg_dowolne_quiz.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "quiz",
+          "title": "tryg dowolne quiz"
+        }
+      ]
+    },
+    {
+      "order": 5,
+      "title": "__PLACEHOLDER chapter 6__",
+      "units": [
+        {
+          "order": 0,
+          "unit_json": "150_tryg_tozsamosci_2.json",
+          "source_html": "150_tryg_tozsamosci_2.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Tożsamości"
+        },
+        {
+          "order": 1,
+          "unit_json": "160_tryg_tozsamosci_2.json",
+          "source_html": "160_tryg_tozsamosci_2.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Ćwiczenie"
+        },
+        {
+          "order": 2,
+          "unit_json": "170_tryg_tozsamosci_2.json",
+          "source_html": "170_tryg_tozsamosci_2.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Ćwiczenie"
+        },
+        {
+          "order": 3,
+          "unit_json": "180_tryg_dowolne_katy.json",
+          "source_html": "180_tryg_dowolne_katy.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Wzory redukcyjne"
+        },
+        {
+          "order": 4,
+          "unit_json": "190_tryg_dowolne_katy.json",
+          "source_html": "190_tryg_dowolne_katy.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "lesson",
+          "title": "Ćwiczenie"
+        },
+        {
+          "order": 5,
+          "unit_json": "199_tryg_dowolne_quiz.json",
+          "source_html": "199_tryg_dowolne_quiz.html",
+          "source_dir": "090_trygonometria_1",
+          "unit_type": "quiz",
+          "title": "tryg dowolne quiz"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Znajdź równanie prostej prostopadłej do\n            \\[y=\\frac{2}{3}x-1\\]\n            i przechodzącej przez punkt \\((-2, 5)\\).\n        </p>\n<p>\n            Spróbuj rozwiązać to zadanie samodzielnie, używając w razie potrzeby poniższych wskazówek.\n        </p>\n"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Szukamy prostej prostopadłej, więc jej współczynnik kierunkowy to liczba jednocześnie\n                <strong>\n<u>\n                        odwrotna\n                    </u>\n</strong>\n                i\n                <strong>\n<u>\n                        przeciwna\n                    </u>\n</strong>\n                do współczynnika kierunkowego danej prostej, czyli do liczby \\(\\frac{2}{3}\\).\n                \\[a=-\\frac{3}{2}\\]\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Szukana prosta ma więc równanie postaci\n                \\[y=-\\frac{3}{2}x+b\\]\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Wiemy, że przechodzi przez punkt \\((-2, 5)\\), więc współrzędne tego punktu \\((x=-2, y=3)\\) spełniają równanie szukanej prostej.\n            \\[y=-\\frac{3}{2}x+b\\quad\\quad\\leftarrow\\quad\\quad x=-2, y=5\\]\n            Podstawiwszy współrzędne punktu do równania prostej otrzymujemy:\n            \\[5=-\\frac{3}{2}\\cdot (-2)+b\\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            Obliczmy \\(b\\):\n            \\[5=3+b\\]\n            \\[b=5-3=2\\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "\n            pokaż dalej\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>Szukana prosta prostopadła ma więc równanie:\n            \\[y=-\\frac{3}{2}x+2\\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<img alt=\"\" class=\"img_center\" height=\"551\" src=\"static/rownolegla_prostopadla.png\" style=\"width: 1000px; height: 551px;\" width=\"1000\"/>\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "2eccdbcd8ddc2c737760eadb19a07398a3d84639a2b9ce65d54594e9bb5a989b"
+}

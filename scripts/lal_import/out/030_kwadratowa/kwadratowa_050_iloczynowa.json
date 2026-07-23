@@ -1,0 +1,70 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Wymnóż nawiasy i uprość wyrazy podobne.\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        \\((x+1)(x-3)=\\)\n        <span class=\"myequation\">\n            \\(x^2-3x+x\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n        \\(=\\)\n        <span class=\"myequation\">\n            \\(x^2\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(x\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Dobrze, teraz obejrzyj nagranie.\n"
+    },
+    {
+      "type": "video",
+      "media_src": "static/kwadratowa_zerowe.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zwróć uwagę, że w nagraniu rozwiązaliśmy równanie\n    \\[\n    x^2-2x-3=0\n    \\]\n    i otrzymaliśmy dwa rozwiązania:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(x=-1\\) oraz \\(x=3\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>To samo równanie jest wynikiem ćwiczenia znad nagrania:\n    \\[\n    (x+1)(x-3)=x^2-2x-3\n    \\]\n    Oznacza to, że równanie:\n    \\[\n    (x+1)(x-3)=0\n    \\]\n    ma dwa rozwiązania:</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\(x=-1\\) oraz \\(x=3\\)\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Czy dostrzegasz zależność między równaniem w tej postaci i jego rozwiązaniami?\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\((x+1)(x-3)=0\\quad\\quad\\Leftrightarrow\\quad\\quad x=-1\\) oraz \\(x=3\\)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zaznaczmy odpowiednie liczby kolorem:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\((x\\color{red}{+1})(x\\color{red}{-3})=0\\quad\\quad\\Leftrightarrow\\quad\\quad x=\\color{red}{-1}\\) oraz \\(x=\\color{red}{3}\\)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    albo nawet zapiszmy równanie w trochę innej postaci:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\((x-\\color{red}{(-1)})(x-\\color{red}{3})=0\\quad\\quad\\Leftrightarrow\\quad\\quad x=\\color{red}{-1}\\) oraz \\(x=\\color{red}{3}\\)\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    I tak oto dochodzimy do\n    <strong>\n        postaci iloczynowej\n    </strong>\n    funkcji kwadratowej.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "4d8fb6b589f8179229c9630829c360104e05fe384a836b16f874f37686b3442c"
+}

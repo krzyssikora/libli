@@ -1,0 +1,30 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Na rysunku poniżej widzimy odcinki o długościach \\(AB=8\\), \\(AC=10\\), \\(BD=6\\) i \\(CE=7,5\\).\n        </p>\n<p>\n<img alt=\"twierdzenie odwrotne do twierdzenia Talesa, zadanie\" height=\"489\" src=\"static/twierdzenie_Talesa_zadanie_4.png\" style=\"width: 600px; height: 489px;\" width=\"600\"/>\n</p>\n<p>\n            Czy odcinki \\(BC\\) i \\(DE\\) są równoległe?\n        </p>\n"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"question_solution hidden\">\n<p>\n            Z twierdzenia odwrotnego do twierdzenia Talesa wynika, że odcinki \\(BC\\) i \\(DE\\) są równoległe, jeśli:\n        </p>\n        \\[\n        \\frac{AB}{AC}=\\frac{BD}{CE}\n        \\]\n        <p>\n            Sprawdźmy, jaka jest wartość wyrażenia po lewej stronie:\n        </p>\n        \\[\n        \\frac{AB}{AC}=\\frac{8}{10}=\\frac{4}{5}\n        \\]\n        <p>\n            A teraz wartość wyrażenia po prawej stronie:\n        </p>\n        \\[\n        \\frac{BD}{CE}=\\frac{6}{7,5}=\\frac{12}{15}=\\frac{4}{5}\n        \\]\n        <p>\n            Oba wyrażenia mają tę samą wartość, więc odcinki \\(BC\\) i \\(DE\\) są równoległe.\n        </p>\n</div>",
+      "reason": "unmapped <div> in lesson body"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spróbuj odpowiedzieć na pytanie samodzielnie, a następnie obejrzyj moje rozwiązanie.\n        </p>"
+    },
+    {
+      "type": "html",
+      "flagged": true,
+      "raw": "<div class=\"show_solution ks_button\">\n        Rozwiązanie zadania - zobacz\n    </div>",
+      "reason": "show_solution button without solution"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "298abb38f8a80249b1d09206109b1c95bf89e681f3ea181e6a20c44262ec774d"
+}

@@ -1,0 +1,114 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wykres funkcji \\(y=x^2\\) przesunięto o 4 jednostki w\n    <strong>\n        prawo\n    </strong>\n    .\n</p><p>Równanie przesuniętej funkcji to:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=x^2+4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=(x+4)^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=x^2-4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=(x-4)^2\\)",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wykres funkcji \\(y=x^2\\) przesunięto o 4 jednostki w\n    <strong>\n        górę\n    </strong>\n    .\n</p><p>Równanie przesuniętej funkcji to:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=x^2+4\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=(x+4)^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=x^2-4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=(x-4)^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wykres funkcji \\(y=x^2\\) przesunięto o 4 jednostki w\n    <strong>\n        lewo\n    </strong>\n    .\n</p><p>Równanie przesuniętej funkcji to:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=x^2+4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=(x+4)^2\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=x^2-4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=(x-4)^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Wykres funkcji \\(y=x^2\\) przesunięto o 4 jednostki w\n    <strong>\n        dół\n    </strong>\n    .\n</p><p>Równanie przesuniętej funkcji to:</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(y=x^2+4\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=(x+4)^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=x^2-4\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=(x-4)^2\\)",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "b9052f3a35175cbdd78b439e253e1f2b8c1cc191f7a54ba2894159ea33f46085"
+}

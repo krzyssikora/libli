@@ -127,6 +127,25 @@ def _seed_tab1_gate(unit, tab1_children):
     return join
 
 
+def _seed_spoiler_gate(unit, spoiler_children):
+    """One SpoilerElement on `unit`; `spoiler_children` is a list of concrete
+    element objects placed, in order, into its single (SLOT_ID) child slot.
+    Returns the spoiler's own join row (NOT its children's)."""
+    from courses.models import Element
+    from courses.models import SpoilerElement
+
+    sp = SpoilerElement.objects.create(label="Hint")
+    join = Element.objects.create(unit=unit, content_object=sp)
+    for child in spoiler_children:
+        Element.objects.create(
+            unit=unit,
+            content_object=child,
+            parent=join,
+            tab_id=SpoilerElement.SLOT_ID,
+        )
+    return join
+
+
 def _fillgate(author_stem):
     """Build a FillGateElement from author `{{answer}}` markup (use | for
     alternatives), as the form's clean_stem/save would: parse to token-stem+answers.
@@ -307,6 +326,66 @@ def test_reveal_gate_nested_in_tab_scopes_to_that_tab(page, live_server):
     expect(gate).to_be_hidden()  # consumed
     # The slide-level sibling was never gated and stays visible throughout.
     expect(page.get_by_text("slide level after tabs")).to_be_visible()
+
+
+# ---------------------------------------------------------------------------
+# 2b. Nested-in-spoiler (Task 3)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db(transaction=True)
+def test_reveal_gate_nested_in_spoiler_scopes_to_that_spoiler(page, live_server):
+    """A gate nested in a top-level spoiler gates only that spoiler's following
+    .spoiler__child rows -- the cascade reveals content WITHIN the spoiler, not
+    content after it. A block placed AFTER the whole spoiler element is never
+    hidden by the nested gate. Opening the <details> is the native browser
+    gesture (clicking .spoiler__toggle, i.e. the <summary>) -- no JS of ours is
+    involved in that step. Reload restores the revealed-within-spoiler state
+    (restoreGates), proving the pre-hide/cascade scoping survives a fresh boot,
+    not just the live click path."""
+    _student, unit = _new_unit("rg_spoiler")
+    _seed_spoiler_gate(
+        unit,
+        [
+            _gate("Reveal In Spoiler"),
+            _text("<p>spoiler child one</p>"),
+            _text("<p>spoiler child two</p>"),
+        ],
+    )
+    add_element(unit, _text("<p>after the spoiler</p>"))
+    _login(page, live_server, "rg_spoiler")
+    page.goto(_unit_url(live_server, unit))
+
+    spoiler_toggle = page.locator(".spoiler__toggle")
+    gate = page.get_by_role("button", name="Reveal In Spoiler")
+
+    # Spoiler starts closed: nothing inside it is visible yet, and the block after
+    # the spoiler is unaffected either way.
+    expect(page.get_by_text("spoiler child one")).to_be_hidden()
+    expect(page.get_by_text("after the spoiler")).to_be_visible()
+
+    spoiler_toggle.click()  # native <details> open, no JS of ours
+
+    expect(gate).to_be_visible()
+    expect(page.get_by_text("spoiler child one")).to_be_hidden()
+    expect(page.get_by_text("spoiler child two")).to_be_hidden()
+    expect(page.get_by_text("after the spoiler")).to_be_visible()
+
+    gate.click()
+
+    expect(page.get_by_text("spoiler child one")).to_be_visible()
+    expect(page.get_by_text("spoiler child two")).to_be_visible()
+    expect(gate).to_be_hidden()  # consumed
+    # The sibling after the spoiler was never gated and stays visible throughout.
+    expect(page.get_by_text("after the spoiler")).to_be_visible()
+
+    page.reload()
+
+    page.locator(".spoiler__toggle").click()  # <details> resets closed; re-open
+    expect(page.get_by_text("spoiler child one")).to_be_visible()
+    expect(page.get_by_text("spoiler child two")).to_be_visible()
+    expect(page.get_by_role("button", name="Reveal In Spoiler")).to_be_hidden()
+    expect(page.get_by_text("after the spoiler")).to_be_visible()
 
 
 # ---------------------------------------------------------------------------

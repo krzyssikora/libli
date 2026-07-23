@@ -1,0 +1,163 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Na zakończenie poznamy trzecią metodę dzielenia wielomianów:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n        dzielenie pisemne\n    </li>\n<li>\n        schemat Hornera\n    </li>\n<li>\n        \\(\\rightarrow\\)\n        <strong>\n            dopasowanie wyrazów\n        </strong>\n</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Dopasowanie wyrazów\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n    Łatwe dzielenie przez dwumian\n</h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Czasem dzielenie przez dwumian jest bardzo łatwe - wtedy, gdy po wyłączeniu czynnika przed nawias możemy łatwo skrócić ten dwumian.\n    </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "działanie",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wyłączenie czynnika",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wynik",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((-12x-16):(3x+4)=\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{-12x-16}{3x+4}=\\frac{-4(3x+4)}{3x+4}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=-4\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((6x^2+10x):(3x+5)=\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{6x^2+10x}{3x+5}=\\frac{2x(3x+5)}{3x+5}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=2x\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((6x^3-9x^2):(2x-3)=\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{6x^3-9x^2}{2x-3}=\\frac{3x^2(2x-3)}{2x-3}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=3x^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\((-8x^3+2x^2):(4x-1)=\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{-8x^3+2x^2}{4x-1}=\\frac{-2x^2(4x-1)}{4x-1}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=-2x^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Jaki powinien być wyraz zaznaczony na czerwono, aby dzielenie można było wykonać bez reszty?\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiąż 6 przykładów",
+      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n<span style=\"display: inline-block; width: 50px; font-weight: bold;\">\n                        1.\n                    </span>\n                    W działaniu \\((8x^2\\color{red}{-4x}):(4x-3)\\) czerwony wyraz powinien być równy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(6x\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-6x\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-3x\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Zgadza się:\n                </p>\n                \\[\n                (8x^2\\color{red}{-6x}):(4x-3)=\\frac{8x^2-6x}{4x-3}=\\frac{2x(4x-3)}{4x-3}=2x\n                \\]\n                <div class=\"switch_line\">\n<span style=\"display: inline-block; width: 50px; font-weight: bold;\">\n                        2.\n                    </span>\n                    W działaniu \\((6x^3+\\color{red}{10x^2}):(2x+5)\\) czerwony wyraz powinien być równy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(15x^2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-10x^2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(15x\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Zgadza się:\n                </p>\n                \\[\n                (6x^3+\\color{red}{15x^2}):(2x+5)=\\frac{6x^3+15x^2}{2x+5}=\\frac{3x^2(2x+5)}{2x+5}=3x^2\n                \\]\n                <div class=\"switch_line\">\n<span style=\"display: inline-block; width: 50px; font-weight: bold;\">\n                        3.\n                    </span>\n                    W działaniu \\((-6x^3+\\color{red}{2x^2}):(3x-2)\\) czerwony wyraz powinien być równy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(-4x^2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(4x^2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(8x\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Zgadza się:\n                </p>\n                \\[\n                (-6x^3+\\color{red}{4x^2}):(3x-2)=\\frac{-6x^3+4x^2}{3x-2}=\\frac{-2x^2(3x-2)}{3x-2}=-2x^2\n                \\]\n                <div class=\"switch_line\">\n<span style=\"display: inline-block; width: 50px; font-weight: bold;\">\n                        4.\n                    </span>\n                    W działaniu \\((2x^3\\color{red}{-9x^2}):(2x-3)\\) czerwony wyraz powinien być równy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(-3x^2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(3x^2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(6x\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Zgadza się:\n                </p>\n                \\[\n                (2x^3\\color{red}{-3x^2}):(2x-3)=\\frac{2x^3-3x^2}{2x-3}=\\frac{x^2(2x-3)}{2x+5}=x^2\n                \\]\n                <div class=\"switch_line\">\n<span style=\"display: inline-block; width: 50px; font-weight: bold;\">\n                        5.\n                    </span>\n                    W działaniu \\((-6x^2+\\color{red}{13x}):(2x-3)\\) czerwony wyraz powinien być równy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(-9x\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(9x\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(3x\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Zgadza się:\n                </p>\n                \\[\n                (-6x^2+\\color{red}{9x}):(2x-3)=\\frac{-6x^2+9x}{2x-3}=\\frac{-3x(2x-3)}{2x-3}=-3x\n                \\]\n                <div class=\"switch_line\">\n<span style=\"display: inline-block; width: 50px; font-weight: bold;\">\n                        6.\n                    </span>\n                    W działaniu \\((4x+\\color{red}{1}):(2x-3)\\) czerwony wyraz powinien być równy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(-6\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(6\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-6x\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Zgadza się:\n                </p>\n                \\[\n                (4x\\color{red}{-6}):(2x-3)=\\frac{4x-6}{2x-3}=\\frac{2(2x-3)}{2x-3}=2\n                \\]\n                Możemy przejść do ostatniej metody dzielenia wielomianów.\n            </div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"example\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        Ponownie podzielimy wielomian \\(2x^3-9x^2+13x+1\\) przez \\(2x-3\\).\n    "
+    },
+    {
+      "type": "spoiler",
+      "label": "rozwiązanie",
+      "body": "\n\n<p>\n            Skupmy się na dwóch pierwszych wyrazach dzielonego wielomianu:\n            \\[\n            \\color{red}{2x^3-9x^2}+13x+1\n            \\]\n        </p>\n<div class=\"steps\">\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Żeby móc je podzielić przez \\((2x-3)\\), zamiast\n                </p>\n<div class=\"centered\">\n                    \\(\\color{red}{2x^3-9x^2}\\) powinniśmy mieć \\(\\color{red}{2x^3-3x^2}\\)\n                </div>\n</div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Dlatego zapiszemy:\n                </p>\n                \\[\n                \\begin{align*}\n                2x^3&amp;\\underline{-9x^2}=\\\\\n                =2x^3&amp;\\underline{-3x^2-6x^2}\n                \\end{align*}\n                \\]\n                <p>\n                    czyli cały wielomian:\n                </p>\n                \\[\n                \\color{red}{2x^3-3x^2-6x^2}+13x+1\n                \\]\n            </div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Wyłączmy maksymalny wspólny czynnik z dwóch pierwszych wyrazów i skupmy się na\n                    <span style=\"color: red;\">\n                        dwóch kolejnych\n                    </span>\n                    .\n                </p>\n                \\[\n                x^2(2x-3)\\color{red}{-6x^2+13x}+1\n                \\]\n            </div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Żeby móc je podzielić przez \\((2x-3)\\), zamiast\n                </p>\n<div class=\"centered\">\n                    \\(\\color{red}{-6x^2+13x}\\) powinniśmy mieć \\(\\color{red}{-6x^2+9x}\\)\n                </div>\n</div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Dlatego zapiszemy:\n                </p>\n                \\[\n                \\begin{align*}\n                -6x^2&amp;\\underline{+13x}=\\\\\n                =-6x^2&amp;\\underline{+9x+4x}\n                \\end{align*}\n                \\]\n                <p>\n                    czyli cały wielomian:\n                </p>\n                \\[\n                x^2(2x-3)\\color{red}{-6x^2+9x+4x}+1\n                \\]\n            </div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Wyłączmy maksymalny wspólny czynnik z dwóch zmienionych wyrazów i skupmy się na\n                    <span style=\"color: red;\">\n                        dwóch kolejnych\n                    </span>\n                    .\n                </p>\n                \\[\n                x^2(2x-3)-3x(2x-3)+\\color{red}{4x+1}\n                \\]\n            </div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Żeby móc je podzielić przez \\((2x-3)\\), zamiast\n                </p>\n<div class=\"centered\">\n                    \\(\\color{red}{4x+1}\\) powinniśmy mieć \\(\\color{red}{4x-6}\\)\n                </div>\n</div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Dlatego zapiszemy:\n                </p>\n                \\[\n                \\begin{align*}\n                4x&amp;\\underline{+1}=\\\\\n                =4x&amp;\\underline{-6+7}\n                \\end{align*}\n                \\]\n                <p>\n                    czyli cały wielomian:\n                </p>\n                \\[\n                x^2(2x-3)-3x(2x-3)+\\color{red}{4x-6+7}\n                \\]\n            </div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Ponownie wyłączmy maksymalny wspólny czynnik z dwóch zmienionych wyrazów a na końcu zostanie tylko \\(\\color{red}{7}\\).\n                </p>\n                \\[\n                x^2(2x-3)-3x(2x-3)+2(2x-3)+\\color{red}{7}\n                \\]\n            </div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    W tej końcowej siódemce nie ma już \\(x\\)-a, zostawmy ją więc w spokoju, a przyjrzyjmy się temu, co jest przed nią:\n                </p>\n<div class=\"centered\">\n                    \\(x^2\\)\n                    <span class=\"magenta_on_gray\">\n                        \\((2x-3)\\)\n                    </span>\n                    \\(-3x\\)\n                    <span class=\"magenta_on_gray\">\n                        \\((2x-3)\\)\n                    </span>\n                    \\(+2\\)\n                    <span class=\"magenta_on_gray\">\n                        \\((2x-3)\\)\n                    </span>\n                    \\(+7\\)\n                </div>\n</div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Widzimy tam wspólny czynnik\n                    <span class=\"magenta_on_gray\">\n                        \\((2x-3)\\)\n                    </span>\n                    , który wyłączymy poza nawias:\n                </p>\n<div class=\"centered\">\n                    \\((x^2-3x+2)\\)\n                    <span class=\"magenta_on_gray\">\n                        \\((2x-3)\\)\n                    </span>\n                    \\(+7\\)\n                </div>\n</div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    I tak oto przedstawiliśmy dany wielomian w postaci sumy wdóch części:\n                </p>\n                \\[\n                2x^3-9x^2+13x+1=\\underbrace{(x^2-3x+2)(2x-3)}_{\\text{część podzielna przez }(2x-3)}+\\underbrace{7}_{\\text{reszta}}\n                \\]\n                <p>\n                    tak więc wynikiem dzielenia jest \\((x^2-3x+2)\\), a reszta to \\(7\\).\n                </p>\n</div>\n</div>\n"
+    },
+    {
+      "type": "text",
+      "body": "<h4>\n    Podsumowanie metody\n</h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        W tej metodzie bierzemy pod uwagę dwa kolejne wyrazy i zastanawiamy się, jak dopasować drugi wyraz do pierwszego, by oba były podzielne przez dzielnik.\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Zamieniamy ten drugi wyraz na odpowiednią sumą lub różnicę i przechodzimy do kolejnych dwóch wyrazów.\n    </p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "700018bda7d7ef58f50dbd0b12db69ddc634a120c4a9e76b108fb0cbdc9e27de"
+}

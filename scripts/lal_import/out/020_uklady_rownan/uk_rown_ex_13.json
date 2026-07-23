@@ -1,0 +1,26 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Mówiąc o układach równań warto wspomnieć, że w zastosowaniach matematyki (m.in. w ekonomii, fizyce, modelowaniu grafiki 3d) często używa się układów większej liczby równań z większą liczą niewiadomych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jedną z podstawowych metod rozwiązywania takich większych układów równań jest\n    <strong>\n        eliminacja Gaussa\n    </strong>\n    , która dla dwóch równań przypomina metodę przeciwnych współczynników. Obejrzyj wprowadzenie do tej metody:\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/uklad_rownan_ex_3_Gauss_intro.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    a następnie animację prezentującą rozwiązanie układu czterech równań tą metodą:\n</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/uklad_rownan_ex_4_Gauss.mp4"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "a52c4af4cce06b4c694724f4ebd651f7cf3c5807832981c7e360481225047494"
+}

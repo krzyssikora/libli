@@ -1,0 +1,116 @@
+{
+  "elements": [
+    {
+      "type": "choice",
+      "stem": "<p>\n    W trójkącie różnobocznym połączono środki wszystkich boków dzieląc go w ten sposób na cztery mniejsze trójkąty.\n</p><p>\n    Ile z nich jest przystających?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "2",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "3",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "4",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Czy trójkąty o bokach: 12, 14, 16 oraz 24, 26, 28 są podobne?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Czy trójkąty o bokach: 12, 14, 16 oraz 24, 28, 32 są podobne?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "TAK",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "NIE",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Jeden trójkąt ma dwa boki długości 40 i 80 oraz kąt między nimi o mierze 48 stopni.\n</p><p>\n    Drugi trójkąt ma bok długości 60 i przyległy do niego kąt o mierze 48 stopni.\n</p><p>\n    Jakiej długości powinien być drugi bok przyległy do tego kąta w drugim trójkącie, aby trójkąty były podobne?\n</p><p>\n    Rozważ wszystkie możliwości!\n</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "30",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "40",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "100",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "120",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\n    Dwa trójkąty mają takie same kąty: 50, 60 i 70 stopni.\n</p><p>\n    W pierwszym trójkącie bok przyległy do kątów o miarach 50 stopni i 60 stopni ma długość 18.\n</p><p>\n    Jaka powinna być długość boku przyległego do kątów o miarach 50 stopni i 60 stopni w drugim trójkącie, by trójkąty były podobne?\n</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "za mało danych",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "jakakolwiek",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "27",
+          "is_correct": false,
+          "feedback": ""
+        },
+        {
+          "text": "36",
+          "is_correct": false,
+          "feedback": ""
+        }
+      ]
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "6fe1af3cd0c09cdde445b2f74f74fbd0d43c4ba0084a13039a3e0c2d50fe92eb"
+}

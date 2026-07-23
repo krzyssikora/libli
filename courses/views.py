@@ -195,7 +195,7 @@ def _element_has_math(obj):
             has_math_delimiters(o) for o in (obj.options or [])
         )
     if isinstance(obj, SpoilerElement):
-        return has_math_delimiters(obj.body)
+        return _spoiler_has_math(obj)
     if isinstance(obj, CalloutElement):
         return has_math_delimiters(obj.body)
     if isinstance(obj, SwitchGridElement):
@@ -236,6 +236,20 @@ def _tabs_has_math(el):
         _element_has_math(child.content_object)
         for child in join.children.prefetch_related("content_object")
     )
+
+
+def _spoiler_has_math(el):
+    """COLLECT + MUST RECURSE, mirrors _tabs_has_math. A nested spoiler has an
+    empty body, so math lives in its children; a legacy body-only spoiler has no
+    children and falls back to its body."""
+    from courses.models import SpoilerElement
+
+    if not isinstance(el, SpoilerElement):
+        return False
+    children = el.resolved_children()
+    if not children:
+        return has_math_delimiters(el.body)
+    return any(_element_has_math(c.content_object) for c in children)
 
 
 def _twocolumn_has_math(el):
@@ -323,7 +337,11 @@ def build_lesson_context(node, user):
     # was a ~12-clause inlined OR-chain duplicated between here and build_quiz_context.)
     has_math = any(_element_has_math(el.content_object) for el in elements)
     has_html = any(el.content_type_id == html_ct_id for el in elements)
-    has_questions = any(el.content_type_id in question_ct_ids for el in elements)
+    # Flat unit-wide (NOT scoped to parent__isnull=True) so a question nested in a
+    # spoiler/tab — children keep their own `unit` FK — is still detected, arming
+    # question.js/dnd.js. Only fill_blank is nestable today, so this only newly fires
+    # for a nested fillblank; top-level behaviour is unchanged.
+    has_questions = node.elements.filter(content_type_id__in=question_ct_ids).exists()
     # Flat query (NOT scoped to parent__isnull=True) so a gate nested inside a tab —
     # children keep their own `unit` FK — is still detected. Both gate types arm the
     # pre-hide + reveal.js; only fill-gates need fillgate.js.

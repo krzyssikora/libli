@@ -1,0 +1,140 @@
+[
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: funkcje_0.html",
+    "raw_excerpt": "<a href=\"funkcje_0.html\">\n        wróć do spisu zagadnień\n    </a>",
+    "unit_json": "funkcje_1_proporcjonalnosc_odwrotna.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabs-1",
+    "raw_excerpt": "<a href=\"#tabs-1\">\n                nagranie\n            </a>",
+    "unit_json": "funkcje_2_wykladnicza.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabs-2",
+    "raw_excerpt": "<a href=\"#tabs-2\">\n                krok po kroku\n            </a>",
+    "unit_json": "funkcje_2_wykladnicza.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input id=\"show_solution1\" type=\"button\" value=\"Analiza zadania - zobacz\"/>",
+    "unit_json": "funkcje_2_wykladnicza.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input id=\"show_solution2\" type=\"button\" value=\"Wyliczenie stałej - zobacz\"/>",
+    "unit_json": "funkcje_2_wykladnicza.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input id=\"show_solution3\" type=\"button\" value=\"Czas połowicznego rozpadu - zobacz\"/>",
+    "unit_json": "funkcje_2_wykladnicza.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input id=\"show_solution4\" type=\"button\" value=\"Po jakim czasie cezu będzie mniej niż 5 gramów - zobacz\"/>",
+    "unit_json": "funkcje_2_wykladnicza.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: funkcje_0.html",
+    "raw_excerpt": "<a href=\"funkcje_0.html\">\n        wróć do spisu zagadnień\n    </a>",
+    "unit_json": "funkcje_2_wykladnicza.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabs-1",
+    "raw_excerpt": "<a href=\"#tabs-1\">\n                nagranie\n            </a>",
+    "unit_json": "funkcje_3_logarytmiczna.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabs-2",
+    "raw_excerpt": "<a href=\"#tabs-2\">\n                krok po kroku\n            </a>",
+    "unit_json": "funkcje_3_logarytmiczna.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input id=\"show_solution1\" type=\"button\" value=\"Porównanie intensywności - zobacz\"/>",
+    "unit_json": "funkcje_3_logarytmiczna.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <input> in lesson body",
+    "raw_excerpt": "<input id=\"show_solution2\" type=\"button\" value=\"Wyliczenie magnitudy - zobacz\"/>",
+    "unit_json": "funkcje_3_logarytmiczna.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: funkcje_0.html",
+    "raw_excerpt": "<a href=\"funkcje_0.html\">\n        wróć do spisu zagadnień\n    </a>",
+    "unit_json": "funkcje_3_logarytmiczna.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: funkcje_0.html",
+    "raw_excerpt": "<a href=\"funkcje_0.html\">\n        wróć do spisu zagadnień\n    </a>",
+    "unit_json": "funkcje_4_podsumowanie.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: funkcje_0.html",
+    "raw_excerpt": "<a href=\"funkcje_0.html\">\n        wróć do spisu zagadnień\n    </a>",
+    "unit_json": "funkcje_5_warto_wiedziec.json"
+  },
+  {
+    "kind": "stem_without_answer",
+    "reason": "stem had no answer DSL",
+    "raw_excerpt": "<p>\n    Dwóch malarzy potrzebuje 15 godzin na pomalowanie ściany.\n</p><p>\n    Zakładając, że wszyscy malarze malują z jednakową i stałą wydajnością, uzupełnij zdania. Wpisz liczby, a nie wyrazy.\n</p>",
+    "unit_json": "funkcje_19_proporcjonalnosc_odwrotna_quiz.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    nagranie\n                </a>",
+    "unit_json": "funkcje_25_wykladnicza.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
+    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    krok po kroku\n                </a>",
+    "unit_json": "funkcje_25_wykladnicza.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
+    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    nagranie\n                </a>",
+    "unit_json": "funkcje_35_logarytmiczna.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
+    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    krok po kroku\n                </a>",
+    "unit_json": "funkcje_35_logarytmiczna.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "unmapped <div> in lesson body",
+    "raw_excerpt": "<div class=\"question_solution hidden\">\n<p>\n                    Przyjmijmy dla uproszczenia, że trzęsienie ziemi w Peru w 2007 roku to trzęsienie\n                    <strong>\n                        pierwsze\n                    </strong>\n                    , a wielkie trzęsienie chilijskie w 1960 ro",
+    "unit_json": "funkcje_35_logarytmiczna.json"
+  },
+  {
+    "kind": "unmapped_pattern",
+    "reason": "show_solution button without solution",
+    "raw_excerpt": "<div class=\"show_solution ks_button\">\n                Wyliczenie magnitudy - zobacz\n            </div>",
+    "unit_json": "funkcje_35_logarytmiczna.json"
+  },
+  {
+    "kind": "table_span",
+    "reason": "table uses rowspan/colspan",
+    "raw_excerpt": "<table class=\"my_table_border\">\n<tr>\n<td bgcolor=\"lightgray\" rowspan=\"2\">\n                    równanie\n                </td>\n<td bgcolor=\"#ebfaff\" colspan=\"2\">\n                    \\(y=\\frac{c}{x}\\)\n                </td>\n<td bgcolor=\"#ebfaff\" colspan=\"2\">\n                    \\(y=a^x\\)\n               ",
+    "unit_json": "funkcje_40_podsumowanie.json"
+  }
+]

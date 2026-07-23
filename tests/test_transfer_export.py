@@ -571,3 +571,21 @@ def test_write_archive_from_writes_placeholder_and_omits_dropped(
         assert "media/m1.png" in names  # placeholder image
         assert not any(n.endswith(".mp4") for n in names)  # dropped video absent
         assert zf.read("media/m1.png") == _placeholder_bytes()
+
+
+# --- Task 7: _element_mids fill_table branch ---
+
+
+def test_element_mids_fill_table_yields_image_local_ids():
+    from courses.transfer.export import _element_mids
+
+    data = {
+        "cells": [
+            [
+                {"kind": "image", "media": "m3", "alt": "g"},
+                {"kind": "answer", "answer": "1"},
+                {"kind": "static", "html": "s"},
+            ]
+        ]
+    }
+    assert list(_element_mids("fill_table", data)) == ["m3"]

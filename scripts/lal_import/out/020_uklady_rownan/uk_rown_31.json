@@ -1,0 +1,22 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p class=\"question\">\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<p>\n            Przesuwaj punkty zaznaczone kropką, by zmienić położenie prostych oraz te zaznaczone krzyżykiem, by zmienić ich nachylenie.\n        </p>\n<p>\n            Ustaw w ten sposób proste o podanych równaniach, odczytaj z wykresu współrzędne punktów przecięcia i wpisz je poniżej.\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"600px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/f5zqtzgr/width/800/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"rozwiązywanie graficzne układów równań\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+    },
+    {
+      "type": "text",
+      "body": "<ul style=\"list-style: none;\">\n<li>\n<div class=\"statement\">\n                \\(\\begin{cases}\n                \\color{blue}{y=-\\frac{1}{2}x+3}\\\\\n                \\color{red}{y=\\frac{3}{2}x-5}\n                \\end{cases}\\)\n            </div>\n<div class=\"coordinate\">\n                \\(x=\\)\n                <input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n                ,\n            </div>\n<div class=\"coordinate\">\n                \\(y=\\)\n                <input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</div>\n</li>\n<li>\n<div class=\"statement\">\n                \\(\\begin{cases}\n                \\color{blue}{y=-\\frac{1}{3}x-1}\\\\\n                \\color{red}{y=-x+3}\n                \\end{cases}\\)\n            </div>\n<div class=\"coordinate\">\n                \\(x=\\)\n                <input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n                ,\n            </div>\n<div class=\"coordinate\">\n                \\(y=\\)\n                <input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</div>\n</li>\n<li>\n<div class=\"statement\">\n                \\(\\begin{cases}\n                \\color{blue}{y=x+1}\\\\\n                \\color{red}{y=-\\frac{1}{3}x+3}\n                \\end{cases}\\)\n            </div>\n<div class=\"coordinate\">\n                \\(x=\\)\n                <input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n                ,\n            </div>\n<div class=\"coordinate\">\n                \\(y=\\)\n                <input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</div>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "\n    Świetnie!\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "9bfd5b0103b49b52426811821b25ca25da31f90d1958fe23fad2d5c4cd54ea6b"
+}

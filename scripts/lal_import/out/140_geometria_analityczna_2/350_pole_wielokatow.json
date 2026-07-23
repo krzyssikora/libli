@@ -1,0 +1,103 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Obliczanie pól wielokątów o znanych współrzędnych wierzchołków nie jest już dla nas żadną tajemnicą. Przecież każdy wielokąt możemy podzielić przekątnymi na trójkąty, i wówczas pole wielokąta jest sumą pól tych trójkątów.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    To oczywiście byłoby długie i monotonne. Na szczęście pole typowych czworokątów możemy obliczyć znacznie łatwiej i szybciej.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Pole kwadratu i prostokąta\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Pole zarówno kwadratu jak i każdego innego prostokąta liczymy jako iloczyn długości dwóch kolejnych boków. Musimy tylko policzyć długości jednego (kwadrat) lub dwóch (prostokąt) boków.\n</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "jak obliczyć długość odcinka?",
+      "body": "\n\n<div class=\"important\">\n<p>\n            Długość odcinka o końcach \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dana jest wzorem\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n            \\]\n        </div>\n</div>\n<p>\n        Więcej na temat długości odcinka znajdziesz <a href=\"#\">tutaj</a>.\n        <!-- INTERNAL LINK -->\n</p>\n"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Pole rombu i równoległoboku\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wzór na pole równoległoboku (więc też i rombu) to\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    \\text{Pole }=\\color{blue}{\\text{ podstawa }}\\cdot\\color{red}{\\text{ wysokość }}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Aby obliczyć \\(P\\), pole równoległoboku \\(ABCD\\) jak na rysunku niżej, mnożymy <span style=\"color: blue;\">podstawę \\(AB\\)</span> przez <span style=\"color: red;\">wysokość \\(h\\)</span>.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_pole_rownolegloboku.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        czyli\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        P=\\color{blue}{AB}\\cdot\\color{red}{h}\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        gdzie\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<p>\n                \\(\\color{blue}{AB}\\), <span style=\"color: blue;\">podstawa</span>, to długość odcinka \\(AB\\).\n            </p>\n<details>\n<summary>jak obliczyć długość odcinka?</summary>\n<div class=\"important\">\n<p>\n                        Długość odcinka o końcach \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dana jest wzorem\n                    </p>\n<div class=\"table_wrapper\">\n                        \\[\n                        AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n                        \\]\n                    </div>\n</div>\n<p>\n                    Więcej na temat długości odcinka znajdziesz <a href=\"#\">tutaj</a>.\n                    <!-- INTERNAL LINK -->\n</p>\n</details>\n</li>\n<li>\n<p>\n                \\(\\color{red}{h}\\), <span style=\"color: red;\">wysokość</span>, to odległość albo punktu \\(D\\) albo punktu \\(C\\) od <span style=\"color: green\">prostej przechodzącej przez punkty \\(A\\) i \\(B\\)</span>.\n            </p>\n<details>\n<summary>jak znaleźć równanie ogólne prostej?</summary>\n<div class=\"important\">\n<p>\n                        Równanie ogólne prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) można wyznaczyć ze wzoru\n                    </p>\n<div class=\"table_wrapper\">\n                        \\[\n                        (y-y_A)(x_B-x_A)-(y_B-y_A)(x-x_A)=0\n                        \\]\n                    </div>\n</div>\n<p>\n                    Można też użyć innych sposobów. Więcej na ten znajdziesz <a href=\"#\">tutaj</a>.\n                    <!-- INTERNAL LINK -->\n</p>\n</details>\n<details>\n<summary>jak znaleźć odległość punktu od prostej?</summary>\n<div class=\"important\">\n<p>\n                        Odległość punktu \\(C=(x_C, y_C)\\) od prostej o równaniu ogólnym \\(\\alpha x+\\beta y+\\gamma=0\\) (w naszej sytuacji: od prostej przchodzącej przez punkty \\(A\\) i \\(B\\)) dana jest wzorem\n                    </p>\n<div class=\"table_wrapper\">\n                        \\[\n                        \\frac{|\\alpha\\cdot x_C+\\beta\\cdot y_C+\\gamma|}{\\sqrt{\\alpha^2+\\beta^2}}\n                        \\]\n                    </div>\n<p>\n<small>\n                            Zwróć uwagę, że tym razem użyliśmy greckich liter \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\) jako współczynników w równaniu prostej, zamiast zwykłych \\(A\\), \\(B\\) i \\(C\\) - żeby nie pomylić ich z punktami \\(A\\), \\(B\\) i \\(C\\).\n                        </small>\n</p>\n<p>\n<strong>Uwaga</strong>!\n                    </p>\n<p>\n                        Jeśli znane są równania prostych \\(AB\\) i \\(CD\\), do obliczenia wysokości możemy użyć wzoru na odległość między prostymi równoległymi. \n                    </p>\n</div>\n<p>\n                    Więcej o odległości punktu od prostej znajdziesz <a href=\"#\">tutaj</a> a o odległości między prostymi równoległymi <a href=\"#\">tutaj</a>.\n                    <!-- INTERNAL LINK -->\n</p>\n</details>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\n    Pole trapezu\n</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wzór na pole trapezu to\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \\[\n    \\text{Pole }=\\frac{1}{2}\\cdot\\left(\\color{blue}{\\text{ podstawa dolna }}+\\color{blue}{\\text{ podstawa górna }}\\right)\\cdot\\color{red}{\\text{ wysokość }}\n    \\]\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        Aby obliczyć \\(P\\), pole trapezu \\(ABCD\\) jak na rysunku niżej, mnożymy \\(frac{1}{2}\\) przez <span style=\"color: blue;\">sumę podstaw \\(AB\\) i \\(CD\\)</span> i przez <span style=\"color: red;\">wysokość \\(h\\)</span>.\n    </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_pole_trapezu.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        czyli\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n        \\[\n        P=\\frac{1}{2}\\cdot\\left(\\color{blue}{AB}+\\color{blue}{CD}\\right)\\cdot\\color{red}{h}\n        \\]\n    "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n        gdzie\n    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<p>\n                \\(\\color{blue}{AB}\\), <span style=\"color: blue;\">podstawa dolna</span>, to długość odcinka \\(AB\\).\n            </p>\n<p>\n                \\(\\color{blue}{CD}\\), <span style=\"color: blue;\">podstawa górna</span>, to długość odcinka \\(CD\\).\n            </p>\n<details>\n<summary>jak obliczyć długość odcinka?</summary>\n<div class=\"important\">\n<p>\n                        Długość odcinka o końcach \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dana jest wzorem\n                    </p>\n<div class=\"table_wrapper\">\n                        \\[\n                        AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n                        \\]\n                    </div>\n</div>\n<p>\n                    Więcej na temat długości odcinka znajdziesz <a href=\"#\">tutaj</a>.\n                    <!-- INTERNAL LINK -->\n</p>\n</details>\n</li>\n<li>\n<p>\n                \\(\\color{red}{h}\\), <span style=\"color: red;\">wysokość</span>, to odległość albo punktu \\(D\\) albo punktu \\(C\\) od <span style=\"color: green\">prostej przechodzącej przez punkty \\(A\\) i \\(B\\)</span>.\n            </p>\n<details>\n<summary>jak znaleźć równanie ogólne prostej?</summary>\n<div class=\"important\">\n<p>\n                        Równanie ogólne prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) można wyznaczyć ze wzoru\n                    </p>\n<div class=\"table_wrapper\">\n                        \\[\n                        (y-y_A)(x_B-x_A)-(y_B-y_A)(x-x_A)=0\n                        \\]\n                    </div>\n</div>\n<p>\n                    Można też użyć innych sposobów. Więcej na ten znajdziesz <a href=\"#\">tutaj</a>.\n                    <!-- INTERNAL LINK -->\n</p>\n</details>\n<details>\n<summary>jak znaleźć odległość punktu od prostej?</summary>\n<div class=\"important\">\n<p>\n                        Odległość punktu \\(C=(x_C, y_C)\\) od prostej o równaniu ogólnym \\(\\alpha x+\\beta y+\\gamma=0\\) (w naszej sytuacji: od prostej przchodzącej przez punkty \\(A\\) i \\(B\\)) dana jest wzorem\n                    </p>\n<div class=\"table_wrapper\">\n                        \\[\n                        \\frac{|\\alpha\\cdot x_C+\\beta\\cdot y_C+\\gamma|}{\\sqrt{\\alpha^2+\\beta^2}}\n                        \\]\n                    </div>\n<p>\n<small>\n                            Zwróć uwagę, że tym razem użyliśmy greckich liter \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\) jako współczynników w równaniu prostej, zamiast zwykłych \\(A\\), \\(B\\) i \\(C\\) - żeby nie pomylić ich z punktami \\(A\\), \\(B\\) i \\(C\\).\n                        </small>\n</p>\n<p>\n<strong>Uwaga</strong>!\n                    </p>\n<p>\n                        Jeśli znane są równania prostych \\(AB\\) i \\(CD\\), do obliczenia wysokości możemy użyć wzoru na odległość między prostymi równoległymi. \n                    </p>\n</div>\n<p>\n                    Więcej o odległości punktu od prostej znajdziesz <a href=\"#\">tutaj</a> a o odległości między prostymi równoległymi <a href=\"#\">tutaj</a>.\n                    <!-- INTERNAL LINK -->\n</p>\n</details>\n</li>\n</ul>"
+    }
+  ],
+  "fully_mapped": false,
+  "seed_hash": "ab3fb82d9a43c3a44c76f6acdc17fff5ab7c51f77711b4f15c4ec0db46eed177"
+}

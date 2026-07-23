@@ -1,0 +1,154 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dana jest funkcja\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        f:\\{-2, 1, 4, 5, 8\\}\\longrightarrow\\mathbb{N}\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            zdefiniowana równaniem\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        f(x)=\\frac{1}{2}x\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dziedzina funkcji jest wskazana precyzyjnie - to zbiór składający się z pięciu liczb. Jednak przeciwdziedzina to duży, nieskończony zbiór \\(\\mathbb{N}\\). Prawdziwych wartości funkcji \\(f\\) jest znacznie mniej. Znajdź je i uzupełnij tabelę.\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(x\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(-2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(5\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(8\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(y\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-1"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.5|0,5"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\tfrac{5}{2}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rozpatrzmy wszystkie możliwe wartości funkcji\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        f:\\{-2, 1, 4, 5, 8\\}\\longrightarrow\\mathbb{N}\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            zdefiniowanej równaniem\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        f(x)=\\frac{1}{2}x\n        "
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Zbiorem wartości funkcji \\(f\\) jest zbiór\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\mathbb{N}\\)",
+        "\\(\\{-2, 1, 4, 5, 8\\}\\)",
+        "\\(\\{-1, \\tfrac{1}{2}, 2, \\tfrac{5}{2}, 4\\}\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Największą liczbą w zbiorze wartości jest\n                \n\n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(-1\\)",
+        "\\(\\tfrac{1}{2}\\)",
+        "\\(2\\)",
+        "\\(\\tfrac{5}{2}\\)",
+        "\\(4\\)"
+      ],
+      "answer": 4
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                Najmniejszą liczbą w zbiorze wartości jest\n                \n\n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(-1\\)",
+        "\\(\\tfrac{1}{2}\\)",
+        "\\(2\\)",
+        "\\(\\tfrac{5}{2}\\)",
+        "\\(4\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Podsumujmy:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                    Zbiór wartości funkcji \\(f\\): \\(\\{-1, \\tfrac{1}{2}, 2, \\tfrac{5}{2}, 4\\}\\)\n                </li>\n<li>\n                    Największa wartośc funkcji \\(f\\): \\(4\\)\n                </li>\n<li>\n                    Najmniejsza wartośc funkcji \\(f\\): \\(-1\\)\n                </li>\n</ul>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "69b6164c3e9779d6763f21903954c3be21efbe854d5ea048d7270d63e7bde7cc"
+}

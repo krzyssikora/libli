@@ -1,0 +1,106 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    W zadaniu dotyczącym błędu względnego użyłem sformułowania\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n    \"\n    <em>\n        zapisz wynik obcinając go po 4 cyfrach po przecinku\n    </em>\n    \".\n"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    \"Obcięcie\" wyniku to inaczej zaokrąglenie\n    <strong>\n        w dół\n    </strong>\n    lub przybliżenie\n    <strong>\n        z niedomiarem\n    </strong>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Mozna też zaokrąglić\n    <strong>\n        w górę\n    </strong>\n    czyli przybliżyć\n    <strong>\n        z nadmiarem\n    </strong>\n    .\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Sprawdźmy, które przybliżenie jest obarczone mniejszym błędem.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wartość prawdziwa to \\(0,00735\\).\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": "wartość przybliżona"
+            },
+            {
+              "kind": "static",
+              "html": "wyliczenie błędu bezwzględnego"
+            },
+            {
+              "kind": "static",
+              "html": "wartość błędu"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "przybliżenie z niedomiarem"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0,0077\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(|0,007735-0,0077|\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0,000035\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "przybliżenie z nadmiarem"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0,0078\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(|0,007735-0,0078|\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "0.000065|0,000065"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Wartości błędu bezwzględnego, czyli wyliczone wyżej różnice możemy obejrzeć na poniższym diagramie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "\n<img alt=\"przybliżanie\" src=\"static/przyblizanie.png\"/>\n"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "c8c9e916afa6e600efef30006678f2a48fd25c2b6a6ae2a30e1c2b2edc363d89"
+}

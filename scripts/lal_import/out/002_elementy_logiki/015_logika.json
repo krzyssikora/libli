@@ -1,0 +1,66 @@
+{
+  "elements": [
+    {
+      "type": "text",
+      "body": "<p>\n    Skupmy się na dwóch prostych zdaniach.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n        Niektóre liczby naturalne są większe od 100.\n    </li>\n<li>\n        Wszystkie liczby naturalne są większe od 100.\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Oba te zdania są zapisane językiem potocznym. Język matematyczny jest trochę inny. Wymaga większej precyzji i specyficznej składni (czasem kosztem stylu), a spora część zwrotów może być zapisywana symbolicznie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Przepiszmy powyższe zdania językiem matematyki i symbolicznie.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zacznijmy tak:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n<strong>\n            Istnieje\n        </strong>\n        liczba naturalna większa od 100.\n    </li>\n<li>\n<strong>\n            Każda\n        </strong>\n        liczba naturalna jest większa od 100.\n    </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    To jeszcze nie jest język w pełni formalny, matematyczny, ale idziemy w dobrym kierunku. Zwróćmy uwagę na\n    <strong>\n        wytłuszczone\n    </strong>\n    słowa.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n<strong>\n                Istnieje\n            </strong>\n            - ten zwrot oznacza, że takie obiekty (liczby) są, ale nieprecyzuje ile. Być może 1, może 2, może 1000, a może i nieskończenie wiele.\n            <br/>\n            Zwrot \"\n            <strong>\n                istnieje\n            </strong>\n            \" nazywamy\n            <strong>\n                kwantyfikatorem szczegółowym\n            </strong>\n            .\n            <br/>\n            Czasem zamiast tego zwrotu używamy znaku \\(\\lor\\).\n            <br/>\n<br/>\n            Uwaga! Znak \\(\\lor\\) jest używany w polskich liceach, jednak w matematyce wyższej i w innych krajach częściej spotykamy znak \\(\\exists\\).\n        </li>\n<li>\n<strong>\n                Każda\n            </strong>\n            - ten zwrot nie pozostawia pola do manewru. Każda liczba, czyli bez wyjątku.\n            <br/>\n            Zwrot \"\n            <strong>\n                dla każdego\n            </strong>\n            / dla każdej\" nazywamy\n            <strong>\n                kwantyfikatorem ogólnym\n            </strong>\n            .\n            <br/>\n            Czasem zamiast tego zwrotu używamy znaku \\(\\land\\).\n            <br/>\n<br/>\n            Uwaga! Znak \\(\\land\\) jest używany w polskich liceach, jednak w matematyce wyższej i w innych krajach częściej spotykamy znak \\(\\forall\\).\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zapiszmy zdania ponownie, bardziej formalnie:\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n<strong>\n                Istnieje\n            </strong>\n            taka liczba naturalna \\(n\\), że \\(n\\) jest większa od 100.\n        </li>\n<li>\n<strong>\n                Dla każdej\n            </strong>\n            liczby naturalnej \\(n\\), \\(n\\) jest większe od 100.\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Zwróć uwagę na strukturę tych zdań. Najpierw używamy kwantyfikatora i określamy jakiego rodzaju obiektu / liczby on dotyczy (tu: liczb parzystych), a potem formułujemy zdanie prawdziwe dla takiego obiektu / liczby.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    A teraz te same zdania symbolicznie. Przypomnijmy, że litera \\(\\mathbb{N}\\) oznacza zbiór liczb naturalnych.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n            \\(\\lor_{n\\in \\mathbb{N}}\\quad n\\gt 100\\)\n        </li>\n<li>\n            \\(\\land_{n\\in \\mathbb{N}}\\quad n\\gt 100\\)\n        </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Teraz te dwa zdania wyglądają bardzo podobnie, prawda? Niektórzy widzą w tym komplikację, inni uważają, że to wręcz piękno prostoty.\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n    Jest, jak jest. My zwróćmy tylko uwagę, że pierwsze zdanie jest prawdziwe, a drugie fałszywe.\n</p>"
+    }
+  ],
+  "fully_mapped": true,
+  "seed_hash": "7245fb6675c48ccca29490a8fef9e8680bdc31b7eeed2507f4e56be706552e5d"
+}
