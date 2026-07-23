@@ -44,10 +44,19 @@ Every function name present in **both** editors is declared in exactly one of tw
 - **`TWINS`** — the 20 that must stay code-identical.
 - **`DIVERGENT`** — the 7 that differ deliberately, each with a one-line reason.
 
-A function common to both files and absent from both lists **fails the test**. That completeness
-check is what stops the guard rotting: adding a new shared helper forces a decision, rather than
-silently creating a 21st unguarded twin. A bare `TWINS` list without it would decay the first time
-someone added a helper to both files.
+The completeness check runs in **both directions**, and both are load-bearing:
+
+- **Forward** — a function common to both files and absent from both lists fails the test. This stops
+  the guard rotting: adding a new shared helper forces a decision, rather than silently creating a
+  21st unguarded twin. A bare `TWINS` list without it would decay the first time someone added a
+  helper to both files.
+- **Backward** — every name in `TWINS ∪ DIVERGENT` must still exist as a function in *both* files.
+  Without this, deleting or renaming a twin leaves a dead entry that nothing notices, and the failure
+  mode is worse than clutter: if a later, unrelated function reuses that orphaned name, it inherits
+  the stale classification and the forward check never fires, because the name is already
+  (spuriously) classified. A twin could then be introduced pre-excused.
+
+A stale entry must fail loudly and name itself, the same way an unclassified one does.
 
 ### The two scopes
 
@@ -70,10 +79,10 @@ Each carries its reason in the `DIVERGENT` list, so a reader learns *why* rather
 | `label` | closes over a different editor root attribute (`[data-table-editor]` vs `[data-filltable-editor]`) |
 | `wire` | the container itself; its nested helpers are classified individually, so comparing the 368- vs 528-line bodies would be meaningless |
 | `serialize` | fill-table emits three cell kinds (static / answer / image), the plain table one |
-| `refreshToolbarState` | fill-table splits the guard so kind buttons still refresh with no focused cell |
+| `refreshToolbarState` | fill-table adds an `if (!focusCell) return` gate *after* the merge/split/header block, so the kind-specific refresh (disabling `[data-cmd]` on answer/image cells, the answer-toggle state, hiding the alt input) is skipped when nothing is focused; that gate also moves its `refreshAlignButtons()` call behind it |
 | `toggleHeaderCell` | fill-table must re-key the live `cellStash` Map from old node to new |
 | `cellIsNonEmpty` | fill-table counts answer and image cells as non-empty regardless of text |
-| `afterStructuralEdit` | fill-table additionally clears range state and refreshes kind buttons |
+| `afterStructuralEdit` | fill-table additionally calls `cellStash.clear()` first, so a stashed cell cannot be restored into the wrong node after the grid is reshaped |
 
 ### Normalisation: comments are stripped before comparison
 
@@ -148,6 +157,8 @@ must be clean; CI gates on them separately.
 - Any change to `table_editor.js`, `filltable_editor.js`, or any other production file.
 - Asserting that the seven divergent functions *stay* divergent. If someone later converges one
   legitimately, that should be free; they move it to `TWINS`.
-- Guarding the four fill-table-only helpers (`answerPlaceholder`, `setImageCell`, `stashFor`,
-  `toggleAnswerCell`) or either file's `init*` entry point — they exist in one file only and have no
-  twin to drift from.
+- Guarding the eight fill-table-only helpers — `answerPlaceholder`, `setImageCell`, `stashFor` and
+  `toggleAnswerCell` (nested in `wire()`), plus the submit-guard block `isBlankAnswer`,
+  `clearAnswerError`, `showAnswerError` and `onSubmit` (file scope) — or either file's `init*` entry
+  point. They exist in one file only, so they have no twin to drift from and need no classification
+  in either direction.
