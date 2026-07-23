@@ -60,6 +60,14 @@ The completeness check runs in **both directions**, and both are load-bearing:
 
 A stale entry must fail loudly and name itself, the same way an unclassified one does.
 
+**The two lists must also be disjoint**, and that needs its own assertion rather than following from
+the two above. The forward check requires a name be classified in *at least* one list; the backward
+check requires it exist in both files; neither rejects a name sitting in `TWINS` **and** `DIVERGENT`
+at once. The Out-of-scope section below describes precisely the workflow that produces this — someone
+legitimately converges a divergent function and *moves* it to `TWINS` — where adding the new entry
+but forgetting to delete the old one silently breaks the "exactly one" contract. The guard asserts
+`TWINS ∩ DIVERGENT` is empty and names any doubly-classified function.
+
 ### The two scopes
 
 Functions are extracted at two scopes, because the duplication lives at both:
@@ -139,8 +147,16 @@ no guard at all — it reports success while checking a void. Three hazards, eac
 
 1. **Vacuous extraction.** If a regex stops matching (a reformat, a style change, a rename), the
    extractor returns fewer functions and every remaining comparison trivially passes. The guard
-   therefore asserts the **exact expected count** of twins found, so a broken extractor fails loudly
-   rather than passing empty-handed.
+   therefore asserts the **total number of functions extracted per file** — 28 in `table_editor.js`
+   and 36 in `filltable_editor.js` — and not merely that all 20 `TWINS` were matched.
+
+   The distinction matters and is the difference between closing the hole and appearing to. A
+   twins-only count protects the 20 already listed, but says nothing about a **newly added,
+   not-yet-classified** shared helper: if the regex silently fails to extract it from one file, that
+   name never appears as "common to both files", so the forward-completeness check — which can only
+   inspect functions actually extracted — stays green while an unguarded 21st twin exists. That is
+   exactly the rot the forward check was introduced to prevent, reintroduced one level down. Counting
+   every function in each file catches a regex regression on any function, classified or not.
 2. **Brace counting.** Bodies are delimited by counting `{` and `}`, which is not a JS parser: a brace
    inside a string literal, a regex literal or a template string would miscount and swallow the rest
    of the file. No such line exists in either editor today; the count assertion in (1) is what
@@ -155,7 +171,7 @@ normalised line, so the fix is immediate rather than a hunt.
 ## Testing
 
 The guard is the deliverable, so proving it *can fail* is the substance of the work, not a formality.
-Five falsifications, each reverted afterwards — one per independent check, so no check ships
+Seven falsifications, each reverted afterwards — one per independent check, so no check ships
 unproven:
 
 1. **A twin drifts** — change one line inside `paintRange` in `filltable_editor.js` only. The guard
@@ -172,6 +188,15 @@ unproven:
    proves the *backward* completeness check fires; falsifications 1–4 exercise twin equality, the
    forward check and the count assertion, and would all still pass with the backward check deleted
    entirely — which is exactly the silent-orphan hole it was added to close.
+6. **A duplicate name is caught** — temporarily define a second function with an existing name in one
+   file. The guard must fail, naming the duplicated function, rather than silently keeping one
+   definition and comparing the wrong pair. Hazard 2 (brace counting) is deliberately exempt from
+   having its own falsification, because a miscounted body swallows the rest of the file and collapses
+   the per-file function count, which falsification 4 already covers; hazard 3 has no such indirect
+   coverage, so it needs this one.
+7. **A double classification is caught** — add a name to `TWINS` while leaving it in `DIVERGENT`. The
+   guard must fail, naming it. Without this, the documented converge-and-move workflow can silently
+   break the "exactly one list" contract, and every other check would stay green.
 
 Falsification 3 matters as much as 1. A guard that fires on comment edits would be reverted within a
 week by whoever gets tired of it, which is a slower path to the same unguarded state.
