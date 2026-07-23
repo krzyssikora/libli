@@ -373,3 +373,56 @@ def test_merge_while_focus_sits_on_an_absorbed_cell_refocuses_the_survivor(
     focused = page.locator(f"{TABLE_ROOT} td:focus, {TABLE_ROOT} th:focus")
     assert focused.count() == 1
     assert focused.get_attribute("colspan") == "2"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_alt_shift_arrow_extends_and_then_shrinks_the_range(page, live_server):
+    """Click (0,0); the FIRST Alt+Shift+ArrowRight already selects TWO slots
+    (seed from the anchor AND move in the same keystroke -- seeding alone
+    would be a keystroke with no visible effect). A following ArrowLeft
+    shrinks the range back to one, proving paintRange re-normalises every
+    keystroke instead of only ever growing."""
+    from courses.models import TableElement
+    from tests.test_e2e_table_editor import _login
+    from tests.test_e2e_table_editor import _make_pa_user
+    from tests.test_e2e_table_editor import _unit
+
+    _make_pa_user("kbd_range")
+    _login(page, live_server, "kbd_range")
+    unit = _unit("kbd_range", "kbd-range")
+    element = _seed(
+        unit,
+        TableElement,
+        [[{"html": ""} for _ in range(3)] for _ in range(3)],
+    )
+
+    _reopen(page, live_server, unit, element, TABLE_ROOT)
+    _cell(page, TABLE_ROOT, 0, 0).click()
+    page.keyboard.press("Alt+Shift+ArrowRight")
+    assert page.locator(f"{TABLE_ROOT} .is-range").count() == 2
+
+    page.keyboard.press("Alt+Shift+ArrowLeft")
+    assert page.locator(f"{TABLE_ROOT} .is-range").count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_alt_shift_arrow_is_a_no_op_with_nothing_focused(page, live_server):
+    """No click first: the keystroke must not throw and must not select --
+    focusCell is null, so the handler must bail out before touching rangeEnd."""
+    from courses.models import TableElement
+    from tests.test_e2e_table_editor import _login
+    from tests.test_e2e_table_editor import _make_pa_user
+    from tests.test_e2e_table_editor import _unit
+
+    _make_pa_user("kbd_noop")
+    _login(page, live_server, "kbd_noop")
+    unit = _unit("kbd_noop", "kbd-noop")
+    element = _seed(
+        unit,
+        TableElement,
+        [[{"html": ""} for _ in range(3)] for _ in range(3)],
+    )
+
+    _reopen(page, live_server, unit, element, TABLE_ROOT)
+    page.keyboard.press("Alt+Shift+ArrowRight")
+    assert page.locator(f"{TABLE_ROOT} .is-range").count() == 0

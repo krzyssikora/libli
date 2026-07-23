@@ -414,6 +414,38 @@
       paintRange();
     });
 
+    // Registered on the GRID, not the document, so it is scoped to the editor
+    // that owns it (a page can hold more than one).
+    grid.addEventListener("keydown", function (e) {
+      if (!e.altKey || !e.shiftKey) return;
+      var delta = { ArrowRight: [0, 1], ArrowLeft: [0, -1],
+                    ArrowDown: [1, 0], ArrowUp: [-1, 0] }[e.key];
+      if (!delta) return;
+      e.preventDefault();
+      if (!focusCell) return;                   // no-op, never a throw
+      var sm = libliTableGrid.slotMap(desc);
+      if (!rangeEnd) {
+        // Seed from focusCell's ANCHOR slot AND apply the move in the same
+        // keystroke, so one press already selects two slots.
+        rangeEnd = libliTableGrid.anchorOf(sm, focusCell);
+        if (!rangeEnd) return;
+        rangeAnchor = focusCell;
+      }
+      var r = Math.min(Math.max(rangeEnd.r + delta[0], 0), sm.height - 1);
+      var c = Math.min(Math.max(rangeEnd.c + delta[1], 0), sm.width - 1);
+      rangeEnd = { r: r, c: c };                // clamped; edge press is a no-op
+      paintRange();                             // re-normalises every keystroke
+    });
+
+    grid.addEventListener("keydown", function (e) {
+      // Only act -- and only swallow the event -- when a range is actually
+      // live, so a stray Escape still reaches the media-picker and math-input
+      // modals that share this page.
+      if (e.key !== "Escape" || !rangeEnd) return;
+      e.stopPropagation();
+      clearRange(true);        // rangeAnchor stays at focusCell
+    });
+
     // Enter inserts a <br> instead of a new block element, so a cell's only
     // intra-content separator is <br> (matches CELL_TAGS).
     grid.addEventListener("keydown", function (e) {
