@@ -372,7 +372,12 @@ Expected: **7 passed, still green.** This is the mirror-image proof. Without it 
 Break the extractor: change `_DEF` to `re.compile(r"^\s*fnction (\w+)\s*\(")`.
 
 Run: `uv run pytest tests/test_editor_twin_drift.py -vv`
-Expected: `test_expected_function_counts` FAILS naming both files (`extracted 0 functions, expected 28` and `… expected 36`). The other checks fail loudly in this state too but for a *different* reason — `test_twins_are_identical` and `test_no_normalisation_hazard_in_twin_bodies` raise `KeyError` (they iterate the fixed `TWINS` list and index `table[name]` on the now-empty extraction), while `test_every_common_function_is_classified` **passes vacuously** (empty `common` → nothing unclassified). That last one is the point: classification-completeness alone cannot detect a broken extractor, which is exactly why `test_expected_function_counts` exists and must count *every* function, not just the classified ones. **Restore `_DEF`.**
+Expected: **4 failed, 3 passed.** With extraction empty, the failures land for three different reasons, none of them the drift the guard actually checks for:
+- `test_expected_function_counts` FAILS naming both files (`extracted 0 functions, expected 28` and `… expected 36`) — the designed catch for a broken extractor.
+- `test_twins_are_identical` and `test_no_normalisation_hazard_in_twin_bodies` raise `KeyError: 'colCount'` — they iterate the fixed `TWINS` list and index `table[name]` on the now-empty extraction.
+- `test_no_stale_classification` FAILS listing all 27 classified names — with `common` empty, every entry looks "no longer in both files" even though nothing was renamed.
+
+And the one that **passes vacuously**: `test_every_common_function_is_classified` (empty `common` → nothing unclassified). That vacuous pass is the whole point — classification-completeness alone cannot detect a broken extractor, which is exactly why `test_expected_function_counts` exists and must count *every* function, not just the classified ones. **Restore `_DEF`.**
 
 - [ ] **Step 7: Falsify 5 — a stale classification is caught**
 
