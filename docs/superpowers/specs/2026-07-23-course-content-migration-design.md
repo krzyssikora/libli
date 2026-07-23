@@ -54,6 +54,29 @@ One new management command under `courses/management/commands/`. The closest exi
 follow is `import_lal_content.py`; there is currently **no** management command for the transfer
 engine at all, so this establishes the pattern.
 
+### The invocation surface
+
+Three operations, selected by a required positional `action`, so which flags are valid where is
+unambiguous:
+
+```
+manage.py migrate_course_content export --source-slug <slug> --bundle-dir <dir> [--allow-problems]
+manage.py migrate_course_content import --target-slug <slug> --bundle-dir <dir> --as-user <email>
+                                        [--dry-run] [--force] [--start-at N]
+manage.py migrate_course_content verify --target-slug <slug> --bundle-dir <dir>
+```
+
+`--dry-run` is a **flag on `import`**, not a fourth action: it exercises the identical archive-reading
+path and stops short of writing, which is what makes it a meaningful rehearsal. `verify` is a separate
+action because it runs *after* a completed import and needs no archive-opening privileges beyond
+reading the bundle's tallies.
+
+Flags are scoped to their action and rejected elsewhere — `--allow-problems` is an export-phase
+concept and is not accepted under `import`; `--force`, `--start-at` and `--as-user` are import-phase
+concepts and are not accepted under `export`. `import_lal_content.py` is a single-purpose command, so
+this multi-action shape is a deliberate departure and worth stating rather than leaving an implementer
+to infer.
+
 ### The mechanism: subtree grafting, not course import
 
 The transfer engine offers two import entry points and they are **not** interchangeable:
@@ -78,11 +101,19 @@ so a single whole-course archive would carry all 20,054 elements and 1144 media 
 validation on both counts**. The 21-way split is what keeps each document inside those limits — it is
 not merely a consequence of using `import_subtree`.
 
-That makes per-part sizing a real pre-cutover check rather than an abstraction: the dry-run mode must
-report each part's node, element and media-entry counts against these three caps, so a
-disproportionately large part is caught before the cutover rather than during it. (With a 21-way
-split the averages are far under — roughly 44 nodes, 955 elements, 54 media per part — but averages
-are not guarantees, and one media-heavy part crossing 1000 entries is the plausible failure.)
+That makes per-part sizing a real pre-cutover check rather than an abstraction. (With a 21-way split
+the averages are far under — roughly 44 nodes, 955 elements, 54 media per part — but averages are not
+guarantees, and one media-heavy part crossing 1000 entries is the plausible failure.)
+
+**Dry-run implements that check by running the real validation, not a reimplementation of it.** It
+invokes `open_archive` and `validate_archive_document` on every archive in the bundle and stops
+before `import_subtree`. Enumerating the three structural caps by hand would silently miss the others
+the same call enforces — `TRANSFER_MAX_COMPRESSED_BYTES` (1 GiB per zip),
+`TRANSFER_MAX_UNCOMPRESSED_BYTES` (1.5 GiB declared/actual total), `TRANSFER_MAX_COURSE_JSON_BYTES`
+(10 MiB), and the per-entry image/video byte caps — so a byte-heavy part would pass a hand-rolled
+checklist and fail during the real cutover anyway. Driving the actual validator covers every cap as a
+by-product and cannot drift from it. Dry-run additionally *reports* the per-part node/element/media
+counts alongside their caps, so a part approaching a limit is visible before it breaches one.
 
 ### Who the import runs as
 
@@ -168,6 +199,13 @@ itself:
   Resume-by-index is chosen over detecting already-present parts by title: titles are not guaranteed
   unique (82 of the source's chapters share a `__PLACEHOLDER` pattern), so title matching would be
   fragile in exactly the situation it is needed.
+
+  **`--start-at N` must verify the index it is given, not trust it.** Because it deliberately bypasses
+  the double-run guard, an operator who mistypes `N` — or reads a stale report, or points at the wrong
+  bundle — would silently skip a part (a permanent content gap in the middle of the course) or graft
+  one twice, which is precisely the failure class that guard exists to prevent. So before grafting,
+  the command asserts the target course currently holds exactly `N - 1` top-level nodes and aborts
+  with a clear message on mismatch. The operator supplies the intent; the command checks the fact.
 - **Dry run.** A mode that reports what *would* be grafted — per-part node and media counts — while
   writing nothing.
 - **The source is never mutated.** The export phase only reads.
@@ -191,9 +229,23 @@ archive on import — arriving as two `MediaAsset` rows in the target. Whether a
 exists in this corpus is a database fact, not a source fact, and is unverified here.
 
 So the verification mode must not treat "target media > source media" as automatically a bug. It
-reports the delta and, to make it diagnosable, flags any media id appearing in more than one part's
-document — distinguishing legitimate cross-part sharing from an implementation fault. The
-21 / 111 / 793 node tallies are exact; the 1144 media figure is a floor.
+reports the delta, and must make that delta *diagnosable*.
+
+**The archive's own media ids cannot do that job.** `MediaIdMap.register` assigns
+`f"m{len(self._assets) + 1}"` and the map is per-`build_export`-call, so every part's document
+restarts at `m1`. Correlating on the archive-local `id` field would flag `m1`/`m2`/`m3` in nearly
+every part whether or not any asset is genuinely shared — near-universal false positives, and exactly
+the opposite of what the preceding paragraph establishes.
+
+The correlation must therefore be made where the source primary keys are still in hand: the export
+phase already receives `media_assets` as `(mid, asset, is_placeholder)` triples, so it writes a
+**bundle-level side table** — one small JSON file beside the archives — mapping each source
+`MediaAsset.pk` to the list of part indices whose archive contains it. Verification reads that table:
+entries with more than one part index are genuine cross-part sharing and explain a positive delta;
+a delta that the table does not account for is an implementation fault. The side table lives outside
+the archives and is never imported.
+
+The 21 / 111 / 793 node tallies are exact; the 1144 media figure is a floor.
 
 ## Data flow
 
@@ -253,8 +305,13 @@ Required coverage:
   unknown email fails clearly rather than importing with a null uploader.
 - **Re-running export overwrites existing archives** in the bundle directory rather than erroring or
   silently skipping.
-- **Per-part structural counts are reported by dry-run** against `TRANSFER_MAX_NODES` /
-  `TRANSFER_MAX_ELEMENTS` / `TRANSFER_MAX_MEDIA_ENTRIES`, so an over-cap part is caught pre-cutover.
+- **Dry-run drives the real validator** (`open_archive` + `validate_archive_document` per archive) and
+  writes nothing, so every cap is exercised rather than a hand-picked subset.
+- **`--start-at N` aborts when the target does not hold exactly `N - 1` top-level nodes**, so a
+  mistyped index cannot silently skip or duplicate a part.
+- **The bundle side table correlates shared media by source pk**, and verification uses it to explain
+  a positive media delta — a test should cover an asset referenced from two parts arriving as two
+  target rows *and* being accounted for, rather than reported as a fault.
 - **A corrupt or oversized archive in the bundle names that specific archive** in the import phase's
   error, rather than escaping as a raw traceback — the promise made in Error handling, and the
   failure mode most likely to occur across 21 real archives.
