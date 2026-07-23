@@ -232,7 +232,10 @@ itself:
 The user asked for counts plus a broad sample rather than an exhaustive sweep. The command supports
 the counting half directly: a mode that compares the target's totals against the bundle's — parts,
 chapters, units, media, and per-element-type tallies — and reports any mismatch. For the migration
-this should come out at 21 / 111 / 793 / 1144.
+the node tallies should match exactly — 21 parts / 111 chapters / 793 units — while media should come
+out at **at least** 1144, any excess being accounted for by the side table (see below). Stating the
+media figure as an exact target would manufacture the very false alarm the side table exists to
+prevent.
 
 The sample half is a render check performed after the real cutover, deliberately spanning the element
 families most likely to break in transit: a spoiler unit, the `250_pole` fill-table with its
@@ -284,6 +287,10 @@ The 21 / 111 / 793 node tallies are exact; the 1144 media figure is a floor.
 risk") → `write_archive_from(manifest, document, media_assets, fileobj)` writes a zip containing
 `manifest.json`, `course.json`, and the media payload → one file per part in the bundle directory.
 
+Across the whole loop, the export phase also accumulates the source-`MediaAsset.pk` → part-index
+mapping in memory, and writes it once as the bundle side table **only after every part has exported
+successfully** — so an aborted run leaves archives but no table, and never a stale one.
+
 **Import phase**, per archive in part order: file → `open_archive(fileobj, expected_kind=…)` →
 `validate_archive_document(...)` → `import_subtree(zf, manifest, document, media_entries,
 target_course, None, user)` — every parameter is positional, and `None` is the top-level insertion
@@ -310,6 +317,11 @@ by name rather than letting a raw traceback escape.
 
 **A missing or empty bundle directory is an error**, not a no-op success — an import phase that
 grafts nothing and reports success would be indistinguishable from a completed migration.
+
+**`verify` aborts when the bundle has no side table**, rather than proceeding as though no media were
+shared. A missing table means the export that produced this bundle did not complete, so any media
+delta it computed would be uninterpretable — and defaulting to "nothing is shared" would report
+legitimate duplication as a fault, the exact inversion the table exists to prevent.
 
 ## Testing
 
