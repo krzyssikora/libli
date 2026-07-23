@@ -550,3 +550,116 @@ def test_import_rejects_an_empty_bundle_directory(tmp_path):
             "--as-user",
             "mig@example.com",
         )
+
+
+def test_verify_passes_after_a_complete_import(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    call_command(
+        "migrate_course_content",
+        "verify",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+    )  # must not raise
+
+
+def test_verify_fails_when_a_part_is_missing(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    ContentNode.objects.filter(course=target, parent__isnull=True, title="P2").delete()
+    with pytest.raises(CommandError, match="node count mismatch"):
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+
+
+def test_verify_refuses_a_bundle_with_no_side_table(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    _mk_target()
+    (bundle / "media-parts.json").unlink()
+    with pytest.raises(CommandError, match="is missing from"):
+        call_command(
+            "migrate_course_content",
+            "verify",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+        )
+
+
+def test_shared_media_duplicates_and_is_accounted_for(tmp_path):
+    """An asset referenced from two parts is exported into both archives and
+    re-materialised twice, so the target's media count legitimately EXCEEDS the
+    source's. The side table is what distinguishes that from a fault."""
+    course = _mk_source(parts=("P0", "P1"))
+    shared = MediaAsset.objects.filter(course=course).first()
+    # Reference P0's asset from P1's unit too.
+    other_unit = ContentNode.objects.get(course=course, title="U1")
+    Element.objects.create(
+        unit=other_unit,
+        title="",
+        content_object=ImageElement.objects.create(media=shared, alt="shared"),
+    )
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    table = json.loads((bundle / "media-parts.json").read_text(encoding="utf-8"))
+    assert sorted(table[str(shared.pk)]) == [0, 1]  # in BOTH parts
+
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    # Verify accepts the surplus because the table explains it.
+    call_command(
+        "migrate_course_content",
+        "verify",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+    )

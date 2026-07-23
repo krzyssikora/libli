@@ -19,6 +19,7 @@ from django.core.management.base import CommandError
 
 from courses.models import ContentNode
 from courses.models import Course
+from courses.models import MediaAsset
 from courses.transfer.export import build_export
 from courses.transfer.export import write_archive_from
 from courses.transfer.importer import import_subtree
@@ -71,8 +72,8 @@ class Command(BaseCommand):
             self._export(o)
         elif action == "import":
             self._import(o)
-        else:  # pragma: no cover - later tasks
-            raise CommandError(f"action not implemented yet: {action}")
+        else:
+            self._verify(o)
 
     def _reject_foreign_flags(self, action, o):
         mine = _ACTION_FLAGS[action]
@@ -253,3 +254,62 @@ class Command(BaseCommand):
             self.stdout.write("[dry-run] validated; nothing written")
         else:
             self.stdout.write(f"last part committed: {committed}")
+
+    # --- verify --------------------------------------------------------
+
+    def _verify(self, o):
+        if not o.get("target_slug"):
+            raise CommandError("verify requires --target-slug")
+        try:
+            target = Course.objects.get(slug=o["target_slug"])
+        except Course.DoesNotExist as exc:
+            raise CommandError(f"no course with slug {o['target_slug']!r}") from exc
+
+        bundle = Path(o["bundle_dir"])
+        table_path = bundle / SIDE_TABLE
+        if not table_path.exists():
+            # A missing table means the export that produced this bundle never
+            # completed. Defaulting to "nothing is shared" would report
+            # legitimate duplication as a fault -- the inversion the table
+            # exists to prevent.
+            raise CommandError(
+                f"{SIDE_TABLE} is missing from {bundle}; the export that "
+                f"produced this bundle did not complete, so a media delta "
+                f"cannot be interpreted"
+            )
+        table = json.loads(table_path.read_text(encoding="utf-8"))
+
+        archives = self._bundle_archives(bundle)
+        expected_nodes = 0
+        for archive in archives:
+            with open(archive, "rb") as fh:
+                with open_archive(fh, expected_kind=KIND_SUBTREE) as (
+                    _zf,
+                    _manifest,
+                    document,
+                    _entries,
+                ):
+                    expected_nodes += len(document["nodes"])
+
+        actual_nodes = ContentNode.objects.filter(course=target).count()
+        if actual_nodes != expected_nodes:
+            raise CommandError(
+                f"node count mismatch: bundle declares {expected_nodes}, "
+                f"target {target.slug!r} holds {actual_nodes}"
+            )
+
+        # Media is a FLOOR, not an exact match: an asset referenced from N
+        # parts is re-materialised N times. The side table says how many.
+        floor = len(table)
+        expected_max = sum(len(parts) for parts in table.values())
+        actual_media = MediaAsset.objects.filter(course=target).count()
+        if not floor <= actual_media <= expected_max:
+            raise CommandError(
+                f"media count {actual_media} outside the range the bundle "
+                f"explains ({floor}..{expected_max})"
+            )
+        shared = {k: v for k, v in table.items() if len(v) > 1}
+        self.stdout.write(
+            f"OK: {actual_nodes} nodes, {actual_media} media "
+            f"({len(shared)} asset(s) shared across parts)"
+        )
