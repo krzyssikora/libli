@@ -302,8 +302,12 @@ rule at all**: `.error-page__main` is `display: flex; flex-direction: column` wi
 `align-items: stretch`, and `.alert` sets no width in `app.css`, so they already fill the cross axis.
 An earlier draft specified `width: 100%` here; it was a no-op implying a problem that does not exist.
 
-Inside, wrapped in `<div class="error-page__inner">` at `max-width: 40rem`. **The table is DOM
-order.** The path line sits directly under the lead, because the lead's own advice is "check the
+Inside, wrapped in `<div class="error-page__inner">` at `max-width: 40rem` **plus
+`margin-inline: auto`** — the 640 px column is centred within `.app-main`'s 960 px measure. This is
+stated because the default `align-items: stretch` on the flex parent would otherwise resolve it flush
+to the inline start, leaving ~280 px of dead column on the right at every desktop width. Block
+centring and text alignment are separate decisions here: the *block* is centred, the *text inside it*
+is not (see below). **The table is DOM order.** The path line sits directly under the lead, because the lead's own advice is "check the
 address you entered" — the address must be the next thing the eye meets, with the report-it sentence
 after it.
 
@@ -484,7 +488,7 @@ reused.
 `locale/en/LC_MESSAGES/django.mo` and `locale/pl/LC_MESSAGES/django.mo` are both tracked in git.
 `docs/development/conventions.md` documents the cycle as `makemessages -l pl` **only** — following
 that literally would never touch `locale/en/LC_MESSAGES/django.po`, so the retired msgids would stay
-live rather than becoming obsolete, the three new msgids would never appear, and test 7's brand-new
+live rather than becoming obsolete, the **seven** new msgids would never appear, and test 7's brand-new
 `locale/en` `#~`-absence assertion would pass **vacuously against a file nobody regenerated**. Run
 `makemessages -l pl -l en`, then the manual `#~` / fuzzy cleanup, then `compilemessages`. The `.po`
 edits alone would leave the runtime reading a stale catalog and the Polish render test failing.
@@ -640,9 +644,7 @@ it goes red before keeping it. A passing test that has never been seen to fail p
 project has shipped vacuous tests before.
 
 **Visual verification is part of "done", not optional**, per the standing `verify-ui-with-screenshots`
-convention. **Six Playwright shots, countable, with viewports pinned to width *and height*:**
-
-**Seven shots:**
+convention. **Seven Playwright shots, countable, with viewports pinned to width *and height*:**
 
 | # | Page | Theme | Viewport | Watermark regime |
 |---|---|---|---|---|
