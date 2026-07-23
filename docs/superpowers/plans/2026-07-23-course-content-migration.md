@@ -16,6 +16,10 @@
 - **Tests:** `uv run pytest <paths> -vv`. `ruff` / `pytest` / `python` are **not on PATH** — always `uv run`.
 - **Never** set `DJANGO_SETTINGS_MODULE` on a pytest invocation. **Never add `-q`** (`addopts` already has it; one `-v` only cancels it back to default, so use `-vv`). Never pipe pytest through `tail`/`head`. Never run a bare `-m e2e` sweep.
 - **Lint:** `uv run ruff check .` and `uv run ruff format --check .` must both be clean.
+- **Paste code blocks whole; check any wrapped line against its intended single-line form.** One
+  snippet's f-string was split across a real newline in an earlier draft — pasted verbatim that is a
+  `SyntaxError`, and the module fails to import, so EVERY test in the file errors at collection
+  rather than the one branch. If a string literal looks broken across lines, it is.
 - **The code blocks below are NOT ruff-formatted.** They are written for readability — grouped
   arguments, compact `call_command(...)` calls — and ruff's magic-trailing-comma rule will reflow
   most of them onto one argument per line. This is expected and is not a defect to puzzle over.
@@ -605,7 +609,7 @@ def test_html_element_attributes_survive_the_round_trip(tmp_path):
         "migrate_course_content", "export",
         "--source-slug", "src", "--bundle-dir", str(bundle),
     )
-    target = _mk_target()
+    _mk_target()
     _user()
     call_command(
         "migrate_course_content", "import",
@@ -811,8 +815,7 @@ Replace the `else:` placeholder branch in `handle` with `elif action == "import"
                         f"last part committed: {committed}; "
                         f"resume with --start-at {committed + 1}"
                     )
-                raise CommandError(f"{archive.name}: {exc}
-{hint}") from exc
+                raise CommandError(f"{archive.name}: {exc}\n{hint}") from exc
             committed = order
             self.stdout.write(f"grafted part {order} from {archive.name}")
 
@@ -837,8 +840,7 @@ Run each, confirm the named test goes RED, then restore:
 1. **Double-run guard** — change `if existing and not o.get("force")` to `if False`. `test_import_refuses_a_non_empty_target_without_force` must FAIL.
 2. **`--start-at` invariant** — change `if existing != start_at` to `if False`. Both parametrisations of `test_start_at_aborts_when_the_target_node_count_disagrees` must FAIL.
 3. **Dry-run writes nothing** — delete the `continue` after the dry-run `stdout.write`. `test_dry_run_validates_every_archive_and_writes_nothing` must FAIL on the node count.
-4. **Archive named in the error** — change `raise CommandError(f"{archive.name}: {exc}
-{hint}")` to omit `archive.name`. `test_a_corrupt_archive_is_named_in_the_error` must FAIL (its `match=` is the filename).
+4. **Archive named in the error** — change `raise CommandError(f"{archive.name}: {exc}\n{hint}")` to omit `archive.name`. `test_a_corrupt_archive_is_named_in_the_error` must FAIL (its `match=` is the filename).
 5. **The `no parts committed` hint is reachable** — change the `if committed is None` branch to always emit the resume hint. `test_a_first_part_failure_reports_that_nothing_was_committed` must FAIL. This one matters because the message was unreachable in an earlier draft: it sat after the loop, where the propagating `CommandError` never let it run.
 
 - [ ] **Step 6: Lint and commit**
