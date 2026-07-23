@@ -91,8 +91,8 @@ resampled to 1280×538 measures **26 KB**, because resampling introduces gradien
 otherwise a flat two-tone alpha channel. Test 8 asserts the ceiling.
 
 No generation script is committed. The **recipe** is recorded in a comment in `error.css`, which is
-where a maintainer would look: `LA` mode, 1600×672, `alpha = 255 - L`, linear ramp to zero from
-`0.72·H`, `optimize=True`. The comment records that the input was a one-off local file and
+where a maintainer would look: `LA` mode, 1600×672, `alpha = 255 - L`, smoothstep ramp to zero from
+`0.60·H`, `optimize=True`. The comment records that the input was a one-off local file and
 deliberately **does not** contain the literal `C:/Users/krzys/...` path — `error.css` is committed and
 served publicly as static content, and a machine-specific home directory is both a leak and useless
 to anyone else.
@@ -180,9 +180,9 @@ Because the fill is `background-color: var(--text-primary)`, the silhouette is w
 light and warm parchment `#F2EFE9` in dark — it re-tints itself from the theme with no swap logic, no
 second asset, and no `filter: invert()`. `[data-theme="dark"]` is the only dark signal the project
 uses (`tokens.css` has no `prefers-color-scheme` query), so keying off it is correct and complete.
-`ManifestStaticFilesStorage` rewrites the `url()` at `collectstatic`; the empty `url("")` inside the
-`@supports` condition is safely ignored by Django's `url_converter` (it returns the match unchanged
-for an empty path).
+`ManifestStaticFilesStorage` rewrites the `url()` at `collectstatic` — the sole `url()` in the sheet
+is the real asset reference, since the `@supports` condition uses `none` rather than an empty URL
+(see above).
 
 It is a CSS pseudo-element, not an `<img>`: purely decorative, absent from the accessibility tree, no
 alt text to translate, and `pointer-events: none` so it can never intercept a click.
