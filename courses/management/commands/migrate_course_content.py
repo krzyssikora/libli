@@ -13,6 +13,7 @@ which a whole-course archive of a large course would breach outright.
 import json
 from pathlib import Path
 
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
 
@@ -20,6 +21,11 @@ from courses.models import ContentNode
 from courses.models import Course
 from courses.transfer.export import build_export
 from courses.transfer.export import write_archive_from
+from courses.transfer.importer import import_subtree
+from courses.transfer.importer import open_archive
+from courses.transfer.importer import validate_archive_document
+from courses.transfer.schema import KIND_SUBTREE
+from courses.transfer.schema import TransferError
 
 SIDE_TABLE = "media-parts.json"
 
@@ -63,6 +69,8 @@ class Command(BaseCommand):
         self._reject_foreign_flags(action, o)
         if action == "export":
             self._export(o)
+        elif action == "import":
+            self._import(o)
         else:  # pragma: no cover - later tasks
             raise CommandError(f"action not implemented yet: {action}")
 
@@ -125,3 +133,123 @@ class Command(BaseCommand):
             json.dumps(side, ensure_ascii=False), encoding="utf-8"
         )
         self.stdout.write(f"wrote {SIDE_TABLE} ({len(side)} asset(s))")
+
+    # --- import --------------------------------------------------------
+
+    def _bundle_archives(self, bundle):
+        """Archives in part order, taken from the zero-padded filename prefix.
+
+        Deterministic naming means order is recoverable without opening every
+        archive to read its manifest.
+        """
+        archives = sorted(bundle.glob("*.zip"))
+        if not archives:
+            raise CommandError(
+                f"no archives in {bundle} -- an import that grafts nothing "
+                f"would be indistinguishable from a completed migration"
+            )
+        return archives
+
+    def _import(self, o):
+        if not o.get("target_slug"):
+            raise CommandError("import requires --target-slug")
+        if not o.get("as_user"):
+            raise CommandError(
+                "import requires --as-user: it is stamped on every "
+                "re-materialised MediaAsset.uploaded_by"
+            )
+        try:
+            target = Course.objects.get(slug=o["target_slug"])
+        except Course.DoesNotExist as exc:
+            raise CommandError(f"no course with slug {o['target_slug']!r}") from exc
+        try:
+            user = get_user_model().objects.get(email=o["as_user"])
+        except get_user_model().DoesNotExist as exc:
+            raise CommandError(f"no user with email {o['as_user']!r}") from exc
+
+        bundle = Path(o["bundle_dir"])
+        archives = self._bundle_archives(bundle)
+
+        existing = ContentNode.objects.filter(
+            course=target, parent__isnull=True
+        ).count()
+        start_at = o.get("start_at")
+
+        if start_at is None:
+            # Double-run guard: grafting into a non-empty target would append a
+            # SECOND copy of every part.
+            if existing and not o.get("force"):
+                raise CommandError(
+                    f"target {target.slug!r} already has {existing} top-level "
+                    f"node(s); pass --force to graft anyway, or --start-at to "
+                    f"resume a partial run"
+                )
+            todo = archives
+        else:
+            # Resume: the operator supplies the intent, the command checks the
+            # fact. A mistyped K would otherwise silently skip or duplicate a
+            # part -- exactly what the double-run guard it bypasses prevents.
+            if existing != start_at:
+                raise CommandError(
+                    f"--start-at {start_at} expects the target to hold exactly "
+                    f"{start_at} top-level node(s), but it holds {existing}"
+                )
+            todo = [a for a in archives if int(a.name[:2]) >= start_at]
+
+        committed = None
+        for archive in todo:
+            order = int(archive.name[:2])
+            try:
+                with open(archive, "rb") as fh:
+                    with open_archive(fh, expected_kind=KIND_SUBTREE) as (
+                        zf,
+                        manifest,
+                        document,
+                        media_entries,
+                    ):
+                        validate_archive_document(
+                            zf,
+                            manifest,
+                            document,
+                            media_entries,
+                            kind=KIND_SUBTREE,
+                            target_course=target,
+                        )
+                        n_nodes = len(document["nodes"])
+                        n_els = len(document["elements"])
+                        n_media = len(document["media"])
+                        if o.get("dry_run"):
+                            self.stdout.write(
+                                f"[dry-run] {archive.name}: {n_nodes} nodes, "
+                                f"{n_els} elements, {n_media} media"
+                            )
+                            continue
+                        # insertion_node=None -> top level. All positional.
+                        import_subtree(
+                            zf,
+                            manifest,
+                            document,
+                            media_entries,
+                            target,
+                            None,
+                            user,
+                        )
+            except TransferError as exc:
+                # Recovery guidance belongs HERE, on the failure path -- a
+                # trailing "no parts committed" line after the loop would be
+                # unreachable, because this CommandError propagates out of it.
+                if committed is None:
+                    hint = "no parts committed; re-run import from the start"
+                else:
+                    hint = (
+                        f"last part committed: {committed}; "
+                        f"resume with --start-at {committed + 1}"
+                    )
+                raise CommandError(f"{archive.name}: {exc}\n{hint}") from exc
+            committed = order
+            self.stdout.write(f"grafted part {order} from {archive.name}")
+
+        if o.get("dry_run"):
+            self.stdout.write("[dry-run] validated; nothing written")
+        else:
+            self.stdout.write(f"last part committed: {committed}")

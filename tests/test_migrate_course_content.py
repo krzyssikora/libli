@@ -4,6 +4,7 @@ bundle, graft the bundle into an existing target course, verify the result."""
 import json
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import CommandError
 from django.core.management import call_command
@@ -199,4 +200,353 @@ def test_export_refuses_import_only_flags(tmp_path):
             "--bundle-dir",
             str(tmp_path / "b"),
             "--force",
+        )
+
+
+def _export_bundle(tmp_path, parts=("P0", "P1", "P2")):
+    _mk_source(parts=parts)
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    return bundle
+
+
+def _user(email="mig@example.com"):
+    return get_user_model().objects.create_user(
+        username="mig", email=email, password="x"
+    )
+
+
+def test_import_grafts_every_part_at_top_level_in_source_order(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    tops = list(
+        ContentNode.objects.filter(course=target, parent__isnull=True)
+        .order_by("order", "pk")
+        .values_list("title", flat=True)
+    )
+    assert tops == ["P0", "P1", "P2"]
+
+
+def test_import_carries_placeholder_titles_verbatim(tmp_path):
+    bundle = _export_bundle(tmp_path, parts=("Only",))
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    assert ContentNode.objects.filter(
+        course=target, title="__PLACEHOLDER chapter 0__"
+    ).exists()
+
+
+def test_import_stamps_uploaded_by_from_as_user(tmp_path):
+    bundle = _export_bundle(tmp_path, parts=("Only",))
+    target = _mk_target()
+    u = _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    assets = MediaAsset.objects.filter(course=target)
+    assert assets.exists()
+    assert all(a.uploaded_by_id == u.pk for a in assets)
+
+
+def test_import_rejects_an_unknown_as_user(tmp_path):
+    bundle = _export_bundle(tmp_path, parts=("Only",))
+    _mk_target()
+    with pytest.raises(CommandError, match="no user with email"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "ghost@example.com",
+        )
+
+
+def test_import_refuses_a_non_empty_target_without_force(tmp_path):
+    bundle = _export_bundle(tmp_path, parts=("Only",))
+    target = _mk_target()
+    _user()
+    ContentNode.objects.create(course=target, kind="part", title="Squatter")
+    with pytest.raises(CommandError, match="already has"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+        )
+
+
+def test_dry_run_validates_every_archive_and_writes_nothing(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--dry-run",
+    )
+    assert ContentNode.objects.filter(course=target).count() == 0
+    assert MediaAsset.objects.filter(course=target).count() == 0
+
+
+def test_start_at_grafts_only_the_remainder(tmp_path):
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    # Simulate a run that already committed part 0.
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--start-at",
+        "0",
+    )
+    # Now only parts 1..2 remain; resume from 1 would duplicate nothing.
+    ContentNode.objects.filter(course=target, parent__isnull=True).exclude(
+        title="P0"
+    ).delete()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--start-at",
+        "1",
+    )
+    tops = list(
+        ContentNode.objects.filter(course=target, parent__isnull=True)
+        .order_by("order", "pk")
+        .values_list("title", flat=True)
+    )
+    assert tops == ["P0", "P1", "P2"]
+
+
+@pytest.mark.parametrize("bad", [0, 2])
+def test_start_at_aborts_when_the_target_node_count_disagrees(tmp_path, bad):
+    """--start-at K requires exactly K top-level nodes already present.
+
+    With one part committed, K=1 is the only legal resume point; K=0 and K=2
+    are the off-by-one mistypes this invariant exists to catch.
+    """
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--start-at",
+        "0",
+    )
+    ContentNode.objects.filter(course=target, parent__isnull=True).exclude(
+        title="P0"
+    ).delete()
+    with pytest.raises(CommandError, match="expects the target to hold"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+            "--start-at",
+            str(bad),
+        )
+
+
+def test_html_element_attributes_survive_the_round_trip(tmp_path):
+    """Regression guard on the not-sanitized policy.
+
+    _build_html stores HtmlElement.html verbatim -- the sandboxed iframe is the
+    security boundary, not sanitisation. If someone later adds sanitisation
+    there, the binary decision tree's data-binary-choose hooks would be
+    stripped and it would migrate as intact-looking dead markup.
+    """
+    from courses.models import HtmlElement
+
+    course = _mk_source(parts=("Only",))
+    unit = ContentNode.objects.get(course=course, title="U0")
+    Element.objects.create(
+        unit=unit,
+        title="",
+        content_object=HtmlElement.objects.create(
+            html='<button data-binary-choose="1.1">Tak</button>'
+        ),
+    )
+    bundle = tmp_path / "bundle"
+    call_command(
+        "migrate_course_content",
+        "export",
+        "--source-slug",
+        "src",
+        "--bundle-dir",
+        str(bundle),
+    )
+    _mk_target()
+    _user()
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+    )
+    htmls = [
+        h.html for h in HtmlElement.objects.all() if "data-binary-choose" in h.html
+    ]
+    assert len(htmls) == 2  # source's and the target's copy
+    assert all('data-binary-choose="1.1"' in h for h in htmls)
+
+
+def test_a_corrupt_archive_is_named_in_the_error(tmp_path):
+    bundle = _export_bundle(tmp_path, parts=("Only",))
+    _mk_target()
+    _user()
+    victim = next(bundle.glob("*.zip"))
+    victim.write_bytes(b"not a zip at all")
+    with pytest.raises(CommandError, match=victim.name):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+        )
+
+
+def test_a_first_part_failure_reports_that_nothing_was_committed(tmp_path):
+    """The degenerate K=0 boundary: no 'last part committed' exists to resume
+    from, so the message must send the operator to a plain re-run."""
+    bundle = _export_bundle(tmp_path)
+    target = _mk_target()
+    _user()
+    first = sorted(bundle.glob("*.zip"))[0]
+    first.write_bytes(b"corrupt")
+    with pytest.raises(CommandError, match="no parts committed"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(bundle),
+            "--as-user",
+            "mig@example.com",
+        )
+    assert ContentNode.objects.filter(course=target).count() == 0
+
+
+def test_force_lets_the_import_proceed_into_a_non_empty_target(tmp_path):
+    """The refusal path is tested above; this pins that the override WORKS.
+
+    A falsification proves the guard can fail; only this proves its bypass
+    isn't inverted or ignored.
+    """
+    bundle = _export_bundle(tmp_path, parts=("Only",))
+    target = _mk_target()
+    _user()
+    ContentNode.objects.create(course=target, kind="part", title="Squatter")
+    call_command(
+        "migrate_course_content",
+        "import",
+        "--target-slug",
+        "dst",
+        "--bundle-dir",
+        str(bundle),
+        "--as-user",
+        "mig@example.com",
+        "--force",
+    )
+    tops = set(
+        ContentNode.objects.filter(course=target, parent__isnull=True).values_list(
+            "title", flat=True
+        )
+    )
+    assert tops == {"Squatter", "Only"}
+
+
+def test_import_rejects_an_empty_bundle_directory(tmp_path):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    _mk_target()
+    _user()
+    with pytest.raises(CommandError, match="no archives"):
+        call_command(
+            "migrate_course_content",
+            "import",
+            "--target-slug",
+            "dst",
+            "--bundle-dir",
+            str(empty),
+            "--as-user",
+            "mig@example.com",
         )
