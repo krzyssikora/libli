@@ -5334,6 +5334,8 @@ msgid ""
 "This spoiler shows saved text (edit it with the pencil). Add an element "
 "below to start nesting content."
 msgstr ""
+"Ta rozwijana treść zawiera zapisany tekst (edytuj go ikoną ołówka). Dodaj "
+"element poniżej, aby zacząć zagnieżdżać zawartość."
 
 #: .\templates\courses\manage\editor\_element_row.html:176
 msgid "This spoiler is empty."
