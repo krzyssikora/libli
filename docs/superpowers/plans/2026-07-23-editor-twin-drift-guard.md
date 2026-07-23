@@ -243,14 +243,20 @@ def _common():
 
 
 def test_expected_function_counts():
+    # Collect across both files before asserting, so a single run reports every
+    # mismatch rather than aborting on the first -- a bare `assert` inside the
+    # loop would hide the second file's count.
+    problems = []
     for path, expected in EXPECTED_COUNTS.items():
         found = _functions(path)
-        assert len(found) == expected, (
-            f"{path.name}: extracted {len(found)} functions, expected {expected}. "
-            f"The extractor regex has probably stopped matching — every "
-            f"comparison in this file would pass vacuously. Found: "
-            f"{sorted(found)}"
-        )
+        if len(found) != expected:
+            problems.append(
+                f"{path.name}: extracted {len(found)} functions, expected "
+                f"{expected}; the extractor regex has probably stopped matching, "
+                f"so every comparison in this file would pass vacuously. Found: "
+                f"{sorted(found)}"
+            )
+    assert not problems, "\n".join(problems)
 
 
 def test_no_duplicate_function_names():
@@ -339,7 +345,7 @@ Expected: FAIL, naming `paintRange` and printing both files' versions of the dif
 
 - [ ] **Step 4: Falsify 2 — a new twin goes unclassified**
 
-Append an identical trivial function to the end of both files, at file scope, outside any other function:
+Append an identical trivial function to each file **after the closing `})();`** — i.e. at true global scope, outside the top-level IIFE that wraps each editor's body. (The "file scope" twins elsewhere sit at 2-space indent *inside* that IIFE; putting the probe outside it avoids any ambiguity and still registers as a `function name(` definition the extractor counts.)
 
 ```js
 function _driftProbe() {
@@ -348,7 +354,7 @@ function _driftProbe() {
 ```
 
 Run: `uv run pytest tests/test_editor_twin_drift.py -vv`
-Expected: `test_every_common_function_is_classified` FAILS naming `_driftProbe`, **and** `test_expected_function_counts` FAILS for both files (29/37 vs 28/36) — the count assertion is deliberately sensitive to any new function, classified or not. **Revert both files.**
+Expected: `test_every_common_function_is_classified` FAILS naming `_driftProbe`, **and** `test_expected_function_counts` FAILS naming **both** files (29 vs 28 *and* 37 vs 36 in one message — the test collects both mismatches before asserting) — the count assertion is deliberately sensitive to any new function, classified or not. **Revert both files.**
 
 - [ ] **Step 5: Falsify 3 — a comment-only change must NOT fail**
 
@@ -366,7 +372,7 @@ Expected: **7 passed, still green.** This is the mirror-image proof. Without it 
 Break the extractor: change `_DEF` to `re.compile(r"^\s*fnction (\w+)\s*\(")`.
 
 Run: `uv run pytest tests/test_editor_twin_drift.py -vv`
-Expected: `test_expected_function_counts` FAILS with `extracted 0 functions, expected 28`. Confirm too that `test_twins_are_identical` would have passed vacuously here — that is exactly why the count assertion exists. **Restore `_DEF`.**
+Expected: `test_expected_function_counts` FAILS naming both files (`extracted 0 functions, expected 28` and `… expected 36`). The other checks fail loudly in this state too but for a *different* reason — `test_twins_are_identical` and `test_no_normalisation_hazard_in_twin_bodies` raise `KeyError` (they iterate the fixed `TWINS` list and index `table[name]` on the now-empty extraction), while `test_every_common_function_is_classified` **passes vacuously** (empty `common` → nothing unclassified). That last one is the point: classification-completeness alone cannot detect a broken extractor, which is exactly why `test_expected_function_counts` exists and must count *every* function, not just the classified ones. **Restore `_DEF`.**
 
 - [ ] **Step 7: Falsify 5 — a stale classification is caught**
 
