@@ -71,6 +71,29 @@ at a time** — 21 grafts, each landing at the destination's top level.
 `insertion_choices(target_course, root_kind)` offers `"Top level"` precisely when the subtree's root
 kind is a legal top-level child of the target, which holds here because `mat-pp` allows `part`.
 
+**Splitting by part is doubly load-bearing.** Beyond the create-vs-graft asymmetry, `validate_document`
+enforces per-**document** structural caps on every import: `TRANSFER_MAX_NODES = 5000`,
+`TRANSFER_MAX_ELEMENTS = 20000`, `TRANSFER_MAX_MEDIA_ENTRIES = 1000`. Each archive is one document,
+so a single whole-course archive would carry all 20,054 elements and 1144 media assets and **fail
+validation on both counts**. The 21-way split is what keeps each document inside those limits — it is
+not merely a consequence of using `import_subtree`.
+
+That makes per-part sizing a real pre-cutover check rather than an abstraction: the dry-run mode must
+report each part's node, element and media-entry counts against these three caps, so a
+disproportionately large part is caught before the cutover rather than during it. (With a 21-way
+split the averages are far under — roughly 44 nodes, 955 elements, 54 media per part — but averages
+are not guarantees, and one media-heavy part crossing 1000 entries is the plausible failure.)
+
+### Who the import runs as
+
+`import_subtree`'s final positional parameter is a `user`, and it is not decorative: it flows through
+`_create_media` → `create_asset(course, kind, uploaded_file, user, name=…)` → `MediaAsset.uploaded_by`,
+so it is stamped on **every one of the ~1144 re-materialised assets**. A management command has no
+`request.user`, so the command takes a **required `--as-user <email>`**, resolved via
+`get_user_model()`, and fails clearly if no such user exists. Defaulting silently to the target
+course's owner is rejected: media attribution across a 1144-asset migration should be a stated
+choice, not an inference.
+
 ### Two phases, because a Django process binds one database
 
 `DATABASE_URL` selects a single database per process, so no single invocation can read `libli_mat`
@@ -95,8 +118,8 @@ is what the archive format exists for:
   course and a top-level insertion point.
 
 The bundle directory is the interface between the phases, and it is also what makes the whole
-operation inspectable: after the export phase the archives can be examined before anything is
-written anywhere.
+operation inspectable: the export phase writes archives to disk, but nothing reaches the target
+database until the import phase runs, so the bundle can be examined first.
 
 ### The real export-side risk: `problems`
 
@@ -106,18 +129,31 @@ blocking signal: `views_transfer._stream_archive` refuses to stream the archive 
 confirmation page whenever `problems` is non-empty and the request has not already confirmed.
 
 The command must not be laxer than the UI it replaces. **A non-empty `problems` list for any part
-aborts the export phase by default**, reporting the affected part and its problems, and requires an
-explicit override flag to proceed. Exporting 21 parts and silently accepting placeholdered media
-would produce a migration that looks complete and has quietly lost content — the precise failure
-this whole effort exists to avoid.
+aborts the export phase by default**, reporting the affected part and its problems, and requires
+`--allow-problems` to proceed. Exporting 21 parts and silently accepting placeholdered media would
+produce a migration that looks complete and has quietly lost content — the precise failure this whole
+effort exists to avoid.
+
+**Re-running export is safe and overwrites.** Because a problems-abort at part 12 leaves archives for
+parts 1–11 already on disk, the export phase must define its own re-run behaviour rather than
+inheriting the import side's. Archive names are deterministic (`{order:02d}-{slug}.zip`), so a re-run
+simply overwrites by filename. No resume-by-index is needed here: export is read-only against the
+source and cheap to repeat, so a clean full re-export is always correct — unlike import, where
+re-running would duplicate committed content.
 
 ### Guards
 
 The import phase will eventually run against a real database holding real courses, so it defends
 itself:
 
-- **Double-run guard.** Refuse to import when the target course already has content nodes, unless an
-  explicit override flag is passed. Re-running by accident would graft a second copy of all 21 parts.
+- **Double-run guard.** Refuse to import when the target course already has content nodes, unless
+  `--force` is passed. Re-running by accident would graft a second copy of all 21 parts.
+
+  **`--force` and `--allow-problems` are separate flags and must stay separate.** They gate different
+  phases and unrelated risks — one is a content-loss guard on export, the other an idempotency guard
+  on import. A single shared `--force`-style switch would let overriding a placeholdered-media warning
+  during export silently disable the double-graft check on a later import, which nothing about the
+  first decision justifies.
 - **Per-part transaction, and what it does *not* buy.** `importer._run_import` wraps each
   `import_subtree` call in its own `transaction.atomic()`. So a part is never half-grafted — but 21
   sequential grafts are 21 **independent** transactions, and a failure at part 12 leaves parts 1–11
@@ -147,6 +183,17 @@ The sample half is a render check performed after the real cutover, deliberately
 families most likely to break in transit: a spoiler unit, the `250_pole` fill-table with its
 `colspan` explanation rows, a video unit, a math unit, an interactive-in-spoiler unit, and the
 binary-tree `HtmlElement` unit ("Klasyfikacja czworokątów").
+
+**The media count may legitimately exceed the source's.** `build_export` instantiates a fresh
+`MediaIdMap` per call, scoped to the single subtree being exported, so an asset referenced from more
+than one top-level part is exported into each of those parts' archives and re-materialised once per
+archive on import — arriving as two `MediaAsset` rows in the target. Whether any cross-part sharing
+exists in this corpus is a database fact, not a source fact, and is unverified here.
+
+So the verification mode must not treat "target media > source media" as automatically a bug. It
+reports the delta and, to make it diagnosable, flags any media id appearing in more than one part's
+document — distinguishing legitimate cross-part sharing from an implementation fault. The
+21 / 111 / 793 node tallies are exact; the 1144 media figure is a floor.
 
 ## Data flow
 
@@ -201,7 +248,13 @@ Required coverage:
 - **Media re-materialised** with fresh primary keys in the target, distinct from the source's.
 - **Titles carried verbatim**, including a `__PLACEHOLDER`-style title, so the rename-later workflow
   is protected.
-- **A non-empty `problems` list aborts the export phase**, and the override flag lets it proceed.
+- **A non-empty `problems` list aborts the export phase**, and `--allow-problems` lets it proceed.
+- **`--as-user` resolves to a real user and stamps `MediaAsset.uploaded_by`** on imported assets; an
+  unknown email fails clearly rather than importing with a null uploader.
+- **Re-running export overwrites existing archives** in the bundle directory rather than erroring or
+  silently skipping.
+- **Per-part structural counts are reported by dry-run** against `TRANSFER_MAX_NODES` /
+  `TRANSFER_MAX_ELEMENTS` / `TRANSFER_MAX_MEDIA_ENTRIES`, so an over-cap part is caught pre-cutover.
 - **A corrupt or oversized archive in the bundle names that specific archive** in the import phase's
   error, rather than escaping as a raw traceback — the promise made in Error handling, and the
   failure mode most likely to occur across 21 real archives.
