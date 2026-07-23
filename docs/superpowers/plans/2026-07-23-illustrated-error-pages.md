@@ -18,13 +18,13 @@
   2. **No module-level import below the top block** (`E402`). When a later task appends to an existing test file, put any new `import` **inside the function that needs it** — this is exactly what the sibling `tests/test_auth_styles.py` does with `import re`. (Hoisting it into an earlier task's top block instead trades `E402` for `F401` unused-import.)
   3. **No `"ascii".encode()`** (`UP012`) — ruff demands a `b"…"` literal when the string is pure ASCII. `.encode()` is correct *only* for non-ASCII text (Polish diacritics). The precedent `test_i18n_catalog.py` only ever encodes non-ASCII, which is why it never trips this.
   4. **88-column limit** (`E501`). Watch trailing inline comments on already-long call lines.
-- **Run `uv run ruff check <files>` AND `uv run ruff format <files>` before every commit**, not just at the end. Lint is the only gate that catches the rules above, and discovering them after five commits forces a fixup. `ruff format` in particular will collapse column-aligned inline comments to a single two-space gap and re-wrap long calls — let it, rather than fighting it in review.
-- **Test DB:** this worktree's `.env` already names `libli_errpages`. **Verify it, never overwrite it** — `.env` is untracked, so a clobber is unrecoverable.
+- **Run `uv run ruff check <files>` AND `uv run ruff format --check <files>` before every commit**, not just at the end. Lint is the only gate that catches the rules above, and discovering them after five commits forces a fixup. `ruff format` in particular will collapse column-aligned inline comments to a single two-space gap and re-wrap long calls — let it, rather than fighting it in review.
+- **Test DB:** this worktree's `.env` already names `libli_errpages`. **Verify it, never overwrite it** — `.env` is untracked, so a clobber is unrecoverable. Concretely, as the very first action of Task 1: run `grep DATABASE_URL .env` and confirm it reads `postgres://libli:libli@localhost:5432/libli_errpages`. If it names plain `libli` instead, **stop** — concurrent worktrees collide on the Postgres `test_libli` database and the run will fail confusingly.
 - **`templates/500.html` is out of scope.** Do not touch it. Its `Back to home` is an untranslated literal and stays.
 - **No raw hex in `error.css`.** Colours are tokens only (`test_error_page_styles.py` asserts this).
 - **Polish copy rules (user-set, non-negotiable):** use `link`, never `odnośnik`; informal `ty` register; no gendered past-tense forms (`trafiłeś`/`trafiłaś`).
 - **Never `|safe` on `request_path`.**
-- **Falsify every test:** each test must be seen to FAIL before its implementation exists. A passing test that has never been red proves nothing.
+- **Falsify every test:** each test must be seen to FAIL before its implementation exists. A passing test that has never been red proves nothing. **One carve-out:** Task 6's screenshot module is written after everything is implemented and has no red phase — it is a capture harness, not a behavioural test. Its equivalent check is that the `wait_for_selector` assertions make a wrong-page shot impossible.
 - **Commit after every task.** Never `git add -A` / `git add .` — always explicit paths.
 
 ---
@@ -97,6 +97,18 @@ DST = r"C:/Users/krzys/Documents/Python/own/.pipeline-worktrees/illustrated-erro
 
 src = Image.open(SRC).convert("L")
 W, H = src.size
+
+# Guard the SOURCE, not just the output. That directory also holds learner_wb.png
+# (the white-on-black inverse), learner_0.png and learner.xcf -- and deriving from
+# the wrong sibling still yields an LA 1600x672 PNG under 60 KB, so BOTH Task 1
+# assertions would pass and the mistake would only surface at Task 6's human
+# screenshot review, five commits later.
+assert (W, H) == (1600, 672), f"unexpected source size {(W, H)}"
+mean = sum(src.getdata()) / (W * H)
+assert mean > 160, (
+    f"source mean luminance {mean:.0f} is too dark -- this looks like the "
+    "white-on-black inverse; use the black-on-WHITE learner_bw.png"
+)
 alpha = src.point(lambda v: 255 - v)   # inverted luminance keeps anti-aliased edges
 
 start, span = 0.60 * H, 0.40 * H
@@ -130,6 +142,7 @@ Expected: 2 passed.
 
 ```bash
 uv run ruff check tests/test_error_page_styles.py
+uv run ruff format --check tests/test_error_page_styles.py
 git add core/static/core/img/learner.png tests/test_error_page_styles.py
 git commit -m "feat(error-pages): derive the learner watermark mask asset"
 ```
@@ -371,6 +384,7 @@ Expected: 7 passed.
 
 ```bash
 uv run ruff check tests/test_error_page_styles.py
+uv run ruff format --check tests/test_error_page_styles.py
 git add core/static/core/css/error.css tests/test_error_page_styles.py
 git commit -m "feat(error-pages): add error.css with the themed watermark and page vocabulary"
 ```
@@ -437,14 +451,18 @@ def test_404_never_emits_a_raw_tag_from_the_attempted_path(client):
     assert b"%3Cscript%3Ealert" in resp.content
 
 
-def test_404_is_wired_to_the_error_page_stylesheet_and_body_class(client):
-    # Neither of these is implied by the prose assertions above: drop
-    # {% block extra_css %} or {% block body_class %} and every other test in
-    # this file still passes while the page silently loses the watermark, the
-    # centring and the whole type scale.
+def test_404_is_wired_to_the_error_page_stylesheet_and_classes(client):
+    # All THREE block overrides, because none is implied by the prose assertions
+    # above -- delete any one of them and every other test in this file still
+    # passes while the page breaks visibly. Verified by deletion:
+    #   extra_css   -> no stylesheet at all
+    #   body_class  -> no watermark, no body flex column
+    #   main_class  -> content pinned to the top instead of centred, AND painted
+    #                  OVER by the fixed watermark (main loses z-index: 1)
     resp = client.get("/no-such-page/")
     assert b"core/css/error.css" in resp.content
     assert b'class="error-page"' in resp.content
+    assert b'class="app-main error-page__main"' in resp.content
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -494,6 +512,7 @@ Expected: 11 passed.
 
 ```bash
 uv run ruff check tests/test_error_pages.py
+uv run ruff format --check tests/test_error_pages.py
 git add templates/404.html tests/test_error_pages.py
 git commit -m "feat(error-pages): illustrated 404 with the attempted address echoed"
 ```
@@ -520,7 +539,9 @@ def _no_access(client, username="outsider"):
 
     courses/access.py grants access on is_staff OR owner OR enrolled OR
     teaching a non-archived group on the course -- "no access" is four
-    negatives, so all four are pinned here.
+    negatives. Three are asserted below; the fourth (teaches no group attached
+    to this course) is structurally impossible here because make_course()
+    creates no groups at all, so there is nothing to assert against.
 
     Note `owner=UserFactory()` is explicit and load-bearing: CourseFactory
     declares no owner and Course.owner is null=True, so a bare make_course()
@@ -547,9 +568,11 @@ def test_403_renders_the_illustrated_page(client):
     assert resp.status_code == 403
     assert b"Not for you" in resp.content
     assert b"have permission to open it" in resp.content
-    # Same wiring guard as the 404 -- prose assertions do not imply it.
+    # Same three-block wiring guard as the 404 -- prose assertions imply none of
+    # them, and dropping main_class silently paints content under the watermark.
     assert b"core/css/error.css" in resp.content
     assert b'class="error-page"' in resp.content
+    assert b'class="app-main error-page__main"' in resp.content
 
 
 def test_403_hides_the_login_action_from_an_authenticated_user(client):
@@ -649,6 +672,7 @@ Expected: 14 passed.
 
 ```bash
 uv run ruff check tests/test_error_pages.py
+uv run ruff format --check tests/test_error_pages.py
 git add templates/403.html tests/test_error_pages.py
 git commit -m "feat(error-pages): illustrated 403 with a login action for anonymous visitors"
 ```
@@ -886,15 +910,36 @@ uv run python manage.py makemessages -l pl -l en --no-obsolete
 uv run python manage.py compilemessages
 ```
 
-and add this bullet immediately after the existing "Fuzzy-match gotcha" bullet:
+Add this bullet immediately after the existing "Fuzzy-match gotcha" bullet:
 
 ```markdown
 - **Both locales, every time:** `locale/en` and `locale/pl` are both tracked
   (`.po` *and* compiled `.mo`). Running `makemessages -l pl` alone leaves the
   English catalog stale, so retired msgids stay live there and new ones never
-  appear. `--no-obsolete` drops `#~` blocks rather than writing them; the tests
-  assert both catalogs are free of `#~` and `#, fuzzy`.
+  appear. Tests assert both catalogs are free of `#~` and `#, fuzzy`.
+- **Clearing a fuzzy flag is two deletions, not one:** Django runs
+  `msgmerge --previous`, which also writes a `#| msgid "<old string>"` comment
+  above the entry. Delete that line too — it contains the old msgid verbatim, so
+  anything grepping for a retired string still finds it.
 ```
+
+And **replace** the now-contradictory existing bullet:
+
+```markdown
+- The project forbids obsolete `#~` entries in the catalog; a test asserts the
+  catalog is clean. When a change deletes translatable strings, re-run
+  `makemessages` and remove the resulting `#~` lines.
+```
+
+with:
+
+```markdown
+- The project forbids obsolete `#~` entries in the catalog; a test asserts the
+  catalog is clean. `--no-obsolete` above means `makemessages` never writes them
+  in the first place, so there is nothing to remove by hand.
+```
+
+Leaving the old bullet in place would tell the reader to hand-remove lines that `--no-obsolete` guarantees will not exist — directly contradicting the command three lines above it.
 
 Routing around the doc for this change alone would leave the next contributor to walk into the same trap — and the new EN guard would keep passing vacuously for them.
 
@@ -912,6 +957,7 @@ Expected: no failures. If anything unrelated fails, check whether it is a pre-ex
 
 ```bash
 uv run ruff check tests/test_i18n_error_pages.py
+uv run ruff format --check tests/test_i18n_error_pages.py
 git add locale/pl/LC_MESSAGES/django.po locale/pl/LC_MESSAGES/django.mo \
         locale/en/LC_MESSAGES/django.po locale/en/LC_MESSAGES/django.mo \
         docs/development/conventions.md tests/test_i18n_error_pages.py
@@ -962,6 +1008,18 @@ SHOTS = Path(tempfile.gettempdir()) / "libli-error-page-shots"
 
 
 @pytest.fixture(scope="session", autouse=True)
+def _fresh_shot_dir():
+    # Wipe first. Step 3 explicitly contemplates "fix, re-shoot, re-check" -- and
+    # if a case fails on the re-run, ITS png from the previous run survives and
+    # would be reviewed as though it were current.
+    import shutil
+
+    shutil.rmtree(SHOTS, ignore_errors=True)
+    SHOTS.mkdir(parents=True, exist_ok=True)
+    yield
+
+
+@pytest.fixture(scope="session", autouse=True)
 def _allow_async_unsafe():
     # Sync Playwright + Django ORM in the same thread.
     os.environ.setdefault("DJANGO_ALLOW_ASYNC_UNSAFE", "true")
@@ -974,6 +1032,10 @@ def _login(page, live_server, username):
     form.locator("input[name='login']").fill(username)
     form.locator("input[name='password']").fill(TEST_PASSWORD)
     form.locator("button[type='submit']").click()
+    # Wait for the post-login navigation to land before the caller's goto().
+    # Without it a lost race turns into a 30 s wait_for_selector timeout instead
+    # of a fast, legible failure. Matches test_e2e_auth.py / test_e2e_catalog.py.
+    page.wait_for_url(f"{live_server.url}/home/**", timeout=10_000)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1000,7 +1062,7 @@ def test_shoot_404(page, live_server, name, theme, width, height):
     page.goto(f"{live_server.url}/no-such-page/")
     # Prove the shot is of the intended page: goto() does NOT throw on a 404,
     # and would happily screenshot a redirect target.
-    page.wait_for_selector(".error-page__code")
+    page.wait_for_selector(".error-page__code", timeout=10_000)
     assert page.locator(".error-page__code").inner_text() == "404"
     page.screenshot(path=str(SHOTS / f"{name}.png"))
 
@@ -1037,9 +1099,18 @@ def test_shoot_403(page, live_server, name, theme, width, height):
     page.goto(f"{live_server.url}/courses/{course.slug}/")
     # Without this, a raced login would bounce to /accounts/login/ and the test
     # would still "pass" while screenshotting the login form.
-    page.wait_for_selector(".error-page__code")
+    page.wait_for_selector(".error-page__code", timeout=10_000)
     assert page.locator(".error-page__code").inner_text() == "403"
     page.screenshot(path=str(SHOTS / f"{name}.png"))
+
+    # Eighth capture, once: the account dropdown open on an error page. This is
+    # the ONLY artifact that can show the z-index invariant actually holding --
+    # the CSS test just parses three integers and cannot prove the z-index: 50
+    # panel is still usable inside the header's new stacking context.
+    if name == "403-light-1280x900":
+        page.locator("[data-account-menu] [data-menu-trigger]").click()
+        page.wait_for_selector("[data-account-menu] [data-menu-panel]", timeout=10_000)
+        page.screenshot(path=str(SHOTS / "403-light-1280x900-menu-open.png"))
 ```
 
 - [ ] **Step 2: Run the shots**
@@ -1061,6 +1132,14 @@ Read each PNG and check, explicitly:
 - the lower third of the figure and the laptop base **are expected to be faded** — that is the ramp working, not a bug;
 - the whole scene is present at 390 px;
 - text and header paint **above** the watermark;
+- **the header's dropdowns still overlay page content.** This is the spec's check for the regression
+  that has already shipped once ("`Log out` looks see-through and can't be tapped"), and nothing else
+  covers it: `test_error_css_stacking_invariant` only parses three integers out of the CSS text — it
+  cannot show that `z-index: 2` on `.app-header` leaves its `z-index: 50` `.menu__panel` usable.
+  Perform it concretely, on one of the authenticated 403 shots: click `[data-menu-trigger]` on the
+  avatar, screenshot again, and confirm the panel paints **over** the page body rather than behind
+  it. Add this as an eighth capture rather than eyeballing the existing seven, which never open a
+  menu;
 - on the clamped shot (`404-light-1280x720-clamped`), the **left and right gutters are equal** — an unequal gutter is the signature of `margin-inline: auto` having been dropped. This is the only shot where that check is reachable, which is why it exists.
 
 Fix anything that fails, re-shoot, and re-check before proceeding.
