@@ -334,10 +334,10 @@
       // event bindings.
       while (td.firstChild) next.appendChild(td.firstChild);
       td.replaceWith(next);
-      if (typeof cellStash !== "undefined" && cellStash.has(td)) {
-        cellStash.set(next, cellStash.get(td));   // fill-table only
-        cellStash.delete(td);
-      }
+      // filltable_editor.js's own toggleHeaderCell does the equivalent
+      // cellStash re-keying against ITS OWN cellStash -- there is no such
+      // map in this file's scope (plain tables have no static/answer/image
+      // content to stash).
       if (focusCell === td) focusCell = next;
       if (rangeAnchor === td) rangeAnchor = next;   // rangeEnd is a coordinate
       next.focus();

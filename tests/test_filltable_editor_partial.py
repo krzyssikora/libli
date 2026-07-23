@@ -193,6 +193,29 @@ def test_resolved_grid_cells_resolves_the_submitted_image_not_the_stored_one():
     assert resolved[0][0]["media"] == submitted_asset
 
 
+def test_editor_grid_does_not_promote_header_row_or_col_cells_to_th():
+    """Fill-table mirror of test_table_editor_partial's same-named test.
+
+    Unlike colspan/rowspan -- which TableElement._span floors to None below
+    2, so a stray span can never reach storage -- a stray `header` flag is
+    NOT neutralised anywhere in the model. If the editor template promoted
+    header_row/header_col cells to <th>, serialize() would start writing
+    header:true for cells that never carried it, and that WOULD reach the DB
+    and break byte-identity for every existing header-row fill table in the
+    corpus. Only a cell's OWN header flag may produce a <th> here."""
+    el = FillTableElement(
+        data=FillTableElement.normalize_data(
+            {"header_row": True, "header_col": True, "cells": [[{}, {}], [{}, {}]]}
+        )
+    )
+    html = _render(el)
+    # "<th" carries the whole signal -- do NOT also assert `"header" not in
+    # html`, mirroring the plain-table test's own comment: the border preset
+    # renders <option value="header"> unconditionally, so that substring is
+    # present in every render regardless of this behaviour.
+    assert "<th" not in html
+
+
 def test_filltable_editor_exposes_merge_split_and_header_controls():
     """Cheap render-level check that Task 16's toolbar actually shipped --
     the twin of test_table_editor_exposes_merge_split_and_header_controls in

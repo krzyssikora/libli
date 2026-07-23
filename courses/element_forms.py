@@ -1395,7 +1395,13 @@ def _grid_data(form):
             except ValueError:
                 parsed = None
             if isinstance(parsed, dict):
-                return form._meta.model.normalize_data(parsed)
+                # normalize_data returns fresh dicts, so _sanitized_data's
+                # in-place mutation cannot touch the stored instance -- it is
+                # sanitising a throwaway copy of the rejected submission.
+                # Without this, a rejected save echoes the author's raw HTML
+                # straight back through the template's |safe filter.
+                model = form._meta.model
+                return model._sanitized_data(model.normalize_data(parsed))
     return form.instance.normalized_data
 
 

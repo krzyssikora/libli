@@ -218,6 +218,22 @@ def test_grid_data_carries_the_whole_binding_not_just_cells():
     assert form.grid_data["border"] == "rows"
 
 
+def test_grid_data_sanitises_a_script_payload_on_a_rejected_save():
+    # A rejected save re-renders the SUBMITTED grid (see the test above), but
+    # that submission has never been through sanitize_cell -- form.grid_data
+    # must sanitise it before the template echoes it back through |safe, or a
+    # payload that fails validation still gets executed in the author's own
+    # browser on the re-render.
+    stored = TableElement.objects.create(
+        data=TableElement.normalize_data({"cells": [[{"html": "old"}, {}], [{}, {}]]})
+    )
+    payload = "<img src=x onerror=alert(1)>"
+    # Ragged + non-spanning => rejected, same shape as the test above.
+    form = _table_form({"cells": [[{"html": payload}], [{}, {}, {}]]}, instance=stored)
+    assert not form.is_valid()
+    assert form.grid_data["cells"][0][0]["html"] == ""
+
+
 def test_grid_data_falls_back_when_payload_is_unparseable():
     stored = TableElement.objects.create(
         data=TableElement.normalize_data({"cells": [[{"html": "old"}, {}], [{}, {}]]})
