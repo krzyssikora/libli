@@ -424,5 +424,8 @@ def test_alt_shift_arrow_is_a_no_op_with_nothing_focused(page, live_server):
     )
 
     _reopen(page, live_server, unit, element, TABLE_ROOT)
+    errors = []
+    page.on("pageerror", lambda exc: errors.append(str(exc)))
     page.keyboard.press("Alt+Shift+ArrowRight")
     assert page.locator(f"{TABLE_ROOT} .is-range").count() == 0
+    assert errors == [], f"keydown handler threw: {errors}"
