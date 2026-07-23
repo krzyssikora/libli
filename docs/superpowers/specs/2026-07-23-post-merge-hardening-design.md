@@ -273,7 +273,7 @@ does not:
   reach the scan), using a fixture whose header is present and whose body contains a genuinely
   untranslated entry, so the report names the latter and never the former.
 
-**These three scenarios must never mutate the real catalogs.** CI runs `uv run python -m pytest -n auto`
+**None of these six scenarios may mutate the real catalogs.** CI runs `uv run python -m pytest -n auto`
 (`.github/workflows/ci.yml:49`), so tests are distributed across parallel xdist workers; editing
 `locale/pl/LC_MESSAGES/django.po` in place — even with a revert — would let a concurrently-running test
 (including this file's own three permanent guards) observe a transiently corrupted catalog, and a crash
