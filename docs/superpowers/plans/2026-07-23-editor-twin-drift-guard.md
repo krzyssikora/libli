@@ -383,10 +383,10 @@ Expected: FAIL, naming `tooBig` as classified but no longer common to both files
 
 - [ ] **Step 8: Falsify 6 — a duplicate name is caught**
 
-Append a second `function msg(k) { return k; }` at file scope in `filltable_editor.js`.
+Append a second `function msg(k) { return k; }` at file scope in `filltable_editor.js` (inside the IIFE is fine).
 
-Run: `uv run pytest tests/test_editor_twin_drift.py -vv`
-Expected: `test_no_duplicate_function_names` FAILS with `ValueError: filltable_editor.js: duplicate function name 'msg'`. **Revert the JS.**
+Run: `uv run pytest tests/test_editor_twin_drift.py::test_no_duplicate_function_names -vv`
+Expected: FAILS with `ValueError: filltable_editor.js: duplicate function name 'msg'`. (Scoped to this one test deliberately: a whole-file run would show six failures, because every test that calls `_functions(FILL_JS)` — directly or via `_common()` — propagates the same `ValueError`. That is correct behaviour, but scoping keeps the falsification's signal unambiguous, matching Steps 3, 7 and 9.) **Revert the JS.**
 
 - [ ] **Step 9: Falsify 7 — a double classification is caught**
 
@@ -397,15 +397,17 @@ Expected: FAIL, naming `label`. **Revert the list.**
 
 - [ ] **Step 10: Falsify 8 — the normalisation tripwire fires**
 
-Two separate probes, each inside a twin body in `table_editor.js`, reverted between them.
+Two separate probes, each inside `msg`'s body in `table_editor.js`, reverted between them. Run **both** named tests together each time, so you see the tripwire fire and the count assertion stay green in one command:
+
+`uv run pytest tests/test_editor_twin_drift.py::test_no_normalisation_hazard_in_twin_bodies tests/test_editor_twin_drift.py::test_expected_function_counts -vv`
 
 (a) Inside `msg`, add: `var _u = "http://example.com";`
-Expected: `test_no_normalisation_hazard_in_twin_bodies` FAILS reporting `` `//` inside a string literal ``.
+Expected: `test_no_normalisation_hazard_in_twin_bodies` FAILS reporting `` `//` inside a string literal ``; `test_expected_function_counts` **passes**.
 
 (b) Instead, inside `msg`, add: ``var _t = `x`;``
-Expected: the same test FAILS reporting `template literal in code`.
+Expected: `test_no_normalisation_hazard_in_twin_bodies` FAILS reporting `template literal in code`; `test_expected_function_counts` **passes**.
 
-Confirm in both cases that `test_expected_function_counts` still **passes** — that is the point: the tripwire has no indirect coverage from the count assertion, because normalisation runs after extraction. **Revert the JS.**
+The count staying green is the whole point: the tripwire has no indirect coverage from the count assertion, because normalisation runs after extraction and leaves the counts untouched. (Note a whole-file run would ALSO show `test_twins_are_identical` failing — the injected line is real drift in `msg` — which is why the run above is scoped to the two tests this step is actually about.) **Revert the JS.**
 
 - [ ] **Step 11: Confirm the tree is clean, then full suite and lint**
 
