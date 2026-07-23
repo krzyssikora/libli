@@ -1,0 +1,118 @@
+/* Error pages (404 / 403). Bespoke per-page sheet — linked only from
+   templates/404.html and templates/403.html, never from app.css.
+
+   ── The watermark asset ──────────────────────────────────────────────────
+   core/static/core/img/learner.png was derived ONE-OFF from a local
+   black-on-white source image that is deliberately NOT committed.
+
+   To reproduce it byte-for-byte FROM A BLACK-ON-WHITE SOURCE:
+     alpha  = 255 - L                              (inverted luminance; keeps
+                                                    anti-aliased edges)
+     t      = clamp((y - 0.60*H) / (0.40*H), 0, 1)
+     alpha *= 1 - (3t^2 - 2t^3)                    (smoothstep fade)
+     image  = Image.merge("LA", (L=0, alpha)); save(optimize=True)
+   -> 1600x672, ~17 KB. Build via Image.merge, never by mutating the source,
+   so no ICC/EXIF metadata is carried into a file nothing samples.
+
+   The fade exists because the artwork's bottom quarter is near-solid ink (the
+   desk band, onset y=525 at 61% coverage). Unfaded it paints a full-width
+   rectangle with a hard horizontal top edge. A linear ramp from 0.72*H still
+   left that edge at 78% strength; the smoothstep from 0.60*H cuts it to ~57%.
+
+   RECOVERY — rebuilding from the COMMITTED png is a DIFFERENT procedure: take
+   its alpha channel as the finished silhouette and apply NEITHER step. Its
+   luminance is 0 everywhere, so 255-L would yield 255 for every pixel (a solid
+   rectangle), and re-applying the ramp would double-fade the bottom.
+   ────────────────────────────────────────────────────────────────────────── */
+
+@supports (mask-image: none) or (-webkit-mask-image: none) {
+  body.error-page::after {
+    content: "";
+    position: fixed; left: 0; right: 0; bottom: 0;
+    /* The clamp below shrinks the box to keep its aspect-ratio, which
+       over-constrains left/right/width. CSS resolves that by IGNORING `right`,
+       so without auto inline margins the watermark goes flush left with the
+       whole gutter on one side. */
+    margin-inline: auto;
+    aspect-ratio: 1600 / 672;
+    max-height: 60dvh;
+    background-color: var(--text-primary);
+    -webkit-mask-image: url("../img/learner.png");
+            mask-image: url("../img/learner.png");
+    -webkit-mask-repeat: no-repeat;       mask-repeat: no-repeat;
+    -webkit-mask-position: center bottom; mask-position: center bottom;
+    -webkit-mask-size: contain;           mask-size: contain;
+                                          mask-mode: alpha;
+    opacity: .07;
+    z-index: 0;
+    pointer-events: none;
+  }
+  [data-theme="dark"] body.error-page::after { opacity: .10; }
+}
+
+/* Vertical centring derived from layout, not from a hard-coded header height:
+   the auth sheet's calc(100vh - padding) works only because auth pages REPLACE
+   the header block; these pages keep it (~69px, taller when it wraps). */
+body.error-page { display: flex; flex-direction: column; min-height: 100dvh; }
+
+/* Stacking: watermark 0 < main 1 < header 2. The header must sit strictly
+   ABOVE main -- giving it a z-index makes it a stacking context, re-scoping its
+   dropdown panels (z-index 50/40) inside it; if main shared layer 1, DOM order
+   would let it paint and hit-test over them. */
+body.error-page .app-header { z-index: 2; }
+
+.error-page__main {
+  position: relative; z-index: 1;
+  flex: 1;
+  display: flex; flex-direction: column;
+  /* `safe`, not bare `center`: request.path is attacker-controlled in LENGTH,
+     and centring an over-tall column pushes its top out of reach. */
+  justify-content: safe center;
+}
+
+.error-page__inner { max-width: 40rem; margin-inline: auto; }
+
+.error-page__code {
+  margin: 0 0 var(--space-2);
+  font-size: 3rem; font-weight: 700; line-height: 1;
+  letter-spacing: var(--heading-letter-spacing);
+  color: var(--accent);
+}
+.error-page__title {
+  margin: 0 0 var(--space-4);
+  font-size: 1.75rem; font-weight: 600;
+  letter-spacing: var(--heading-letter-spacing);
+  color: var(--text-primary);
+}
+.error-page__lead {
+  margin: 0 0 var(--space-4);
+  font-size: 1.0625rem; line-height: 1.6;
+  color: var(--text-primary);
+}
+.error-page__path {
+  margin: 0 0 var(--space-4);
+  font-size: .875rem; color: var(--text-tertiary);
+  overflow-wrap: anywhere;
+}
+.error-page__path code {
+  padding: .1em .4em;
+  font-family: var(--font-mono); font-size: .875rem;
+  color: var(--text-secondary);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
+}
+.error-page__note {
+  margin: 0 0 var(--space-4);
+  font-size: .9375rem; line-height: 1.6;
+  color: var(--text-secondary);
+}
+/* margin-top here, not margin-bottom on the preceding block: the 403 has no
+   __note (its advice is folded into the lead), so hanging the actions row's
+   leading space off __note would give 404 the spec's var(--space-6) and 403
+   only var(--space-4). Owning it here keeps both pages identical. */
+.error-page__actions {
+  margin: var(--space-6) 0 0;
+  display: flex; flex-wrap: wrap; gap: var(--space-3);
+}

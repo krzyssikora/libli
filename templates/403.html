@@ -1,10 +1,29 @@
 {% extends "base.html" %}
-{% load i18n %}
+{% load static i18n %}
 {% block head_title %}{% trans "Access denied" %} · libli{% endblock %}
+{% block body_class %}error-page{% endblock %}
+{% block main_class %}app-main error-page__main{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'core/css/error.css' %}">{% endblock %}
+{% comment %} Suppress base.html's own anonymous "Log in" CTA so it does not
+duplicate the in-page action below. hide_auth_cta is computed per-request by
+core.context_processors.ui_prefs and is False here, and Django's built-in
+permission_denied view renders with a fixed context we cannot extend -- so we
+shadow the value around the inherited header instead. BlockNode.super()
+re-renders the parent block against the same mutable Context, so the {% with %}
+layer is live. {% endcomment %}
+{% block header %}{% with hide_auth_cta=1 %}{{ block.super }}{% endwith %}{% endblock %}
 {% block content %}
-<div class="card">
-  <h1>{% trans "Access denied" %}</h1>
-  <p class="helptext">{% trans "You don't have permission to view this page." %}</p>
-  <p><a class="btn" href="/">{% trans "Back to home" %}</a></p>
+<div class="error-page__inner">
+  <p class="error-page__code">403</p>
+  <h1 class="error-page__title">{% trans "Not for you" %}</h1>
+  <p class="error-page__lead">{% trans "This page exists, but your account doesn't have permission to open it. If you think you should have access, ask your administrator." %}</p>
+  <p class="error-page__actions">
+    {% if user.is_authenticated %}
+      <a class="btn" href="{% url 'landing' %}">{% trans "Back to main page" %}</a>
+    {% else %}
+      <a class="btn" href="{% url 'account_login' %}?next={{ request.get_full_path|urlencode }}">{% trans "Log in" %}</a>
+      <a class="btn btn--ghost" href="{% url 'landing' %}">{% trans "Back to main page" %}</a>
+    {% endif %}
+  </p>
 </div>
 {% endblock %}

@@ -1,12 +1,12 @@
 # English (source) catalog for libli.
 # Copyright (C) 2026 libli
 # This file is distributed under the same license as the libli package.
-#
+# 
 msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-23 11:43+0200\n"
+"POT-Creation-Date: 2026-07-23 17:02+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -443,81 +443,81 @@ msgstr ""
 msgid "A merged cell may not span more than %(n)d rows."
 msgstr ""
 
-#: .\courses\element_forms.py:1406
+#: .\courses\element_forms.py:1412
 #, python-format
 msgid "A table cannot be made larger than %(r)d rows by %(c)d columns."
 msgstr ""
 
-#: .\courses\element_forms.py:1461 .\courses\element_forms.py:1468
+#: .\courses\element_forms.py:1467 .\courses\element_forms.py:1474
 msgid "A table needs at least one cell."
 msgstr ""
 
-#: .\courses\element_forms.py:1474
+#: .\courses\element_forms.py:1480
 msgid "All table rows must have the same number of cells."
 msgstr ""
 
-#: .\courses\element_forms.py:1525
+#: .\courses\element_forms.py:1531
 #: .\templates\courses\manage\editor\_edit_filltable.html:19
 msgid "Mark at least one answer cell (use the “Answer cell” button)."
 msgstr ""
 
-#: .\courses\element_forms.py:1530
+#: .\courses\element_forms.py:1536
 #: .\templates\courses\manage\editor\_edit_filltable.html:18
 msgid ""
 "An answer cell is blank — type its accepted answer, or make it a normal cell."
 msgstr ""
 
-#: .\courses\element_forms.py:1545
+#: .\courses\element_forms.py:1551
 msgid "A table image is not an image in this course."
 msgstr ""
 
-#: .\courses\element_forms.py:1588
+#: .\courses\element_forms.py:1594
 msgid "A gallery needs a list of images."
 msgstr ""
 
-#: .\courses\element_forms.py:1592
+#: .\courses\element_forms.py:1598
 #, python-format
 msgid "A gallery needs at least %(n)d images."
 msgstr ""
 
-#: .\courses\element_forms.py:1597
+#: .\courses\element_forms.py:1603
 #, python-format
 msgid "A gallery is limited to %(n)d images."
 msgstr ""
 
-#: .\courses\element_forms.py:1608
+#: .\courses\element_forms.py:1614
 msgid "A gallery image is not an image in this course."
 msgstr ""
 
-#: .\courses\element_forms.py:1668
+#: .\courses\element_forms.py:1674
 msgid "A tabs element needs a list of tabs."
 msgstr ""
 
-#: .\courses\element_forms.py:1671
+#: .\courses\element_forms.py:1677
 #, python-format
 msgid "A tabs element must keep at least %(n)d tabs."
 msgstr ""
 
-#: .\courses\element_forms.py:1676
+#: .\courses\element_forms.py:1682
 #, python-format
 msgid "A tabs element is limited to %(n)d tabs."
 msgstr ""
 
-#: .\courses\element_forms.py:1723
+#: .\courses\element_forms.py:1729
 #: .\templates\courses\manage\editor\_edit_twocolumn.html:8
 msgid "Number of columns"
 msgstr ""
 
-#: .\courses\element_forms.py:1776
+#: .\courses\element_forms.py:1782
 msgid "Add at least one step."
 msgstr ""
 
-#: .\courses\element_forms.py:1779
+#: .\courses\element_forms.py:1785
 #, python-format
 msgid "A stepper can have at most %(n)d steps."
 msgstr ""
 
-#: .\courses\element_forms.py:1833
+#: .\courses\element_forms.py:1839
 #, python-format
 msgid "A checklist needs between %(lo)s and %(hi)s items."
 msgstr ""
@@ -773,12 +773,12 @@ msgid "Unit"
 msgstr ""
 
 #: .\courses\models.py:185 .\templates\courses\manage\_add_affordance.html:22
-#: .\templates\courses\manage\editor\editor.html:76
+#: .\templates\courses\manage\editor\editor.html:81
 msgid "Lesson"
 msgstr ""
 
 #: .\courses\models.py:186 .\templates\courses\manage\_add_affordance.html:25
-#: .\templates\courses\manage\editor\editor.html:79
+#: .\templates\courses\manage\editor\editor.html:84
 msgid "Quiz"
 msgstr ""
 
@@ -924,7 +924,7 @@ msgstr ""
 #: .\courses\templatetags\courses_manage_extras.py:37
 #: .\courses\views_manage.py:790 .\templates\courses\lesson_unit.html:73
 #: .\templates\courses\manage\editor\_add_menu.html:22
-#: .\templates\courses\manage\editor\editor.html:153
+#: .\templates\courses\manage\editor\editor.html:158
 #: .\templates\courses\quiz_unit.html:27
 msgid "Gallery"
 msgstr ""
@@ -932,7 +932,7 @@ msgstr ""
 #: .\courses\templatetags\courses_manage_extras.py:38
 #: .\courses\views_manage.py:791 .\templates\courses\lesson_unit.html:75
 #: .\templates\courses\manage\editor\_add_menu.html:24
-#: .\templates\courses\manage\editor\editor.html:160
+#: .\templates\courses\manage\editor\editor.html:165
 #: .\templates\courses\quiz_unit.html:29
 msgid "Tabs"
 msgstr ""
@@ -2112,7 +2112,7 @@ msgstr ""
 #: .\courses\views_manage.py:450 .\courses\views_manage.py:482
 #: .\templates\courses\manage\builder.html:10
 #: .\templates\courses\manage\editor\editor.html:13
-#: .\templates\courses\manage\editor\editor.html:56
+#: .\templates\courses\manage\editor\editor.html:61
 #: .\templates\courses\manage\media\manager.html:10
 msgid "This changed elsewhere — reloaded to the latest."
 msgstr ""
@@ -3004,24 +3004,51 @@ msgstr ""
 msgid "Enter a tag name or pick a tag."
 msgstr ""
 
-#: .\templates\403.html:3 .\templates\403.html:6
+#: .\templates\403.html:3
 msgid "Access denied"
 msgstr ""
 
-#: .\templates\403.html:7
-msgid "You don't have permission to view this page."
+#: .\templates\403.html:19
+msgid "Not for you"
 msgstr ""
 
-#: .\templates\403.html:8 .\templates\404.html:8
-msgid "Back to home"
+#: .\templates\403.html:20
+msgid ""
+"This page exists, but your account doesn't have permission to open it. If "
+"you think you should have access, ask your administrator."
 msgstr ""
 
-#: .\templates\404.html:3 .\templates\404.html:6
+#: .\templates\403.html:23 .\templates\403.html:26 .\templates\404.html:17
+msgid "Back to main page"
+msgstr ""
+
+#: .\templates\403.html:25 .\templates\base.html:142
+#: .\templates\core\landing.html:12
+msgid "Log in"
+msgstr ""
+
+#: .\templates\404.html:3
 msgid "Page not found"
 msgstr ""
 
-#: .\templates\404.html:7
-msgid "We couldn't find that page."
+#: .\templates\404.html:10
+msgid "Nothing here"
+msgstr ""
+
+#: .\templates\404.html:11
+msgid ""
+"We appreciate your eagerness to discover, but there's nothing at this "
+"address. Check the address you entered, or go back to the main page."
+msgstr ""
+
+#: .\templates\404.html:13
+msgid "You tried:"
+msgstr ""
+
+#: .\templates\404.html:15
+msgid ""
+"If a link inside the app brought you here, please report it to your "
+"administrator, describing the steps that led to this page."
 msgstr ""
 
 #: .\templates\_groups_tabs.html:3
@@ -3402,10 +3429,6 @@ msgstr ""
 
 #: .\templates\base.html:137
 msgid "Log out"
-msgstr ""
-
-#: .\templates\base.html:142 .\templates\core\landing.html:12
-msgid "Log in"
 msgstr ""
 
 #: .\templates\core\home.html:3
@@ -3917,39 +3940,39 @@ msgid "Slide {n} of {total}"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:73
-#: .\templates\courses\manage\editor\editor.html:153
+#: .\templates\courses\manage\editor\editor.html:158
 #: .\templates\courses\quiz_unit.html:27
 msgid "Previous image"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:73
-#: .\templates\courses\manage\editor\editor.html:153
+#: .\templates\courses\manage\editor\editor.html:158
 #: .\templates\courses\quiz_unit.html:27
 msgid "Next image"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:73
-#: .\templates\courses\manage\editor\editor.html:153
+#: .\templates\courses\manage\editor\editor.html:158
 #: .\templates\courses\quiz_unit.html:27
 #, python-brace-format
 msgid "Go to image {n}"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:73
-#: .\templates\courses\manage\editor\editor.html:153
+#: .\templates\courses\manage\editor\editor.html:158
 #: .\templates\courses\quiz_unit.html:27
 #, python-brace-format
 msgid "Image {n} of {total}"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:75
-#: .\templates\courses\manage\editor\editor.html:160
+#: .\templates\courses\manage\editor\editor.html:165
 #: .\templates\courses\quiz_unit.html:29
 msgid "Scroll tabs left"
 msgstr ""
 
 #: .\templates\courses\lesson_unit.html:75
-#: .\templates\courses\manage\editor\editor.html:160
+#: .\templates\courses\manage\editor\editor.html:165
 #: .\templates\courses\quiz_unit.html:29
 msgid "Scroll tabs right"
 msgstr ""
@@ -3987,7 +4010,7 @@ msgid "Edit course metadata"
 msgstr ""
 
 #: .\templates\courses\manage\_course_panel.html:6
-#: .\templates\courses\manage\editor\editor.html:64
+#: .\templates\courses\manage\editor\editor.html:69
 msgid "Media library"
 msgstr ""
 
@@ -5090,7 +5113,7 @@ msgstr ""
 
 #: .\templates\courses\manage\editor\_editor_scope.html:8
 #: .\templates\courses\manage\editor\editor.html:3
-#: .\templates\courses\manage\editor\editor.html:86
+#: .\templates\courses\manage\editor\editor.html:91
 msgid "Editor"
 msgstr ""
 
@@ -5198,23 +5221,23 @@ msgstr ""
 msgid "Insert"
 msgstr ""
 
-#: .\templates\courses\manage\editor\editor.html:60
+#: .\templates\courses\manage\editor\editor.html:65
 msgid "Back to builder"
 msgstr ""
 
-#: .\templates\courses\manage\editor\editor.html:84
+#: .\templates\courses\manage\editor\editor.html:89
 msgid "View"
 msgstr ""
 
-#: .\templates\courses\manage\editor\editor.html:85
+#: .\templates\courses\manage\editor\editor.html:90
 msgid "Editor view"
 msgstr ""
 
-#: .\templates\courses\manage\editor\editor.html:87
+#: .\templates\courses\manage\editor\editor.html:92
 msgid "Split"
 msgstr ""
 
-#: .\templates\courses\manage\editor\editor.html:88
+#: .\templates\courses\manage\editor\editor.html:93
 msgid "Preview"
 msgstr ""
 

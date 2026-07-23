@@ -45,7 +45,7 @@ libli is bilingual (English + Polish). User-facing strings are translated; the
 Polish catalog is real, not machine-noise.
 
 ```bash
-uv run python manage.py makemessages -l pl
+uv run python manage.py makemessages -l pl -l en --no-obsolete
 # …translate locale/pl/LC_MESSAGES/django.po…
 uv run python manage.py compilemessages
 ```
@@ -53,12 +53,20 @@ uv run python manage.py compilemessages
 - **Fuzzy-match gotcha:** `makemessages` will fuzzy-match a new string to an
   unrelated old one (e.g. "Send test event" → "Send reset link"). Always review
   new entries, clear the `#, fuzzy` flag, and write the real translation.
+- **Both locales, every time:** `locale/en` and `locale/pl` are both tracked
+  (`.po` *and* compiled `.mo`). Running `makemessages -l pl` alone leaves the
+  English catalog stale, so retired msgids stay live there and new ones never
+  appear. Tests assert both catalogs are free of `#~` and `#, fuzzy`.
+- **Clearing a fuzzy flag is two deletions, not one:** Django runs
+  `msgmerge --previous`, which also writes a `#| msgid "<old string>"` comment
+  above the entry. Delete that line too — it contains the old msgid verbatim, so
+  anything grepping for a retired string still finds it.
 - Module-level translatable data (dicts of labels, choices) must use
   `gettext_lazy`, **not** `gettext` — eager `gettext` at import time freezes the
   string to whatever language was active then.
 - The project forbids obsolete `#~` entries in the catalog; a test asserts the
-  catalog is clean. When a change deletes translatable strings, re-run
-  `makemessages` and remove the resulting `#~` lines.
+  catalog is clean. `--no-obsolete` above means `makemessages` never writes them
+  in the first place, so there is nothing to remove by hand.
 
 ## Adding content / question types
 
