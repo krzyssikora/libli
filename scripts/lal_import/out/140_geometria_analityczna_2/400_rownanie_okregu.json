@@ -2,11 +2,17 @@
   "elements": [
     {
       "type": "text",
-      "body": "\n<p>\n            Co możemy powiedzieć o punktach \\(A\\), \\(B\\) i \\(C\\), które leżą w jednakowej odległości od punktu \\(S\\)?\n        </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_rownanie_okregu_intro_1.png\" style=\"max-height: 350px;\"/>\n</figure>\n"
+      "body": "<p>\n            Co możemy powiedzieć o punktach \\(A\\), \\(B\\) i \\(C\\), które leżą w jednakowej odległości od punktu \\(S\\)?\n        </p>"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_rownanie_okregu_intro_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -19,8 +25,8 @@
       "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -33,8 +39,8 @@
       "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -47,8 +53,8 @@
       "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -61,8 +67,8 @@
       "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -73,8 +79,8 @@
       "body": "<p>\n                W tym celu przeanalizujmy równania, z których obliczyliśmy odległość punktów \\(\\color{blue}{A}\\), \\(\\color{blue}{B}\\) i \\(\\color{blue}{C}\\) od punktu \\(\\color{red}{S=(-3,2)}\\).\n            </p>"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "table",
@@ -139,8 +145,8 @@
       "body": "<p>\n                Podnieśmy obie strony równań do kwadratu.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "table",
@@ -205,22 +211,282 @@
       "body": "<p>\n                A jak jest z innymi punktami leżącymi na tym okręgu?\n            </p>"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
       "body": "<p>\n                Odległość każdego takiego punktu o współrzędnych \\(\\color{blue}{(x, y)}\\) od środka okręgu, \\(\\color{red}{S=(-3,2)}\\) także byłaby równa \\(5\\).\n            </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<table class=\"my_table_noborder narrow_table\">\n<tr>\n<td style=\"text-align: left;\">\\(\\color{blue}{A=(1,5)}\\):</td>\n<td></td>\n<td>\\((\\)</td>\n<td>\\(\\color{blue}{1}\\)</td>\n<td>\\(-\\)</td>\n<td>\\(\\color{red}{(-3)}\\)</td>\n<td>\\()^2+(\\)</td>\n<td>\\(\\color{blue}{5}\\)</td>\n<td>\\(-\\)</td>\n<td>\\(\\color{red}{2}\\)</td>\n<td>\\()^2\\)</td>\n<td>\\(=5^2\\)</td>\n</tr>\n<tr>\n<td style=\"text-align: left;\">\\(\\color{blue}{B=(-6,6)}\\):</td>\n<td></td>\n<td>\\((\\)</td>\n<td>\\(\\color{blue}{-6}\\)</td>\n<td>\\(-\\)</td>\n<td>\\(\\color{red}{(-3)}\\)</td>\n<td>\\()^2+(\\)</td>\n<td>\\(\\color{blue}{6}\\)</td>\n<td>\\(-\\)</td>\n<td>\\(\\color{red}{2}\\)</td>\n<td>\\()^2\\)</td>\n<td>\\(=5^2\\)</td>\n</tr>\n<tr>\n<td style=\"text-align: left;\">\\(\\color{blue}{C=(-7,-1)}\\):</td>\n<td></td>\n<td>\\((\\)</td>\n<td>\\(\\color{blue}{-7}\\)</td>\n<td>\\(-\\)</td>\n<td>\\(\\color{red}{(-3)}\\)</td>\n<td>\\()^2+(\\)</td>\n<td>\\(\\color{blue}{-1}\\)</td>\n<td>\\(-\\)</td>\n<td>\\(\\color{red}{2}\\)</td>\n<td>\\()^2\\)</td>\n<td>\\(=5^2\\)</td>\n</tr>\n<tr>\n<td colspan=\"12\" style=\"text-align: left;\">czyli:</td>\n</tr>\n<tr>\n<td style=\"text-align: left;\">\\(\\color{blue}{(x,y)}\\):</td>\n<td></td>\n<td>\\((\\)</td>\n<td>\\(\\color{blue}{x}\\)</td>\n<td>\\(-\\)</td>\n<td>\\(\\color{red}{(-3)}\\)</td>\n<td>\\()^2+(\\)</td>\n<td>\\(\\color{blue}{y}\\)</td>\n<td>\\(-\\)</td>\n<td>\\(\\color{red}{2}\\)</td>\n<td>\\()^2\\)</td>\n<td>\\(=5^2\\)</td>\n</tr>\n</table>",
-      "reason": "table uses rowspan/colspan"
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(\\color{blue}{A=(1,5)}\\):",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{1}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{(-3)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2+(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{5}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=5^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{B=(-6,6)}\\):",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{-6}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{(-3)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2+(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{6}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=5^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{C=(-7,-1)}\\):",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{-7}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{(-3)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2+(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{-1}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=5^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "czyli:",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 12
+            }
+          ],
+          [
+            {
+              "html": "\\(\\color{blue}{(x,y)}\\):",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\((\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{x}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{(-3)}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2+(\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{blue}{y}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\color{red}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\()^2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(=5^2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -243,8 +509,8 @@
       "body": "\n                \\[\n                (x+3)^2+(y-2)^2=25\n                \\]\n            "
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -255,6 +521,6 @@
       "body": "\n                \\[\n                (x-a)^2+(y-b)^2=r^2\n                \\]\n            "
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "aa50406e0b6740ddbd0f2e15e91a1eef4addd6c7e0461d31eaecce6cbe26db1a"
+  "fully_mapped": true,
+  "seed_hash": "a294cced71df0d3c49dceefc9c8451267085fb226867e4fad1ddf31a362f07af"
 }

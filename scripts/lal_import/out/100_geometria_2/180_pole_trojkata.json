@@ -10,42 +10,206 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Który z wzorów w prawo od rysunku trójkąta wskazuje pole tego trójkąta?\n    "
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"270px\">\n<img alt=\"pole trójkąta\" src=\"static/pole_trojkata_kbk_zad_1.png\" width=\"250\"/>\n</div>\n<div class=\"one_choice ks_button\">\n                \\(\\frac{1}{2}\\cdot 7^2\\cdot \\frac{\\sin 25^{\\circ}\\cdot \\sin 40^{\\circ}}{\\sin 65^{\\circ}}\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\frac{1}{2}\\cdot 7^2\\cdot \\frac{\\sin 25^{\\circ}\\cdot \\sin 40^{\\circ}}{\\sin 115^{\\circ}}\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\frac{1}{2}\\cdot 7^2\\cdot \\frac{\\sin 65^{\\circ}\\cdot \\sin 40^{\\circ}}{\\sin 25^{\\circ}}\\)\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"270px\">\n<img alt=\"pole trójkąta\" src=\"static/pole_trojkata_kbk_zad_2.png\" width=\"250\"/>\n</div>\n<div class=\"one_choice ks_button\">\n                \\(\\frac{1}{2}\\cdot 9^2\\cdot \\frac{\\sin 35^{\\circ}\\cdot \\sin 65^{\\circ}}{\\sin 80^{\\circ}}\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\frac{1}{2}\\cdot 9^2\\cdot \\frac{\\sin 80^{\\circ}\\cdot \\sin 65^{\\circ}}{\\sin 145^{\\circ}}\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\frac{1}{2}\\cdot 9^2\\cdot \\frac{\\sin 80^{\\circ}\\cdot \\sin 65^{\\circ}}{\\sin 35^{\\circ}}\\)\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"270px\">\n<img alt=\"pole trójkąta\" src=\"static/pole_trojkata_kbk_zad_3.png\" width=\"250\"/>\n</div>\n<div class=\"one_choice ks_button\">\n                \\(\\frac{1}{2}\\cdot 6^2\\cdot \\frac{\\sin 35^{\\circ}\\cdot \\sin 70^{\\circ}}{\\sin 105^{\\circ}}\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\frac{1}{2}\\cdot 6^2\\cdot \\frac{\\sin 35^{\\circ}\\cdot \\sin 70^{\\circ}}{\\sin 75^{\\circ}}\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\frac{1}{2}\\cdot 6^2\\cdot \\frac{\\sin 35^{\\circ}\\cdot \\sin 75^{\\circ}}{\\sin 70^{\\circ}}\\)\n            </div>\n</li>\n</ul>"
+      "type": "image",
+      "media_src": "static/pole_trojkata_kbk_zad_1.png",
+      "alt": "pole trójkąta",
+      "figcaption": ""
+    },
+    {
+      "type": "choice",
+      "stem": "<p></p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\frac{1}{2}\\cdot 7^2\\cdot \\frac{\\sin 25^{\\circ}\\cdot \\sin 40^{\\circ}}{\\sin 65^{\\circ}}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(\\frac{1}{2}\\cdot 7^2\\cdot \\frac{\\sin 25^{\\circ}\\cdot \\sin 40^{\\circ}}{\\sin 115^{\\circ}}\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(\\frac{1}{2}\\cdot 7^2\\cdot \\frac{\\sin 65^{\\circ}\\cdot \\sin 40^{\\circ}}{\\sin 25^{\\circ}}\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_trojkata_kbk_zad_2.png",
+      "alt": "pole trójkąta",
+      "figcaption": ""
+    },
+    {
+      "type": "choice",
+      "stem": "<p></p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\frac{1}{2}\\cdot 9^2\\cdot \\frac{\\sin 35^{\\circ}\\cdot \\sin 65^{\\circ}}{\\sin 80^{\\circ}}\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(\\frac{1}{2}\\cdot 9^2\\cdot \\frac{\\sin 80^{\\circ}\\cdot \\sin 65^{\\circ}}{\\sin 145^{\\circ}}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(\\frac{1}{2}\\cdot 9^2\\cdot \\frac{\\sin 80^{\\circ}\\cdot \\sin 65^{\\circ}}{\\sin 35^{\\circ}}\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_trojkata_kbk_zad_3.png",
+      "alt": "pole trójkąta",
+      "figcaption": ""
+    },
+    {
+      "type": "choice",
+      "stem": "<p></p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\frac{1}{2}\\cdot 6^2\\cdot \\frac{\\sin 35^{\\circ}\\cdot \\sin 70^{\\circ}}{\\sin 105^{\\circ}}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(\\frac{1}{2}\\cdot 6^2\\cdot \\frac{\\sin 35^{\\circ}\\cdot \\sin 70^{\\circ}}{\\sin 75^{\\circ}}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(\\frac{1}{2}\\cdot 6^2\\cdot \\frac{\\sin 35^{\\circ}\\cdot \\sin 75^{\\circ}}{\\sin 70^{\\circ}}\\)",
+          "is_correct": true
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "\n        potwierdź\n    "
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+      "body": "<p>\n            Jeden z boków trójkąta ma długość \\(8\\), a przeległe do niego kąty wewnętrzne mają miary \\(30^{\\circ}\\) i \\(45^{\\circ}\\).\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi:\n    "
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n<p>\n            Jeden z boków trójkąta ma długość \\(8\\), a przeległe do niego kąty wewnętrzne mają miary \\(30^{\\circ}\\) i \\(45^{\\circ}\\).\n        </p>\n        Wykaż, że pole trójkąta dane jest wyrażeniem\n        \\[\n        \\frac{8\\sqrt{2}}{\\sin \\theta}\n        \\]\n        gdzie \\(\\theta\\) jest pewnym kątem ostrym, który należy znaleźć.\n    "
+      "body": "<p>Wykaż, że pole trójkąta dane jest wyrażeniem\n        \\[\n        \\frac{8\\sqrt{2}}{\\sin \\theta}\n        \\]\n        gdzie \\(\\theta\\) jest pewnym kątem ostrym, który należy znaleźć.</p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Przyjmijmy:\n                <ul class=\"nolist\">\n<li>\n                        \\(a=8\\)\n                    </li>\n<li>\n                        \\(\\beta=30^{\\circ}\\)\n                    </li>\n<li>\n                        \\(\\gamma=45^{\\circ}\\)\n                    </li>\n</ul>\n                aby skorzystać ze wzoru\n                \\[\n                P=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\n                \\]\n                Brakuje nam jeszcze kąta naprzeciwległego do boku \\(a\\), czyli \\(\\alpha\\).\n                <div class=\"switch_line\">\n                    Z sumy kątów w trójkącie możemy policzyć, że \\(\\alpha=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(15^{\\circ}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(75^{\\circ}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(105^{\\circ}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Podstawmy do wzoru:\n                                                                                                                        \\[\n                P=\\frac{1}{2}\\cdot 8^2\\cdot\\frac{\\sin 30^{\\circ}\\cdot\\sin 45^{\\circ}}{\\sin 105^{\\circ}}\n                \\]\n                <div class=\"switch_line\">\n                    Aby uprościć to wyrażenie, zaważmy, że \\(\\frac{1}{2}\\cdot 8^2=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(16\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(32\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(128\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Wzór uprawszcza się do postaci:\n                \\[\n                P=32\\cdot\\frac{\\sin 30^{\\circ}\\cdot\\sin 45^{\\circ}}{\\sin 105^{\\circ}}\n                \\]\n                Zajmijmy się teraz licznikiem (górą) ułamka.\n                <div class=\"switch_line\">\n                    \\(\\sin 30^{\\circ}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{1}{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{\\sqrt{2}}{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{\\sqrt{3}}{2}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    \\(\\sin 45^{\\circ}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{1}{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{\\sqrt{2}}{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{\\sqrt{3}}{2}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Zastosujmy to do wzoru:\n                \\[\n                \\begin{align*}\n                P&amp;=32\\cdot\\frac{\\sin 30^{\\circ}\\cdot\\sin 45^{\\circ}}{\\sin 105^{\\circ}}=\\\\\n                &amp;=32\\cdot\\frac{\\tfrac{1}{2}\\cdot\\tfrac{\\sqrt{2}}{2}}{\\sin 105^{\\circ}}=\\\\\n                &amp;=\\frac{32\\cdot\\tfrac{1}{2}\\cdot\\tfrac{\\sqrt{2}}{2}}{\\sin 105^{\\circ}}\n                \\end{align*}\n                \\]\n                <div class=\"switch_line\">\n                    I kończymy uprawszczanie licznika: \\(32\\cdot\\tfrac{1}{2}\\cdot\\tfrac{\\sqrt{2}}{2}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(8\\sqrt{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(64\\sqrt{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(256\\sqrt{2}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Przekształciliśmy wzór na pole do postaci:\n                \\[\n                P=\\frac{8\\sqrt{2}}{\\sin 105^{\\circ}}\n                \\]\n                czyli do postaci bardzo podobnej do pożądanej:\n                \\[\n                P=\\frac{8\\sqrt{2}}{\\sin \\theta}\n                \\]\n                Gdyby przyjąć \\(\\theta=105^{\\circ}\\), oba wzory wyglądałyby identycznie. Jednak w zadaniu postawiony jest warunek, że \"\n                <em>\n                    \\(\\theta\\) jest pewnym kątem\n                    <strong>\n                        ostrym\n                    </strong>\n</em>\n                \".\n                Poszukujemy więc kąta ostrego \\(\\theta\\) takiego, że\n                \\[\n                \\sin \\theta =\\sin 105^{\\circ}\n                \\]\n                <div class=\"switch_line\">\n                    Taki kąt to \\(\\theta=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(15^{\\circ}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(45^{\\circ}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(75^{\\circ}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Wyrażenie opisujące \\(P\\), pole trójkąta to:\n                \\[\n                \\frac{8\\sqrt{2}}{\\sin 75^{\\circ}}\n                \\]\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Przyjmijmy:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        \\(a=8\\)\n                    </li>\n<li>\n                        \\(\\beta=30^{\\circ}\\)\n                    </li>\n<li>\n                        \\(\\gamma=45^{\\circ}\\)\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>aby skorzystać ze wzoru\n                \\[\n                P=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\n                \\]\n                Brakuje nam jeszcze kąta naprzeciwległego do boku \\(a\\), czyli \\(\\alpha\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z sumy kątów w trójkącie możemy policzyć, że \\(\\alpha=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(15^{\\circ}\\)",
+            "\\(75^{\\circ}\\)",
+            "\\(105^{\\circ}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawmy do wzoru:\n                                                                                                                        \\[\n                P=\\frac{1}{2}\\cdot 8^2\\cdot\\frac{\\sin 30^{\\circ}\\cdot\\sin 45^{\\circ}}{\\sin 105^{\\circ}}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby uprościć to wyrażenie, zaważmy, że \\(\\frac{1}{2}\\cdot 8^2=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(16\\)",
+            "\\(32\\)",
+            "\\(128\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Wzór uprawszcza się do postaci:\n                \\[\n                P=32\\cdot\\frac{\\sin 30^{\\circ}\\cdot\\sin 45^{\\circ}}{\\sin 105^{\\circ}}\n                \\]\n                Zajmijmy się teraz licznikiem (górą) ułamka.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\sin 30^{\\circ}=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{1}{2}\\)",
+            "\\(\\tfrac{\\sqrt{2}}{2}\\)",
+            "\\(\\tfrac{\\sqrt{3}}{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(\\sin 45^{\\circ}=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{1}{2}\\)",
+            "\\(\\tfrac{\\sqrt{2}}{2}\\)",
+            "\\(\\tfrac{\\sqrt{3}}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Zastosujmy to do wzoru:\n                \\[\n                \\begin{align*}\n                P&=32\\cdot\\frac{\\sin 30^{\\circ}\\cdot\\sin 45^{\\circ}}{\\sin 105^{\\circ}}=\\\\\n                &=32\\cdot\\frac{\\tfrac{1}{2}\\cdot\\tfrac{\\sqrt{2}}{2}}{\\sin 105^{\\circ}}=\\\\\n                &=\\frac{32\\cdot\\tfrac{1}{2}\\cdot\\tfrac{\\sqrt{2}}{2}}{\\sin 105^{\\circ}}\n                \\end{align*}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I kończymy uprawszczanie licznika: \\(32\\cdot\\tfrac{1}{2}\\cdot\\tfrac{\\sqrt{2}}{2}=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(8\\sqrt{2}\\)",
+            "\\(64\\sqrt{2}\\)",
+            "\\(256\\sqrt{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Przekształciliśmy wzór na pole do postaci:\n                \\[\n                P=\\frac{8\\sqrt{2}}{\\sin 105^{\\circ}}\n                \\]\n                czyli do postaci bardzo podobnej do pożądanej:\n                \\[\n                P=\\frac{8\\sqrt{2}}{\\sin \\theta}\n                \\]\n                Gdyby przyjąć \\(\\theta=105^{\\circ}\\), oba wzory wyglądałyby identycznie. Jednak w zadaniu postawiony jest warunek, że \"</p>"
+        },
+        {
+          "type": "text",
+          "body": "<em>\n                    \\(\\theta\\) jest pewnym kątem\n                    <strong>\n                        ostrym\n                    </strong>\n</em>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\".\n                Poszukujemy więc kąta ostrego \\(\\theta\\) takiego, że\n                \\[\n                \\sin \\theta =\\sin 105^{\\circ}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Taki kąt to \\(\\theta=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(15^{\\circ}\\)",
+            "\\(45^{\\circ}\\)",
+            "\\(75^{\\circ}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Wyrażenie opisujące \\(P\\), pole trójkąta to:\n                \\[\n                \\frac{8\\sqrt{2}}{\\sin 75^{\\circ}}\n                \\]</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "221f89ace619394114be5de79745c863feffc45a266a7f53f1eed6d41e982007"
+  "seed_hash": "2b98ae7f0ead3279c167aa713065bcd71022c843c878f25ffc800c738072cc18"
 }

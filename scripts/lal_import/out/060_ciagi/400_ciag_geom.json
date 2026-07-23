@@ -22,31 +22,171 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Pewna rozwijająca się firma zatrudniała co roku nowe osoby. Wydatki na pensje w tej firmie rosły co roku równo o \\(20\\%\\).\n        </p>\n<p>\n            Suma wszystkich wydatków na pensje przez pierwsze osiem w tej firmie wyniosła \\(82\\,495\\,424\\) złotych. \n        </p>\n<p>\n            Jakie były wydatki na pensje w tej firmie w pierwszym roku?\n        </p>\n"
+      "body": "<p>\n            Pewna rozwijająca się firma zatrudniała co roku nowe osoby. Wydatki na pensje w tej firmie rosły co roku równo o \\(20\\%\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Suma wszystkich wydatków na pensje przez pierwsze osiem w tej firmie wyniosła \\(82\\,495\\,424\\) złotych. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jakie były wydatki na pensje w tej firmie w pierwszym roku?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Skoro\n                <blockquote>\n                    \"wydatki na pensje w tej firmie rosły co roku równo o \\(20\\%\\)\"\n                </blockquote>\n<div class=\"switch_line\">\n                    to znaczy, że mamy do czynienia z ciągiem geometrycznym \\((a_n)\\), w którym wyraz \\(a_n\\) to wydatki na pensje w roku \\(n\\), i w którym iloraz\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(q=20\\)</div>\n<div class=\"switch_value\">\\(q=0,2\\)</div>\n<div class=\"switch_value\">\\(q=1,2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                A skoro\n                <blockquote>\n                    \"suma wszystkich wydatków na pensje przez pierwsze osiem w tej firmie wyniosła \\(82\\,495\\,424\\) złotych\"\n                </blockquote>\n<div class=\"switch_line\">\n                    to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_1=82\\,495\\,424\\)</div>\n<div class=\"switch_value\">\\(a_{8}=82\\,495\\,424\\)</div>\n<div class=\"switch_value\">\\(S_{8}=82\\,495\\,424\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Użyjemy wzoru:\n                \\[\n                S_n = a_1\\cdot\\frac{1-q^n}{1-q}\n                \\]\n                <div class=\"switch_line\">\n                    i otrzymamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_1\\frac{1-1,2^8}{1-1,2}=82\\,495\\,424\\)</div>\n<div class=\"switch_value\">\\(a_1\\frac{1-1,2^7}{1-1,2}=82\\,495\\,424\\)</div>\n<div class=\"switch_value\">\\(S_8=82\\,495\\,424\\frac{1-1,2^7}{1-1,2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Rozwiązując to równanie:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    a_1\\frac{1-1,2^8}{1-1,2}&amp;=82\\,495\\,424\\\\\n                    a_1\\frac{1-4.29981696}{1-1,2}&amp;=82\\,495\\,424\\\\\n                    a_1\\frac{-3.29981696}{-0,2}&amp;=82\\,495\\,424\\\\\n                    16,4990848\\cdot a_1&amp;=82\\,495\\,424\\\\\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Rozwiązując równanie otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_1=50\\,000\\,000\\)</div>\n<div class=\"switch_value\">\\(a_1=5\\,000\\,000\\)</div>\n<div class=\"switch_value\">\\(a_1=500\\,000\\)</div>\n<div class=\"switch_value\">\\(a_1=50\\,000\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                W pierwszym roku wydatki firmy na pensje były równe 5 milionom złotych.\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skoro</p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"wydatki na pensje w tej firmie rosły co roku równo o \\(20\\%\\)\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    to znaczy, że mamy do czynienia z ciągiem geometrycznym \\((a_n)\\), w którym wyraz \\(a_n\\) to wydatki na pensje w roku \\(n\\), i w którym iloraz\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(q=20\\)",
+            "\\(q=0,2\\)",
+            "\\(q=1,2\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>A skoro</p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"suma wszystkich wydatków na pensje przez pierwsze osiem w tej firmie wyniosła \\(82\\,495\\,424\\) złotych\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_1=82\\,495\\,424\\)",
+            "\\(a_{8}=82\\,495\\,424\\)",
+            "\\(S_{8}=82\\,495\\,424\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Użyjemy wzoru:\n                \\[\n                S_n = a_1\\cdot\\frac{1-q^n}{1-q}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    i otrzymamy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_1\\frac{1-1,2^8}{1-1,2}=82\\,495\\,424\\)",
+            "\\(a_1\\frac{1-1,2^7}{1-1,2}=82\\,495\\,424\\)",
+            "\\(S_8=82\\,495\\,424\\frac{1-1,2^7}{1-1,2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Rozwiązując to równanie:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    a_1\\frac{1-1,2^8}{1-1,2}&amp;=82\\,495\\,424\\\\\n                    a_1\\frac{1-4.29981696}{1-1,2}&amp;=82\\,495\\,424\\\\\n                    a_1\\frac{-3.29981696}{-0,2}&amp;=82\\,495\\,424\\\\\n                    16,4990848\\cdot a_1&amp;=82\\,495\\,424\\\\\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Rozwiązując równanie otrzymujemy\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_1=50\\,000\\,000\\)",
+            "\\(a_1=5\\,000\\,000\\)",
+            "\\(a_1=500\\,000\\)",
+            "\\(a_1=50\\,000\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>W pierwszym roku wydatki firmy na pensje były równe 5 milionom złotych.</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Suma \\(n\\) wyrazów ciągu geometrycznego o pierwszym wyrazie \\(4\\) i ilorazie \\(3\\) jest równa \\(13\\,120\\). \n        </p>\n<p>\n            Znajdź \\(n\\).\n        </p>\n"
+      "body": "<p>\n            Suma \\(n\\) wyrazów ciągu geometrycznego o pierwszym wyrazie \\(4\\) i ilorazie \\(3\\) jest równa \\(13\\,120\\). \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź \\(n\\).\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Użyjemy wzoru:\n                \\[\n                S_n = a_1\\cdot\\frac{1-q^n}{1-q}\n                \\]\n                <div class=\"switch_line\">\n                    dla\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_1=4\\), \\(q=3\\) i \\(S_n=13\\,120\\)</div>\n<div class=\"switch_value\">\\(n=4\\), \\(q=3\\) i \\(S_n=13\\,120\\)</div>\n<div class=\"switch_value\">\\(n=4\\), \\(a_1=3\\) i \\(S_n=13\\,120\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dostajemy:\n                \\[\n                \\begin{align}\n                4\\cdot \\frac{1-3^n}{1-3}&amp;=13\\,120\\\\\n                4\\cdot \\frac{1-3^n}{-2}&amp;=13\\,120\\\\\n                -2\\cdot (1-3^n)&amp;=13\\,120\\\\\n                2\\cdot (3^n-1)&amp;=13\\,120\\\\\n                \\end{align}\n                \\]\n                <div class=\"switch_line\">\n                    Z tego równania wyliczamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3^n=6559\\)</div>\n<div class=\"switch_value\">\\(3^n=6561\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Nikt nie powinien oczekiwać, że wiesz, jaka potęga trójki jest równa \\(6561\\). Jednak, o ile zadanie ma sens, musi to być potęga o wykładniku <strong>naturalnym</strong>, bo \\(n\\) jest liczbą wyrazów.\n                </p>\n<p>\n                    Możemy więc rozłożyć \\(6561\\) na czynniki pierwsze. Zrób to samodzielnie, albo zerknij na stopniowy rozkład zapisany niżej:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    6561 = 3\\cdot 2187 = 3\\cdot 3\\cdot 729 = 3\\cdot 3\\cdot 3\\cdot 243 = 3\\cdot 3\\cdot 3\\cdot 3\\cdot 81 = 3\\cdot 3\\cdot 3\\cdot 3\\cdot 3\\cdot 27 = 3\\cdot 3\\cdot 3\\cdot 3\\cdot 3\\cdot 3\\cdot 9 = 3\\cdot 3\\cdot 3\\cdot 3\\cdot 3\\cdot 3\\cdot 3\\cdot 3\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Z rozkładu widzimy, że rozwiązaniem równania \\(3^n=6561\\) jest \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(n=7\\)</div>\n<div class=\"switch_value\">\\(n=8\\)</div>\n<div class=\"switch_value\">\\(n=9\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Suma ośmiu wyrazów tego ciągu jest równa \\(13\\,120\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Użyjemy wzoru:\n                \\[\n                S_n = a_1\\cdot\\frac{1-q^n}{1-q}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    dla\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_1=4\\), \\(q=3\\) i \\(S_n=13\\,120\\)",
+            "\\(n=4\\), \\(q=3\\) i \\(S_n=13\\,120\\)",
+            "\\(n=4\\), \\(a_1=3\\) i \\(S_n=13\\,120\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Dostajemy:\n                \\[\n                \\begin{align}\n                4\\cdot \\frac{1-3^n}{1-3}&=13\\,120\\\\\n                4\\cdot \\frac{1-3^n}{-2}&=13\\,120\\\\\n                -2\\cdot (1-3^n)&=13\\,120\\\\\n                2\\cdot (3^n-1)&=13\\,120\\\\\n                \\end{align}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z tego równania wyliczamy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3^n=6559\\)",
+            "\\(3^n=6561\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Nikt nie powinien oczekiwać, że wiesz, jaka potęga trójki jest równa \\(6561\\). Jednak, o ile zadanie ma sens, musi to być potęga o wykładniku <strong>naturalnym</strong>, bo \\(n\\) jest liczbą wyrazów.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Możemy więc rozłożyć \\(6561\\) na czynniki pierwsze. Zrób to samodzielnie, albo zerknij na stopniowy rozkład zapisany niżej:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    6561 = 3\\cdot 2187 = 3\\cdot 3\\cdot 729 = 3\\cdot 3\\cdot 3\\cdot 243 = 3\\cdot 3\\cdot 3\\cdot 3\\cdot 81 = 3\\cdot 3\\cdot 3\\cdot 3\\cdot 3\\cdot 27 = 3\\cdot 3\\cdot 3\\cdot 3\\cdot 3\\cdot 3\\cdot 9 = 3\\cdot 3\\cdot 3\\cdot 3\\cdot 3\\cdot 3\\cdot 3\\cdot 3\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z rozkładu widzimy, że rozwiązaniem równania \\(3^n=6561\\) jest \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(n=7\\)",
+            "\\(n=8\\)",
+            "\\(n=9\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Suma ośmiu wyrazów tego ciągu jest równa \\(13\\,120\\).</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "9ead079d1ba8d7fad4a2b3f2fbda316b587afc7fc2ee5a7b89d86bdd2f5b10be"
+  "seed_hash": "010602d4aa48427ad942aab884a10185d1649020a4c98622f9a11659da77f559"
 }

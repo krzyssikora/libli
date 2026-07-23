@@ -47,7 +47,7 @@
     },
     {
       "type": "choice",
-      "stem": "<p>Wskaż rozwiązanie nierówności</p><p>\\[</p><p>-2(x+1)(x-3)\\lt 0</p><p>\\]</p>",
+      "stem": "<p>Wskaż rozwiązanie nierówności</p><p>\\[\n-2(x+1)(x-3)\\lt 0\n\\]</p>",
       "multiple": false,
       "choices": [
         {
@@ -73,14 +73,12 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>Kolejne pytania dotyczą następującego zadania.</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>Kolejne pytania dotyczą następującego zadania.</p>"
     },
     {
       "type": "choice",
-      "stem": "<p>\n    Oznaczmy średnią prędkość rowerzysty przez \\(x\\), a czas podróży przez \\(y\\). Wówczas:\n</p><p>\\[</p><p>xy=90</p><p>\\]</p><p>\n    Drugie równanie uzyskamy ze zdania na temat obliczeń rowerzysty. To równanie to:\n</p>",
+      "stem": "<p>\n    Oznaczmy średnią prędkość rowerzysty przez \\(x\\), a czas podróży przez \\(y\\). Wówczas:\n</p><p>\\[\nxy=90\n\\]</p><p>\n    Drugie równanie uzyskamy ze zdania na temat obliczeń rowerzysty. To równanie to:\n</p>",
       "multiple": false,
       "choices": [
         {
@@ -150,6 +148,6 @@
       ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "cdf536052f056d2cbc4c237df8ec58f2757f45e8808860ae0a1d49b39a78a9cb"
+  "fully_mapped": true,
+  "seed_hash": "7b0e8a4f99c4c97cd0d32ecd089e8be55d3ee81f272a4a9ce3468cdfa6c48101"
 }

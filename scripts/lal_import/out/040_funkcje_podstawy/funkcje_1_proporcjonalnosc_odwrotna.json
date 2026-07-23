@@ -22,11 +22,23 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Wpisz wartości \\(y\\) tak, by były odwrotnie proporcjonalne do \\(x\\).\n        </p>\n<p>\n            Wpisane wartości pozwolą Ci ustalić, jaka jest stała proporcjonalności.\n        </p>\n<p>\n            Gdy wpiszesz poprawnie wszystkie wartości, zobaczysz ciąg dalszy tej lekcji.\n        </p>\n<p>\n<div class=\"grid_b\">\n<div class=\"my_column\">\n                    \\(x\\)\n                </div>\n<div class=\"my_column\">\n                    \\(\\frac{1}{5}\\)\n                </div>\n<div class=\"my_column\">\n                    \\(\\frac{1}{2}\\)\n                </div>\n<div class=\"my_column\">\n                    \\(\\frac{2}{3}\\)\n                </div>\n<div class=\"my_column\">\n                    \\(1\\)\n                </div>\n<div class=\"my_column\">\n                    \\(2\\)\n                </div>\n<div class=\"my_column\">\n                    \\(4\\)\n                </div>\n<div class=\"my_column\">\n                    \\(5\\)\n                </div>\n<div class=\"my_column\">\n                    \\(y\\)\n                </div>\n<div class=\"my_column\">\n<input id=\"table_input1\" placeholder=\"wpisz\" type=\"text\"/>\n</div>\n<div class=\"my_column\">\n<input id=\"table_input2\" placeholder=\"wpisz\" type=\"text\"/>\n</div>\n<div class=\"my_column\">\n<input id=\"table_input3\" placeholder=\"wpisz\" type=\"text\"/>\n</div>\n<div class=\"my_column\">\n                    \\(1\\)\n                </div>\n<div class=\"my_column\">\n                    \\(\\frac{1}{2}\\)\n                </div>\n<div class=\"my_column\">\n<input id=\"table_input4\" placeholder=\"wpisz\" type=\"text\"/>\n</div>\n<div class=\"my_column\">\n<input id=\"table_input5\" placeholder=\"wpisz\" type=\"text\"/>\n</div>\n</div>\n</p>\n"
+      "body": "<p>\n            Wpisz wartości \\(y\\) tak, by były odwrotnie proporcjonalne do \\(x\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wpisane wartości pozwolą Ci ustalić, jaka jest stała proporcjonalności.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy wpiszesz poprawnie wszystkie wartości, zobaczysz ciąg dalszy tej lekcji.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<div class=\"grid_b\">\n<div class=\"my_column\">\n                    \\(x\\)\n                </div>\n<div class=\"my_column\">\n                    \\(\\frac{1}{5}\\)\n                </div>\n<div class=\"my_column\">\n                    \\(\\frac{1}{2}\\)\n                </div>\n<div class=\"my_column\">\n                    \\(\\frac{2}{3}\\)\n                </div>\n<div class=\"my_column\">\n                    \\(1\\)\n                </div>\n<div class=\"my_column\">\n                    \\(2\\)\n                </div>\n<div class=\"my_column\">\n                    \\(4\\)\n                </div>\n<div class=\"my_column\">\n                    \\(5\\)\n                </div>\n<div class=\"my_column\">\n                    \\(y\\)\n                </div>\n<div class=\"my_column\">\n<input id=\"table_input1\" placeholder=\"wpisz\" type=\"text\"/>\n</div>\n<div class=\"my_column\">\n<input id=\"table_input2\" placeholder=\"wpisz\" type=\"text\"/>\n</div>\n<div class=\"my_column\">\n<input id=\"table_input3\" placeholder=\"wpisz\" type=\"text\"/>\n</div>\n<div class=\"my_column\">\n                    \\(1\\)\n                </div>\n<div class=\"my_column\">\n                    \\(\\frac{1}{2}\\)\n                </div>\n<div class=\"my_column\">\n<input id=\"table_input4\" placeholder=\"wpisz\" type=\"text\"/>\n</div>\n<div class=\"my_column\">\n<input id=\"table_input5\" placeholder=\"wpisz\" type=\"text\"/>\n</div>\n</div>\n</p>"
     },
     {
       "type": "text",
@@ -102,11 +114,15 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n                Przyjrzyj się wykresom funkcji \\(y=\\frac{a}{x}\\) dla \\(a\\gt 0\\).\n            </p>\n<p>\n                Przemyśl, jakie są wskazane niżej właśności tej funkcji, a następnie porównaj swoje odpowiedzi z moimi.\n            </p>\n"
+      "body": "<p>\n                Przyjrzyj się wykresom funkcji \\(y=\\frac{a}{x}\\) dla \\(a\\gt 0\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Przemyśl, jakie są wskazane niżej właśności tej funkcji, a następnie porównaj swoje odpowiedzi z moimi.\n            </p>"
     },
     {
       "type": "text",
@@ -114,11 +130,15 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n                Przyjrzyj się wykresom funkcji \\(y=\\frac{a}{x}\\) dla \\(a\\lt 0\\).\n            </p>\n<p>\n                Przemyśl, jakie są wskazane niżej właśności tej funkcji, a następnie porównaj swoje odpowiedzi z moimi.\n            </p>\n"
+      "body": "<p>\n                Przyjrzyj się wykresom funkcji \\(y=\\frac{a}{x}\\) dla \\(a\\lt 0\\).\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Przemyśl, jakie są wskazane niżej właśności tej funkcji, a następnie porównaj swoje odpowiedzi z moimi.\n            </p>"
     },
     {
       "type": "text",
@@ -138,5 +158,5 @@
     }
   ],
   "fully_mapped": false,
-  "seed_hash": "5e698df89ecb2d4e715a6301071b3e211b9a7636f49d50d79bb67dd4fc77c142"
+  "seed_hash": "b6bda3ea57eab086b9ea1bca541bffa9efec27f9a05c01af6e23dd98960bf8b8"
 }

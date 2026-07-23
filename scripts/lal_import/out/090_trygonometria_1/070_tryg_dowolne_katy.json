@@ -23,8 +23,10 @@
       "body": "<p>\n        Dla dowolnego kąta wyznaczonego przez punkt na\n        <strong>\n            okręgu jednostkowym\n        </strong>\n<small>\n            (czyli takim, którego promień jest równy \\(1\\))\n        </small>\n<strong>\n            cosinus\n        </strong>\n        i\n        <strong>\n            sinus\n        </strong>\n        to współrzędne tego punktu.\n    </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"okrąg jednostkowy\" src=\"static/okrag_jednostkowy.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/okrag_jednostkowy.png",
+      "alt": "okrąg jednostkowy",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -43,12 +45,20 @@
       "media_src": "static/okrag_jednostkowy_ext.mp4"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<table class=\"my_table_noborder\">\n<tr>\n<td>\n<img alt=\"punkt poza okręgiem jednostkowym\" src=\"static/okrag_jednostkowy_ext.png\" width=\"600\"/>\n</td>\n<td>\n                    W mocy są naturalne wzory\n                    \\[\n                    \\begin{align*}\n                    \\sin\\alpha&amp;=\\frac{y}{r}\\\\\n                    \\cos\\alpha&amp;=\\frac{v}{r}\\\\\n                    \\text{tg}\\alpha&amp;=\\frac{y}{x}\\\\\n                    \\text{ctg}\\alpha&amp;=\\frac{x}{y}\n                    \\end{align*}\n                    \\]\n                    gdzie \\(r=\\sqrt{x^2+y^2}\\)\n                </td>\n</tr>\n<tr>\n<td colspan=\"2\">\n<strong>\n                        Punkt \\(P\\) może być położony w dowolnym miejscu w układzie współrzędnych poza punktem \\((0,0)\\).\n                    </strong>\n</td>\n</tr>\n</table>",
-      "reason": "table uses rowspan/colspan"
+      "type": "image",
+      "media_src": "static/okrag_jednostkowy_ext.png",
+      "alt": "punkt poza okręgiem jednostkowym",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>W mocy są naturalne wzory\n                    \\[\n                    \\begin{align*}\n                    \\sin\\alpha&amp;=\\frac{y}{r}\\\\\n                    \\cos\\alpha&amp;=\\frac{v}{r}\\\\\n                    \\text{tg}\\alpha&amp;=\\frac{y}{x}\\\\\n                    \\text{ctg}\\alpha&amp;=\\frac{x}{y}\n                    \\end{align*}\n                    \\]\n                    gdzie \\(r=\\sqrt{x^2+y^2}\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>\n                        Punkt \\(P\\) może być położony w dowolnym miejscu w układzie współrzędnych poza punktem \\((0,0)\\).\n                    </strong></p>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "de30915d4b5047e5a345148209b27698713482d6c0f155b0176fb045437b2e41"
+  "fully_mapped": true,
+  "seed_hash": "26b0e3e5ab1cba937988f02c28e579aa4f746f44fb9d16862ca9c4af562a6cde"
 }

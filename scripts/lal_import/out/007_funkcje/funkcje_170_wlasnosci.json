@@ -9,8 +9,10 @@
       "body": "<p>Wykres poniżej ilustruje głębokość pewnego zbiornika wody (\\(y\\), w metrach) zmieniającą się w ciągu jednego dnia (\\(x\\) to czas w godzinach).</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"poziom wody\" src=\"static/poziom_wody.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/poziom_wody.png",
+      "alt": "poziom wody",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -118,5 +120,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "226acd0f8325d86999388a4054626e11b0ad6096c0297f6d5e6a9e69c5bba1ce"
+  "seed_hash": "f3ade42d3d725956e9d45f65e58bb0d2c74b5687316fd63687939fe5954f6d0b"
 }

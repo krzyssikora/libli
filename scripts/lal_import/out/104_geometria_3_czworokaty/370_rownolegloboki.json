@@ -2,46 +2,81 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Prostokąt ma boki o długościach \\(3\\) i \\(3\\sqrt{3}).\n        &lt;/p&gt;\n        &lt;p&gt;\n            Znajdź miarę kąta ostrego między przekątnymi prostokąta.\n        &lt;/p&gt;\n    &lt;/div&gt;\n    &lt;details&gt;\n        &lt;summary&gt;metoda&lt;/summary&gt;\n        &lt;ol&gt;\n            &lt;li&gt;\n                Oblicz długość przekątnej z twierdzenia Pitagorasa.\n            &lt;/li&gt;\n            &lt;li&gt;\n                Jaki trójkąt tworzą połowy dwóch przekątnych i krótszy bok prostokąta?\n            &lt;/li&gt;\n        &lt;/ol&gt;\n    &lt;/details&gt;\n    &lt;details&gt;\n        &lt;summary&gt;odpowiedź&lt;/summary&gt;\n        \\(60^{\\circ}\\)\n    \n</p>"
+      "body": "<p>\n            Prostokąt ma boki o długościach \\(3\\) i \\(3\\sqrt{3}).\n        &lt;/p&gt;\n        &lt;p&gt;\n            Znajdź miarę kąta ostrego między przekątnymi prostokąta.\n        &lt;/p&gt;\n    &lt;/div&gt;\n    &lt;details&gt;\n        &lt;summary&gt;metoda&lt;/summary&gt;\n        &lt;ol&gt;\n            &lt;li&gt;\n                Oblicz długość przekątnej z twierdzenia Pitagorasa.\n            &lt;/li&gt;\n            &lt;li&gt;\n                Jaki trójkąt tworzą połowy dwóch przekątnych i krótszy bok prostokąta?\n            &lt;/li&gt;\n        &lt;/ol&gt;\n    &lt;/details&gt;\n    &lt;details&gt;\n        &lt;summary&gt;odpowiedź&lt;/summary&gt;\n        \\(60^{\\circ}\\)\n    \n</p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dane są trzy kwadraty.\n        </p>\n<p>\n            Długość boku drugiego jest równa przekątnej pierwszego.\n        </p>\n<p>\n            Długość boku trzeciego jest równa przekątnej drugiego.\n        </p>\n<p>\n            Jaki jest stosunek pól trzeciego i pierwszego kwadratu?\n        </p>\n"
+      "body": "<p>\n            Dane są trzy kwadraty.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Długość boku drugiego jest równa przekątnej pierwszego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Długość boku trzeciego jest równa przekątnej drugiego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaki jest stosunek pól trzeciego i pierwszego kwadratu?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(4:1\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(4:1\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dane są kwadrat i prostokąt.\n        </p>\n<ul class=\"nolist\">\n<li>Przekątne prostokąta przecinają się pod kątem \\(60^{\\circ}\\).</li>\n<li>Stosunek pola prostokąta do pola kwadratu jest równy \\(\\sqrt{3}\\).</li>\n</ul>\n<p>\n            Jaki jest stosunek obwodu prostokąta do obwodu kwadratu?\n        </p>\n"
+      "body": "<p>\n            Dane są kwadrat i prostokąt.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>Przekątne prostokąta przecinają się pod kątem \\(60^{\\circ}\\).</li>\n<li>Stosunek pola prostokąta do pola kwadratu jest równy \\(\\sqrt{3}\\).</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaki jest stosunek obwodu prostokąta do obwodu kwadratu?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "metoda",
-      "body": "\n\n<ol>\n<li>Oznacz połowę przekątnej prostokąta przez \\(x\\).</li>\n<li>Korzystając z trójkąta prostokątnego o wierzchołkach w: środku przekątnej, środku boku prostokąta i wierzchołku prostokąta, znajdź wyrażenia opisujące długości boków prostokąta w zależności od \\(x\\).</li>\n<li>Oblicz pole prostokąta.</li>\n<li>Oblicz pole kwadratu.</li>\n<li>Oblicz długość boku kwadratu.</li>\n<li>Oblicz obwody prostokąta i kwadratu.</li>\n<li>Oblicz stosunek obwodów.</li>\n</ol>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol>\n<li>Oznacz połowę przekątnej prostokąta przez \\(x\\).</li>\n<li>Korzystając z trójkąta prostokątnego o wierzchołkach w: środku przekątnej, środku boku prostokąta i wierzchołku prostokąta, znajdź wyrażenia opisujące długości boków prostokąta w zależności od \\(x\\).</li>\n<li>Oblicz pole prostokąta.</li>\n<li>Oblicz pole kwadratu.</li>\n<li>Oblicz długość boku kwadratu.</li>\n<li>Oblicz obwody prostokąta i kwadratu.</li>\n<li>Oblicz stosunek obwodów.</li>\n</ol>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(\\frac{\\sqrt{3}+1}{2}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{\\sqrt{3}+1}{2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -50,27 +85,46 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(420\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(420\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Pole prostokąta jest równe \\(168\\), a jego przekątna ma długość \\(25\\).\n        </p>\n<p>\n            Znajdź długości boków prostokąta.\n        </p>\n"
+      "body": "<p>\n            Pole prostokąta jest równe \\(168\\), a jego przekątna ma długość \\(25\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długości boków prostokąta.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "metoda",
-      "body": "\n\n<ol>\n<li>\n                Oznacz boki prostokąta przez \\(a\\) i \\(b\\).\n            </li>\n<li>\n                Użyj przekątnej, by znaleźć wartość wyrażenia \\(a^2+b^2\\).\n            </li>\n<li>\n                Użyj pola, by znaleźć wartość wyrażenia \\(2ab\\). \n            </li>\n<li>\n                Dodaj otrzymane wartości, by znaleźć wartość wyrażenia \\((a+b)^2\\), a stąd \\(a+b\\).\n            </li>\n<li>\n                Wyznacz \\(b\\) w zależności od \\(a\\) i podstaw do równania opisującego wartość wyrażenia \\(2ab\\).\n            </li>\n<li>\n                Rozwiąż równanie kwadratowe, by znaleźć długość jednego boku, a natępnie znajdź długość drugiego boku. \n            </li>\n</ol>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                Oznacz boki prostokąta przez \\(a\\) i \\(b\\).\n            </li>\n<li>\n                Użyj przekątnej, by znaleźć wartość wyrażenia \\(a^2+b^2\\).\n            </li>\n<li>\n                Użyj pola, by znaleźć wartość wyrażenia \\(2ab\\). \n            </li>\n<li>\n                Dodaj otrzymane wartości, by znaleźć wartość wyrażenia \\((a+b)^2\\), a stąd \\(a+b\\).\n            </li>\n<li>\n                Wyznacz \\(b\\) w zależności od \\(a\\) i podstaw do równania opisującego wartość wyrażenia \\(2ab\\).\n            </li>\n<li>\n                Rozwiąż równanie kwadratowe, by znaleźć długość jednego boku, a natępnie znajdź długość drugiego boku. \n            </li>\n</ol>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(7\\) i \\(24\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(7\\) i \\(24\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "2d28a62ad8605c2566c76e823e9e6c1eae6c66e1c80f0cffea59bf5fdde7fd58"
+  "seed_hash": "ee629fed2b57508d51e1854c891d52cef1a643f10b95fe360a84060c2f71329f"
 }

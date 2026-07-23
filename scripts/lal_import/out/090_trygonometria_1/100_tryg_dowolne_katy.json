@@ -14,13 +14,26 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        W poniższym aplecie możesz klikać na punkty na okręgu jednostkowym w różnych ćwiartkach, by zobaczyć, jaki kąt w pierwszej ćwiartce ma prawie takie same współrzędne (co najwyżej ze zmienionym znakiem).\n        <div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"520px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/tfdcumpb/width/750/height/520/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"relacje między kątami w układzie współrzędnych\" width=\"750px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<p>\n            Możesz też zmienić położenie punktu w pierwszej ćwiartce.\n        </p>\n<p>\n            Pomyśl o konkretnych kątach w ćwiartkach II, III i IV, i sprawdź, jaki kąt w I ćwiartce im odpowiada. Które współrzędne punktów wskazujących kąty mają przeciwne znaki?\n        </p>\n"
+      "body": "<p>W poniższym aplecie możesz klikać na punkty na okręgu jednostkowym w różnych ćwiartkach, by zobaczyć, jaki kąt w pierwszej ćwiartce ma prawie takie same współrzędne (co najwyżej ze zmienionym znakiem).</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/tfdcumpb/width/750/height/520/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Możesz też zmienić położenie punktu w pierwszej ćwiartce.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pomyśl o konkretnych kątach w ćwiartkach II, III i IV, i sprawdź, jaki kąt w I ćwiartce im odpowiada. Które współrzędne punktów wskazujących kąty mają przeciwne znaki?\n        </p>"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "ac2473595fcbeb96d3b1748bfa9a7a1cb2e7c9b3ad2dd3fa7e424118231a5dde"
+  "seed_hash": "ff3093a201529d9b74c50754f58ca6a1afd52e4b6cac42739df1d8067245317f"
 }

@@ -13,8 +13,10 @@
       "body": "<p>\n    (Mówimy, że punkt \\(B\\) jest obrazem punktu \\(A\\) w przesunięciu o wektor \\(\\color{blue}{\\vec{w}}\\)).\n</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"przesunięcie o wektor\" src=\"static/przesuniecie_o_wektor.png\" style=\"width: 600px;\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/przesuniecie_o_wektor.png",
+      "alt": "przesunięcie o wektor",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -22,5 +24,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "d79c740669e18d47d3cf1960e76e73729192a89e2aec817d01f9846d75c925b5"
+  "seed_hash": "75fb24ac2b2db7ced235a496a2d732442d66c8a65bff1ead263e5e855588863d"
 }

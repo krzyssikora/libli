@@ -57,10 +57,126 @@
       "body": "<h3>\n    Wzory na pole trójkąta\n</h3>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<table class=\"my_table_TL\">\n<tr>\n<th>\n</th>\n<th>\n                    wzory\n                </th>\n<th>\n                    dane\n                </th>\n<th>\n                    rysunek\n                </th>\n</tr>\n<tr>\n<td>\n<strong>\n                        1.\n                    </strong>\n</td>\n<td>\n                    \\[\n                    \\begin{align*}\n                    P&amp;=\\frac{1}{2}ah_a\\\\\n                    &amp;=\\frac{1}{2}bh_b\\\\\n                    &amp;=\\frac{1}{2}ch_c\n                    \\end{align*}\n                    \\]\n                </td>\n<td>\n<br/>\n                    \\(a\\), \\(b\\), \\(c\\) - boki,\n                    <br/>\n                    \\(h_a\\), \\(h_b\\), \\(h_c\\) - odpowiadające im wysokości\n                </td>\n<td>\n<img alt=\"pole trójkąta 1\" src=\"static/pole_trojkata_wzor_1.png\" width=\"300px\"/>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                        2.\n                    </strong>\n</td>\n<td>\n                    \\[\n                    \\begin{align*}\n                    P&amp;=\\frac{1}{2}ab\\sin\\gamma\\\\\n                    &amp;=\\frac{1}{2}bc\\sin\\alpha\\\\\n                    &amp;=\\frac{1}{2}ac\\sin\\beta\n                    \\end{align*}\n                    \\]\n                    <td>\n<br/>\n                        \\(a\\), \\(b\\), \\(c\\) - boki,\n                        <br/>\n                        \\(\\alpha\\), \\(\\beta\\), \\(\\gamma\\) - przeciwległe kąty\n                    </td>\n<td>\n<img alt=\"pole trójkąta 2\" src=\"static/pole_trojkata_wzor_2.png\" width=\"300px\"/>\n</td>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                        3.\n                    </strong>\n</td>\n<td>\n                    \\[\n                    P=\\frac{abc}{4R}\n                    \\]\n                </td>\n<td>\n<br/>\n                    \\(a\\), \\(b\\), \\(c\\) - boki,\n                    <br/>\n                    \\(R\\) - promień okręgu opisanego\n                </td>\n<td>\n<img alt=\"pole trójkąta 3\" src=\"static/pole_trojkata_wzor_3.png\" width=\"300px\"/>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                        4.\n                    </strong>\n</td>\n<td>\n                    \\[\n                    P=\\sqrt{p(p-a)(p-b)(p-c)}\n                    \\]\n                </td>\n<td>\n<br/>\n                    \\(a\\), \\(b\\), \\(c\\) - boki,\n                    <br/>\n                    \\(p\\) - połowa obwodu trójkąta\n                </td>\n<td>\n<img alt=\"pole trójkąta 4\" src=\"static/pole_trojkata_wzor_4.png\" width=\"300px\"/>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                        5.\n                    </strong>\n</td>\n<td>\n                    \\[\n                    \\begin{align*}\n                    P&amp;=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\\\\\n                    &amp;=\\frac{1}{2}b^2\\cdot\\frac{\\sin\\alpha\\cdot\\sin\\gamma}{\\sin\\beta}\\\\\n                    &amp;=\\frac{1}{2}c^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\alpha}{\\sin\\gamma}\n                    \\end{align*}\n                    \\]\n                </td>\n<td>\n<br/>\n                    \\(a\\), \\(b\\), \\(c\\) - boki,\n                    <br/>\n                    \\(\\alpha\\), \\(\\beta\\), \\(\\gamma\\) - przeciwległe kąty\n                </td>\n<td>\n<img alt=\"pole trójkąta 5\" src=\"static/pole_trojkata_wzor_2.png\" width=\"300px\"/>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                        6.\n                    </strong>\n</td>\n<td>\n                    \\[\n                    P=pr\n                    \\]\n                </td>\n<td>\n<br/>\n                    \\(p\\) - połowa obwodu trójkąta,\n                    <br/>\n                    \\(r\\) - promień okręgu wpisanego\n                </td>\n<td>\n<img alt=\"pole trójkąta 6\" src=\"static/pole_trojkata_wzor_6.png\" width=\"300px\"/>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                        7.\n                    </strong>\n</td>\n<td>\n                    \\[\n                    P=2R^2\\cdot\\sin\\alpha\\cdot\\sin\\beta\\cdot\\sin\\gamma\n                    \\]\n                </td>\n<td>\n<br/>\n                    \\(\\alpha\\), \\(\\beta\\), \\(\\gamma\\) - kąty,\n                    <br/>\n                    \\(R\\) - promień okręgu opisanego\n                </td>\n<td>\n<img alt=\"pole trójkąta 7\" src=\"static/pole_trojkata_wzor_7.png\" width=\"300px\"/>\n</td>\n</tr>\n</table>",
-      "reason": "rows have differing cell counts"
+      "type": "text",
+      "body": "<p>wzory</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>dane</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>\n                        1.\n                    </strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><br/>\n                    \\(a\\), \\(b\\), \\(c\\) - boki,\n                    <br/>\n                    \\(h_a\\), \\(h_b\\), \\(h_c\\) - odpowiadające im wysokości</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_trojkata_wzor_1.png",
+      "alt": "pole trójkąta 1",
+      "figcaption": "rysunek"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>\n                        2.\n                    </strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_trojkata_wzor_2.png",
+      "alt": "pole trójkąta 2",
+      "figcaption": "\\[\n                    \\begin{align*}\n                    P&=\\frac{1}{2}ah_a\\\\\n                    &=\\frac{1}{2}bh_b\\\\\n                    &=\\frac{1}{2}ch_c\n                    \\end{align*}\n                    \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>\n                        3.\n                    </strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n                    P=\\frac{abc}{4R}\n                    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><br/>\n                    \\(a\\), \\(b\\), \\(c\\) - boki,\n                    <br/>\n                    \\(R\\) - promień okręgu opisanego</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_trojkata_wzor_3.png",
+      "alt": "pole trójkąta 3",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>\n                        4.\n                    </strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n                    P=\\sqrt{p(p-a)(p-b)(p-c)}\n                    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><br/>\n                    \\(a\\), \\(b\\), \\(c\\) - boki,\n                    <br/>\n                    \\(p\\) - połowa obwodu trójkąta</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_trojkata_wzor_4.png",
+      "alt": "pole trójkąta 4",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>\n                        5.\n                    </strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n                    \\begin{align*}\n                    P&amp;=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\\\\\n                    &amp;=\\frac{1}{2}b^2\\cdot\\frac{\\sin\\alpha\\cdot\\sin\\gamma}{\\sin\\beta}\\\\\n                    &amp;=\\frac{1}{2}c^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\alpha}{\\sin\\gamma}\n                    \\end{align*}\n                    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><br/>\n                    \\(a\\), \\(b\\), \\(c\\) - boki,\n                    <br/>\n                    \\(\\alpha\\), \\(\\beta\\), \\(\\gamma\\) - przeciwległe kąty</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_trojkata_wzor_2.png",
+      "alt": "pole trójkąta 5",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>\n                        6.\n                    </strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n                    P=pr\n                    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><br/>\n                    \\(p\\) - połowa obwodu trójkąta,\n                    <br/>\n                    \\(r\\) - promień okręgu wpisanego</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_trojkata_wzor_6.png",
+      "alt": "pole trójkąta 6",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>\n                        7.\n                    </strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\\[\n                    P=2R^2\\cdot\\sin\\alpha\\cdot\\sin\\beta\\cdot\\sin\\gamma\n                    \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><br/>\n                    \\(\\alpha\\), \\(\\beta\\), \\(\\gamma\\) - kąty,\n                    <br/>\n                    \\(R\\) - promień okręgu opisanego</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_trojkata_wzor_7.png",
+      "alt": "pole trójkąta 7",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -115,6 +231,6 @@
       "body": "<ul class=\"nolist\">\n<li>\n</li>\n<li>\n            długość łuku = \\(d=\\frac{\\alpha}{180^{\\circ}}\\cdot\\pi r\\)\n        </li>\n<li>\n</li>\n<li>\n            pole wycinka = \\(\\frac{\\alpha}{360^{\\circ}}\\cdot \\pi r^2\\quad = \\frac{d}{2}\\cdot r\\)\n        </li>\n</ul>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "b9353a095c1f5e6e9856b77c8916b67c6393c1ac9f24eb60fd3e6ef7b20f484c"
+  "fully_mapped": true,
+  "seed_hash": "23806abadd4f01cd04c43b8d5b3dea012621c81f0db141bd91307b73cf898b98"
 }

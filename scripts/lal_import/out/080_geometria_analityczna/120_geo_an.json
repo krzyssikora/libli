@@ -2,31 +2,98 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Nie wszystkie linie proste narysowane w układzie wspórzędnych można opisać równaniem kierunkowym, \\(y=ax+b\\).\n        </p>\n        Zastanów się\n        <ul>\n<li>\n                albo nad współczynnikiem kierunkowym, czyli ułamkiem postaci \\(\\frac{\\text{SKOK}}{\\text{KROK}}\\) - jakie ułamki nie mają sensu, jakie kierunki opisują?\n            </li>\n<li>\n                albo nad tym, że równanie kierunkowe to równanie funkcji liniowej - jakie proste nie są wykresami funkcji?\n            </li>\n</ul>\n"
+      "body": "<p>\n            Nie wszystkie linie proste narysowane w układzie wspórzędnych można opisać równaniem kierunkowym, \\(y=ax+b\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zastanów się</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                albo nad współczynnikiem kierunkowym, czyli ułamkiem postaci \\(\\frac{\\text{SKOK}}{\\text{KROK}}\\) - jakie ułamki nie mają sensu, jakie kierunki opisują?\n            </li>\n<li>\n                albo nad tym, że równanie kierunkowe to równanie funkcji liniowej - jakie proste nie są wykresami funkcji?\n            </li>\n</ul>"
     },
     {
       "type": "spoiler",
       "label": "Sprawdź",
-      "body": "\n\n        Równanie kierunkowe nie opisuje prostych\n        <strong>\n            pionowych\n        </strong>\n        .\n        <ul>\n<li>\n                Pomiędzy punktami na prostej pionowej nie ma żadnego przesunięcia w poziomie (\\(\\text{KROK} = 0\\)), a ułamek nie może mieć zera w mianowniku.\n            </li>\n<li>\n                Punkty na prostej pionowej mają taką samą wspórzędną \\(x\\)-ową i różne wspórzędne \\(y\\)-owe. Tak więc jednemu argumentowi przyporządkowane byłyby różne wartości. Takie przyporządkowanie nie jest funkcją.\n            </li>\n</ul>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Równanie kierunkowe nie opisuje prostych</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n            pionowych\n        </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                Pomiędzy punktami na prostej pionowej nie ma żadnego przesunięcia w poziomie (\\(\\text{KROK} = 0\\)), a ułamek nie może mieć zera w mianowniku.\n            </li>\n<li>\n                Punkty na prostej pionowej mają taką samą wspórzędną \\(x\\)-ową i różne wspórzędne \\(y\\)-owe. Tak więc jednemu argumentowi przyporządkowane byłyby różne wartości. Takie przyporządkowanie nie jest funkcją.\n            </li>\n</ul>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Jak wygląda równanie prostej pionowej?\n        </p>\n<p>\n            W poniższym aplecie możesz przesuwać pionową, niebieską prostą przesuwając punkt na osi \\(OX\\).\n        </p>\n<p>\n            Możesz też przesuwać czerwony punkt na prostej. Przesuwaj go i obserwuj jego współrzędne. Co spostrzegasz? Jakie jest równanie prostej pionowej?\n        </p>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"788px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/ttrnrsjz/width/800/height/788/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"prosta pionowa\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n"
+      "body": "<p>\n            Jak wygląda równanie prostej pionowej?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać pionową, niebieską prostą przesuwając punkt na osi \\(OX\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Możesz też przesuwać czerwony punkt na prostej. Przesuwaj go i obserwuj jego współrzędne. Co spostrzegasz? Jakie jest równanie prostej pionowej?\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/ttrnrsjz/width/800/height/788/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
     },
     {
       "type": "spoiler",
       "label": "Sprawdź",
-      "body": "\n\n<p>\n            Wszystkie punkty na prostej pionowej mają identyczne współrzędne \\(x\\)-owe. I dlatego\n        </p>\n<div class=\"important\">\n            prosta pionowa ma równanie postaci\n        \\[\n        x=c\n        \\]\n        gdzie \\(c\\) to pewna stała, a dokładniej współrzędna \\(x\\)-owa dowolnego punktu z prostej.\n        </div>\n<p>\n</p>\n<p>\n            Równanie, którym można opisać dowolną prostą to tzw.\n            <strong>\n                równanie ogólne\n            </strong>\n</p>\n<div class=\"important\">\n            Równanie\n            <strong>\n                ogólne\n            </strong>\n            prostej to równanie postaci\n            \\[\n            Ax+By+C=0\n            \\]\n            przy czym współczynniki \\(A\\) i \\(B\\) nie mogą być równocześnie równe \\(0\\).\n            <p>\n<small>\n                    Warunek \"współczynniki \\(A\\) i \\(B\\) nie mogą być równocześnie równe \\(0\\)\" można też zapisać jako\n                    \\[\n                    A^2+B^2\\ne 0\n                    \\]\n                </small>\n</p>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Wszystkie punkty na prostej pionowej mają identyczne współrzędne \\(x\\)-owe. I dlatego\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            prosta pionowa ma równanie postaci\n        \\[\n        x=c\n        \\]\n        gdzie \\(c\\) to pewna stała, a dokładniej współrzędna \\(x\\)-owa dowolnego punktu z prostej.\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Równanie, którym można opisać dowolną prostą to tzw.\n            <strong>\n                równanie ogólne\n            </strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Równanie</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n                ogólne\n            </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>prostej to równanie postaci\n            \\[\n            Ax+By+C=0\n            \\]\n            przy czym współczynniki \\(A\\) i \\(B\\) nie mogą być równocześnie równe \\(0\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<small>\n                    Warunek \"współczynniki \\(A\\) i \\(B\\) nie mogą być równocześnie równe \\(0\\)\" można też zapisać jako\n                    \\[\n                    A^2+B^2\\ne 0\n                    \\]\n                </small>\n</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "c6989cbd5548cdea763f152a4669cd9eebe4204fe2cc1716173dd18732b6c21b"
+  "seed_hash": "d00fa2db9c8e69785a31f211b754297c651d7ae0ce08a152a708e062900dbdc0"
 }

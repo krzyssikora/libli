@@ -2,18 +2,262 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Trójkąt \\(ABC\\) jest równoramienny (\\(AC=BC\\)). Dane jest położenie wierzchołków \\(A = (-9, 7)\\) oraz \\(B = (15, -11)\\). Obwód trójkąta jest równy \\(80\\).\n        </p>\n        Znajdź współrzędne wierzchołka \\(C\\).\n    "
+      "body": "<p>\n            Trójkąt \\(ABC\\) jest równoramienny (\\(AC=BC\\)). Dane jest położenie wierzchołków \\(A = (-9, 7)\\) oraz \\(B = (15, -11)\\). Obwód trójkąta jest równy \\(80\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Znajdź współrzędne wierzchołka \\(C\\).</p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Skoro dany jest obwód oraz współrzędne wierzchołków \\(A\\) i \\(B\\), warto zacząć od obliczenia długości boku \\(AB\\).\n                <details>\n<summary>\n                        długość odcinka - przypomnienie\n                    </summary>\n<div class=\"important\">\n                        Długość odcinka \\(AB\\), gdzie\n                        \\[\n                        A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n                        \\]\n                        jest dana wzorem\n                        \\[\n                        AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n                        \\]\n                    </div>\n</details>\n<div class=\"switch_line\">\n                    Długość \\(AB=\\sqrt{(15-(-9))^2+(-11-7)^2}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        30\n                    </div>\n<div class=\"switch_value\">\n                        42\n                    </div>\n<div class=\"switch_value\">\n                        90\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Zauważmy teraz, że boki \\(AC\\) i \\(BC\\) są równej długości. Trzeci bok, to obliczone przed chwilą \\(30\\). No a obwód to \\(80\\):\n                \\[\n                AC+BC+30=80\n                \\]\n                <div class=\"switch_line\">\n                    I dlatego \\(AC=BC=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(50\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(30\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(25\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Wiemy już, że oba brakujące boki są długości \\(30\\). Spójrz na poniższe rysunki. (Rysunki nie zachowują skali.)\n                <ul class=\"nolist\">\n<li>\n<span style=\"color: blue\">\n                            niebieski\n                        </span>\n                        odcinek to znany bok \\(AB\\)\n                    </li>\n<li>\n<span style=\"color: orange;\">\n                            pomarańczowe\n                        </span>\n                        strzałki wskazują odległość \\(25\\) od punktów \\(A\\) i\\(B\\)\n                    </li>\n<li>\n                        łuki o promieniu \\(25\\) zakreślone są z punktów \\(A\\) i\\(B\\)\n                    </li>\n</ul>\n                Z pierwszego rysunku widzimy, że\n                <ul style=\"list-style-type:square\">\n<li>\n                        punkt \\(C\\) leży na przecięciu łuków o promieniu \\(25\\) zakreślonych z punktów \\(A\\) i\\(B\\)\n                    </li>\n<li>\n                        są więc dwa możliwe położenia punktu \\(C\\)\n                    </li>\n<li>\n                        możemy je znależć jako punkty wspólne dwóch okręgów - o promieniu \\(25\\) i środkach w punktach \\(A\\) i\\(B\\)\n                    </li>\n</ul>\n<div class=\"centered\">\n<img alt=\"geometria analityczna, zadanie 1\" height=\"400\" src=\"static/geom_analit_zad_1_1.png\"/>\n<img alt=\"geometria analityczna, zadanie 1\" height=\"400\" src=\"static/geom_analit_zad_1_2.png\"/>\n</div>\n                Z drugiego rysunku widzimy, że\n                <ul style=\"list-style-type:square\">\n<li>\n                        zamiast szukać punktów wspólnych dwóch okręgów, można szukać punktów wspólnych jednego z nich i\n                        <span style=\"color: red;\">\n                            czerwonej\n                        </span>\n                        prostej\n                    </li>\n<li>\n                        ta prosta to oś symetrii rysunku, czyli symetralna boku \\(AB\\).\n                    </li>\n</ul>\n                Podsumowując: najpierw znajdziemy symetralną boku \\(AB\\). A zaczniemy od punktu \\(S\\), czyli środka odcinka \\(AB\\).\n                <details>\n<summary>\n                        środek odcinka - przypomnienie\n                    </summary>\n<div class=\"important\">\n<p>\n                            Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:\n                        </p>\n                        \\[\n                        S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n                        \\]\n                    </div>\n</details>\n<div class=\"switch_line\">\n                    \\(S=\\left(\\frac{-9+15}{2},\\frac{7+(-11)}{2}\\right)=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\((-13, 9)\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\((3, -2)\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\((6, -4)\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Znamy punkt, przez który ma przechodzić symetralna i wiemy, że jest prostopadła do boku \\(AB\\). Ustalmy, jakie jest nachylenie boku \\(AB\\).\n                <details>\n<summary>\n                        nachylenie odcinka - przypomnienie\n                    </summary>\n<div class=\"important\">\n                        Nachylenie odcinka / prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) to liczba\n                        \\[\n                        \\frac{\\text{SKOK}}{\\text{KROK}}=\\frac{y_B-y_A}{x_B-x_A}\n                        \\]\n                    </div>\n</details>\n<div class=\"switch_line\">\n                    Nachylenie odcinka \\(AB\\) ma wartość\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{3}{4}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-\\tfrac{3}{4}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{4}{3}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-\\tfrac{4}{3}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Nachylenie boku \\(AB\\) to \\(-\\frac{3}{4}\\), a jakie jest nachylenie symetralnej tego boku?\n                <details>\n<summary>\n                        nachylenie odcinków prostopadłych - przypomnienie\n                    </summary>\n<div class=\"important\">\n                        Liczby \\(a_1\\) i \\(a_2\\) są nachyleniami odcinków (współczynnikami kierunkowymi prostych) prostopadłych, jeśli\n                        <ul class=\"nolist\">\n<li>\n                                \\(a_1\\cdot a_2=-1\\)\n                            </li>\n<li>\n                                lub równoważnie \\(a_2=-\\frac{1}{a_1}\\).\n                            </li>\n</ul>\n</div>\n</details>\n<div class=\"switch_line\">\n                    Nachylenie symetralnej odcinka \\(AB\\) ma wartość\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{3}{4}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-\\tfrac{3}{4}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{4}{3}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-\\tfrac{4}{3}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Symetralna boku \\(AB\\) to prosta o nachyleniu \\(\\frac{4}{3}\\) przechodząca przez punkt \\(S=(3,-2)\\). Jest to więc prosta o równaniu\n                \\[\n                y=\\frac{4}{3}x+b\n                \\]\n                Współczynnik \\(b\\) obliczymy podstawiając współrzędne punktu \\(S\\):\n                \\[\n                -2=\\frac{4}{3}\\cdot(3)+b\n                \\]\n                <div class=\"switch_line\">\n                    I dlatego\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(b=-6\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(b=2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(b=-10\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Symetralna boku \\(AB\\) (czyli\n                <span style=\"color: red;\">\n                    czerwona\n                </span>\n                prosta na rysunku powyżej) ma równanie \\(y=\\frac{4}{3}x-6\\). Chcemy znaleźć punkty, w których przecina okrąg o środku w punkcie \\(A=(-9,7)\\) i promieniu \\(25\\).\n                <div class=\"switch_line\">\n                    Równanie tego okręgu to\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\((x+9)^2+(y-7)^2=25\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\((x+9)^2+(y-7)^2=625\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\((x-9)^2+(y+7)^2=25\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\((x-9)^2+(y+7)^2=625\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Teraz musimy rozwiązać układ równań:\n                \\[\n                \\begin{cases}\n                (x+9)^2+(y-7)^2=625\\\\\n                y=\\frac{4}{3}x-6\n                \\end{cases}\n                \\]\n                Podstawiamy \\(y\\) z równania prostej do równania okręgu:\n                \\[\n                (x+9)^2+\\left(\\frac{4}{3}x-6-7\\right)^2=625\n                \\]\n                i upraszczamy:\n                \\[\n                \\begin{align*}\n                x^2+18x+81+\\frac{16}{9}x^2-\\frac{104}{3}x+169&amp;=625\\\\\n                \\frac{25}{9}x^2-\\frac{50}{3}x-375&amp;=0\\\\\n                x^2-6x-135&amp;=0\n                \\end{align*}\n                \\]\n                <div class=\"switch_line\">\n                    Wyróżnik tego równania kwadratowego to \\(\\Delta=b^2-4ac=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(576\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-504\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(171\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                \\(\\Delta = 576\\) może wydawać się nieprzyjemnie duża, ale to wygodny wynik, bo \\(\\sqrt{576}=24\\). Policzmy więc rozwiązania.\n                <div class=\"switch_line\">\n                    \\(x=\\frac{-b\\pm\\sqrt{\\Delta}}{2a}=\\frac{6\\pm 24}{2\\cdot 1}\\), więc\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(x=9\\) lub \\(x=-15\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(x=-9\\) lub \\(x=15\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Punkt \\(C\\) może mieć współrzędną \\(x\\)-ową równą albo \\(-9\\) albo \\(15\\). Współrzędne \\(y\\)-owe policzymy z równania symetralnej boku \\(AB\\), czyli \\(y=\\frac{4}{3}x-6\\).\n                <div class=\"switch_line\">\n                    Dla \\(x=-9\\) i \\(x=15\\) otrzymujemy odpowiednio\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(y=-18\\) i \\(y=14\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(y=6\\) i \\(y=-26\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Zadanie ma dwa rozwiązania, tj. dwa możliwe położenia punktu \\(C\\).\n                </p>\n                Na rysunku poniżej są oznaczone jako \\(C_1=(-9,-18)\\) i \\(C_2=(15, 14)\\).\n                <div class=\"centered\">\n<img alt=\"geometria analityczna, zadanie 1\" height=\"600\" src=\"static/geom_analit_zad_1_3.png\"/>\n</div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skoro dany jest obwód oraz współrzędne wierzchołków \\(A\\) i \\(B\\), warto zacząć od obliczenia długości boku \\(AB\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>długość odcinka - przypomnienie</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        Długość odcinka \\(AB\\), gdzie\n                        \\[\n                        A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n                        \\]\n                        jest dana wzorem\n                        \\[\n                        AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Długość \\(AB=\\sqrt{(15-(-9))^2+(-11-7)^2}=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "30",
+            "42",
+            "90"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważmy teraz, że boki \\(AC\\) i \\(BC\\) są równej długości. Trzeci bok, to obliczone przed chwilą \\(30\\). No a obwód to \\(80\\):\n                \\[\n                AC+BC+30=80\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego \\(AC=BC=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(50\\)",
+            "\\(30\\)",
+            "\\(25\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Wiemy już, że oba brakujące boki są długości \\(30\\). Spójrz na poniższe rysunki. (Rysunki nie zachowują skali.)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n<span style=\"color: blue\">\n                            niebieski\n                        </span>\n                        odcinek to znany bok \\(AB\\)\n                    </li>\n<li>\n<span style=\"color: orange;\">\n                            pomarańczowe\n                        </span>\n                        strzałki wskazują odległość \\(25\\) od punktów \\(A\\) i\\(B\\)\n                    </li>\n<li>\n                        łuki o promieniu \\(25\\) zakreślone są z punktów \\(A\\) i\\(B\\)\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Z pierwszego rysunku widzimy, że</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul style=\"list-style-type:square\">\n<li>\n                        punkt \\(C\\) leży na przecięciu łuków o promieniu \\(25\\) zakreślonych z punktów \\(A\\) i\\(B\\)\n                    </li>\n<li>\n                        są więc dwa możliwe położenia punktu \\(C\\)\n                    </li>\n<li>\n                        możemy je znależć jako punkty wspólne dwóch okręgów - o promieniu \\(25\\) i środkach w punktach \\(A\\) i\\(B\\)\n                    </li>\n</ul>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geom_analit_zad_1_1.png",
+          "alt": "geometria analityczna, zadanie 1",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/geom_analit_zad_1_2.png",
+          "alt": "geometria analityczna, zadanie 1",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Z drugiego rysunku widzimy, że</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul style=\"list-style-type:square\">\n<li>\n                        zamiast szukać punktów wspólnych dwóch okręgów, można szukać punktów wspólnych jednego z nich i\n                        <span style=\"color: red;\">\n                            czerwonej\n                        </span>\n                        prostej\n                    </li>\n<li>\n                        ta prosta to oś symetrii rysunku, czyli symetralna boku \\(AB\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Podsumowując: najpierw znajdziemy symetralną boku \\(AB\\). A zaczniemy od punktu \\(S\\), czyli środka odcinka \\(AB\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>środek odcinka - przypomnienie</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:\n                        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                        S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n                        "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(S=\\left(\\frac{-9+15}{2},\\frac{7+(-11)}{2}\\right)=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\((-13, 9)\\)",
+            "\\((3, -2)\\)",
+            "\\((6, -4)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Znamy punkt, przez który ma przechodzić symetralna i wiemy, że jest prostopadła do boku \\(AB\\). Ustalmy, jakie jest nachylenie boku \\(AB\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>nachylenie odcinka - przypomnienie</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        Nachylenie odcinka / prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) to liczba\n                        \\[\n                        \\frac{\\text{SKOK}}{\\text{KROK}}=\\frac{y_B-y_A}{x_B-x_A}\n                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Nachylenie odcinka \\(AB\\) ma wartość\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{3}{4}\\)",
+            "\\(-\\tfrac{3}{4}\\)",
+            "\\(\\tfrac{4}{3}\\)",
+            "\\(-\\tfrac{4}{3}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Nachylenie boku \\(AB\\) to \\(-\\frac{3}{4}\\), a jakie jest nachylenie symetralnej tego boku?</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>nachylenie odcinków prostopadłych - przypomnienie</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Liczby \\(a_1\\) i \\(a_2\\) są nachyleniami odcinków (współczynnikami kierunkowymi prostych) prostopadłych, jeśli</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                                \\(a_1\\cdot a_2=-1\\)\n                            </li>\n<li>\n                                lub równoważnie \\(a_2=-\\frac{1}{a_1}\\).\n                            </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Nachylenie symetralnej odcinka \\(AB\\) ma wartość\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{3}{4}\\)",
+            "\\(-\\tfrac{3}{4}\\)",
+            "\\(\\tfrac{4}{3}\\)",
+            "\\(-\\tfrac{4}{3}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Symetralna boku \\(AB\\) to prosta o nachyleniu \\(\\frac{4}{3}\\) przechodząca przez punkt \\(S=(3,-2)\\). Jest to więc prosta o równaniu\n                \\[\n                y=\\frac{4}{3}x+b\n                \\]\n                Współczynnik \\(b\\) obliczymy podstawiając współrzędne punktu \\(S\\):\n                \\[\n                -2=\\frac{4}{3}\\cdot(3)+b\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(b=-6\\)",
+            "\\(b=2\\)",
+            "\\(b=-10\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Symetralna boku \\(AB\\) (czyli</p>"
+        },
+        {
+          "type": "text",
+          "body": "<span style=\"color: red;\">\n                    czerwona\n                </span>"
+        },
+        {
+          "type": "text",
+          "body": "<p>prosta na rysunku powyżej) ma równanie \\(y=\\frac{4}{3}x-6\\). Chcemy znaleźć punkty, w których przecina okrąg o środku w punkcie \\(A=(-9,7)\\) i promieniu \\(25\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie tego okręgu to\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\((x+9)^2+(y-7)^2=25\\)",
+            "\\((x+9)^2+(y-7)^2=625\\)",
+            "\\((x-9)^2+(y+7)^2=25\\)",
+            "\\((x-9)^2+(y+7)^2=625\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz musimy rozwiązać układ równań:\n                \\[\n                \\begin{cases}\n                (x+9)^2+(y-7)^2=625\\\\\n                y=\\frac{4}{3}x-6\n                \\end{cases}\n                \\]\n                Podstawiamy \\(y\\) z równania prostej do równania okręgu:\n                \\[\n                (x+9)^2+\\left(\\frac{4}{3}x-6-7\\right)^2=625\n                \\]\n                i upraszczamy:\n                \\[\n                \\begin{align*}\n                x^2+18x+81+\\frac{16}{9}x^2-\\frac{104}{3}x+169&=625\\\\\n                \\frac{25}{9}x^2-\\frac{50}{3}x-375&=0\\\\\n                x^2-6x-135&=0\n                \\end{align*}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wyróżnik tego równania kwadratowego to \\(\\Delta=b^2-4ac=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(576\\)",
+            "\\(-504\\)",
+            "\\(171\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\Delta = 576\\) może wydawać się nieprzyjemnie duża, ale to wygodny wynik, bo \\(\\sqrt{576}=24\\). Policzmy więc rozwiązania.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(x=\\frac{-b\\pm\\sqrt{\\Delta}}{2a}=\\frac{6\\pm 24}{2\\cdot 1}\\), więc\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(x=9\\) lub \\(x=-15\\)",
+            "\\(x=-9\\) lub \\(x=15\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Punkt \\(C\\) może mieć współrzędną \\(x\\)-ową równą albo \\(-9\\) albo \\(15\\). Współrzędne \\(y\\)-owe policzymy z równania symetralnej boku \\(AB\\), czyli \\(y=\\frac{4}{3}x-6\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dla \\(x=-9\\) i \\(x=15\\) otrzymujemy odpowiednio\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(y=-18\\) i \\(y=14\\)",
+            "\\(y=6\\) i \\(y=-26\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zadanie ma dwa rozwiązania, tj. dwa możliwe położenia punktu \\(C\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Na rysunku poniżej są oznaczone jako \\(C_1=(-9,-18)\\) i \\(C_2=(15, 14)\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geom_analit_zad_1_3.png",
+          "alt": "geometria analityczna, zadanie 1",
+          "figcaption": ""
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "daf391d32445921a58af0dd1fe9702228b5d5ae41be1094858727c28f1c90625"
+  "seed_hash": "2533a770b71791062e89492c79bc9490915f98ce801fcac2f37d68a0afe828aa"
 }

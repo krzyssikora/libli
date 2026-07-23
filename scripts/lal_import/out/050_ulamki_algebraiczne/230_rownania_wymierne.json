@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -11,109 +11,214 @@
     {
       "type": "spoiler",
       "label": "(1)",
-      "body": "\n                        \\(-3\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-3\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(2)",
-      "body": "\n                        \\(-4\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-4\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(3)",
-      "body": "\n                        \\(4\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(4\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(4)",
-      "body": "\n                        \\(9\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(9\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(5)",
-      "body": "\n                        \\(-10; 6\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-10; 6\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(6)",
-      "body": "\n                        \\(-10,5; 3\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-10,5; 3\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(7)",
-      "body": "\n                        \\(\\frac{5}{2}\\), \\(8\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{5}{2}\\), \\(8\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(8)",
-      "body": "\n                        \\(-9\\), \\(-1\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-9\\), \\(-1\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(9)",
-      "body": "\n                        \\(-3\\), \\(21\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-3\\), \\(21\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(10)",
-      "body": "\n                        \\(\\frac{13}{3}\\), \\(-3\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{13}{3}\\), \\(-3\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(11)",
-      "body": "\n                        \\(-13\\), \\(-4\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-13\\), \\(-4\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(12)",
-      "body": "\n                        \\(-3\\), \\(13\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-3\\), \\(13\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(13)",
-      "body": "\n                        \\(-8\\), \\(3\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-8\\), \\(3\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(14)",
-      "body": "\n                        \\(\\frac{3}{2}\\), \\(8\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{3}{2}\\), \\(8\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(15)",
-      "body": "\n                        \\(-12\\), \\(-2\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-12\\), \\(-2\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(16)",
-      "body": "\n                        \\(\\frac{1}{2}\\), \\(6\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{1}{2}\\), \\(6\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(17)",
-      "body": "\n                        \\(-4\\), \\(\\frac{8}{3}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-4\\), \\(\\frac{8}{3}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(18)",
-      "body": "\n                        \\(0\\), \\(1\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(0\\), \\(1\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(19)",
-      "body": "\n                        \\(3\\), \\(7\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(3\\), \\(7\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(20)",
-      "body": "\n                        \\(-1\\), \\(5\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-1\\), \\(5\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(21)",
-      "body": "\n                        \\(\\frac{8}{3}\\), \\(6\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{8}{3}\\), \\(6\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "b848531552c488b17d26b5372456aa542faf44ebbcad940c5a7b8e79d7ec09b3"
+  "seed_hash": "148d4abeeb8a1478eaadb82b938d7906905afe7093b7af5070aef5452e8d9353"
 }

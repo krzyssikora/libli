@@ -2,16 +2,52 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Przyjrzyj się poniższej animacji. Co pokazuje?\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"431px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/tbtyskjj/width/634/height/431/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"pole trapezu\" width=\"634px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+      "body": "<p>\n            Przyjrzyj się poniższej animacji. Co pokazuje?\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/tbtyskjj/width/634/height/431/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
     },
     {
       "type": "spoiler",
       "label": "Co pokazuje animacja",
-      "body": "\n\n<p>\n            Animacja pokazuje, że\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                        pole trapezu<br/>\n                        o podstawach \\(\\color{blue}{a}\\) i \\(\\color{blue}{b}\\)<br/>\n                        i wysokości \\(\\color{red}{h}\\)\n                    </td>\n<td>\n                        jest równe\n                    </td>\n<td>\n                        polu trójkąta<br/>\n                        o podstawie \\((\\color{blue}{a+b})\\)<br/>\n                        i wysokości \\(\\color{red}{h}\\)\n                    </td>\n</tr>\n<tr>\n<td>\n<img src=\"static/geometria_3_zadanie_320_1.png\" style=\"max-height: 200px;\"/>\n</td>\n<td>\n<img src=\"static/right_arrow.png\"/>\n</td>\n<td>\n<img src=\"static/geometria_3_zadanie_320_2.png\" style=\"max-height: 200px;\"/>\n</td>\n</tr>\n</table>\n</div>\n<p>\n            Czyli wzór na pole trapezu, \\(P\\), to\n        </p>\n        \\[\n        P=\\frac{1}{2}(\\color{blue}{a+b})\\cdot\\color{red}{h}\n        \\]\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Animacja pokazuje, że\n        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_320_1.png",
+          "alt": "",
+          "figcaption": "pole trapezu o podstawach \\(\\color{blue}{a}\\) i \\(\\color{blue}{b}\\) i wysokości \\(\\color{red}{h}\\)"
+        },
+        {
+          "type": "image",
+          "media_src": "static/right_arrow.png",
+          "alt": "",
+          "figcaption": "jest równe"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_320_2.png",
+          "alt": "",
+          "figcaption": "polu trójkąta o podstawie \\((\\color{blue}{a+b})\\) i wysokości \\(\\color{red}{h}\\)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Czyli wzór na pole trapezu, \\(P\\), to\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        P=\\frac{1}{2}(\\color{blue}{a+b})\\cdot\\color{red}{h}\n        "
+        }
+      ]
     },
     {
       "type": "text",
@@ -29,23 +65,236 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Podstawy trapezu mają długości \\(a\\) i \\(b\\). Jego wysokość to \\(h\\), natomiast pole trapezu jest równe \\(P\\).\n        </p>\n<p>\n            Uzupełnij tabelę.\n        </p>\n<p>\n<small>W pierwszych trzech przykładach możesz sprawdzić pełne rozwiązanie</small>\n</p>\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<table class=\"my_table_TC\">\n<tr>\n<th>\\(a\\)</th>\n<th>\\(b\\)</th>\n<th>\\(h\\)</th>\n<th>\\(P\\)</th>\n</tr>\n<tr>\n<td>\\(6\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<td colspan=\"4\" style=\"text-align: left;\">\n<details>\n<summary><small>rozwiązanie</small></summary>\n                        \\[\n                        P=\\frac{1}{2}(6+3)\\cdot 4=\\frac{1}{2}\\cdot 9\\cdot 4=18\n                        \\]\n                    </details>\n</td>\n</tr>\n<tr>\n<td>\\(7\\)</td>\n<td>\\(2\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n<td>\\(13,5\\)</td>\n</tr>\n<tr>\n<td colspan=\"4\" style=\"text-align: left;\">\n<details>\n<summary><small>rozwiązanie</small></summary>\n                        \\[\n                        \\begin{align}\n                        P&amp;=\\frac{1}{2}(a+b)\\cdot h\\\\\n                        13.5&amp;=\\frac{1}{2}(7+2)\\cdot h\\\\\n                        13.5&amp;=\\frac{1}{2}\\cdot 9\\cdot h\\\\\n                        \\frac{27}{2}&amp;=\\frac{9}{2}\\cdot h\\\\\n                        h&amp;=\\frac{27}{2}:\\frac{9}{2}\\\\\n                        h&amp;=\\frac{27}{2}\\cdot\\frac{2}{9}\\\\\n                        h&amp;=3\n                        \\end{align}\n                        \\]\n                    </details>\n</td>\n</tr>\n<tr>\n<td>\\(14\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n<td>\\(9\\)</td>\n<td>\\(99\\)</td>\n</tr>\n<tr>\n<td colspan=\"4\" style=\"text-align: left;\">\n<details>\n<summary><small>rozwiązanie</small></summary>\n                        \\[\n                        \\begin{align}\n                        P&amp;=\\frac{1}{2}(a+b)\\cdot h\\\\\n                        99&amp;=\\frac{1}{2}(14+b)\\cdot 9\\\\\n                        11&amp;=\\frac{1}{2}(14+b)\\\\\n                        22&amp;=14+b\\\\\n                        8&amp;=b\\\\\n                        b&amp;=8\n                        \\end{align}\n                        \\]\n                    </details>\n</td>\n</tr>\n<tr>\n<td>\\(11\\)</td>\n<td>\\(9\\)</td>\n<td>\\(6\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<td>\\(11\\)</td>\n<td>\\(8\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n<td>\\(47.5\\)</td>\n</tr>\n<tr>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n<td>\\(6\\)</td>\n<td>\\(5\\)</td>\n<td>\\(45\\)</td>\n</tr>\n<tr>\n<td>\\(16\\)</td>\n<td>\\(12\\)</td>\n<td>\\(2\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<td>\\(13\\)</td>\n<td>\\(6\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n<td>\\(152\\)</td>\n</tr>\n<tr>\n<td>\\(7\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n<td>\\(9\\)</td>\n<td>\\(54\\)</td>\n</tr>\n</table>",
-      "reason": "table uses rowspan/colspan"
+      "body": "<p>\n            Podstawy trapezu mają długości \\(a\\) i \\(b\\). Jego wysokość to \\(h\\), natomiast pole trapezu jest równe \\(P\\).\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n    Świetnie!\n"
+      "body": "<p>\n            Uzupełnij tabelę.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>W pierwszych trzech przykładach możesz sprawdzić pełne rozwiązanie</small>\n</p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(a\\)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(b\\)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(h\\)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(P\\)",
+              "header": true
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(6\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(3\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(4\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "18"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "<details>\n<summary><small>rozwiązanie</small></summary>\n                        \\[\n                        P=\\frac{1}{2}(6+3)\\cdot 4=\\frac{1}{2}\\cdot 9\\cdot 4=18\n                        \\]\n                    </details>",
+              "colspan": 4
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(7\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "static",
+              "html": "\\(13,5\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "<details>\n<summary><small>rozwiązanie</small></summary>\n                        \\[\n                        \\begin{align}\n                        P&amp;=\\frac{1}{2}(a+b)\\cdot h\\\\\n                        13.5&amp;=\\frac{1}{2}(7+2)\\cdot h\\\\\n                        13.5&amp;=\\frac{1}{2}\\cdot 9\\cdot h\\\\\n                        \\frac{27}{2}&amp;=\\frac{9}{2}\\cdot h\\\\\n                        h&amp;=\\frac{27}{2}:\\frac{9}{2}\\\\\n                        h&amp;=\\frac{27}{2}\\cdot\\frac{2}{9}\\\\\n                        h&amp;=3\n                        \\end{align}\n                        \\]\n                    </details>",
+              "colspan": 4
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(14\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "8"
+            },
+            {
+              "kind": "static",
+              "html": "\\(9\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(99\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "<details>\n<summary><small>rozwiązanie</small></summary>\n                        \\[\n                        \\begin{align}\n                        P&amp;=\\frac{1}{2}(a+b)\\cdot h\\\\\n                        99&amp;=\\frac{1}{2}(14+b)\\cdot 9\\\\\n                        11&amp;=\\frac{1}{2}(14+b)\\\\\n                        22&amp;=14+b\\\\\n                        8&amp;=b\\\\\n                        b&amp;=8\n                        \\end{align}\n                        \\]\n                    </details>",
+              "colspan": 4
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(11\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(9\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(6\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "60"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(11\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(8\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "static",
+              "html": "\\(47.5\\)"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "12"
+            },
+            {
+              "kind": "static",
+              "html": "\\(6\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(5\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(45\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(16\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(12\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "28"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(13\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(6\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "16"
+            },
+            {
+              "kind": "static",
+              "html": "\\(152\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(7\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "static",
+              "html": "\\(9\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(54\\)"
+            }
+          ]
+        ]
+      }
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "59efd8e317a24a529e7611518fd35356ffc5498fb76285bd37e20a39351968bd"
+  "fully_mapped": true,
+  "seed_hash": "e1a8fb2fe1c55c7994842bee44c124751b23d866f4f04ac7712650e02e2e4103"
 }

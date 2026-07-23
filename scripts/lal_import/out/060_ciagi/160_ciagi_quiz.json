@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "choice",
-      "stem": "<p>Ciąg \\((a_n)\\) jest zdefiniowany wzorem ogólnym</p><p>\\[</p><p>a_n=2+\\frac{4n}{3}\\quad\\text{dla }n=1, 2, 3, \\dots</p><p>\\]</p><p>Ciąg \\((a_n)\\)</p>",
+      "stem": "<p>Ciąg \\((a_n)\\) jest zdefiniowany wzorem ogólnym</p><p>\\[\na_n=2+\\frac{4n}{3}\\quad\\text{dla }n=1, 2, 3, \\dots\n\\]</p><p>Ciąg \\((a_n)\\)</p>",
       "multiple": false,
       "choices": [
         {
@@ -24,7 +24,7 @@
     },
     {
       "type": "choice",
-      "stem": "<p>Ciąg \\((b_n)\\) jest zdefiniowany wzorem ogólnym</p><p>\\[</p><p>b_n=2\\cdot\\left(\\frac{3}{4}\\right)\\quad\\text{dla }n=1, 2, 3, \\dots</p><p>\\]</p><p>Ciąg \\((b_n)\\)</p>",
+      "stem": "<p>Ciąg \\((b_n)\\) jest zdefiniowany wzorem ogólnym</p><p>\\[\nb_n=2\\cdot\\left(\\frac{3}{4}\\right)\\quad\\text{dla }n=1, 2, 3, \\dots\n\\]</p><p>Ciąg \\((b_n)\\)</p>",
       "multiple": false,
       "choices": [
         {
@@ -90,5 +90,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "65ab41d0bec85bc96133ee87168264f8093c21f67415106e3e3725e26b8380a4"
+  "seed_hash": "c17657b0078599fcdeb15ba3b0308c169cec90afd2ef3909c5f52406c2ebca74"
 }

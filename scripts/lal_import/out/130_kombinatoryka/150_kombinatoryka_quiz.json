@@ -114,14 +114,18 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<figure>\n<img src=\"static/white_red_cubes.png\"/>\n</figure>",
-      "reason": "<figure> media cannot live in a sanitized stem"
+      "type": "text",
+      "body": "<p>Trzy czerwone i trzy białe kostki ustawiono w rzędzie, jak na rysunku.</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/white_red_cubes.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "choice",
-      "stem": "<p>Trzy czerwone i trzy białe kostki ustawiono w rzędzie, jak na rysunku.</p><p>Kostki są ponumerowane (czego nie widać na rysunku).</p><p>Na ile różnych sposobów można je ustawić w rzędzie tak, by wszystkie kostki jednego koloru były razem?</p>",
+      "stem": "<p>Kostki są ponumerowane (czego nie widać na rysunku).</p><p>Na ile różnych sposobów można je ustawić w rzędzie tak, by wszystkie kostki jednego koloru były razem?</p>",
       "multiple": false,
       "choices": [
         {
@@ -147,14 +151,18 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<figure>\n<img src=\"static/white_red_cubes.png\"/>\n</figure>",
-      "reason": "<figure> media cannot live in a sanitized stem"
+      "type": "text",
+      "body": "<p>Trzy czerwone i trzy białe kostki ustawiono w rzędzie, jak na rysunku.</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/white_red_cubes.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "choice",
-      "stem": "<p>Trzy czerwone i trzy białe kostki ustawiono w rzędzie, jak na rysunku.</p><p>Kostki są ponumerowane (czego nie widać na rysunku).</p><p>Na ile różnych sposobów można je ustawić w rzędzie tak, by żadna kostka biała nie sąsiadowała z białą, a żadna czewona z czerwoną?</p>",
+      "stem": "<p>Kostki są ponumerowane (czego nie widać na rysunku).</p><p>Na ile różnych sposobów można je ustawić w rzędzie tak, by żadna kostka biała nie sąsiadowała z białą, a żadna czewona z czerwoną?</p>",
       "multiple": false,
       "choices": [
         {
@@ -180,6 +188,6 @@
       ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "2297748d0c8681cfe4d56a91bfab6c462f37fc857deaf5418ce056d9ef586146"
+  "fully_mapped": true,
+  "seed_hash": "7bc5658a2f73e023ec53a8f6ab5ba589a08c8a3b5d9bcea463efc8a03d787279"
 }

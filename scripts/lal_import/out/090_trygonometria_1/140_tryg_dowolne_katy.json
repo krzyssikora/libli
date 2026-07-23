@@ -2,43 +2,22 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Znajdź dokładne wartości \\(\\sin 314^{\\circ}\\), \\(\\cos 314^{\\circ}\\), \\(\\text{tg } 314^{\\circ}\\) i \\(\\text{ctg } 314^{\\circ}\\).\n        </p>\n"
+      "body": "<p>\n            Znajdź dokładne wartości \\(\\sin 314^{\\circ}\\), \\(\\cos 314^{\\circ}\\), \\(\\text{tg } 314^{\\circ}\\) i \\(\\text{ctg } 314^{\\circ}\\).\n        </p>"
     },
     {
-      "type": "text",
-      "body": "<p>Kąt \\(314^{\\circ}\\) leży w</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    I ćwiartce\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    II ćwiartce\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    III ćwiartce\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    IV ćwiartce\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>układu współrzędnych.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Kąt \\(314^{\\circ}\\) leży w\n                \n\n\n\n￿0￿\n                układu współrzędnych.\n                \n",
+      "options": [
+        "I ćwiartce",
+        "II ćwiartce",
+        "III ćwiartce",
+        "IV ćwiartce"
+      ],
+      "answer": 3
     },
     {
       "type": "text",
@@ -50,28 +29,14 @@
       "title": ""
     },
     {
-      "type": "text",
-      "body": "<p>Odpowiednikiem kąta \\(314^{\\circ}\\) w pierwszej ćwiartce jest kąt</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(14^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(46^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(44^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Odpowiednikiem kąta \\(314^{\\circ}\\) w pierwszej ćwiartce jest kąt\n                \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(14^{\\circ}\\)",
+        "\\(46^{\\circ}\\)",
+        "\\(44^{\\circ}\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
@@ -94,108 +59,46 @@
       "body": "<p>\n                Do tego użyjemy zasady \"WSTeCz\", albo \"Wafle Są Tylko Czekoladowe\", albo \"Większość Słoni Trąbi Cicho\", czyli liter\n                <strong style=\"font-size:x-large;\">\n                    WSTC\n                </strong>\n                .\n            </p>"
     },
     {
-      "type": "text",
-      "body": "<p>W czwartej ćwiartce</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n<strong>\n                        W\n                    </strong>\n                    szystkie funkcje są dodatnie\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n<strong>\n                        S\n                    </strong>\n                    inus jest dodatni\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n<strong>\n                        T\n                    </strong>\n                    angens jest dodatni\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n<strong>\n                        C\n                    </strong>\n                    osinus jest dodatni\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                W czwartej ćwiartce\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "<strong>\n                        W\n                    </strong>\n                    szystkie funkcje są dodatnie",
+        "<strong>\n                        S\n                    </strong>\n                    inus jest dodatni",
+        "<strong>\n                        T\n                    </strong>\n                    angens jest dodatni",
+        "<strong>\n                        C\n                    </strong>\n                    osinus jest dodatni"
+      ],
+      "answer": 3
     },
     {
       "type": "text",
       "body": "<p>\n                W czwartej ćwiartce cosinus jest dodatni, czyli sinus i tangens są ujemne.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "<p>I dlatego</p>"
+      "type": "switch_gate",
+      "stem": "\n                I dlatego\n                \n\n\n\n￿0￿",
+      "options": [
+        "\\(\\sin 314^{\\circ}=0,7193\\)",
+        "\\(\\sin 314^{\\circ}=-0,7193\\)"
+      ],
+      "answer": 1
     },
     {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+      "type": "switch_gate",
+      "stem": "\n                Za to\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\cos 314^{\\circ}=0,6947\\)",
+        "\\(\\cos 314^{\\circ}=-0,6947\\)"
+      ],
+      "answer": 0
     },
     {
-      "type": "text",
-      "body": "\n                    \\(\\sin 314^{\\circ}=0,7193\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\sin 314^{\\circ}=-0,7193\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Za to</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\cos 314^{\\circ}=0,6947\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\cos 314^{\\circ}=-0,6947\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>I wreszcie</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\text{tg } 314^{\\circ}=1,0355\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\text{tg } 314^{\\circ}=-1,0355\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                I wreszcie\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\text{tg } 314^{\\circ}=1,0355\\)",
+        "\\(\\text{tg } 314^{\\circ}=-1,0355\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
@@ -206,36 +109,15 @@
       "latex": "\n            \\text{ctg} 314^{\\circ}=\\frac{1}{\\text{tg}314^{\\circ}}\n            "
     },
     {
-      "type": "text",
-      "body": "<p>I stąd (użyj kalkulatora!)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\text{ctg } 314^{\\circ}=0,965\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\text{ctg } 314^{\\circ}=1,0355\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\text{ctg } 314^{\\circ}=0,966\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\text{ctg } 314^{\\circ}=-0,966\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                I stąd (użyj kalkulatora!)\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\text{ctg } 314^{\\circ}=0,965\\)",
+        "\\(\\text{ctg } 314^{\\circ}=1,0355\\)",
+        "\\(\\text{ctg } 314^{\\circ}=0,966\\)",
+        "\\(\\text{ctg } 314^{\\circ}=-0,966\\)"
+      ],
+      "answer": 3
     },
     {
       "type": "text",
@@ -247,5 +129,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "8b2b07853e958592719b6527874fd37bd9fadba6a4ac9dfe3ccb670a3ca92830"
+  "seed_hash": "023c8e7b01569d505fc3e6efb8c36749e2cde4c9af58895188a06d08634597c7"
 }

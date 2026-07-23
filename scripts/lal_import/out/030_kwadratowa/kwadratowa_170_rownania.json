@@ -55,7 +55,16 @@
     {
       "type": "spoiler",
       "label": "Przykład",
-      "body": "\n\n    \\[\n                                                                                        \\begin{align*}\n                                                                                        -4x^2+3x&amp;=0\\\\\n                                                                                        x(-4x+3)&amp;=0\n                                                                                        \\end{align*}\n                                                                                        \\]\n    <p>\n        I teraz musimy rozwiązać oddzielnie:\n        <ul>\n<li>\n                \\(x=0\\) - ten przypadek nie wymaga żadnych dalszych kroków,\n            </li>\n<li>\n                \\(-4x+3=0\\), skąd otrzymujemy \\(x=\\tfrac{3}{4}\\)\n            </li>\n</ul>\n</p>\n"
+      "elements": [
+        {
+          "type": "math",
+          "latex": "\n                                                                                        \\begin{align*}\n                                                                                        -4x^2+3x&=0\\\\\n                                                                                        x(-4x+3)&=0\n                                                                                        \\end{align*}\n                                                                                        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        I teraz musimy rozwiązać oddzielnie:\n        <ul>\n<li>\n                \\(x=0\\) - ten przypadek nie wymaga żadnych dalszych kroków,\n            </li>\n<li>\n                \\(-4x+3=0\\), skąd otrzymujemy \\(x=\\tfrac{3}{4}\\)\n            </li>\n</ul>\n</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -76,12 +85,82 @@
     {
       "type": "spoiler",
       "label": "Przykład 1.\\(-3x^2+5=0\\)",
-      "body": "\n\n<p>\n        Znaki współczynników \\(-3\\) oraz \\(5\\) są przeciwne, więc powinny istnieć rozwiązania. Sprawdźmy. Najpierw podzielmy obie strony przez \\(-3\\):\n    </p>\n    \\[\n                                                                                        x^2-\\tfrac{5}{3}=0\n                                                                                        \\]\n    <p>\n        Takie równanie wygląda jak wskazany wyżej wzór\n    </p>\n    \\[\n                                                                                        x^2-\\alpha^2=(x+\\alpha)(x-\\alpha)\n                                                                                        \\]\n    <p>\n        w którym \\(\\alpha^2=\\frac{5}{3}\\). Zapiszym więc ułamek \\(\\frac{5}{3}\\) w postaci kwadratu:\n    </p>\n    \\[\n                                                                                        \\tfrac{5}{3}=\\left(\\tfrac{\\sqrt{5}}{\\sqrt{3}}\\right)^2\n                                                                                        \\]\n    <p>\n        Możemy teraz przepisać równanie i przekształcić je ze wzoru skróconego mnożenia.\n    </p>\n    \\[\n                                                                                        \\begin{align*}\n                                                                                        x^2-\\tfrac{5}{3}&amp;=0\\\\\n                                                                                        x^2-\\left(\\tfrac{\\sqrt{5}}{\\sqrt{3}}\\right)^2&amp;=0\\\\\n                                                                                        \\left(x-\\tfrac{\\sqrt{5}}{\\sqrt{3}}\\right)\\left(x+\\tfrac{\\sqrt{5}}{\\sqrt{3}}\\right)&amp;=0\n                                                                                        \\end{align*}\n                                                                                        \\]\n    <p>\n        I teraz każdy z czynników może być równy \\(0\\):\n    </p>\n<div class=\"centered\">\n        \\(x-\\frac{\\sqrt{5}}{\\sqrt{3}}=0\\quad\\quad\\) albo \\(\\quad\\quad x+\\frac{\\sqrt{5}}{\\sqrt{3}}=0\\)\n    </div>\n<p>\n        czyli:\n    </p>\n<div class=\"centered\">\n        \\(x=\\frac{\\sqrt{5}}{\\sqrt{3}}\\quad\\quad\\) albo \\(\\quad\\quad x=-\\frac{\\sqrt{5}}{\\sqrt{3}}\\)\n    </div>\n<p>\n        Na zakończenie pozostało nam tylko usunąć niewymierności z mianowników, by uzyskać:\n    </p>\n<div class=\"centered\">\n        \\(x=\\frac{\\sqrt{15}}{3}\\quad\\quad\\) albo \\(\\quad\\quad x=-\\frac{\\sqrt{15}}{3}\\)\n    </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n        Znaki współczynników \\(-3\\) oraz \\(5\\) są przeciwne, więc powinny istnieć rozwiązania. Sprawdźmy. Najpierw podzielmy obie strony przez \\(-3\\):\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                                                                                        x^2-\\tfrac{5}{3}=0\n                                                                                        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Takie równanie wygląda jak wskazany wyżej wzór\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                                                                                        x^2-\\alpha^2=(x+\\alpha)(x-\\alpha)\n                                                                                        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        w którym \\(\\alpha^2=\\frac{5}{3}\\). Zapiszym więc ułamek \\(\\frac{5}{3}\\) w postaci kwadratu:\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                                                                                        \\tfrac{5}{3}=\\left(\\tfrac{\\sqrt{5}}{\\sqrt{3}}\\right)^2\n                                                                                        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Możemy teraz przepisać równanie i przekształcić je ze wzoru skróconego mnożenia.\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                                                                                        \\begin{align*}\n                                                                                        x^2-\\tfrac{5}{3}&=0\\\\\n                                                                                        x^2-\\left(\\tfrac{\\sqrt{5}}{\\sqrt{3}}\\right)^2&=0\\\\\n                                                                                        \\left(x-\\tfrac{\\sqrt{5}}{\\sqrt{3}}\\right)\\left(x+\\tfrac{\\sqrt{5}}{\\sqrt{3}}\\right)&=0\n                                                                                        \\end{align*}\n                                                                                        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        I teraz każdy z czynników może być równy \\(0\\):\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n        \\(x-\\frac{\\sqrt{5}}{\\sqrt{3}}=0\\quad\\quad\\) albo \\(\\quad\\quad x+\\frac{\\sqrt{5}}{\\sqrt{3}}=0\\)\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        czyli:\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n        \\(x=\\frac{\\sqrt{5}}{\\sqrt{3}}\\quad\\quad\\) albo \\(\\quad\\quad x=-\\frac{\\sqrt{5}}{\\sqrt{3}}\\)\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Na zakończenie pozostało nam tylko usunąć niewymierności z mianowników, by uzyskać:\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n        \\(x=\\frac{\\sqrt{15}}{3}\\quad\\quad\\) albo \\(\\quad\\quad x=-\\frac{\\sqrt{15}}{3}\\)\n    "
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "Przykład 2.\\(-4x^2-7=0\\)",
-      "body": "\n\n<p>\n        Teraz zobaczymy, dlaczego fakt, że współczynniki \\(-4\\) oraz \\(-7\\) są tego samego znaku powoduje, że nie ma rozwiązań rzeczywistych. Przenieśmy siódemkę na prawą stronę, a następnie podzielmy przez \\(-4\\):\n    </p>\n    \\[\n                                                                                        \\begin{align*}\n                                                                                        -4x^2-7&amp;=0\\\\\n                                                                                        -4x^2&amp;=7\\\\\n                                                                                        x^2&amp;=-\\tfrac{7}{4}\n                                                                                        \\end{align*}\n                                                                                        \\]\n    <p>\n        Jak widać, po lewej stronie równania jest kwadrat liczby rzeczywistej, który nigdy nie jest ujemny. Po prawej stronie równania mamy liczbę ujemną. Te dwie strony równania nie mogę więc być sobie równe, a tym samym równanie nie ma rozwiązania.\n    </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n        Teraz zobaczymy, dlaczego fakt, że współczynniki \\(-4\\) oraz \\(-7\\) są tego samego znaku powoduje, że nie ma rozwiązań rzeczywistych. Przenieśmy siódemkę na prawą stronę, a następnie podzielmy przez \\(-4\\):\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                                                                                        \\begin{align*}\n                                                                                        -4x^2-7&=0\\\\\n                                                                                        -4x^2&=7\\\\\n                                                                                        x^2&=-\\tfrac{7}{4}\n                                                                                        \\end{align*}\n                                                                                        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Jak widać, po lewej stronie równania jest kwadrat liczby rzeczywistej, który nigdy nie jest ujemny. Po prawej stronie równania mamy liczbę ujemną. Te dwie strony równania nie mogę więc być sobie równe, a tym samym równanie nie ma rozwiązania.\n    </p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -113,5 +192,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "fc6161fb7055d6ecba7ab5f68fdc2740003e9bc70a10cde48d9c3c8e3e21c99c"
+  "seed_hash": "a712ed3d6517d4598c577b4d31fcc7256329ddf02aeb88015539bfb7316c83bb"
 }

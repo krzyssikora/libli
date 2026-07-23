@@ -51,43 +51,85 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Sprawdź, co pamiętasz.\n        </p>\n"
+      "body": "<p>\n            Sprawdź, co pamiętasz.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "nazwa wykresu",
-      "body": "\n<div>\n                            wykres funkcji proporcjonalności odwrotnej nazywamy <strong>hiperbolą</strong>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n                            wykres funkcji proporcjonalności odwrotnej nazywamy <strong>hiperbolą</strong>\n"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "dziedzina",
-      "body": "\n<div>\n                            \\(x\\in\\mathbb{R}\\setminus\\{0\\}\\) czyli \\(x\\in (-\\infty,0)\\cup(0,+\\infty)\\)\n                        </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n                            \\(x\\in\\mathbb{R}\\setminus\\{0\\}\\) czyli \\(x\\in (-\\infty,0)\\cup(0,+\\infty)\\)\n                        "
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "zbiór wartości",
-      "body": "\n<div>\n                            \\(x\\in\\mathbb{R}\\setminus\\{0\\}\\) czyli \\(x\\in (-\\infty,0)\\cup(0,+\\infty)\\)\n                        </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n                            \\(x\\in\\mathbb{R}\\setminus\\{0\\}\\) czyli \\(x\\in (-\\infty,0)\\cup(0,+\\infty)\\)\n                        "
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "asymptoty",
-      "body": "\n<p>\n                            asymptota <strong>pozioma</strong>: \\(y=0\\)\n                        </p>\n<p>\n                            asymptota <strong>pionowa</strong>: \\(x=0\\)\n                        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                            asymptota <strong>pozioma</strong>: \\(y=0\\)\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            asymptota <strong>pionowa</strong>: \\(x=0\\)\n                        </p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "położenie wykresu",
-      "body": "\n<div>\n                            Jeśli \\(a\\gt 0\\), gałęzie hiperboli znajdują się\n                            <span style=\"color: red\">\n                                w I (\\(\\nearrow\\)) i w III (\\(\\swarrow\\))\n                            </span>\n                            ćwiartce układu współrzędnych.\n                        </div>\n<div>\n                            Jeśli \\(a\\lt 0\\), gałęzie hiperboli znajdują się\n                            <span style=\"color: red\">\n                                w II (\\(\\nwarrow\\)) i w IV (\\(\\searrow\\))\n                            </span>\n                            ćwiartce układu współrzędnych.\n                        </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n                            Jeśli \\(a\\gt 0\\), gałęzie hiperboli znajdują się\n                            <span style=\"color: red\">\n                                w I (\\(\\nearrow\\)) i w III (\\(\\swarrow\\))\n                            </span>\n                            ćwiartce układu współrzędnych.\n                        "
+        },
+        {
+          "type": "text",
+          "body": "\n                            Jeśli \\(a\\lt 0\\), gałęzie hiperboli znajdują się\n                            <span style=\"color: red\">\n                                w II (\\(\\nwarrow\\)) i w IV (\\(\\searrow\\))\n                            </span>\n                            ćwiartce układu współrzędnych.\n                        "
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "monotoniczność",
-      "body": "\n<p>\n                            Jeśli \\(a\\gt 0\\), funkcja\n                            <strong>\n<span style=\"color: red\">\n                                    maleje\n                                </span>\n</strong>\n                            w dwóch przedziałach: \\(x\\in (-\\infty,0)\\) oraz \\(x\\in(0,+\\infty)\\)\n                            <br/>\n                            \\(\\rightarrow\\)\n                            <u>\n                                uwaga\n                            </u>\n                            , funkcja\n                            <strong>\n                                nie maleje\n                            </strong>\n                            w zbiorze \\(\\mathbb{R}\\setminus\\{0\\}\\)\n                        </p>\n<p>\n                            Jeśli \\(a\\lt 0\\), funkcja\n                            <strong>\n<span style=\"color: red\">\n                                    rośnie\n                                </span>\n</strong>\n                            w dwóch przedziałach: \\(x\\in (-\\infty,0)\\) oraz \\(x\\in(0,+\\infty)\\)\n                            <br/>\n                            \\(\\rightarrow\\)\n                            <u>\n                                uwaga\n                            </u>\n                            , funkcja\n                            <strong>\n                                nie rośnie\n                            </strong>\n                            w zbiorze \\(\\mathbb{R}\\setminus\\{0\\}\\)\n                        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                            Jeśli \\(a\\gt 0\\), funkcja\n                            <strong>\n<span style=\"color: red\">\n                                    maleje\n                                </span>\n</strong>\n                            w dwóch przedziałach: \\(x\\in (-\\infty,0)\\) oraz \\(x\\in(0,+\\infty)\\)\n                            <br/>\n                            \\(\\rightarrow\\)\n                            <u>\n                                uwaga\n                            </u>\n                            , funkcja\n                            <strong>\n                                nie maleje\n                            </strong>\n                            w zbiorze \\(\\mathbb{R}\\setminus\\{0\\}\\)\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Jeśli \\(a\\lt 0\\), funkcja\n                            <strong>\n<span style=\"color: red\">\n                                    rośnie\n                                </span>\n</strong>\n                            w dwóch przedziałach: \\(x\\in (-\\infty,0)\\) oraz \\(x\\in(0,+\\infty)\\)\n                            <br/>\n                            \\(\\rightarrow\\)\n                            <u>\n                                uwaga\n                            </u>\n                            , funkcja\n                            <strong>\n                                nie rośnie\n                            </strong>\n                            w zbiorze \\(\\mathbb{R}\\setminus\\{0\\}\\)\n                        </p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "dca1ca50273263ca5491f906d0711b66609eacc7d5de3114e12cb06ba1a48c73"
+  "seed_hash": "0c133e65088e88c7a194bcf07101666c8f33c3d6ca53a9b6af75d1e79ad7ba74"
 }

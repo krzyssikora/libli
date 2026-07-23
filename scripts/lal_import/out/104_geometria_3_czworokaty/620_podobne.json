@@ -2,57 +2,487 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Trapez o wysokości 12 podzielono linią równoległą do podstaw na dwa trapezy podobne. Pole większego z nich jest czterokrotnie większe od pola mniejszego.\n        </p>\n<p>\n            Znajdź wysokość mniejszego trapezu.\n        </p>\n"
+      "body": "<p>\n            Trapez o wysokości 12 podzielono linią równoległą do podstaw na dwa trapezy podobne. Pole większego z nich jest czterokrotnie większe od pola mniejszego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź wysokość mniejszego trapezu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<p>\n                Rysunek przedstawia opisany w zadaniu trapez podzielony na dwa trapezy podobne.\n            </p>\n<p>\n<span style=\"color: red;\">Czerwona</span> wysokość mniejszego trapezu (oznaczona przez \\(h\\)) i <span style=\"color: green;\">zielona</span> wysokość większego trapezu tworzą razem wysokość całego trapezu, o długości \\(12\\).\n            </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_1300_1.png\" style=\"max-height: 250px;\"/>\n</figure>\n<p>\n                Oznaczmy pole mniejszego trapeza przez \\(P_1\\), a większego przez \\(P_2\\). \n            </p>\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Z treści zadania wiemy, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(P_2=4\\cdot P_1\\)</div>\n<div class=\"switch_value\">\\(P_1=4\\cdot P_2\\)</div>\n<div class=\"switch_value\">\\(P_2=4+P_1\\)</div>\n<div class=\"switch_value\">\\(P_1=4+P_2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Jeśli skala podobieństwa większego trapezu do mniejszego jest równa \\(k\\), to wówczas\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(P_2=k\\cdot P_1\\)</div>\n<div class=\"switch_value\">\\(P_2=k^2\\cdot P_1\\)</div>\n<div class=\"switch_value\">\\(P_1=k\\cdot P_2\\)</div>\n<div class=\"switch_value\">\\(P_1=k^2\\cdot P_2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Z powyższych równań wnioskujemy, że\n                \\[\n                k^2=4\n                \\]\n                czyli\n                \\[\n                k=2\n                \\]\n                <div class=\"switch_line\">\n                    Skoro czerowną wysokość mniejszego trapezu oznaczyliśmy przez \\(h\\), to zielona wysokość większego trapezu ma długość \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2h\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}h\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_3_zadanie_1300_2.png\" style=\"max-height: 250px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Wysokość całego trapezu ma długość \\(12\\), więc\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2h=12\\)</div>\n<div class=\"switch_value\">\\(h+2h=12\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                I stąd:\n                \\[\n                \\begin{align}\n                h+2h&amp;=12\\\\\n                3h&amp;=12\\\\\n                h&amp;=4\n                \\end{align}\n                \\]\n                Wysokość mniejszego trapezu ma długość \\(4\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Rysunek przedstawia opisany w zadaniu trapez podzielony na dwa trapezy podobne.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span style=\"color: red;\">Czerwona</span> wysokość mniejszego trapezu (oznaczona przez \\(h\\)) i <span style=\"color: green;\">zielona</span> wysokość większego trapezu tworzą razem wysokość całego trapezu, o długości \\(12\\).\n            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1300_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Oznaczmy pole mniejszego trapeza przez \\(P_1\\), a większego przez \\(P_2\\). \n            </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z treści zadania wiemy, że\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(P_2=4\\cdot P_1\\)",
+            "\\(P_1=4\\cdot P_2\\)",
+            "\\(P_2=4+P_1\\)",
+            "\\(P_1=4+P_2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jeśli skala podobieństwa większego trapezu do mniejszego jest równa \\(k\\), to wówczas\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(P_2=k\\cdot P_1\\)",
+            "\\(P_2=k^2\\cdot P_1\\)",
+            "\\(P_1=k\\cdot P_2\\)",
+            "\\(P_1=k^2\\cdot P_2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Z powyższych równań wnioskujemy, że\n                \\[\n                k^2=4\n                \\]\n                czyli\n                \\[\n                k=2\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro czerowną wysokość mniejszego trapezu oznaczyliśmy przez \\(h\\), to zielona wysokość większego trapezu ma długość \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2h\\)",
+            "\\(\\frac{1}{2}h\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1300_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wysokość całego trapezu ma długość \\(12\\), więc\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2h=12\\)",
+            "\\(h+2h=12\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>I stąd:\n                \\[\n                \\begin{align}\n                h+2h&=12\\\\\n                3h&=12\\\\\n                h&=4\n                \\end{align}\n                \\]\n                Wysokość mniejszego trapezu ma długość \\(4\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Przekątne rombu mają długości \\(4\\) i \\(6\\). \n        </p>\n<p>\n            Drugi romb, podobny do pierwszego, ma pole \\(432\\).\n        </p>\n<p>\n            Jakie są długości przekątnych drugiego rombu?\n        </p>\n"
+      "body": "<p>\n            Przekątne rombu mają długości \\(4\\) i \\(6\\). \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Drugi romb, podobny do pierwszego, ma pole \\(432\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jakie są długości przekątnych drugiego rombu?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    W jednym rombie mamy dane obie przekątne, w drugim pole.\n                </p>\n<p>\n                    Zauważ, że mając dane pole nie możemy znaleźć przekątnych, jednak mając dane przekątne, możemy obliczyć pole.\n                </p>\n<div class=\"switch_line\">\n                    Pole pierwszego rombu wyliczymy z wzoru:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(P_1=4\\cdot 6\\)</div>\n<div class=\"switch_value\">\\(P_1=\\frac{1}{2}\\cdot 4\\cdot 6\\)</div>\n<div class=\"switch_value\">\\(P_1=\\cdot 4\\cdot 6\\sin 90^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(P_1=\\cdot 4\\cdot 6\\cos 90^{\\circ}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Pole pierwszego rombu jest więc równe \\(P_1=\\frac{1}{2}\\cdot 4\\cdot 6=12\\).\n                </p>\n<p>\n                    Pole drugiego rombu jest równe \\(P_2=432\\).\n                </p>\n<div class=\"switch_line\">\n                    Jeśli \\(k\\) jest skalą podobieństwa drugiego rombu do pierwszego, to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(P_2=k\\cdot P_1\\)</div>\n<div class=\"switch_value\">\\(P_2=k^2\\cdot P_1\\)</div>\n<div class=\"switch_value\">\\(P_1=k\\cdot P_2\\)</div>\n<div class=\"switch_value\">\\(P_1=k^2\\cdot P_2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    A to oznacza, że\n                </p>\n                \\[\n                \\begin{align}\n                P_2&amp;=k^2\\cdot P_1\\\\\n                432&amp;=k^2\\cdot 12\\\\\n                k^2&amp;=\\frac{432}{12}\\\\\n                k^2&amp;=36\\\\\n                k&amp;=6\n                \\end{align}\n                \\]\n                <p>\n                    Znając skalę podobieństwa, możemy obliczyć długości przekątnych drugiego rombu.\n                </p>\n<div class=\"switch_line\">\n                    Przekątna drugiego rombu odpowiadająca przekątnej długości \\(4\\) w pierwszym rombie ma długość\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4\\cdot 6\\)</div>\n<div class=\"switch_value\">\\(4: 6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Czyli pierwsza przekątna ma długość \\(24\\).\n                <div class=\"switch_line\">\n                    Przekątna drugiego rombu odpowiadająca przekątnej długości \\(6\\) w pierwszym rombie ma długość\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(6\\cdot 6\\)</div>\n<div class=\"switch_value\">\\(6: 6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Czyli druga przekątna ma długość \\(36\\).\n                </p>\n<p>\n                    Możemy jeszcze sprawdzić, że pole rombu o przekątnych \\(24\\) i \\(36\\) to rzeczywiście \\(432\\).\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    \\frac{1}{2}\\cdot 24\\cdot 36=12\\cdot 36=432=P_2\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    W jednym rombie mamy dane obie przekątne, w drugim pole.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zauważ, że mając dane pole nie możemy znaleźć przekątnych, jednak mając dane przekątne, możemy obliczyć pole.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Pole pierwszego rombu wyliczymy z wzoru:\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(P_1=4\\cdot 6\\)",
+            "\\(P_1=\\frac{1}{2}\\cdot 4\\cdot 6\\)",
+            "\\(P_1=\\cdot 4\\cdot 6\\sin 90^{\\circ}\\)",
+            "\\(P_1=\\cdot 4\\cdot 6\\cos 90^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Pole pierwszego rombu jest więc równe \\(P_1=\\frac{1}{2}\\cdot 4\\cdot 6=12\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Pole drugiego rombu jest równe \\(P_2=432\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jeśli \\(k\\) jest skalą podobieństwa drugiego rombu do pierwszego, to\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(P_2=k\\cdot P_1\\)",
+            "\\(P_2=k^2\\cdot P_1\\)",
+            "\\(P_1=k\\cdot P_2\\)",
+            "\\(P_1=k^2\\cdot P_2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    A to oznacza, że\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\begin{align}\n                P_2&=k^2\\cdot P_1\\\\\n                432&=k^2\\cdot 12\\\\\n                k^2&=\\frac{432}{12}\\\\\n                k^2&=36\\\\\n                k&=6\n                \\end{align}\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Znając skalę podobieństwa, możemy obliczyć długości przekątnych drugiego rombu.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Przekątna drugiego rombu odpowiadająca przekątnej długości \\(4\\) w pierwszym rombie ma długość\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\cdot 6\\)",
+            "\\(4: 6\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Czyli pierwsza przekątna ma długość \\(24\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Przekątna drugiego rombu odpowiadająca przekątnej długości \\(6\\) w pierwszym rombie ma długość\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6\\cdot 6\\)",
+            "\\(6: 6\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Czyli druga przekątna ma długość \\(36\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Możemy jeszcze sprawdzić, że pole rombu o przekątnych \\(24\\) i \\(36\\) to rzeczywiście \\(432\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    \\frac{1}{2}\\cdot 24\\cdot 36=12\\cdot 36=432=P_2\n                    \\end{align}\n                    \\]\n                "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Pole jednego prostokąta jest równe \\(24\\,\\text{cm}^2\\), a pole drugiego, podobnego do pierwszego, jest równe \\(54\\,\\text{cm}^2\\).\n        </p>\n<p>\n            Obwód drugiego prostokąta jest o \\(11\\,\\text{cm}\\) dłuższy od obwodu pierwszego prostokąta.\n        </p>\n<p>\n            Znajdź obwody obu prostokątów\n        </p>\n"
+      "body": "<p>\n            Pole jednego prostokąta jest równe \\(24\\,\\text{cm}^2\\), a pole drugiego, podobnego do pierwszego, jest równe \\(54\\,\\text{cm}^2\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Obwód drugiego prostokąta jest o \\(11\\,\\text{cm}\\) dłuższy od obwodu pierwszego prostokąta.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź obwody obu prostokątów\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Jeśli skala podobieństwa <strong>drugiego</strong> prostokąta do <strong>pierwszego</strong> jest równa \\(k\\), to wartość \\(k\\) możemy wyliczyć z pól prostokątów z pomocą równania:\n                <div class=\"switch_line\">\n<div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(54=24k^2\\)</div>\n<div class=\"switch_value\">\\(24=54k^2\\)</div>\n<div class=\"switch_value\">\\(54=24k\\)</div>\n<div class=\"switch_value\">\\(24=54k\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Otrzymujemy\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    24k^2&amp;=54\\\\\n                    k^2&amp;=\\frac{54}{24}\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Skracamy ułamek i wyliczamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(k=\\frac{9}{4}\\)</div>\n<div class=\"switch_value\">\\(k=\\frac{3}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Znając skalę podobieństwa drugiego prostokąta do pierwszego (\\(k=\\frac{3}{2}\\)) możemy zająć się obwodami.\n                </p>\n<blockquote>\n                    \"Obwód drugiego prostokąta jest o \\(11\\,\\text{cm}\\) dłuższy od obwodu pierwszego prostokąta.\"\n                </blockquote>\n<p>\n                    Oznaczmy obwódy pierwszego i drugiego prostokąta odpowiednio przez \\(d_1\\) i \\(d_2\\).\n                </p>\n<div class=\"switch_line\">\n                    Wówczas\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(d_1+11=d_2\\)</div>\n<div class=\"switch_value\">\\(d_1=d_2+11\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Obwody są ze sobą powiązane także skalą podobieństwa:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(d_1=\\frac{3}{2}\\cdot d_2\\)</div>\n<div class=\"switch_value\">\\(d_2=\\frac{3}{2}\\cdot d_1\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Mamy do rozwiązania układ równań:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{cases}\n                    d_1+11=d_2\\\\\n                    d_2=\\frac{3}{2}\\cdot d_1\n                    \\end{cases}\n                    \\]\n                </div>\n<p>\n                    Podstawiamy \\(d_2\\) z drugiego równania do pierwszego:\n                </p>\n                \\[\n                d_1+11=\\frac{3}{2}\\cdot d_1\n                \\]\n                <div class=\"switch_line\">\n                    Rozwiązując równanie otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(d_1=22\\)</div>\n<div class=\"switch_value\">\\(d_1=11\\)</div>\n<div class=\"switch_value\">\\(d_1=33\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Na zakończenie, używając dowolnego z równań\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{cases}\n                    d_1+11=d_2\\\\\n                    d_2=\\frac{3}{2}\\cdot d_1\n                    \\end{cases}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    obliczamy, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(d_2=33\\)</div>\n<div class=\"switch_value\">\\(d_2=11\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Obwody prostokątów mają długości \\(22\\) i \\(33\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Jeśli skala podobieństwa</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>drugiego</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>prostokąta do</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>pierwszego</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>jest równa \\(k\\), to wartość \\(k\\) możemy wyliczyć z pól prostokątów z pomocą równania:</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(54=24k^2\\)",
+            "\\(24=54k^2\\)",
+            "\\(54=24k\\)",
+            "\\(24=54k\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Otrzymujemy\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    24k^2&amp;=54\\\\\n                    k^2&amp;=\\frac{54}{24}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skracamy ułamek i wyliczamy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(k=\\frac{9}{4}\\)",
+            "\\(k=\\frac{3}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Znając skalę podobieństwa drugiego prostokąta do pierwszego (\\(k=\\frac{3}{2}\\)) możemy zająć się obwodami.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Obwód drugiego prostokąta jest o \\(11\\,\\text{cm}\\) dłuższy od obwodu pierwszego prostokąta.\"\n                </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy obwódy pierwszego i drugiego prostokąta odpowiednio przez \\(d_1\\) i \\(d_2\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wówczas\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d_1+11=d_2\\)",
+            "\\(d_1=d_2+11\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Obwody są ze sobą powiązane także skalą podobieństwa:\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d_1=\\frac{3}{2}\\cdot d_2\\)",
+            "\\(d_2=\\frac{3}{2}\\cdot d_1\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mamy do rozwiązania układ równań:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{cases}\n                    d_1+11=d_2\\\\\n                    d_2=\\frac{3}{2}\\cdot d_1\n                    \\end{cases}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Podstawiamy \\(d_2\\) z drugiego równania do pierwszego:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                d_1+11=\\frac{3}{2}\\cdot d_1\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Rozwiązując równanie otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d_1=22\\)",
+            "\\(d_1=11\\)",
+            "\\(d_1=33\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Na zakończenie, używając dowolnego z równań\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{cases}\n                    d_1+11=d_2\\\\\n                    d_2=\\frac{3}{2}\\cdot d_1\n                    \\end{cases}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    obliczamy, że\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d_2=33\\)",
+            "\\(d_2=11\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Obwody prostokątów mają długości \\(22\\) i \\(33\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Czworokąty \\(W_1\\) i \\(W_2\\) są podobne. Pole czworokąta \\(W_2\\) jest o \\(84\\%\\) mniejsze od pola czworokąta \\(W_1\\). \n        </p>\n<p>\n            O ile procent obwód czworokąta \\(W_1\\) jest większy od obwodu czworokąta \\(W_2\\)?\n        </p>\n"
+      "body": "<p>\n            Czworokąty \\(W_1\\) i \\(W_2\\) są podobne. Pole czworokąta \\(W_2\\) jest o \\(84\\%\\) mniejsze od pola czworokąta \\(W_1\\). \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            O ile procent obwód czworokąta \\(W_1\\) jest większy od obwodu czworokąta \\(W_2\\)?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Oznaczmy pola czworokątów \\(W_1\\) i \\(W_2\\) odpowiednio przez \\(P_1\\) i \\(P_2\\) i zacznijmy od tej informacji:\n                </p>\n<blockquote>\n                    \"Pole czworokąta \\(W_2\\) jest o \\(84\\%\\) mniejsze od pola czworokąta \\(W_1\\)\"\n                </blockquote>\n<p>\n                    Innymi słowy:\n                </p>\n<blockquote>\n                    \"\\(P_2\\) jest o \\(84\\%\\) mniejsze od \\(P_1\\)\"\n                </blockquote>\n<div class=\"switch_line\">\n                    Możemy to zapisać za pomocą równania\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(P_2=1,84\\cdot P_1\\)</div>\n<div class=\"switch_value\">\\(P_2=0,84\\cdot P_1\\)</div>\n<div class=\"switch_value\">\\(P_2=0,16\\cdot P_1\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    \"\\(P_2\\) jest o \\(84\\%\\) mniejsze od \\(P_1\\)\", czyli \"\\(P_2\\) stanowi \\(100\\%-84\\%=16\\%\\) wartości \\(P_1\\)\", więc \\(P2=0,16\\cdot P_1\\).\n                </p>\n<div class=\"switch_line\">\n                    Czworokąty są podobne, więc liczba \\(0,16\\) to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">skala podobieństwa</div>\n<div class=\"switch_value\">kwadrat skali podobieństwa</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div> czworokąta \\(W_2\\) do \\(W_1\\).\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Oznaczmy skalę podobieństwa czworokąta \\(W_2\\) do \\(W_1\\) przez \\(k\\). Wiemy więc, że\n                </p>\n                \\[\n                k^2=0,16\n                \\]\n                <div class=\"switch_line\">\n                    I dlatego skala podobieństwa \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(k=0,4\\)</div>\n<div class=\"switch_value\">\\(k=0,04\\)</div>\n<div class=\"switch_value\">\\(k=0,08\\)</div>\n<div class=\"switch_value\">\\(k=0,8\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Oznaczmy obwody czworokątów \\(W_1\\) i \\(W_2\\) odpowiednio przez \\(d_1\\) i \\(d_2\\).\n                <div class=\"switch_line\">\n                    Znając skalę podobieństwa możemy określić relację między obwodami:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(d_1=0,4\\cdot d_2\\)</div>\n<div class=\"switch_value\">\\(d_2=0,4\\cdot d_1\\)</div>\n<div class=\"switch_value\">\\(d_1=0,16\\cdot d_2\\)</div>\n<div class=\"switch_value\">\\(d_2=0,16\\cdot d_1\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Szukamy odpowiedzi na pytanie:\n                </p>\n<blockquote>\n                    O ile procent obwód czworokąta \\(W_1\\) jest większy od obwodu czworokąta \\(W_2\\)?\n                </blockquote>\n<p>\n                    Chcemy więc uzyskać równanie postaci <u>na przykład</u>\n</p>\n                \\[\n                d_1=1,\\square\\cdot d_2\n                \\]\n                <p>\n                    gdzie \\(\\square\\) to cyfra lub cyfry oznaczające, o ile procent \\(d_1\\) jest większe od \\(d_2\\).\n                </p>\n<p>\n<small>(Na przykład, gdybyśmy uzyskali \\(d_1=1,35\\cdot d_2\\), to pierwszy obwód byłby o \\(35\\%\\) większy od drugiego.)</small>\n</p>\n<div class=\"switch_line\">\n                    Wyliczając \\(d_1\\) z równania \\(d_2=0,4\\cdot d_1\\) otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(d_1=4,0\\cdot d_2\\)</div>\n<div class=\"switch_value\">\\(d_1=2,5\\cdot d_2\\)</div>\n<div class=\"switch_value\">\\(d_1=1,5\\cdot d_2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Oznacza to, że \\(d_1\\) jest większe od \\(d_2\\) o \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(150\\%\\)</div>\n<div class=\"switch_value\">\\(50\\%\\)</div>\n<div class=\"switch_value\">\\(250\\%\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                \\(2,5\\) to \\(250\\%\\), więc \\(d_1\\) to \\(250\\%\\) wartości \\(d_2\\), czyli obwód czworokąta \\(W_1\\) (czyli \\(d_1\\)) jest o \\(150\\%\\) większy od obwodu czworokąta \\(W_2\\) (czyli \\(d_2\\)).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy pola czworokątów \\(W_1\\) i \\(W_2\\) odpowiednio przez \\(P_1\\) i \\(P_2\\) i zacznijmy od tej informacji:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Pole czworokąta \\(W_2\\) jest o \\(84\\%\\) mniejsze od pola czworokąta \\(W_1\\)\"\n                </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Innymi słowy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"\\(P_2\\) jest o \\(84\\%\\) mniejsze od \\(P_1\\)\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Możemy to zapisać za pomocą równania\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(P_2=1,84\\cdot P_1\\)",
+            "\\(P_2=0,84\\cdot P_1\\)",
+            "\\(P_2=0,16\\cdot P_1\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    \"\\(P_2\\) jest o \\(84\\%\\) mniejsze od \\(P_1\\)\", czyli \"\\(P_2\\) stanowi \\(100\\%-84\\%=16\\%\\) wartości \\(P_1\\)\", więc \\(P2=0,16\\cdot P_1\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Czworokąty są podobne, więc liczba \\(0,16\\) to\n                    \n\n\n￿0￿ czworokąta \\(W_2\\) do \\(W_1\\).\n                ",
+          "options": [
+            "skala podobieństwa",
+            "kwadrat skali podobieństwa"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy skalę podobieństwa czworokąta \\(W_2\\) do \\(W_1\\) przez \\(k\\). Wiemy więc, że\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                k^2=0,16\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego skala podobieństwa \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(k=0,4\\)",
+            "\\(k=0,04\\)",
+            "\\(k=0,08\\)",
+            "\\(k=0,8\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Oznaczmy obwody czworokątów \\(W_1\\) i \\(W_2\\) odpowiednio przez \\(d_1\\) i \\(d_2\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Znając skalę podobieństwa możemy określić relację między obwodami:\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d_1=0,4\\cdot d_2\\)",
+            "\\(d_2=0,4\\cdot d_1\\)",
+            "\\(d_1=0,16\\cdot d_2\\)",
+            "\\(d_2=0,16\\cdot d_1\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Szukamy odpowiedzi na pytanie:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    O ile procent obwód czworokąta \\(W_1\\) jest większy od obwodu czworokąta \\(W_2\\)?\n                </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Chcemy więc uzyskać równanie postaci <u>na przykład</u>\n</p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                d_1=1,\\square\\cdot d_2\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    gdzie \\(\\square\\) to cyfra lub cyfry oznaczające, o ile procent \\(d_1\\) jest większe od \\(d_2\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<small>(Na przykład, gdybyśmy uzyskali \\(d_1=1,35\\cdot d_2\\), to pierwszy obwód byłby o \\(35\\%\\) większy od drugiego.)</small>\n</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wyliczając \\(d_1\\) z równania \\(d_2=0,4\\cdot d_1\\) otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d_1=4,0\\cdot d_2\\)",
+            "\\(d_1=2,5\\cdot d_2\\)",
+            "\\(d_1=1,5\\cdot d_2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Oznacza to, że \\(d_1\\) jest większe od \\(d_2\\) o \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(150\\%\\)",
+            "\\(50\\%\\)",
+            "\\(250\\%\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(2,5\\) to \\(250\\%\\), więc \\(d_1\\) to \\(250\\%\\) wartości \\(d_2\\), czyli obwód czworokąta \\(W_1\\) (czyli \\(d_1\\)) jest o \\(150\\%\\) większy od obwodu czworokąta \\(W_2\\) (czyli \\(d_2\\)).</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "465ed09b7e953dfc1765b82fa76ed254e122b176a0acff0a8206b4511b57a336"
+  "seed_hash": "8c036725bbb90b9d629483233df1cf5a51475b6e2b359af251d3da05a5637941"
 }

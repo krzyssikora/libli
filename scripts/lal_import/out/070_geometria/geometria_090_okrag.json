@@ -2,11 +2,134 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie możesz przesuwać niebieską prostą (przesuwając dwa niebieskie punkty leżące na prostej).\n        </p>\n<p>\n            Przesuwaj prostą, by zobaczyć, w ilu punktach prosta może przecinać okrąg.\n        </p>\n<p>\n            Punkty przecięcia prostej i okręgu zaznaczone są na czerwono.\n        </p>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"841px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/fgz76xgp/width/732/height/841/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"okrąg i prosta\" width=\"732px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Prosta może przecinać okrąg\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        w \\(0\\), \\(1\\) lub w \\(2\\) punktach.\n                    </div>\n<div class=\"switch_value\">\n                        w maksymalnie jednym punkcie.\n                    </div>\n<div class=\"switch_value\">\n                        w dowolnie wielu punktach.\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Spójrz jeszcze raz na aplet.\n                </p>\n<ul class=\"nolist\">\n<li>\n                        Niebieską przerywaną linią zaznaczona jest odległość od środka okręgu do prostej. Oznaczmy ją przez \\(d\\).\n                    </li>\n<li>\n                        Żółtą linią przerywaną zaznaczony jest promień okręgu. Oznaczmy go przez \\(r\\).\n                    </li>\n</ul>\n<div class=\"switch_line\">\n                    Prosta wcale nie przecina okręgu, gdy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(r\\gt d\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(r= d\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(r\\lt d\\)\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Prosta przecina okrąg w jednym punkcie, gdy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(r\\gt d\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(r= d\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(r\\lt d\\)\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Prosta przecina okrąg w dwóch punktach, gdy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(r\\gt d\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(r= d\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(r\\lt d\\)\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Podsumujmy:\n                </p>\n<div class=\"important centered\" style=\"display: flex; justify-content: center;\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\n                                    punktów przecięcia\n                                </th>\n<th>\n                                    warunek\n                                </th>\n</tr>\n<tr>\n<td>\n                                    \\(0\\)\n                                </td>\n<td>\n                                    \\(r\\lt d\\)\n                                </td>\n</tr>\n<tr>\n<td>\n                                    \\(1\\)\n                                </td>\n<td>\n                                    \\(r= d\\)\n                                </td>\n</tr>\n<tr>\n<td>\n                                    \\(2\\)\n                                </td>\n<td>\n                                    \\(r\\gt d\\)\n                                </td>\n</tr>\n</table>\n</div>\n</div>\n</div>\n</div>\n"
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać niebieską prostą (przesuwając dwa niebieskie punkty leżące na prostej).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwaj prostą, by zobaczyć, w ilu punktach prosta może przecinać okrąg.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkty przecięcia prostej i okręgu zaznaczone są na czerwono.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/fgz76xgp/width/732/height/841/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    Prosta może przecinać okrąg\n                    \n\n\n\n\n￿0￿",
+      "options": [
+        "w \\(0\\), \\(1\\) lub w \\(2\\) punktach.",
+        "w maksymalnie jednym punkcie.",
+        "w dowolnie wielu punktach."
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Spójrz jeszcze raz na aplet.\n                </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                        Niebieską przerywaną linią zaznaczona jest odległość od środka okręgu do prostej. Oznaczmy ją przez \\(d\\).\n                    </li>\n<li>\n                        Żółtą linią przerywaną zaznaczony jest promień okręgu. Oznaczmy go przez \\(r\\).\n                    </li>\n</ul>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    Prosta wcale nie przecina okręgu, gdy\n                    \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(r\\gt d\\)",
+        "\\(r= d\\)",
+        "\\(r\\lt d\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    Prosta przecina okrąg w jednym punkcie, gdy\n                    \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(r\\gt d\\)",
+        "\\(r= d\\)",
+        "\\(r\\lt d\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                    Prosta przecina okrąg w dwóch punktach, gdy\n                    \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(r\\gt d\\)",
+        "\\(r= d\\)",
+        "\\(r\\lt d\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Podsumujmy:\n                </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "punktów przecięcia",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "warunek",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(r\\lt d\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(r= d\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(r\\gt d\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "text",
@@ -18,13 +141,9 @@
     },
     {
       "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
-      "type": "text",
       "body": "<p>\n        Prosta, która ma dwa punkty wspólne z okręgiem nazywa się\n        <strong>\n            sieczną\n        </strong>\n        okręgu.\n    </p>"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "d2204b1849c4eda0626ffcca5f41028b32ed8094deba93b9818f8267b1fe7be2"
+  "seed_hash": "406ab29af4fcc11d7c378765de732752dadb9a9332d713d49581081a5d2f9058"
 }

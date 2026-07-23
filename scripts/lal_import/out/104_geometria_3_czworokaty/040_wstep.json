@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -11,39 +11,80 @@
     {
       "type": "spoiler",
       "label": "trapez",
-      "body": "\n                        Czworokąt, który ma (co najmniej) jedną parę boków równoległych.\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Czworokąt, który ma (co najmniej) jedną parę boków równoległych.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "trapezoid",
-      "body": "\n                        Czworokąt, w którym żadne dwa boki nie są równoległe.\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Czworokąt, w którym żadne dwa boki nie są równoległe.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "równoległobok",
-      "body": "\n                        Czworokąt, który ma dwie pary boków równoległych. \n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Czworokąt, który ma dwie pary boków równoległych.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "romb",
-      "body": "\n                        Czworokąt, w którym wszystkie boki są równej długości.\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Czworokąt, w którym wszystkie boki są równej długości.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "prostokąt",
-      "body": "\n                        Czworokąt, w którym wszystkie kąty są proste.\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Czworokąt, w którym wszystkie kąty są proste.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "kwadrat",
-      "body": "\n                        Czworokąt, w którym wszystkie kąty są proste i którego wszystkie boki są równej długości.\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Czworokąt, w którym wszystkie kąty są proste i którego wszystkie boki są równej długości.</p>"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "media_src": "static/klasyfikacja_czworokatow.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "spoiler",
       "label": "deltoid",
-      "body": "\n                        Czworokąt, w którym dwie pary sąsiednich boków są równej długości.\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Czworokąt, w którym dwie pary sąsiednich boków są równej długości.</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "f6bc79f82871252ba6a66a1245c8de345c3038fdb19a4e37667d9557d9001c11"
+  "seed_hash": "e088959594fc59d156e09041aa0393e508120e239f5520dd5c3fc7c0e799bf8b"
 }

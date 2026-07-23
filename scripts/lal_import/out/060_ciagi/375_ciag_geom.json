@@ -2,90 +2,155 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Określ monotoniczność poniższych ciągów geometrycznych.\n    "
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    \\(3,\\, 6,\\, 12,\\, 24,\\, 48,\\, 96\\)\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n<div class=\"one_choice ks_button\">żaden</div>\n</li>\n</ul>"
+      "type": "choice_grid",
+      "columns": [
+        "rosnący",
+        "stały",
+        "malejący",
+        "żaden"
+      ],
+      "rows": [
+        {
+          "statement": "\\(3,\\, 6,\\, 12,\\, 24,\\, 48,\\, 96\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(12,\\, 18,\\, 27,\\, 40\\tfrac{1}{2},\\, 60\\tfrac{3}{4}\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(11,\\, 11,\\, 11,\\, 11,\\, 11,\\, 11\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(96,\\, 48,\\, 24,\\, 12,\\, 6,\\, 3\\)",
+          "correct": 2
+        },
+        {
+          "statement": "\\(243,\\, 162,\\, 108,\\, 72,\\, 48\\)",
+          "correct": 2
+        },
+        {
+          "statement": "\\(1,\\, -2,\\, 4,\\, -8,\\, 16,\\, -32\\)",
+          "correct": 3
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    \\(12,\\, 18,\\, 27,\\, 40\\tfrac{1}{2},\\, 60\\tfrac{3}{4}\\)\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n<div class=\"one_choice ks_button\">żaden</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    \\(11,\\, 11,\\, 11,\\, 11,\\, 11,\\, 11\\)\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n<div class=\"one_choice ks_button\">żaden</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    \\(96,\\, 48,\\, 24,\\, 12,\\, 6,\\, 3\\)\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n<div class=\"one_choice ks_button\">żaden</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    \\(243,\\, 162,\\, 108,\\, 72,\\, 48\\)\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n<div class=\"one_choice ks_button\">żaden</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    \\(1,\\, -2,\\, 4,\\, -8,\\, 16,\\, -32\\)\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n<div class=\"one_choice ks_button\">żaden</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "potwierdź "
-    },
-    {
-      "type": "text",
-      "body": "\n            Brawo! Wszystkie odpowiedzi sa poprawne.\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            Zastanów się jeszcze. Poprawnych odpowiedzi: \n        "
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Jaki jest związek ilorazu ciągu geometrycznego, \\(q\\), z jego monotonicznością?\n    "
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    jeśli \\(q\\gt 1\\) ciąg jest\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n<div class=\"one_choice ks_button\">żaden</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    jeśli \\(q= 1\\) ciąg jest\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n<div class=\"one_choice ks_button\">żaden</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    jeśli \\(0\\lt q\\lt 1\\) ciąg jest\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n<div class=\"one_choice ks_button\">żaden</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    jeśli \\(q\\lt 0\\) ciąg jest\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n<div class=\"one_choice ks_button\">żaden</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "potwierdź "
-    },
-    {
-      "type": "text",
-      "body": "\n            Brawo! Wszystkie odpowiedzi sa poprawne.\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            Zastanów się jeszcze. Poprawnych odpowiedzi: \n        "
+      "type": "choice_grid",
+      "columns": [
+        "rosnący",
+        "stały",
+        "malejący",
+        "żaden"
+      ],
+      "rows": [
+        {
+          "statement": "jeśli \\(q\\gt 1\\) ciąg jest",
+          "correct": 0
+        },
+        {
+          "statement": "jeśli \\(q= 1\\) ciąg jest",
+          "correct": 1
+        },
+        {
+          "statement": "jeśli \\(0\\lt q\\lt 1\\) ciąg jest",
+          "correct": 2
+        },
+        {
+          "statement": "jeśli \\(q\\lt 0\\) ciąg jest",
+          "correct": 3
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "a jeśli nie masz pewności, zerknij tu",
-      "body": "\n\n<div class=\"important\">\n        Ciąg geometryczny \\((a_n)\\) o ilorazie \\(q\\) jest:\n        <div class=\"table_wrapper\">\n<table class=\"my_table_noborder left\">\n<tr>\n<td>rosnący</td>\n<td>jeśli \\(q\\gt 1\\)</td>\n</tr>\n<tr>\n<td>stały</td>\n<td>jeśli \\(q= 1\\)</td>\n</tr>\n<tr>\n<td>malejący</td>\n<td>jeśli \\(0\\lt q\\lt 1\\)</td>\n</tr>\n<tr>\n<td>nie jest monotoniczny</td>\n<td>jeśli \\(q\\lt 0\\)</td>\n</tr>\n</table>\n</div>\n        W powyższych rozważaniach nie uwzględniliśmy \\(q=0\\). Co w takiej sytuacji?\n    </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Ciąg geometryczny \\((a_n)\\) o ilorazie \\(q\\) jest:</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "rosnący",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "jeśli \\(q\\gt 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "stały",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "jeśli \\(q= 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "malejący",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "jeśli \\(0\\lt q\\lt 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "nie jest monotoniczny",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "jeśli \\(q\\lt 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>W powyższych rozważaniach nie uwzględniliśmy \\(q=0\\). Co w takiej sytuacji?</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "01623b9a44966da063764e2ba149ba780efbb4c73e1cc75bb02ae37cac6b9e2f"
+  "seed_hash": "e6a843b15cde502f4da9bdfa6a1fb1e5a47739408827e75372a583ccbd9d8421"
 }

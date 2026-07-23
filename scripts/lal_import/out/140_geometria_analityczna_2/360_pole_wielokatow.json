@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -11,48 +11,801 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Istnieje sporo sposobów wykazania, że czworokąt jest prostokątem. My zrobimy to w sposób najbardziej podstawowy - z definicji.\n                <div class=\"switch_line\">\n                    Zgodnie z definicją, prostokąt to czworokąt, który\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">ma dwie pary boków równoległych</div>\n<div class=\"switch_value\">ma dwie pary równych boków</div>\n<div class=\"switch_value\">ma wszystkie kąty proste</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Żeby udowodnić, że wszystkie kąty są proste, możemy pokazać, że boki są prostopadłe. W tym celu znajdziemy współczynniki kierunkowe prostych zawierających boki czworokąta (czyli nachylenia ich boków).\n                </p>\n<details>\n<summary>Jak to zrobić?</summary>\n<p>\n                        Współczynnik kierunkowy (nachylenie) prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dany jest wyrażeniem\n                    </p>\n                    \\[\n                    \\frac{y_A-y_B}{x_A-x_B}\n                    \\]\n                    <p>\n                        A więcej szczegółów znajdziesz <a href=\"/jump_to_id/1a55970974e24c60a34789b4b51c70bb\">tutaj</a>.\n                    </p>\n<!-- INTERNAL LINK -->\n</details>\n<p>\n                    Zacznijmy od nachylenia odcinka \\(AB\\), które oznaczymy \\(a_{AB}\\). Przypomnijmy, że \\(A=(-3, -5)\\) i \\(B=(5, -1)\\).\n                </p>\n<div class=\"switch_line\">\n                    Nachylenie odcinka \\(AB\\) dane jest wzorem \\(a_{AB}=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{-1-(-5)}{5-(-3)}\\)</div>\n<div class=\"switch_value\">\\(\\frac{-1-5}{5-3}\\)</div>\n<div class=\"switch_value\">\\(\\frac{-1-5}{-5-(-3)}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Tak więc \\(a_{AB}=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(-\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(-2\\)</div>\n<div class=\"switch_value\">\\(-3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Nachylenie odcinka \\(BC\\) (\\(B=(5, -1)\\), \\(C=(3, 3)\\)) to \\(a_{BC}=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(-2\\)</div>\n<div class=\"switch_value\">\\(-\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Nachylenie odcinka \\(CD\\) (\\(C=(3, 3)\\), \\(D=(-5, -1)\\)) to \\(a_{CD}=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(-\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(-2\\)</div>\n<div class=\"switch_value\">\\(-3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Nachylenie odcinka \\(BC\\) (\\(B=(5, -1)\\), \\(C=(3, 3)\\)) to \\(a_{BC}=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(-2\\)</div>\n<div class=\"switch_value\">\\(-\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Podsumujmy:\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_CL\">\n<tr>\n<th>odcinek</th>\n<th>nachylenie</th>\n</tr>\n<tr>\n<td>\\(AB\\)</td>\n<td>\\(a_{AB}=\\frac{1}{2}\\)</td>\n</tr>\n<tr>\n<td>\\(BC\\)</td>\n<td>\\(a_{BC}=-2\\)</td>\n</tr>\n<tr>\n<td>\\(CD\\)</td>\n<td>\\(a_{CD}=\\frac{1}{2}\\)</td>\n</tr>\n<tr>\n<td>\\(AD\\)</td>\n<td>\\(a_{AD}=-2\\)</td>\n</tr>\n</table>\n</div>\n<p>\n                    I teraz wystarczy zauważyć, że\n                </p>\n                \\[\n                \\left(\\frac{1}{2}\\right)\\cdot (-2)=-1\n                \\]\n                <p>\n                    a to oznacza, że\n                </p>\n<ul class=\"nolist\">\n<li>bok \\(AB\\) jest prostopadły do boku \\(BC\\),</li>\n<li>bok \\(BC\\) jest prostopadły do boku \\(CD\\),</li>\n<li>bok \\(CD\\) jest prostopadły do boku \\(AD\\),</li>\n<li>bok \\(AD\\) jest prostopadły do boku \\(AB\\),</li>\n</ul>\n<p>\n                    czyli czworokąt \\(ABCD\\) jest prostokątem.\n                </p>\n<p>\n                    Jeśli nie pamiętasz, dlaczego, zeknij <a href=\"/jump_to_id/26aaae708ac34d74a461ea6f1a663322\">tutaj</a>.\n                    <!-- INTERNAL LINK -->\n</p>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Istnieje sporo sposobów wykazania, że czworokąt jest prostokątem. My zrobimy to w sposób najbardziej podstawowy - z definicji.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Zgodnie z definicją, prostokąt to czworokąt, który\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "ma dwie pary boków równoległych",
+            "ma dwie pary równych boków",
+            "ma wszystkie kąty proste"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Żeby udowodnić, że wszystkie kąty są proste, możemy pokazać, że boki są prostopadłe. W tym celu znajdziemy współczynniki kierunkowe prostych zawierających boki czworokąta (czyli nachylenia ich boków).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Jak to zrobić?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Współczynnik kierunkowy (nachylenie) prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dany jest wyrażeniem\n                    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                    \\frac{y_A-y_B}{x_A-x_B}\n                    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        A więcej szczegółów znajdziesz <a href=\"/jump_to_id/1a55970974e24c60a34789b4b51c70bb\">tutaj</a>.\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od nachylenia odcinka \\(AB\\), które oznaczymy \\(a_{AB}\\). Przypomnijmy, że \\(A=(-3, -5)\\) i \\(B=(5, -1)\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Nachylenie odcinka \\(AB\\) dane jest wzorem \\(a_{AB}=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{-1-(-5)}{5-(-3)}\\)",
+            "\\(\\frac{-1-5}{5-3}\\)",
+            "\\(\\frac{-1-5}{-5-(-3)}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Tak więc \\(a_{AB}=\\)\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(-\\frac{1}{2}\\)",
+            "\\(\\frac{1}{2}\\)",
+            "\\(-2\\)",
+            "\\(-3\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Nachylenie odcinka \\(BC\\) (\\(B=(5, -1)\\), \\(C=(3, 3)\\)) to \\(a_{BC}=\\)\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(-2\\)",
+            "\\(-\\frac{1}{2}\\)",
+            "\\(\\frac{1}{2}\\)",
+            "\\(2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Nachylenie odcinka \\(CD\\) (\\(C=(3, 3)\\), \\(D=(-5, -1)\\)) to \\(a_{CD}=\\)\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(-\\frac{1}{2}\\)",
+            "\\(\\frac{1}{2}\\)",
+            "\\(-2\\)",
+            "\\(-3\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Nachylenie odcinka \\(BC\\) (\\(B=(5, -1)\\), \\(C=(3, 3)\\)) to \\(a_{BC}=\\)\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(-2\\)",
+            "\\(-\\frac{1}{2}\\)",
+            "\\(\\frac{1}{2}\\)",
+            "\\(2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Podsumujmy:\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "odcinek",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "nachylenie",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(AB\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{AB}=\\frac{1}{2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(BC\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{BC}=-2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(CD\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{CD}=\\frac{1}{2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(AD\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{AD}=-2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I teraz wystarczy zauważyć, że\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\left(\\frac{1}{2}\\right)\\cdot (-2)=-1\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    a to oznacza, że\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>bok \\(AB\\) jest prostopadły do boku \\(BC\\),</li>\n<li>bok \\(BC\\) jest prostopadły do boku \\(CD\\),</li>\n<li>bok \\(CD\\) jest prostopadły do boku \\(AD\\),</li>\n<li>bok \\(AD\\) jest prostopadły do boku \\(AB\\),</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    czyli czworokąt \\(ABCD\\) jest prostokątem.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jeśli nie pamiętasz, dlaczego, zeknij <a href=\"/jump_to_id/26aaae708ac34d74a461ea6f1a663322\">tutaj</a>.\n                    <!-- INTERNAL LINK -->\n</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dany jest trójkąt \\(ABC\\), którego wierzchołki mają współrządne: \\(A=(-4,1)\\), \\(B=(4,-3)\\) i \\(C=(5,4)\\).\n        </p>\n<ol class=\"bold\">\n<li>Oblicz długość odcinka \\(AB\\).</li>\n<li>Oblicz współczynnik kierunkowy prostej przechodzącej przez punkty \\(A\\) i \\(B\\).</li>\n<li>Znajdź równanie prostej przechodzącej przez punkty \\(A\\) i \\(B\\).</li>\n<li>\n                Oblicz odległość punktu \\(C\\) od tej prostej.\n            </li>\n<li>\n                Oblicz pole trójkąta \\(ABC\\).\n            </li>\n</ol>\n"
+      "body": "<p>\n            Dany jest trójkąt \\(ABC\\), którego wierzchołki mają współrządne: \\(A=(-4,1)\\), \\(B=(4,-3)\\) i \\(C=(5,4)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>Oblicz długość odcinka \\(AB\\).</li>\n<li>Oblicz współczynnik kierunkowy prostej przechodzącej przez punkty \\(A\\) i \\(B\\).</li>\n<li>Znajdź równanie prostej przechodzącej przez punkty \\(A\\) i \\(B\\).</li>\n<li>\n                Oblicz odległość punktu \\(C\\) od tej prostej.\n            </li>\n<li>\n                Oblicz pole trójkąta \\(ABC\\).\n            </li>\n</ol>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<ol class=\"bold\">\n<li>Oblicz długość odcinka \\(AB\\).</li>\n</ol>\n<details>\n<summary>Jak to zrobić?</summary>\n<p>\n                    Długość odcinka \\(AB\\) o końcach \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dana jest wzorem\n                </p>\n                \\[\n                |AB|=\\sqrt{(x_A-x_B)^2+(y_A-y_B)^2}\n                \\]\n                <p>\n                    A więcej szczegółów znajdziesz <a href=\"/jump_to_id/b3c27d9a7a754655b04f52cf59cc3ac2\">tutaj</a>.\n                </p>\n<!-- INTERNAL LINK -->\n</details>\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Długość odcinka \\(AB\\) dana jest wyrażeniem\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\sqrt{(-4+4)^2+(1-3)^2}\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{(-4-4)^2+(1+3)^2}\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{(-4-4)^2-(1+3)^2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Uprośćmy: \\(\\sqrt{(-4-4)^2+(1+3)^2}=\\)\\(\\sqrt{(-8)^2+4^2}=\\)\\(\\sqrt{64+16}=...=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(12\\)</div>\n<div class=\"switch_value\">\\(4\\sqrt{5}\\)</div>\n<div class=\"switch_value\">\\(16\\sqrt{5}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<ol class=\"bold\" start=\"2\">\n<li>Oblicz współczynnik kierunkowy prostej przechodzącej przez punkty \\(A\\) i \\(B\\).</li>\n</ol>\n<details>\n<summary>Jak to zrobić?</summary>\n<p>\n                        Współczynnik kierunkowy (nachylenie) prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dany jest wyrażeniem\n                    </p>\n                    \\[\n                    \\frac{y_A-y_B}{x_A-x_B}\n                    \\]\n                    <p>\n                        A więcej szczegółów znajdziesz <a href=\"/jump_to_id/1a55970974e24c60a34789b4b51c70bb\">tutaj</a>.\n                    </p>\n<!-- INTERNAL LINK -->\n</details>\n<div class=\"switch_line\">\n                    Współczynnik kierunkowy prostej przechodzącej przez punkty \\(A\\) i \\(B\\) jest dany wyrażeniem\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{1+3}{-4-4}\\)</div>\n<div class=\"switch_value\">\\(\\frac{1-3}{-4+4}\\)</div>\n<div class=\"switch_value\">\\(\\frac{1-3}{4+4}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Po uproszczeniu współczynnik keirunkowy jest równy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(-\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(-\\frac{1}{4}\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{4}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<ol class=\"bold\" start=\"3\">\n<li>Znajdź równanie prostej przechodzącej przez punkty \\(A\\) i \\(B\\).</li>\n</ol>\n<div class=\"switch_line\">\n                    Z tego, co ustaliliśmy, wiemy, że równanie tej prostej jest postaci \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=-\\frac{1}{2}x+b\\)</div>\n<div class=\"switch_value\">\\(y=ax+\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(y=2x+b\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Aby znaleźć wartość współczynnika \\(b\\) musimy do tego równania podstawić współrzędne\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">punktu \\(A\\) lub \\(B\\)</div>\n<div class=\"switch_value\">punktu \\(C\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Podstawiając współrządne punktu \\(A\\) dostajemy:\n                </p>\n                \\[\n                1=-\\frac{1}{2}\\cdot (-4)+b\n                \\]\n                <p>\n                    Podstawiając współrządne punktu \\(B\\) dostajemy:\n                </p>\n                \\[\n                -3=-\\frac{1}{2}\\cdot 4+b\n                \\]\n                <div class=\"switch_line\">\n                    Z dowolnego z tych równań wyliczamy, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(b=-1\\)</div>\n<div class=\"switch_value\">\\(b=1\\)</div>\n<div class=\"switch_value\">\\(b=3\\)</div>\n<div class=\"switch_value\">\\(b=-5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<ol class=\"bold\" start=\"4\">\n<li>\n                        Oblicz odległość punktu \\(C\\) od tej prostej.\n                    </li>\n</ol>\n<div class=\"switch_line\">\n                    W tym celu najpierw przekształcamy równanie prostej, \\(y=-\\frac{1}{2}x-1\\) do postaci ogólnej, otrzymując\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x-2y-2=0\\)</div>\n<div class=\"switch_value\">\\(x+2y+2=0\\)</div>\n<div class=\"switch_value\">\\(x+2y+1=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Mamy więc znaleźć odległość punktu \\(C=(5,4)\\) od prostej o równaniu \\(x+2y+2=0\\).\n                </p>\n<details>\n<summary>Jak to zrobić?</summary>\n<p>\n                        Odległość punkt \\((x_0, y_0)\\) od prostej \\(Ax+By+C=0\\) dana jest wyrażeniem\n                    </p>\n                    \\[\n                    \\frac{|Ax_0+By_0+C|}{\\sqrt{A^2+B^2}}\n                    \\]\n                </details>\n<div class=\"switch_line\">\n                    Odległość punktu \\(C\\) od prostej przechodzącej przez punkty \\(A\\) i \\(B\\) dana jest wyrażeniem\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{|5+2\\cdot 4+2|}{\\sqrt{1^2+2^2}}\\)</div>\n<div class=\"switch_value\">\\(\\frac{|5+2\\cdot 4+2|}{\\sqrt{2^2+2^2}}\\)</div>\n<div class=\"switch_value\">\\(\\frac{|2\\cdot 5+4+2|}{\\sqrt{1^2+2^2}}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Uprośćmy:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    \\frac{|5+2\\cdot 4+2|}{\\sqrt{1^2+2^2}}&amp;=\\frac{|5+8+2|}{\\sqrt{1+4}}=\\\\\n                    &amp;=\\frac{|15|}{\\sqrt{5}}=\\\\\n                    &amp;=\\frac{15}{\\sqrt{5}}\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Usuwając niewymierność z mianownika obliczamy, że odległość punktu \\(C\\) od prostej przechodzącej przez punkty \\(A\\) i \\(B\\) jest równa\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(15\\sqrt{5}\\)</div>\n<div class=\"switch_value\">\\(5\\sqrt{5}\\)</div>\n<div class=\"switch_value\">\\(3\\sqrt{5}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Podsumujmy:\n                </p>\n<ol class=\"bold\">\n<li>Długość odcinka \\(AB\\) jest równa \\(4\\sqrt{5}\\).</li>\n<li><s>Współczynnik kierunkowy prostej przechodzącej przez punkty \\(A\\) i \\(B\\) to \\(-\\frac{1}{2}\\).</s></li>\n<li><s>Równanie prostej przechodzącej przez punkty \\(A\\) i \\(B\\) to \\(x+2y+2=0\\).</s></li>\n<li>\n                        Odległość punktu \\(C\\) od tej prostej jest równa \\(3\\sqrt{5}\\).\n                    </li>\n</ol>\n<p>\n                    Punkty <strong>2</strong> i <strong>3</strong> są skreślone nie dlatego, że coś z nimi nie tak, lecz dlatego, że do ostatniego kroku rozwiązania potrzebujemy tylko <strong>1</strong> i <strong>4</strong>.\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_940.png\" style=\"max-height: 300px;\"/>\n</figure>\n<ol class=\"bold\" start=\"5\">\n<li>\n                        Oblicz pole trójkąta \\(ABC\\).\n                    </li>\n</ol>\n<div class=\"switch_line\">\n                    Pole trójkąta \\(ABC\\) jest równe\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}\\cdot 4\\sqrt{5}\\cdot 3\\sqrt{5}\\)</div>\n<div class=\"switch_value\">\\(4\\sqrt{5}\\cdot 3\\sqrt{5}\\)</div>\n<div class=\"switch_value\">\\((4\\sqrt{5})^2 + (3\\sqrt{5})^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Długość odcinka \\(AB\\) to podstawa trójkąta, a odległość punktu \\(C\\) od boku \\(AB\\) to jego wysokość, więc pole trójkąta, \\(P_{\\Delta}\\) jest równe:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    P_{\\Delta}&amp;=\\frac{1}{2}\\cdot 4\\sqrt{5}\\cdot 3\\sqrt{5}=\\\\\n                    &amp;=\\frac{1}{2}\\cdot 4\\cdot 3\\cdot \\sqrt{5}\\cdot \\sqrt{5}\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Czyli ostatecznie pole trójkąta to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(15\\)</div>\n<div class=\"switch_value\">\\(30\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    P_{\\Delta}&amp;=\\frac{1}{2}\\cdot 4\\sqrt{5}\\cdot 3\\sqrt{5}=\\\\\n                    &amp;=\\frac{1}{2}\\cdot 4\\cdot 3\\cdot \\sqrt{5}\\cdot \\sqrt{5}=\\\\\n                    &amp;=2\\cdot 3\\cdot 5=30\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>Oblicz długość odcinka \\(AB\\).</li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Jak to zrobić?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Długość odcinka \\(AB\\) o końcach \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dana jest wzorem\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                |AB|=\\sqrt{(x_A-x_B)^2+(y_A-y_B)^2}\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    A więcej szczegółów znajdziesz <a href=\"/jump_to_id/b3c27d9a7a754655b04f52cf59cc3ac2\">tutaj</a>.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Długość odcinka \\(AB\\) dana jest wyrażeniem\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\sqrt{(-4+4)^2+(1-3)^2}\\)",
+            "\\(\\sqrt{(-4-4)^2+(1+3)^2}\\)",
+            "\\(\\sqrt{(-4-4)^2-(1+3)^2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Uprośćmy: \\(\\sqrt{(-4-4)^2+(1+3)^2}=\\)\\(\\sqrt{(-8)^2+4^2}=\\)\\(\\sqrt{64+16}=...=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(12\\)",
+            "\\(4\\sqrt{5}\\)",
+            "\\(16\\sqrt{5}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\" start=\"2\">\n<li>Oblicz współczynnik kierunkowy prostej przechodzącej przez punkty \\(A\\) i \\(B\\).</li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Jak to zrobić?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Współczynnik kierunkowy (nachylenie) prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dany jest wyrażeniem\n                    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                    \\frac{y_A-y_B}{x_A-x_B}\n                    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        A więcej szczegółów znajdziesz <a href=\"/jump_to_id/1a55970974e24c60a34789b4b51c70bb\">tutaj</a>.\n                    </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Współczynnik kierunkowy prostej przechodzącej przez punkty \\(A\\) i \\(B\\) jest dany wyrażeniem\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{1+3}{-4-4}\\)",
+            "\\(\\frac{1-3}{-4+4}\\)",
+            "\\(\\frac{1-3}{4+4}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu współczynnik keirunkowy jest równy\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{1}{2}\\)",
+            "\\(-\\frac{1}{2}\\)",
+            "\\(-\\frac{1}{4}\\)",
+            "\\(\\frac{1}{4}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\" start=\"3\">\n<li>Znajdź równanie prostej przechodzącej przez punkty \\(A\\) i \\(B\\).</li>\n</ol>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z tego, co ustaliliśmy, wiemy, że równanie tej prostej jest postaci \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=-\\frac{1}{2}x+b\\)",
+            "\\(y=ax+\\frac{1}{2}\\)",
+            "\\(y=2x+b\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby znaleźć wartość współczynnika \\(b\\) musimy do tego równania podstawić współrzędne\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "punktu \\(A\\) lub \\(B\\)",
+            "punktu \\(C\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Podstawiając współrządne punktu \\(A\\) dostajemy:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                1=-\\frac{1}{2}\\cdot (-4)+b\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Podstawiając współrządne punktu \\(B\\) dostajemy:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                -3=-\\frac{1}{2}\\cdot 4+b\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z dowolnego z tych równań wyliczamy, że\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b=-1\\)",
+            "\\(b=1\\)",
+            "\\(b=3\\)",
+            "\\(b=-5\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\" start=\"4\">\n<li>\n                        Oblicz odległość punktu \\(C\\) od tej prostej.\n                    </li>\n</ol>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W tym celu najpierw przekształcamy równanie prostej, \\(y=-\\frac{1}{2}x-1\\) do postaci ogólnej, otrzymując\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x-2y-2=0\\)",
+            "\\(x+2y+2=0\\)",
+            "\\(x+2y+1=0\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mamy więc znaleźć odległość punktu \\(C=(5,4)\\) od prostej o równaniu \\(x+2y+2=0\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Jak to zrobić?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Odległość punkt \\((x_0, y_0)\\) od prostej \\(Ax+By+C=0\\) dana jest wyrażeniem\n                    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                    \\frac{|Ax_0+By_0+C|}{\\sqrt{A^2+B^2}}\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Odległość punktu \\(C\\) od prostej przechodzącej przez punkty \\(A\\) i \\(B\\) dana jest wyrażeniem\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{|5+2\\cdot 4+2|}{\\sqrt{1^2+2^2}}\\)",
+            "\\(\\frac{|5+2\\cdot 4+2|}{\\sqrt{2^2+2^2}}\\)",
+            "\\(\\frac{|2\\cdot 5+4+2|}{\\sqrt{1^2+2^2}}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Uprośćmy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    \\frac{|5+2\\cdot 4+2|}{\\sqrt{1^2+2^2}}&amp;=\\frac{|5+8+2|}{\\sqrt{1+4}}=\\\\\n                    &amp;=\\frac{|15|}{\\sqrt{5}}=\\\\\n                    &amp;=\\frac{15}{\\sqrt{5}}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Usuwając niewymierność z mianownika obliczamy, że odległość punktu \\(C\\) od prostej przechodzącej przez punkty \\(A\\) i \\(B\\) jest równa\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(15\\sqrt{5}\\)",
+            "\\(5\\sqrt{5}\\)",
+            "\\(3\\sqrt{5}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Podsumujmy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>Długość odcinka \\(AB\\) jest równa \\(4\\sqrt{5}\\).</li>\n<li><s>Współczynnik kierunkowy prostej przechodzącej przez punkty \\(A\\) i \\(B\\) to \\(-\\frac{1}{2}\\).</s></li>\n<li><s>Równanie prostej przechodzącej przez punkty \\(A\\) i \\(B\\) to \\(x+2y+2=0\\).</s></li>\n<li>\n                        Odległość punktu \\(C\\) od tej prostej jest równa \\(3\\sqrt{5}\\).\n                    </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Punkty <strong>2</strong> i <strong>3</strong> są skreślone nie dlatego, że coś z nimi nie tak, lecz dlatego, że do ostatniego kroku rozwiązania potrzebujemy tylko <strong>1</strong> i <strong>4</strong>.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_940.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\" start=\"5\">\n<li>\n                        Oblicz pole trójkąta \\(ABC\\).\n                    </li>\n</ol>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Pole trójkąta \\(ABC\\) jest równe\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{1}{2}\\cdot 4\\sqrt{5}\\cdot 3\\sqrt{5}\\)",
+            "\\(4\\sqrt{5}\\cdot 3\\sqrt{5}\\)",
+            "\\((4\\sqrt{5})^2 + (3\\sqrt{5})^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Długość odcinka \\(AB\\) to podstawa trójkąta, a odległość punktu \\(C\\) od boku \\(AB\\) to jego wysokość, więc pole trójkąta, \\(P_{\\Delta}\\) jest równe:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    P_{\\Delta}&amp;=\\frac{1}{2}\\cdot 4\\sqrt{5}\\cdot 3\\sqrt{5}=\\\\\n                    &amp;=\\frac{1}{2}\\cdot 4\\cdot 3\\cdot \\sqrt{5}\\cdot \\sqrt{5}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Czyli ostatecznie pole trójkąta to\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(15\\)",
+            "\\(30\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    P_{\\Delta}&amp;=\\frac{1}{2}\\cdot 4\\sqrt{5}\\cdot 3\\sqrt{5}=\\\\\n                    &amp;=\\frac{1}{2}\\cdot 4\\cdot 3\\cdot \\sqrt{5}\\cdot \\sqrt{5}=\\\\\n                    &amp;=2\\cdot 3\\cdot 5=30\n                    \\end{align}\n                    \\]\n                "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W równoległoboku \\(ABCD\\) dane są współrządne wierzchołków \\(A=(-7,-1)\\), \\(B=(5,-5)\\) i \\(D=(-4,3)\\).\n        </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_950_1.png\" style=\"max-height: 300px;\"/>\n</figure>\n<p>\n            Oblicz pole równoległoboku.\n        </p>\n"
+      "body": "<p>\n            W równoległoboku \\(ABCD\\) dane są współrządne wierzchołków \\(A=(-7,-1)\\), \\(B=(5,-5)\\) i \\(D=(-4,3)\\).\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_zadanie_950_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz pole równoległoboku.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Przyjmijmy, że długości boków równoległoboku to \\(a\\) i \\(b\\), a wysokość opadająca na bok \\(a\\) to \\(h\\).\n                </p>\n<div class=\"switch_line\">\n                    Wówczas pole równoległoboku, \\(P\\), możemy obliczyć ze wzoru \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(P=a\\cdot b\\)</div>\n<div class=\"switch_value\">\\(P=a\\cdot h\\)</div>\n<div class=\"switch_value\">\\(P=b\\cdot h\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Zacznijmy od długości boku \\(AB\\).\n                </p>\n<details>\n<summary>Pamiętasz wzór?</summary>\n<p>\n                        Jeśli \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) to długość odcinka \\(AB\\) dana jest wzorem\n                    </p>\n<div class=\"table_wrapper\">\n                        \\[\n                        |AB|=\\sqrt{(x_A-x_B)^2+(y_A-y_B)^2}\n                        \\]\n                    </div>\n</details>\n<div class=\"switch_line\">\n                    Jest ona określona wyrażeniem\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(|AB|=\\sqrt{(-7-5)^2+(-1+5)^2}\\)</div>\n<div class=\"switch_value\">\\(|AB|=\\sqrt{(-7+5)^2+(-1-5)^2}\\)</div>\n<div class=\"switch_value\">\\(|AB|=\\sqrt{(-7+1)^2+(5+5)^2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    |AB|&amp;=\\sqrt{(-7-5)^2+(-1+5)^2}=\\\\\n                    &amp;=\\sqrt{(-12)^2+4^2}=\\\\\n                    &amp;=\\sqrt{144+16}=\\\\\n                    &amp;=\\sqrt{160}=\\\\\n                    &amp;=\\sqrt{16\\cdot 10}\\\\\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Ostatecznie więc\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(|AB|=4\\sqrt{10}\\)</div>\n<div class=\"switch_value\">\\(|AB|=16\\sqrt{10}\\)</div>\n<div class=\"switch_value\">\\(|AB|=10\\sqrt{16}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Mamy więc długość boku \\(AB\\), równą \\(4\\sqrt{10}\\).\n                </p>\n<p>\n                    Czas na długość wysokości opadającą na ten bok.\n                </p>\n<div class=\"switch_line\">\n                    Jest ona równa \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">długości boku \\(AD\\)</div>\n<div class=\"switch_value\">odległości od punktu \\(D\\) do prostej \\(AB\\)</div>\n<div class=\"switch_value\">odległości od punktu \\(B\\) do prostej \\(AD\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Aby obliczyć odległość od punktu \\(D\\) do prostej przechodzącej przez \\(A\\) i \\(B\\) musimy najpierw znaleźć równanie kierunkowe tej prostej, a potem przekształcić je w równanie ogólne.\n                </p>\n<p>\n                    Możesz to zrobić:\n                </p>\n<ul>\n<li>\n<strong>albo</strong> najpierw obliczając współczynnik kierunkowy ze współrzędnych punktów \\(A\\) i \\(B\\), a potem podstawiając współrzędne jednego z nich do równania kierunkowego,\n                    </li>\n<li>\n<strong>albo</strong> podstawiając współrzędne obu punktów do równania kierunkowego i rozwiązując układ równań. \n                    </li>\n</ul>\n<div class=\"switch_line\">\n                    Równanie kierunkowe tej prostej to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=\\frac{1}{3}x+\\frac{4}{3}\\)</div>\n<div class=\"switch_value\">\\(y=-\\frac{1}{3}x-\\frac{10}{3}\\)</div>\n<div class=\"switch_value\">\\(y=-3x-22\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Równanie ogólne tej prostej to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x-3y-10=0\\)</div>\n<div class=\"switch_value\">\\(x+3y+10=0\\)</div>\n<div class=\"switch_value\">\\(x+3y-10=0\\)</div>\n<div class=\"switch_value\">\\(x-3y+10=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Odległość punktu \\(D=(-4,3)\\) od prostej \\(x+3y+10=0\\) dana jest wyrażeniem\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{|-4+3\\cdot 3+10|}{\\sqrt{1^2+3^2}}\\)</div>\n<div class=\"switch_value\">\\(\\frac{4+3\\cdot 3+10}{\\sqrt{1^2+3^2}}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Obliczamy odległość punktu \\(D\\) od prostej przechodzącej przez \\(A\\) i \\(B\\), czyli wysokość równoległoboku \\(h\\) opadającą na bok \\(AB\\).\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    h&amp;=\\frac{|-4+3\\cdot 3+10|}{\\sqrt{1^2+3^2}}=\\\\\n                    &amp;=\\frac{|-4+9+10|}{\\sqrt{1+9}}=\\\\\n                    &amp;=\\frac{|15|}{\\sqrt{10}}=\\\\\n                    &amp;=\\frac{15}{\\sqrt{10}\\cdot\\frac{\\sqrt{10}}{\\sqrt{10}}}=\\\\\n                    &amp;=\\frac{15\\sqrt{10}}{10}=\\\\\n                    &amp;=\\frac{3}{2}\\sqrt{10}\\\\\n                    \\end{align}\n                    \\]\n                </div>\n<p>\n                    Pozostaje nam obliczyć pole równoległoboku \\(P\\).\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    P&amp;=4\\sqrt{10}\\cdot\\frac{3}{2}\\sqrt{10}=\\\\\n                    &amp;=4\\cdot\\frac{3}{2}\\cdot\\sqrt{10}\\cdot\\sqrt{10}\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Stąd \\(P=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(60\\)</div>\n<div class=\"switch_value\">\\(6\\sqrt{10}\\)</div>\n<div class=\"switch_value\">\\(120\\)</div>\n<div class=\"switch_value\">\\(12\\sqrt{10}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_950_2.png\" style=\"max-height: 300px;\"/>\n</figure>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Przyjmijmy, że długości boków równoległoboku to \\(a\\) i \\(b\\), a wysokość opadająca na bok \\(a\\) to \\(h\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wówczas pole równoległoboku, \\(P\\), możemy obliczyć ze wzoru \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(P=a\\cdot b\\)",
+            "\\(P=a\\cdot h\\)",
+            "\\(P=b\\cdot h\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od długości boku \\(AB\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Pamiętasz wzór?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Jeśli \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) to długość odcinka \\(AB\\) dana jest wzorem\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        \\[\n                        |AB|=\\sqrt{(x_A-x_B)^2+(y_A-y_B)^2}\n                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jest ona określona wyrażeniem\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(|AB|=\\sqrt{(-7-5)^2+(-1+5)^2}\\)",
+            "\\(|AB|=\\sqrt{(-7+5)^2+(-1-5)^2}\\)",
+            "\\(|AB|=\\sqrt{(-7+1)^2+(5+5)^2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    |AB|&amp;=\\sqrt{(-7-5)^2+(-1+5)^2}=\\\\\n                    &amp;=\\sqrt{(-12)^2+4^2}=\\\\\n                    &amp;=\\sqrt{144+16}=\\\\\n                    &amp;=\\sqrt{160}=\\\\\n                    &amp;=\\sqrt{16\\cdot 10}\\\\\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ostatecznie więc\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(|AB|=4\\sqrt{10}\\)",
+            "\\(|AB|=16\\sqrt{10}\\)",
+            "\\(|AB|=10\\sqrt{16}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mamy więc długość boku \\(AB\\), równą \\(4\\sqrt{10}\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Czas na długość wysokości opadającą na ten bok.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jest ona równa \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "długości boku \\(AD\\)",
+            "odległości od punktu \\(D\\) do prostej \\(AB\\)",
+            "odległości od punktu \\(B\\) do prostej \\(AD\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby obliczyć odległość od punktu \\(D\\) do prostej przechodzącej przez \\(A\\) i \\(B\\) musimy najpierw znaleźć równanie kierunkowe tej prostej, a potem przekształcić je w równanie ogólne.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Możesz to zrobić:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n<strong>albo</strong> najpierw obliczając współczynnik kierunkowy ze współrzędnych punktów \\(A\\) i \\(B\\), a potem podstawiając współrzędne jednego z nich do równania kierunkowego,\n                    </li>\n<li>\n<strong>albo</strong> podstawiając współrzędne obu punktów do równania kierunkowego i rozwiązując układ równań. \n                    </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie kierunkowe tej prostej to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=\\frac{1}{3}x+\\frac{4}{3}\\)",
+            "\\(y=-\\frac{1}{3}x-\\frac{10}{3}\\)",
+            "\\(y=-3x-22\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie ogólne tej prostej to\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x-3y-10=0\\)",
+            "\\(x+3y+10=0\\)",
+            "\\(x+3y-10=0\\)",
+            "\\(x-3y+10=0\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Odległość punktu \\(D=(-4,3)\\) od prostej \\(x+3y+10=0\\) dana jest wyrażeniem\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{|-4+3\\cdot 3+10|}{\\sqrt{1^2+3^2}}\\)",
+            "\\(\\frac{4+3\\cdot 3+10}{\\sqrt{1^2+3^2}}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Obliczamy odległość punktu \\(D\\) od prostej przechodzącej przez \\(A\\) i \\(B\\), czyli wysokość równoległoboku \\(h\\) opadającą na bok \\(AB\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    h&amp;=\\frac{|-4+3\\cdot 3+10|}{\\sqrt{1^2+3^2}}=\\\\\n                    &amp;=\\frac{|-4+9+10|}{\\sqrt{1+9}}=\\\\\n                    &amp;=\\frac{|15|}{\\sqrt{10}}=\\\\\n                    &amp;=\\frac{15}{\\sqrt{10}\\cdot\\frac{\\sqrt{10}}{\\sqrt{10}}}=\\\\\n                    &amp;=\\frac{15\\sqrt{10}}{10}=\\\\\n                    &amp;=\\frac{3}{2}\\sqrt{10}\\\\\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Pozostaje nam obliczyć pole równoległoboku \\(P\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    P&amp;=4\\sqrt{10}\\cdot\\frac{3}{2}\\sqrt{10}=\\\\\n                    &amp;=4\\cdot\\frac{3}{2}\\cdot\\sqrt{10}\\cdot\\sqrt{10}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd \\(P=\\)\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(60\\)",
+            "\\(6\\sqrt{10}\\)",
+            "\\(120\\)",
+            "\\(12\\sqrt{10}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_950_2.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W trapezie \\(ABCD\\) dane są wierzchołki \\(A=(-4,-2)\\), \\(B=(8,-10)\\) oraz \\(C=(9,-2)\\).\n        </p>\n<p>\n            Długość podstawy \\(CD\\) jest równa \\(2\\sqrt{13}\\).\n        </p>\n<p>\n            Oblicz pole trapezu.\n        </p>\n"
+      "body": "<p>\n            W trapezie \\(ABCD\\) dane są wierzchołki \\(A=(-4,-2)\\), \\(B=(8,-10)\\) oraz \\(C=(9,-2)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Długość podstawy \\(CD\\) jest równa \\(2\\sqrt{13}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz pole trapezu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Zacznijmy od rysunku.\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_960_1.png\" style=\"max-height: 300px;\"/>\n</figure>\n<p>\n                    Z treści zadania wiemy, że jedną podstawą trapezu jest odcinek \\(CD\\), więc drugą podstawą jest odcinek \n                </p>\n<div class=\"switch_line\">\n<div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(AB\\)</div>\n<div class=\"switch_value\">\\(AD\\)</div>\n<div class=\"switch_value\">\\(BC\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Podstawy trapezu to \\(AB\\) i \\(CD\\). Oznaczmy wysokość trapezu przez \\(h\\). Pole trapezu, \\(P\\), dane jest wzorem\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(P=(AB+CD)h\\)</div>\n<div class=\"switch_value\">\\(P=\\frac{1}{2}(AB+CD)h\\)</div>\n<div class=\"switch_value\">\\(P=\\frac{1}{2}AB\\cdot CD\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Aby skorzystać z tego wzoru, musimy obliczyć\n                </p>\n<ol class=\"bold\">\n<li>\n                        długość podstawy \\(AB\\),\n                    </li>\n<li>\n                        wysokość \\(h\\).\n                    </li>\n</ol>\n<details>\n<summary>Jak obliczyć długość odcinka?</summary>\n<p>\n                        Długość odcinka \\(AB\\) o końcach \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dana jest wzorem\n                    </p>\n                    \\[\n                    |AB|=\\sqrt{(x_A-x_B)^2+(y_A-y_B)^2}\n                    \\]\n                    <p>\n                        A więcej szczegółów znajdziesz <a href=\"/jump_to_id/b3c27d9a7a754655b04f52cf59cc3ac2\">tutaj</a>.\n                    </p>\n<!-- INTERNAL LINK -->\n</details>\n<div class=\"switch_line\">\n                    Długość odcinka \\(AB\\) jest dana wyrażeniem\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\sqrt{(-4-8)^2+(-2+10)^2}\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{(-4+8)^2+(-2-10)^2}\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{(-4+2)^2+(8+10)^2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Obliczmy:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    |AB|&amp;=\\sqrt{(-4-8)^2+(-2+10)^2}=\\\\\n                    &amp;=\\sqrt{(-12)^2+8^2}=\\\\\n                    &amp;=\\sqrt{144+64}=\\\\\n                    &amp;=\\sqrt{208}=\\\\\n                    &amp;=\\sqrt{16\\cdot 13}\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Długość podstawy \\(AB\\) to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4\\cdot\\sqrt{13}\\)</div>\n<div class=\"switch_value\">\\(16\\cdot\\sqrt{13}\\)</div>\n<div class=\"switch_value\">\\(13\\cdot\\sqrt{16}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Aby obliczyć pole trapezu, potrzebujemy jeszcze wysokości. Wysokość trapezu to odległość \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">punktu \\(A\\) od odcinka \\(BC\\)</div>\n<div class=\"switch_value\">punktu \\(B\\) od odcinka \\(AC\\)</div>\n<div class=\"switch_value\">punktu \\(C\\) od odcinka \\(AB\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Aby skorzystać z wzoru na odległość punktu \\(C\\) od odcinka \\(AB\\), czy raczej prostej przechodzącej przez punkty \\(A\\) i \\(B\\), potrzebujemy równania tej prostej.\n                </p>\n<p>\n                    Najpierw znajdźmy równanie kierunkowe, a potem ogólne.\n                </p>\n<details>\n<summary>\n                        Jak znaleźć równanie kierunkowe prostej?\n                    </summary>\n<p>\n                        Równanie kierunkowe prostej, \\(y=ax+b\\), możemy znaleźć na (co najmniej) dwa sposoby.\n                    </p>\n<details>\n<summary>zaczynając od współczynnika kierunkowego</summary>\n<ol>\n<li>\n                                Zaczynamy od współczynnika kierunkowego: \\(a=\\frac{y_A-y_B}{x_A-x_B}\\),\n                            </li>\n<li>\n                                a potem, mając \\(a\\), podstawiamy do równania \\(y=ax+b\\) współrzędne dowolnego z punktów \\(A\\) lub \\(B\\) i wyliczamy wartość współczynnika \\(b\\).\n                            </li>\n</ol>\n</details>\n<details>\n<summary>z użyciem układu równań</summary>\n<ol>\n<li>\n                                Podstawiamy współrzędne obu punktów do równania \\(y=ax+b\\) - otrzymujemy układ równań, w którym niewiadomymi są \\(a\\) i \\(b\\).\n                            </li>\n<li>\n                                Rozwiązujemy układ równań otrzymując współczynniki \\(a\\) i \\(b\\).\n                            </li>\n</ol>\n</details>\n</details>\n<div class=\"switch_line\">\n                    Prosta przechodząca przez punkty \\(A\\) i \\(B\\) ma równanie\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=-\\frac{2}{3}x-\\frac{14}{3}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n<div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                podsumowanie\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od rysunku.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_960_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Z treści zadania wiemy, że jedną podstawą trapezu jest odcinek \\(CD\\), więc drugą podstawą jest odcinek \n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(AB\\)",
+            "\\(AD\\)",
+            "\\(BC\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Podstawy trapezu to \\(AB\\) i \\(CD\\). Oznaczmy wysokość trapezu przez \\(h\\). Pole trapezu, \\(P\\), dane jest wzorem\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(P=(AB+CD)h\\)",
+            "\\(P=\\frac{1}{2}(AB+CD)h\\)",
+            "\\(P=\\frac{1}{2}AB\\cdot CD\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby skorzystać z tego wzoru, musimy obliczyć\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                        długość podstawy \\(AB\\),\n                    </li>\n<li>\n                        wysokość \\(h\\).\n                    </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Jak obliczyć długość odcinka?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Długość odcinka \\(AB\\) o końcach \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dana jest wzorem\n                    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                    |AB|=\\sqrt{(x_A-x_B)^2+(y_A-y_B)^2}\n                    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        A więcej szczegółów znajdziesz <a href=\"/jump_to_id/b3c27d9a7a754655b04f52cf59cc3ac2\">tutaj</a>.\n                    </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Długość odcinka \\(AB\\) jest dana wyrażeniem\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\sqrt{(-4-8)^2+(-2+10)^2}\\)",
+            "\\(\\sqrt{(-4+8)^2+(-2-10)^2}\\)",
+            "\\(\\sqrt{(-4+2)^2+(8+10)^2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Obliczmy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    |AB|&amp;=\\sqrt{(-4-8)^2+(-2+10)^2}=\\\\\n                    &amp;=\\sqrt{(-12)^2+8^2}=\\\\\n                    &amp;=\\sqrt{144+64}=\\\\\n                    &amp;=\\sqrt{208}=\\\\\n                    &amp;=\\sqrt{16\\cdot 13}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Długość podstawy \\(AB\\) to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\cdot\\sqrt{13}\\)",
+            "\\(16\\cdot\\sqrt{13}\\)",
+            "\\(13\\cdot\\sqrt{16}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby obliczyć pole trapezu, potrzebujemy jeszcze wysokości. Wysokość trapezu to odległość \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "punktu \\(A\\) od odcinka \\(BC\\)",
+            "punktu \\(B\\) od odcinka \\(AC\\)",
+            "punktu \\(C\\) od odcinka \\(AB\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby skorzystać z wzoru na odległość punktu \\(C\\) od odcinka \\(AB\\), czy raczej prostej przechodzącej przez punkty \\(A\\) i \\(B\\), potrzebujemy równania tej prostej.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Najpierw znajdźmy równanie kierunkowe, a potem ogólne.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>Jak znaleźć równanie kierunkowe prostej?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Równanie kierunkowe prostej, \\(y=ax+b\\), możemy znaleźć na (co najmniej) dwa sposoby.\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>zaczynając od współczynnika kierunkowego</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                                Zaczynamy od współczynnika kierunkowego: \\(a=\\frac{y_A-y_B}{x_A-x_B}\\),\n                            </li>\n<li>\n                                a potem, mając \\(a\\), podstawiamy do równania \\(y=ax+b\\) współrzędne dowolnego z punktów \\(A\\) lub \\(B\\) i wyliczamy wartość współczynnika \\(b\\).\n                            </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>z użyciem układu równań</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                                Podstawiamy współrzędne obu punktów do równania \\(y=ax+b\\) - otrzymujemy układ równań, w którym niewiadomymi są \\(a\\) i \\(b\\).\n                            </li>\n<li>\n                                Rozwiązujemy układ równań otrzymując współczynniki \\(a\\) i \\(b\\).\n                            </li>\n</ol>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Prosta przechodząca przez punkty \\(A\\) i \\(B\\) ma równanie\n                    \n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=-\\frac{2}{3}x-\\frac{14}{3}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>podsumowanie</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": false,
-  "seed_hash": "9241273cf0c6e51ad0c3e30bc78687b26e0b6e1163186f2b666f50e907b05ff7"
+  "seed_hash": "5a5192c58981e33a91191558b8aa5463f8e937fa80b8f6cf659aa8e8b0a66cfb"
 }

@@ -192,13 +192,38 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie:\n        </p>\n<ul class=\"nolist\">\n<li>\n<span style=\"color: blue;\">niebieskie</span> prostokąty oznaczają kapitał początkowy,\n            </li>\n<li>\n                suwak na górze oznacza oprocentowanie - możesz je zmienić,\n            </li>\n<li>\n<span style=\"color: orange\">pomarańczowe</span> prostokąty oznaczają odsetki z procentu prostego,\n            </li>\n<li>\n<span style=\"color: green\">zielone</span> prostokąty oznaczają odsetki z procentu składanego.\n            </li>\n</ul>\n<p>\n            Odsetki w obu sytuacjach doliczane są pięciokrotnie.\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"791px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/stswub4j/width/479/height/791/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"procent prosty i złożony\" width=\"479px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n<p>\n            Zwróć uwagę, że  \n        </p>\n<ul class=\"nolist\">\n<li>\n                kolejne odsetki z <span style=\"color: orange;\">procentu prostego</span> są równej wielkości\n            </li>\n<li>\n                kolejne odsetki z <span style=\"color: green;\">procentu składanego</span> są coraz większe (te wyższe są kolejne, im wyższe - tym większe).\n            </li>\n</ul>\n<p>\n            Przyjrzyj się, jak różnica między nimi zmienia się, gdy zmieniasz oprocentowanie.\n        </p>\n"
+      "body": "<p>\n            W poniższym aplecie:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<span style=\"color: blue;\">niebieskie</span> prostokąty oznaczają kapitał początkowy,\n            </li>\n<li>\n                suwak na górze oznacza oprocentowanie - możesz je zmienić,\n            </li>\n<li>\n<span style=\"color: orange\">pomarańczowe</span> prostokąty oznaczają odsetki z procentu prostego,\n            </li>\n<li>\n<span style=\"color: green\">zielone</span> prostokąty oznaczają odsetki z procentu składanego.\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Odsetki w obu sytuacjach doliczane są pięciokrotnie.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/stswub4j/width/479/height/791/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zwróć uwagę, że  \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                kolejne odsetki z <span style=\"color: orange;\">procentu prostego</span> są równej wielkości\n            </li>\n<li>\n                kolejne odsetki z <span style=\"color: green;\">procentu składanego</span> są coraz większe (te wyższe są kolejne, im wyższe - tym większe).\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się, jak różnica między nimi zmienia się, gdy zmieniasz oprocentowanie.\n        </p>"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "90dc8124d208b7331e00cadec9a3b4ed32df4bd9b0a96a1eb07b31adaf2e21d6"
+  "seed_hash": "1c49a833b2746249ea0eef57477c0c3e90d458961076878e3b4a5b8b134d41ce"
 }

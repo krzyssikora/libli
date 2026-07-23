@@ -92,7 +92,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -105,11 +105,16 @@
     {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n\n        \\[\n        \\begin{align*}\n        (2x^2y-y^3)^2&amp;=(\\color{red}{2x^2y}-\\color{darkcyan}{y^3})^2=&amp;\\text{na podstawie wzoru:}\\\\\n        &amp;&amp;(\\color{red}{a}-\\color{darkcyan}{b})^2=\\color{red}{a}^2-2\\color{red}{a}\\color{darkcyan}{b}+\\color{darkcyan}{b}^2\\\\\n        &amp;=(\\color{red}{2x^2y})^2-2\\cdot\\color{red}{2x^2y}\\cdot\\color{darkcyan}{y^3}+(\\color{darkcyan}{y^3})^2=&amp;\\\\\n        &amp;=4x^4y^2-4x^2y^4+y^6&amp;\n        \\end{align*}\n        \\]\n    "
+      "elements": [
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align*}\n        (2x^2y-y^3)^2&=(\\color{red}{2x^2y}-\\color{darkcyan}{y^3})^2=&\\text{na podstawie wzoru:}\\\\\n        &&(\\color{red}{a}-\\color{darkcyan}{b})^2=\\color{red}{a}^2-2\\color{red}{a}\\color{darkcyan}{b}+\\color{darkcyan}{b}^2\\\\\n        &=(\\color{red}{2x^2y})^2-2\\cdot\\color{red}{2x^2y}\\cdot\\color{darkcyan}{y^3}+(\\color{darkcyan}{y^3})^2=&\\\\\n        &=4x^4y^2-4x^2y^4+y^6&\n        \\end{align*}\n        "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -122,7 +127,12 @@
     {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n\n        \\[\n        \\begin{align*}\n        \\frac{15}{\\sqrt{10}-2}&amp;=\\frac{15}{\\color{red}{\\sqrt{10}}-\\color{darkcyan}{2}}=&amp;\\text{na podstawie wzoru:}\\\\\n        &amp;&amp;(\\color{red}{a}-\\color{darkcyan}{b})(\\color{red}{a}+\\color{darkcyan}{b})=\\color{red}{a}^2-\\color{darkcyan}{b}^2\\\\\n        &amp;=\\frac{15}{\\color{red}{\\sqrt{10}}-\\color{darkcyan}{2}}\\cdot\\frac{\\color{red}{\\sqrt{10}}+\\color{darkcyan}{2}}{\\color{red}{\\sqrt{10}}+\\color{darkcyan}{2}}=&amp;\\\\\n        &amp;=\\frac{15\\cdot(\\color{red}{\\sqrt{10}}+\\color{darkcyan}{2})}{(\\color{red}{\\sqrt{10}})^2-(\\color{darkcyan}{2})^2}=&amp;\\\\\n        &amp;=\\frac{15\\cdot(\\sqrt{10}+2)}{10-4}=\\frac{15\\cdot(\\sqrt{10}+2)}{6}=&amp;\\\\\n        &amp;=\\frac{5(\\sqrt{10}+2)}{2}=\\frac{5}{2}\\sqrt{10}+5&amp;\\\\\n        \\end{align*}\n        \\]\n    "
+      "elements": [
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align*}\n        \\frac{15}{\\sqrt{10}-2}&=\\frac{15}{\\color{red}{\\sqrt{10}}-\\color{darkcyan}{2}}=&\\text{na podstawie wzoru:}\\\\\n        &&(\\color{red}{a}-\\color{darkcyan}{b})(\\color{red}{a}+\\color{darkcyan}{b})=\\color{red}{a}^2-\\color{darkcyan}{b}^2\\\\\n        &=\\frac{15}{\\color{red}{\\sqrt{10}}-\\color{darkcyan}{2}}\\cdot\\frac{\\color{red}{\\sqrt{10}}+\\color{darkcyan}{2}}{\\color{red}{\\sqrt{10}}+\\color{darkcyan}{2}}=&\\\\\n        &=\\frac{15\\cdot(\\color{red}{\\sqrt{10}}+\\color{darkcyan}{2})}{(\\color{red}{\\sqrt{10}})^2-(\\color{darkcyan}{2})^2}=&\\\\\n        &=\\frac{15\\cdot(\\sqrt{10}+2)}{10-4}=\\frac{15\\cdot(\\sqrt{10}+2)}{6}=&\\\\\n        &=\\frac{5(\\sqrt{10}+2)}{2}=\\frac{5}{2}\\sqrt{10}+5&\\\\\n        \\end{align*}\n        "
+        }
+      ]
     },
     {
       "type": "text",
@@ -134,7 +144,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -146,5 +156,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "bf89726479a2a5b0a4d81b7de2589ab83c6f2fb041ae421f2657fdc7a1a8d401"
+  "seed_hash": "11a3950984f3e982c23994d6424fedea49749e9ed2b52182b51a46e52ec3b874"
 }

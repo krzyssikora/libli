@@ -2,47 +2,39 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Jakie są wartości sinusa i cosinusa wielokrotności kątów \\(30^{\\circ}\\), \\(45^{\\circ}\\) i \\(60^{\\circ}\\) w zakresie od \\(0^{\\circ}\\) do \\(360^{\\circ}\\)?\n        </p>\n<p>\n            Pomińmy przy tym wielokrotności kąta \\(90^{\\circ}\\) (\\(0^{\\circ}\\), \\(90^{\\circ}\\), \\(180^{\\circ}\\), \\(270^{\\circ}\\)), którymi zajęliśmy się wcześniej.\n        </p>\n<small>\n            Chodzi więc o następujące kąty: \\(30^{\\circ}\\), \\(45^{\\circ}\\), \\(60^{\\circ}\\), \\(120^{\\circ}\\), \\(135^{\\circ}\\), \\(150^{\\circ}\\), \\(210^{\\circ}\\), \\(225^{\\circ}\\), \\(240^{\\circ}\\), \\(300^{\\circ}\\), \\(315^{\\circ}\\) oraz \\(330^{\\circ}\\).\n        </small>\n"
+      "body": "<p>\n            Jakie są wartości sinusa i cosinusa wielokrotności kątów \\(30^{\\circ}\\), \\(45^{\\circ}\\) i \\(60^{\\circ}\\) w zakresie od \\(0^{\\circ}\\) do \\(360^{\\circ}\\)?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pomińmy przy tym wielokrotności kąta \\(90^{\\circ}\\) (\\(0^{\\circ}\\), \\(90^{\\circ}\\), \\(180^{\\circ}\\), \\(270^{\\circ}\\)), którymi zajęliśmy się wcześniej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<small>\n            Chodzi więc o następujące kąty: \\(30^{\\circ}\\), \\(45^{\\circ}\\), \\(60^{\\circ}\\), \\(120^{\\circ}\\), \\(135^{\\circ}\\), \\(150^{\\circ}\\), \\(210^{\\circ}\\), \\(225^{\\circ}\\), \\(240^{\\circ}\\), \\(300^{\\circ}\\), \\(315^{\\circ}\\) oraz \\(330^{\\circ}\\).\n        </small>"
     },
     {
       "type": "text",
       "body": "<p>\n                Zacznijmy od kątów w pierwszej ćwiartce. Spójrz na przedstawiony niżej okrąg jednostkowy.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"okrąg jednostkowy, kąty 30, 45, 60\" src=\"static/30_45_60.png\" width=\"700\"/>\n"
+      "type": "image",
+      "media_src": "static/30_45_60.png",
+      "alt": "okrąg jednostkowy, kąty 30, 45, 60",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "<p>Kąt wskazany przez promień czerwony ma miarę</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(30^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(45^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(60^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Kąt wskazany przez promień czerwony ma miarę\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(30^{\\circ}\\)",
+        "\\(45^{\\circ}\\)",
+        "\\(60^{\\circ}\\)"
+      ],
+      "answer": 0
     },
     {
       "type": "text",
@@ -61,72 +53,41 @@
       "body": "<p>\n                Przypomnijmy sobie wartości funkcji trygonometrycznych kątów \\(30^{\\circ}\\), \\(45^{\\circ}\\) i \\(60^{\\circ}\\):\n                <div class=\"important\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\" style=\"border: 5px solid white;\">\n<tr>\n<td bgcolor=\"#ebfaff\">\n                                    kąt \\(\\alpha\\)\n                                </td>\n<td bgcolor=\"#ebfaff\">\n                                    \\(30^{\\circ}\\)\n                                </td>\n<td bgcolor=\"#ebfaff\">\n                                    \\(45^{\\circ}\\)\n                                </td>\n<td bgcolor=\"#ebfaff\">\n                                    \\(60^{\\circ}\\)\n                                </td>\n</tr>\n<tr>\n<td bgcolor=\"lightgray\">\n                                    \\(\\sin\\alpha\\)\n                                </td>\n<td bgcolor=\"white\">\n                                    \\(\\frac{1}{2}\\)\n                                </td>\n<td bgcolor=\"white\">\n                                    \\(\\frac{\\sqrt{2}}{2}\\)\n                                </td>\n<td bgcolor=\"white\">\n                                    \\(\\frac{\\sqrt{3}}{2}\\)\n                                </td>\n</tr>\n<tr>\n<td bgcolor=\"lightgray\">\n                                    \\(\\cos\\alpha\\)\n                                </td>\n<td bgcolor=\"white\">\n                                    \\(\\frac{\\sqrt{3}}{2}\\)\n                                </td>\n<td bgcolor=\"white\">\n                                    \\(\\frac{\\sqrt{2}}{2}\\)\n                                </td>\n<td bgcolor=\"white\">\n                                    \\(\\frac{1}{2}\\)\n                                </td>\n</tr>\n<tr>\n<td bgcolor=\"lightgray\">\n                                    \\(\\text{tg }\\alpha\\)\n                                </td>\n<td bgcolor=\"white\">\n                                    \\(\\frac{1}{\\sqrt{3}}\\)\n                                </td>\n<td bgcolor=\"white\">\n                                    \\(1\\)\n                                </td>\n<td bgcolor=\"white\">\n                                    \\(\\sqrt{3}\\)\n                                </td>\n</tr>\n<tr>\n<td bgcolor=\"lightgray\">\n                                    \\(\\text{ctg }\\alpha\\)\n                                </td>\n<td bgcolor=\"white\">\n                                    \\(\\sqrt{3}\\)\n                                </td>\n<td bgcolor=\"white\">\n                                    \\(1\\)\n                                </td>\n<td bgcolor=\"white\">\n                                    \\(\\frac{1}{\\sqrt{3}}\\)\n                                </td>\n</tr>\n</table>\n</div>\n</div>\n</p>"
     },
     {
-      "type": "text",
-      "body": "<p>Stąd współrzędne czerwonego punktu wyznaczającego kąt \\(30^{\\circ}\\) to</p>"
+      "type": "switch_gate",
+      "stem": "\n                Stąd współrzędne czerwonego punktu wyznaczającego kąt \\(30^{\\circ}\\) to\n                \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(\\left(\\frac{1}{2}, \\frac{\\sqrt{3}}{2}\\right)\\)",
+        "\\(\\left(\\frac{\\sqrt{2}}{2}, \\frac{\\sqrt{2}}{2}\\right)\\)",
+        "\\(\\left(\\frac{\\sqrt{3}}{2}, \\frac{1}{2}\\right)\\)"
+      ],
+      "answer": 2
     },
     {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\left(\\frac{1}{2}, \\frac{\\sqrt{3}}{2}\\right)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\left(\\frac{\\sqrt{2}}{2}, \\frac{\\sqrt{2}}{2}\\right)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\left(\\frac{\\sqrt{3}}{2}, \\frac{1}{2}\\right)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n<img alt=\"okrąg jednostkowy, kąty 30, 45, 60\" src=\"static/30_45_60_wspolrzedne.png\" width=\"700\"/>\n"
+      "type": "image",
+      "media_src": "static/30_45_60_wspolrzedne.png",
+      "alt": "okrąg jednostkowy, kąty 30, 45, 60",
+      "figcaption": ""
     },
     {
       "type": "text",
       "body": "<p>\n                Przejdźmy do drugiej ćwiartki.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"okrąg jednostkowy, kąty 30, 45, 60\" src=\"static/30_45_60_gorne_punkty.png\" width=\"700\"/>\n"
+      "type": "image",
+      "media_src": "static/30_45_60_gorne_punkty.png",
+      "alt": "okrąg jednostkowy, kąty 30, 45, 60",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "<p>Niebieski punkt w drugiej ćwiartce wskazuje kąt</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(90^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(120^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(135^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(150^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Niebieski punkt w drugiej ćwiartce wskazuje kąt\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(90^{\\circ}\\)",
+        "\\(120^{\\circ}\\)",
+        "\\(135^{\\circ}\\)",
+        "\\(150^{\\circ}\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
@@ -137,128 +98,333 @@
       "body": "<p>Zielony punkt w drugiej ćwiartce wskazuje kąt \\(150^{\\circ}\\).</p>"
     },
     {
-      "type": "text",
-      "body": "<p>Współrzędne punktów w drugiej ćwiartce są prawie takie same, jak punktów o tych samych kolorach w pierwszej ćwiartce. Różnią się tylko znakami. A dokładniej, dla każdego punktu \\((x,y)\\) w drugiej ćwiartce</p>"
+      "type": "switch_gate",
+      "stem": "\n                Współrzędne punktów w drugiej ćwiartce są prawie takie same, jak punktów o tych samych kolorach w pierwszej ćwiartce. Różnią się tylko znakami. A dokładniej, dla każdego punktu \\((x,y)\\) w drugiej ćwiartce\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(x\\gt 0\\) i \\(y\\gt 0\\)",
+        "\\(x\\gt 0\\) i \\(y\\lt 0\\)",
+        "\\(x\\lt 0\\) i \\(y\\gt 0\\)",
+        "\\(x\\lt 0\\) i \\(y\\lt 0\\)"
+      ],
+      "answer": 2
     },
     {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+      "type": "image",
+      "media_src": "static/30_45_60_gorne_wspolrzedne.png",
+      "alt": "okrąg jednostkowy, kąty 30, 45, 60",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n                    \\(x\\gt 0\\) i \\(y\\gt 0\\)\n                "
+      "type": "switch_gate",
+      "stem": "\n                Dla punktu \\((x,y)\\) w trzeciej ćwiartce\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(x\\gt 0\\) i \\(y\\gt 0\\)",
+        "\\(x\\gt 0\\) i \\(y\\lt 0\\)",
+        "\\(x\\lt 0\\) i \\(y\\gt 0\\)",
+        "\\(x\\lt 0\\) i \\(y\\lt 0\\)"
+      ],
+      "answer": 3
     },
     {
-      "type": "text",
-      "body": "\n                    \\(x\\gt 0\\) i \\(y\\lt 0\\)\n                "
+      "type": "switch_gate",
+      "stem": "\n                Dla punktu \\((x,y)\\) w czwartej ćwiartce\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(x\\gt 0\\) i \\(y\\gt 0\\)",
+        "\\(x\\gt 0\\) i \\(y\\lt 0\\)",
+        "\\(x\\lt 0\\) i \\(y\\gt 0\\)",
+        "\\(x\\lt 0\\) i \\(y\\lt 0\\)"
+      ],
+      "answer": 1
     },
     {
-      "type": "text",
-      "body": "\n                    \\(x\\lt 0\\) i \\(y\\gt 0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x\\lt 0\\) i \\(y\\lt 0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n<img alt=\"okrąg jednostkowy, kąty 30, 45, 60\" src=\"static/30_45_60_gorne_wspolrzedne.png\" width=\"700\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "<p>Dla punktu \\((x,y)\\) w trzeciej ćwiartce</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x\\gt 0\\) i \\(y\\gt 0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x\\gt 0\\) i \\(y\\lt 0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x\\lt 0\\) i \\(y\\gt 0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x\\lt 0\\) i \\(y\\lt 0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Dla punktu \\((x,y)\\) w czwartej ćwiartce</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x\\gt 0\\) i \\(y\\gt 0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x\\gt 0\\) i \\(y\\lt 0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x\\lt 0\\) i \\(y\\gt 0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x\\lt 0\\) i \\(y\\lt 0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n<img alt=\"okrąg jednostkowy, kąty 30, 45, 60\" src=\"static/30_45_60_wszystkie_wspolrzedne.png\" width=\"700\"/>\n"
+      "type": "image",
+      "media_src": "static/30_45_60_wszystkie_wspolrzedne.png",
+      "alt": "okrąg jednostkowy, kąty 30, 45, 60",
+      "figcaption": ""
     },
     {
       "type": "text",
       "body": "<p>\n                Pamiętając, że dla każdego punktu na okręgu jednostkowym \\(x\\) to cosinus kąta, a \\(y\\) to sinus kąta, możemy odczytać wartości sinusów i cosinusów.\n            </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<table class=\"my_table_border\">\n<tr>\n<td style=\"border: none;\">\n</td>\n<td colspan=\"3\">\n                                ćwiartka I\n                            </td>\n<td colspan=\"3\">\n                                ćwiartka II\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(\\alpha\\)\n                            </td>\n<td>\n                                \\(30^{\\circ}\\)\n                            </td>\n<td>\n                                \\(45^{\\circ}\\)\n                            </td>\n<td>\n                                \\(60^{\\circ}\\)\n                            </td>\n<td>\n                                \\(120^{\\circ}\\)\n                            </td>\n<td>\n                                \\(135^{\\circ}\\)\n                            </td>\n<td>\n                                \\(150^{\\circ}\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(\\cos\\alpha\\)\n                            </td>\n<td>\n                                \\(\\frac{\\sqrt{3}}{2}\\)\n                            </td>\n<td>\n                                \\(\\frac{\\sqrt{2}}{2}\\)\n                            </td>\n<td>\n                                \\(\\frac{1}{2}\\)\n                            </td>\n<td>\n                                \\(-\\frac{1}{2}\\)\n                            </td>\n<td>\n                                \\(-\\frac{\\sqrt{2}}{2}\\)\n                            </td>\n<td>\n                                \\(-\\frac{\\sqrt{3}}{2}\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(\\sin\\alpha\\)\n                            </td>\n<td>\n                                \\(\\frac{1}{2}\\)\n                            </td>\n<td>\n                                \\(\\frac{\\sqrt{2}}{2}\\)\n                            </td>\n<td>\n                                \\(\\frac{\\sqrt{3}}{2}\\)\n                            </td>\n<td>\n                                \\(\\frac{\\sqrt{3}}{2}\\)\n                            </td>\n<td>\n                                \\(\\frac{\\sqrt{2}}{2}\\)\n                            </td>\n<td>\n                                \\(\\frac{1}{2}\\)\n                            </td>\n</tr>\n</table>",
-      "reason": "table uses rowspan/colspan"
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "ćwiartka I",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 3
+            },
+            {
+              "html": "ćwiartka II",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 3
+            }
+          ],
+          [
+            {
+              "html": "\\(\\alpha\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(30^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(45^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(60^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(120^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(135^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(150^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\cos\\alpha\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{\\sqrt{3}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{\\sqrt{2}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\frac{\\sqrt{2}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\frac{\\sqrt{3}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\sin\\alpha\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{\\sqrt{2}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{\\sqrt{3}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{\\sqrt{3}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{\\sqrt{2}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
     },
     {
-      "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<table class=\"my_table_border\">\n<tr>\n<td style=\"border: none;\">\n</td>\n<td colspan=\"3\">\n                                ćwiartka III\n                            </td>\n<td colspan=\"3\">\n                                ćwiartka IV\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(\\alpha\\)\n                            </td>\n<td>\n                                \\(210^{\\circ}\\)\n                            </td>\n<td>\n                                \\(225^{\\circ}\\)\n                            </td>\n<td>\n                                \\(240^{\\circ}\\)\n                            </td>\n<td>\n                                \\(300^{\\circ}\\)\n                            </td>\n<td>\n                                \\(315^{\\circ}\\)\n                            </td>\n<td>\n                                \\(330^{\\circ}\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(\\cos\\alpha\\)\n                            </td>\n<td>\n                                \\(-\\frac{\\sqrt{3}}{2}\\)\n                            </td>\n<td>\n                                \\(-\\frac{\\sqrt{2}}{2}\\)\n                            </td>\n<td>\n                                \\(-\\frac{1}{2}\\)\n                            </td>\n<td>\n                                \\(\\frac{1}{2}\\)\n                            </td>\n<td>\n                                \\(\\frac{\\sqrt{2}}{2}\\)\n                            </td>\n<td>\n                                \\(\\frac{\\sqrt{3}}{2}\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(\\sin\\alpha\\)\n                            </td>\n<td>\n                                \\(-\\frac{1}{2}\\)\n                            </td>\n<td>\n                                \\(-\\frac{\\sqrt{2}}{2}\\)\n                            </td>\n<td>\n                                \\(-\\frac{\\sqrt{3}}{2}\\)\n                            </td>\n<td>\n                                \\(-\\frac{\\sqrt{3}}{2}\\)\n                            </td>\n<td>\n                                \\(-\\frac{\\sqrt{2}}{2}\\)\n                            </td>\n<td>\n                                \\(-\\frac{1}{2}\\)\n                            </td>\n</tr>\n</table>",
-      "reason": "table uses rowspan/colspan"
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "ćwiartka III",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 3
+            },
+            {
+              "html": "ćwiartka IV",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 3
+            }
+          ],
+          [
+            {
+              "html": "\\(\\alpha\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(210^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(225^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(240^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(300^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(315^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(330^{\\circ}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\cos\\alpha\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\frac{\\sqrt{3}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\frac{\\sqrt{2}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{\\sqrt{2}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\frac{\\sqrt{3}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\sin\\alpha\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\frac{\\sqrt{2}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\frac{\\sqrt{3}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\frac{\\sqrt{3}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\frac{\\sqrt{2}}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\frac{1}{2}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "text",
@@ -273,6 +439,6 @@
       "body": "<p>\n                Ponieważ dla tych kątów mianowniki sinusów i cosinusów są równe \\(2\\), dla uzyskania tanensa i cotangensa wystarczy podzielić liczniki.\n            </p>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "2be91c4e98ed46fbaa9518882be22907ba54d54155c7287e26c8989bba3302cd"
+  "fully_mapped": true,
+  "seed_hash": "6d8e544a7d6b1f2ea154a4cbe2dbd54b308c84af64f7ffe68b928eaceda52e2a"
 }

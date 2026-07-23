@@ -32,44 +32,325 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W trapezie równoramiennym \\(ABCD\\) (\\(AB\\parallel CD\\)) przekątne przecinają się w punkcie \\(S\\) pod kątem prostym w taki sposób, że \\(AS=6\\) and \\(CS=2\\).\n        </p>\n<p>\n            Oblicz obwód trapezu.\n        </p>\n"
+      "body": "<p>\n            W trapezie równoramiennym \\(ABCD\\) (\\(AB\\parallel CD\\)) przekątne przecinają się w punkcie \\(S\\) pod kątem prostym w taki sposób, że \\(AS=6\\) and \\(CS=2\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz obwód trapezu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<figure>\n<img src=\"static/geometria_3_zadanie_290_1.png\" style=\"max-width: 400px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Trapez jest równoramienny, więc długości odcinków \\(BS\\) i \\(DS\\) to odpowiednio \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(5\\) i \\(3\\)</div>\n<div class=\"switch_value\">\\(6\\) i \\(2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_3_zadanie_290_2.png\" style=\"max-width: 400px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Długości boków trapezu (zarówno podstaw jak i ramion) możemy obliczyć z \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">twierdzenia Pitagorasa</div>\n<div class=\"switch_value\">twierdzenia Talesa</div>\n<div class=\"switch_value\">podobieństwa trójkątów</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Zacznijmy od podstawy górnej.\n                <div class=\"switch_line\">\n                    \\(CD^2=2^2+2^2\\), więc\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(CD=8\\)</div>\n<div class=\"switch_value\">\\(CD=2\\sqrt{2}\\)</div>\n<div class=\"switch_value\">\\(CD=4\\sqrt{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Teraz podstawa dolna: \\(AB^2=6^2+6^2\\), więc\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(AB=12\\)</div>\n<div class=\"switch_value\">\\(AB=72\\)</div>\n<div class=\"switch_value\">\\(AB=6\\sqrt{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                I na zakończenie jedno z dwóch równych ramion, na przykład \\(AD\\):\n                <div class=\"switch_line\">\n                    \\(AD^2=2^2+6^2\\), więc\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(AD=2\\sqrt{10}\\)</div>\n<div class=\"switch_value\">\\(AD=40\\)</div>\n<div class=\"switch_value\">\\(AD=8\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_3_zadanie_290_3.png\" style=\"max-width: 400px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Obwód trapezu jest równy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(8\\sqrt{2}+4\\sqrt{10}\\)</div>\n<div class=\"switch_value\">\\(44\\)</div>\n<div class=\"switch_value\">\\(4(\\sqrt{10}+\\sqrt{2})\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Obwód trapezu jest równy \\(8\\sqrt{2}+4\\sqrt{10}\\) lub równoważnie \\(4(2\\sqrt{2}+\\sqrt{10})\\) albo jeszcze inaczej \\(4\\sqrt{2}(2+\\sqrt{5})\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_290_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Trapez jest równoramienny, więc długości odcinków \\(BS\\) i \\(DS\\) to odpowiednio \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(5\\) i \\(3\\)",
+            "\\(6\\) i \\(2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_290_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Długości boków trapezu (zarówno podstaw jak i ramion) możemy obliczyć z \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "twierdzenia Pitagorasa",
+            "twierdzenia Talesa",
+            "podobieństwa trójkątów"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Zacznijmy od podstawy górnej.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(CD^2=2^2+2^2\\), więc\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(CD=8\\)",
+            "\\(CD=2\\sqrt{2}\\)",
+            "\\(CD=4\\sqrt{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Teraz podstawa dolna: \\(AB^2=6^2+6^2\\), więc\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(AB=12\\)",
+            "\\(AB=72\\)",
+            "\\(AB=6\\sqrt{2}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>I na zakończenie jedno z dwóch równych ramion, na przykład \\(AD\\):</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(AD^2=2^2+6^2\\), więc\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(AD=2\\sqrt{10}\\)",
+            "\\(AD=40\\)",
+            "\\(AD=8\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_290_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Obwód trapezu jest równy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(8\\sqrt{2}+4\\sqrt{10}\\)",
+            "\\(44\\)",
+            "\\(4(\\sqrt{10}+\\sqrt{2})\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Obwód trapezu jest równy \\(8\\sqrt{2}+4\\sqrt{10}\\) lub równoważnie \\(4(2\\sqrt{2}+\\sqrt{10})\\) albo jeszcze inaczej \\(4\\sqrt{2}(2+\\sqrt{5})\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Wysokość trapezu równoramiennego opuszczona z wierzchołka górnej, krótszej podstawy, dzieli dłuższą podstawę na odcinki długości \\(7\\) cm i \\(2\\) cm.\n        </p>\n<p>\n            Znajdź długości podstaw.\n        </p>\n"
+      "body": "<p>\n            Wysokość trapezu równoramiennego opuszczona z wierzchołka górnej, krótszej podstawy, dzieli dłuższą podstawę na odcinki długości \\(7\\) cm i \\(2\\) cm.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długości podstaw.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Zgodnie z twierdzeniem o wysokości trapezu równoramiennego (spójrz wyżej) odcinki, na które wysokość opuszczona z wierzchołka krótszej podstawy dzieli dłuższą podstawę są długości \\(\\frac{a+b}{2}\\) i \\(\\frac{a-b}{2}\\), gdzie\n                <ul class=\"nolist\">\n<li>\\(a\\) to długość dłuższej podstawy,</li>\n<li>\\(b\\) to długość krótszej podstawy.</li>\n</ul>\n<div class=\"switch_line\">\n                    W tym zadaniu, \\(\\frac{a+b}{2}=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2\\)</div>\n<div class=\"switch_value\">\\(7\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Natomiast \\(\\frac{a-b}{2}=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2\\)</div>\n<div class=\"switch_value\">\\(7\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Mamy więc do rozwiązania układ równań:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{cases}\n                    \\frac{a+b}{2}=7\\\\\n                    \\frac{a-b}{2}=2\n                    \\end{cases}\n                    \\]\n                </div>\n<p>\n                    Po pomnożeniu obu równań obustronnie przez \\(2\\) otrzymujemy:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{cases}\n                    a+b=14\\\\\n                    a-b=4\n                    \\end{cases}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Rozwiązując równanie (najprościej dodaj równania stronami i podziel przez \\(2\\)) otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a=9\\)</div>\n<div class=\"switch_value\">\\(a=18\\)</div>\n<div class=\"switch_value\">\\(a=14\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Podstawiając \\(a=9\\) do któregokolwiek z równań możemy wyliczyć, że \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(b=14\\)</div>\n<div class=\"switch_value\">\\(b=9\\)</div>\n<div class=\"switch_value\">\\(b=5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Podstawy trapezu mają długości \\(9\\) i \\(5\\). Zwróć uwagę, że wysokość trapezu nie ma żadnego znaczenia dla naszych obliczeń.\n                </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_300.png\" style=\"max-width: 500px;\"/>\n</figure>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zgodnie z twierdzeniem o wysokości trapezu równoramiennego (spójrz wyżej) odcinki, na które wysokość opuszczona z wierzchołka krótszej podstawy dzieli dłuższą podstawę są długości \\(\\frac{a+b}{2}\\) i \\(\\frac{a-b}{2}\\), gdzie</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\\(a\\) to długość dłuższej podstawy,</li>\n<li>\\(b\\) to długość krótszej podstawy.</li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W tym zadaniu, \\(\\frac{a+b}{2}=\\)\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\)",
+            "\\(7\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Natomiast \\(\\frac{a-b}{2}=\\)\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\)",
+            "\\(7\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mamy więc do rozwiązania układ równań:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{cases}\n                    \\frac{a+b}{2}=7\\\\\n                    \\frac{a-b}{2}=2\n                    \\end{cases}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Po pomnożeniu obu równań obustronnie przez \\(2\\) otrzymujemy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{cases}\n                    a+b=14\\\\\n                    a-b=4\n                    \\end{cases}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Rozwiązując równanie (najprościej dodaj równania stronami i podziel przez \\(2\\)) otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a=9\\)",
+            "\\(a=18\\)",
+            "\\(a=14\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Podstawiając \\(a=9\\) do któregokolwiek z równań możemy wyliczyć, że \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b=14\\)",
+            "\\(b=9\\)",
+            "\\(b=5\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Podstawy trapezu mają długości \\(9\\) i \\(5\\). Zwróć uwagę, że wysokość trapezu nie ma żadnego znaczenia dla naszych obliczeń.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_300.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W trapezie równoramiennym \\(ABCD\\) (\\(AB\\parallel CD\\)) ramię \\(AD\\) jest długości \\(17\\), a wysokość \\(CE\\) - \\(15\\).\n        </p>\n<p>\n            Wiedząc, że odcinek \\(AE\\) ma długość \\(20\\), oblicz obwód trapezu.\n        </p>\n"
+      "body": "<p>\n            W trapezie równoramiennym \\(ABCD\\) (\\(AB\\parallel CD\\)) ramię \\(AD\\) jest długości \\(17\\), a wysokość \\(CE\\) - \\(15\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wiedząc, że odcinek \\(AE\\) ma długość \\(20\\), oblicz obwód trapezu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<p>\n                Zacznijmy od rysunku pomocniczego. Oprócz danych długości, oznaczmy w nim długość podstawy \\(AB\\) jako \\(a\\), a długość podstawy \\(CD\\) jako \\(b\\).\n            </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_310_1.png\" style=\"max-width: 500px;\"/>\n</figure>\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Zacznijmy od najprostszego - ramię \\(BC\\) jest długości \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(15\\)</div>\n<div class=\"switch_value\">\\(17\\)</div>\n<div class=\"switch_value\">\\(20\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_3_zadanie_310_2.png\" style=\"max-width: 500px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Teraz możemy obliczyć długość odcinka \\(BE\\) z twierdzenia Pitagorasa: \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(BE^2=15^2+17^2\\)</div>\n<div class=\"switch_value\">\\(BE^2=17^2-15^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I stąd \\(BE=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(8\\)</div>\n<div class=\"switch_value\">\\(2\\)</div>\n<div class=\"switch_value\">\\(64\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_3_zadanie_310_3.png\" style=\"max-width: 500px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Widzimy, że \\(a=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(12\\)</div>\n<div class=\"switch_value\">\\(28\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Teraz moglibyśmy użyć twierdzenia o wysokości w trójkącie równoramiennym, ale lepiej dostrzec, że \\(b=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(20-8\\)</div>\n<div class=\"switch_value\">\\(20\\)</div>\n<div class=\"switch_value\">\\(8\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_3_zadanie_310_4.png\" style=\"max-width: 500px;\"/>\n</figure>\n<p>\n                    Czyli \\(b=12\\). Mamy więc długości wszystkich boków trapezu:\n                </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_310_4.png\" style=\"max-width: 500px;\"/>\n</figure>\n<ul class=\"nolist\">\n<li>\\(AB=28\\)</li>\n<li>\\(BC=17\\)</li>\n<li>\\(CD=12\\)</li>\n<li>\\(AD=17\\)</li>\n</ul>\n<div class=\"switch_line\">\n                    Dodając je otrzymujemy obwód, czyli\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(74\\)</div>\n<div class=\"switch_value\">\\(76\\)</div>\n<div class=\"switch_value\">\\(84\\)</div>\n<div class=\"switch_value\">\\(88\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Obwód trapezu ma długość \\(74\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Zacznijmy od rysunku pomocniczego. Oprócz danych długości, oznaczmy w nim długość podstawy \\(AB\\) jako \\(a\\), a długość podstawy \\(CD\\) jako \\(b\\).\n            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_310_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Zacznijmy od najprostszego - ramię \\(BC\\) jest długości \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(15\\)",
+            "\\(17\\)",
+            "\\(20\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_310_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Teraz możemy obliczyć długość odcinka \\(BE\\) z twierdzenia Pitagorasa: \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(BE^2=15^2+17^2\\)",
+            "\\(BE^2=17^2-15^2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I stąd \\(BE=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(8\\)",
+            "\\(2\\)",
+            "\\(64\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_310_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Widzimy, że \\(a=\\)\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(12\\)",
+            "\\(28\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Teraz moglibyśmy użyć twierdzenia o wysokości w trójkącie równoramiennym, ale lepiej dostrzec, że \\(b=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(20-8\\)",
+            "\\(20\\)",
+            "\\(8\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_310_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Czyli \\(b=12\\). Mamy więc długości wszystkich boków trapezu:\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_310_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\\(AB=28\\)</li>\n<li>\\(BC=17\\)</li>\n<li>\\(CD=12\\)</li>\n<li>\\(AD=17\\)</li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dodając je otrzymujemy obwód, czyli\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(74\\)",
+            "\\(76\\)",
+            "\\(84\\)",
+            "\\(88\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Obwód trapezu ma długość \\(74\\).</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "9885d2f5b5f8b555f114ac79a918b5c10163b8cc127fee894ba64c644f8f549e"
+  "seed_hash": "43f0b364c6efa7c61b04ad7572ce6a385425a482972a5c2cb8451d155e655d5d"
 }

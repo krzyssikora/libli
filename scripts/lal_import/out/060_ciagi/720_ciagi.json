@@ -37,10 +37,589 @@
       "body": "<p>\n    W poniższej tabeli wyliczamy liczby królików w kolejnych pokoleniach, w kolejnyh miesiącach.\n</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<table class=\"my_table_border\">\n<tr>\n<td rowspan=\"2\">miesiąc<br/>\\(\\downarrow\\)</td>\n<td colspan=\"6\">pokolenie królików</td>\n<th rowspan=\"2\">razem</th>\n</tr>\n<tr>\n<th>I</th>\n<th>II</th>\n<th>III</th>\n<th>IV</th>\n<th>V</th>\n<th>VI</th>\n</tr>\n<tr>\n<th>1</th>\n<td>\\(1\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(1\\)</td>\n</tr>\n<tr>\n<th>2</th>\n<td>\\(1\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(1\\)</td>\n</tr>\n<tr>\n<th>3</th>\n<td>\\(1\\)</td>\n<td>\\(1\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(2\\)</td>\n</tr>\n<tr>\n<th>4</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(3\\)</td>\n</tr>\n<tr>\n<th>5</th>\n<td>\\(1\\)</td>\n<td>\\(3\\)</td>\n<td>\\(1\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(5\\)</td>\n</tr>\n<tr>\n<th>6</th>\n<td>\\(1\\)</td>\n<td>\\(4\\)</td>\n<td>\\(3\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(8\\)</td>\n</tr>\n<tr>\n<th>7</th>\n<td>\\(1\\)</td>\n<td>\\(5\\)</td>\n<td>\\(6\\)</td>\n<td>\\(1\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(13\\)</td>\n</tr>\n<tr>\n<th>8</th>\n<td>\\(1\\)</td>\n<td>\\(6\\)</td>\n<td>\\(10\\)</td>\n<td>\\(4\\)</td>\n<td>\\(-\\)</td>\n<td>\\(-\\)</td>\n<td>\\(21\\)</td>\n</tr>\n<tr>\n<th>9</th>\n<td>\\(1\\)</td>\n<td>\\(7\\)</td>\n<td>\\(15\\)</td>\n<td>\\(10\\)</td>\n<td>\\(1\\)</td>\n<td>\\(-\\)</td>\n<td>\\(34\\)</td>\n</tr>\n<tr>\n<th>10</th>\n<td>\\(1\\)</td>\n<td>\\(8\\)</td>\n<td>\\(21\\)</td>\n<td>\\(20\\)</td>\n<td>\\(5\\)</td>\n<td>\\(-\\)</td>\n<td>\\(55\\)</td>\n</tr>\n<tr>\n<th>11</th>\n<td>\\(1\\)</td>\n<td>\\(9\\)</td>\n<td>\\(28\\)</td>\n<td>\\(35\\)</td>\n<td>\\(15\\)</td>\n<td>\\(1\\)</td>\n<td>\\(89\\)</td>\n</tr>\n<tr>\n<th>12</th>\n<td>\\(1\\)</td>\n<td>\\(10\\)</td>\n<td>\\(36\\)</td>\n<td>\\(56\\)</td>\n<td>\\(35\\)</td>\n<td>\\(6\\)</td>\n<td>\\(144\\)</td>\n</tr>\n</table>",
-      "reason": "table uses rowspan/colspan"
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "miesiąc<br/>\\(\\downarrow\\)",
+              "halign": "left",
+              "valign": "top",
+              "rowspan": 2
+            },
+            {
+              "html": "pokolenie królików",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 6
+            },
+            {
+              "html": "razem",
+              "halign": "left",
+              "valign": "top",
+              "header": true,
+              "rowspan": 2
+            }
+          ],
+          [
+            {
+              "html": "I",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "II",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "III",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "IV",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "V",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "VI",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            }
+          ],
+          [
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "2",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "3",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "4",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(2\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "5",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "6",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(3\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "7",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(13\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "8",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(4\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(21\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "9",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(7\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(15\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(34\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "10",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(21\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(20\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(5\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(-\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(55\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "11",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(9\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(28\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(35\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(15\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(89\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "12",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(10\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(36\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(56\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(35\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(6\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(144\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "text",
@@ -107,7 +686,44 @@
     {
       "type": "spoiler",
       "label": "Możemy łatwo wyliczyć, że \\(\\phi=\\frac{\\sqrt{5}+1}{2}\\)",
-      "body": "\n\n    Złota proporcja to zdefiniowany wyżej stosunek długości:\n    \\[\n    \\phi=\\frac{a+b}{a}=\\frac{a}{b}\n    \\]\n    Rozbijmy ułamek z lewej strony równania\n    \\[\n    \\frac{a+b}{a}=\\frac{a}{b}\n    \\]\n    na dwa ułamki:\n    \\[\n    \\frac{a}{a}+\\frac{b}{a}=\\frac{a}{b}\n    \\]\n    <p>\n        Zauważmy, że skoro \\(\\phi=\\frac{a}{b}\\) to ułamek \\(\\frac{b}{a}\\) jest tej wartości odwrotnością, czyli \\(\\frac{b}{a}=\\frac{1}{\\phi}\\).\n    </p>\n<p>\n        Postawiając do równania:\n    </p>\n    \\[\n    \\begin{align}\n    \\frac{a}{a}+\\frac{b}{a}&amp;=\\frac{a}{b}\\\\\n    1+\\frac{1}{\\phi}&amp;=\\phi\n    \\end{align}\n    \\]\n    <p>\n        Pomnóżmy równanie obustronnie przez \\(\\phi\\):\n    </p>\n    \\[\n    \\begin{align}\n    1+\\frac{1}{\\phi}&amp;=\\phi\\\\\n    \\phi+1&amp;=\\phi^2\\\\\n    \\phi^2-\\phi-1&amp;=0\n    \\end{align}\n    \\]\n    I teraz wystarczy rozwiązać równanie kwadratowe, by otrzymać\n    <div class=\"centered\">\n        \\(\\phi=\\frac{1-\\sqrt{5}}{2}\\) albo \\(\\phi=\\frac{1+\\sqrt{5}}{2}\\)\n    </div>\n<p>\n        Pierwsze rozwiązanie jest ujemne, a stosunek długości musi być dodatni, więc ostatecznie\n    </p>\n    \\[\n    \\phi=\\frac{\\sqrt{5}+1}{2}\n    \\]\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Złota proporcja to zdefiniowany wyżej stosunek długości:\n    \\[\n    \\phi=\\frac{a+b}{a}=\\frac{a}{b}\n    \\]\n    Rozbijmy ułamek z lewej strony równania\n    \\[\n    \\frac{a+b}{a}=\\frac{a}{b}\n    \\]\n    na dwa ułamki:\n    \\[\n    \\frac{a}{a}+\\frac{b}{a}=\\frac{a}{b}\n    \\]</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Zauważmy, że skoro \\(\\phi=\\frac{a}{b}\\) to ułamek \\(\\frac{b}{a}\\) jest tej wartości odwrotnością, czyli \\(\\frac{b}{a}=\\frac{1}{\\phi}\\).\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Postawiając do równania:\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n    \\begin{align}\n    \\frac{a}{a}+\\frac{b}{a}&=\\frac{a}{b}\\\\\n    1+\\frac{1}{\\phi}&=\\phi\n    \\end{align}\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Pomnóżmy równanie obustronnie przez \\(\\phi\\):\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n    \\begin{align}\n    1+\\frac{1}{\\phi}&=\\phi\\\\\n    \\phi+1&=\\phi^2\\\\\n    \\phi^2-\\phi-1&=0\n    \\end{align}\n    \\]\n    I teraz wystarczy rozwiązać równanie kwadratowe, by otrzymać</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n        \\(\\phi=\\frac{1-\\sqrt{5}}{2}\\) albo \\(\\phi=\\frac{1+\\sqrt{5}}{2}\\)\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Pierwsze rozwiązanie jest ujemne, a stosunek długości musi być dodatni, więc ostatecznie\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n    \\phi=\\frac{\\sqrt{5}+1}{2}\n    "
+        }
+      ]
     },
     {
       "type": "text",
@@ -612,6 +1228,6 @@
       "figcaption": ""
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "7dafb733b3b12a7357090dae9cf4609cf469950b5159681dec2e183aeb3b3257"
+  "fully_mapped": true,
+  "seed_hash": "a5d0331f6070c36c83e2655cabfe833a24f8714e61c436d8ff51869b1bc7efde"
 }

@@ -17,13 +17,47 @@
       "body": "<ul class=\"nolist\">\n<li>\n            stosunek pól trójkąta \\(T_2\\) do \\(T_1\\) jest równy \\(k^2\\).\n        </li>\n</ul>"
     },
     {
-      "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
       "type": "spoiler",
       "label": "dodatkowe wyjaśnienia",
-      "body": "\n\n<div>\n            Zdanie \"\n            <em>\n                trójkąt \\(T_2\\) jest podobny do trójkąta \\(T_1\\) w skali \\(k\\)\n            </em>\n            \" oznacza, że jeśli \\(d_1\\) jest dowolną długością w trójkącie \\(T_1\\), a \\(d_2\\) jest\n            <em>\n                odpowiadającą jej\n            </em>\n            długością w trójkącie \\(T_2\\), to\n            \\[\n            \\tfrac{d_2}{d_1}=k\n            \\]\n        </div>\n<hr/>\n<div>\n<p>\n                Jeśli nie jesteś pewna / -y, co to znaczy \"\n                <em>\n                    odpowiadająca jej\n                </em>\n                długość\", spójrz na poniższy aplet.\n            </p>\n<p>\n                Cokolwiek w nim zrobisz, dolny trójkąt będzie zawsze podobny do górnego. Odpowiadające sobie boki są zaznaczone tymi samiymi kolorami. A dodatkowo odpowiadają sobie czerwone odcinki - to znaczy zajmują taką samą pozycję (odpowiadającą) w obu trójkątach.\n            </p>\n<p>\n                Na początku trójkąty wydają się prawie przystające.\n            </p>\n            W górnym trójkącie możesz:\n            <ul class=\"nolist\">\n<li>\n                    zmieniać położenie dowolnego wierzchołka trójkąta,\n                </li>\n<li>\n                    zmieniać położenie końców czerwonego odcinka (ale nie możesz wyjść nimi poza trójkąt).\n                </li>\n</ul>\n            W dolnym trójkącie możesz:\n            <ul class=\"nolist\">\n<li>\n<strong>\n                        tylko\n                    </strong>\n                    zmieniać położenie zaznaczonych na niebiesko wierzchołków trójkąta.\n                </li>\n<li>\n                    Pozostała część dolnego trójkąta dopasuje się tak, by ciągle był podobny do górnego.\n                </li>\n</ul>\n</div>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"811px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/pzefamnn/width/770/height/811/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"podobne\" width=\"770px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n            Zdanie \"\n            <em>\n                trójkąt \\(T_2\\) jest podobny do trójkąta \\(T_1\\) w skali \\(k\\)\n            </em>\n            \" oznacza, że jeśli \\(d_1\\) jest dowolną długością w trójkącie \\(T_1\\), a \\(d_2\\) jest\n            <em>\n                odpowiadającą jej\n            </em>\n            długością w trójkącie \\(T_2\\), to\n            \\[\n            \\tfrac{d_2}{d_1}=k\n            \\]\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Jeśli nie jesteś pewna / -y, co to znaczy \"\n                <em>\n                    odpowiadająca jej\n                </em>\n                długość\", spójrz na poniższy aplet.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Cokolwiek w nim zrobisz, dolny trójkąt będzie zawsze podobny do górnego. Odpowiadające sobie boki są zaznaczone tymi samiymi kolorami. A dodatkowo odpowiadają sobie czerwone odcinki - to znaczy zajmują taką samą pozycję (odpowiadającą) w obu trójkątach.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Na początku trójkąty wydają się prawie przystające.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>W górnym trójkącie możesz:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                    zmieniać położenie dowolnego wierzchołka trójkąta,\n                </li>\n<li>\n                    zmieniać położenie końców czerwonego odcinka (ale nie możesz wyjść nimi poza trójkąt).\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>W dolnym trójkącie możesz:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n<strong>\n                        tylko\n                    </strong>\n                    zmieniać położenie zaznaczonych na niebiesko wierzchołków trójkąta.\n                </li>\n<li>\n                    Pozostała część dolnego trójkąta dopasuje się tak, by ciągle był podobny do górnego.\n                </li>\n</ul>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/pzefamnn/width/770/height/811/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        }
+      ]
     },
     {
       "type": "text",
@@ -31,56 +65,275 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Rysunki w każdym rzędzie przedstawiają trójkąty podobne.\n        <p>\n            Jaka jest skala podobieństwa\n            <u>\n                trójkąta z prawej do trójkąta z lewej strony\n            </u>\n            ?\n        </p>\n<small>\n            Uwaga,\n        </small>\n<ul class=\"nolist\">\n<li>\n<small>\n                    jeśli skala podobieństwa to \\(5\\) do \\(1\\) czy też \\(5:1\\), wpisz po prostu \\(5\\),\n                </small>\n</li>\n<li>\n<small>\n                    jeśli skala podobieństwa to \\(1\\) do \\(5\\) czy też \\(1:5\\), wpisz po prostu \\(1/5\\) lub \\(0,2\\).\n                </small>\n</li>\n</ul>\n        Zastanów się nad odpowiedzią, a następnie ją sprawdź.\n        <hr/>\n<p>\n<small>\n<em>\n                    Rysunki nie zachowują skali.\n                </em>\n</small>\n</p>\n"
-    },
-    {
-      "type": "spoiler",
-      "label": "zobacz",
-      "body": "\n                        Skala podobieństwa to \\(3\\).\n                        <div>\n<img alt=\"trójkąty podobne\" src=\"static/skala_podobienstwa_1_.png\" width=\"500\"/>\n</div>\n<div>\n                            Dane są odpowiadające sobie boki przylegające do kątów\n                            <span style=\"color: red\">\n                                czerwonego\n                            </span>\n                            i\n                            <span style=\"color: green\">\n                                zielonego\n                            </span>\n                            (zaznaczone na pomarańczowo). Stąd skala jest równa \\(\\tfrac{6}{2}=3\\).\n                        </div>\n"
-    },
-    {
-      "type": "spoiler",
-      "label": "zobacz",
-      "body": "\n                        Skala podobieństwa to \\(4\\).\n                        <div>\n<img alt=\"trójkąty podobne\" src=\"static/skala_podobienstwa_2_.png\" width=\"500\"/>\n</div>\n<div>\n                            Dane są odpowiadające sobie boki przylegające do kątów\n                            <span style=\"color: red\">\n                                czerwonego\n                            </span>\n                            i\n                            <span style=\"color: green\">\n                                zielonego\n                            </span>\n                            (zaznaczone na pomarańczowo). Stąd skala jest równa \\(\\tfrac{8}{2}=4\\).\n                        </div>\n"
-    },
-    {
-      "type": "spoiler",
-      "label": "zobacz",
-      "body": "\n                        Skala podobieństwa to \\(4\\).\n                        <div>\n<img alt=\"trójkąty podobne\" src=\"static/skala_podobienstwa_3_.png\" width=\"500\"/>\n</div>\n<div>\n                            Dane są odpowiadające sobie boki (zaznaczone na pomarańczowo) przylegające do kątów\n                            <span style=\"color: green\">\n                                zielonego\n                            </span>\n                            i nie oznaczonego kolorem. Stąd skala jest równa \\(\\tfrac{6}{2}=3\\).\n                        </div>\n"
-    },
-    {
-      "type": "spoiler",
-      "label": "zobacz",
-      "body": "\n                        Skala podobieństwa to \\(\\tfrac{5}{2}\\).\n                        <div>\n<img alt=\"trójkąty podobne\" src=\"static/skala_podobienstwa_4.png\" width=\"500\"/>\n</div>\n<div>\n                            Dane są odpowiadające sobie wysokości.\n                            <br/>\n                            Niebieska wysokość w trójkącie po lewej stronie (o długości \\(2\\)) opada na bok przylegający do kątów\n                            <span style=\"color: red\">\n                                czerwonego\n                            </span>\n                            i\n                            <span style=\"color: green\">\n                                zielonego\n                            </span>\n                            .\n                            <br/>\n                            W trójkącie po prawej na ten sam bok opada żółta wysokość (o długości \\(5\\)).\n                            <br/>\n                            Stąd skala jest równa \\(\\tfrac{5}{2}=2,5\\).\n                        </div>\n"
+      "body": "<p>Rysunki w każdym rzędzie przedstawiają trójkąty podobne.</p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p>\n            Jaka jest skala podobieństwa\n            <u>\n                trójkąta z prawej do trójkąta z lewej strony\n            </u>\n            ?\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Jaka jest skala podobieństwa\n            <u>\n                trójkąta \\(ABC\\) do trójkąta \\(ADE\\)\n            </u>\n            ?\n        </p>\n<small>\n            Uwaga,\n        </small>\n<ul class=\"nolist\">\n<li>\n<small>\n                    jeśli skala podobieństwa to \\(5\\) do \\(1\\) czy też \\(5:1\\), wpisz po prostu \\(5\\),\n                </small>\n</li>\n<li>\n<small>\n                    jeśli skala podobieństwa to \\(1\\) do \\(5\\) czy też \\(1:5\\), wpisz po prostu \\(1/5\\) lub \\(0,2\\).\n                </small>\n</li>\n</ul>\n        Zastanów się nad odpowiedzią, a następnie ją sprawdź.\n        <hr/>\n<p>\n<small>\n<em>\n                    Rysunki nie zachowują skali.\n                </em>\n</small>\n</p>\n"
+      "body": "<small>\n            Uwaga,\n        </small>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<small>\n                    jeśli skala podobieństwa to \\(5\\) do \\(1\\) czy też \\(5:1\\), wpisz po prostu \\(5\\),\n                </small>\n</li>\n<li>\n<small>\n                    jeśli skala podobieństwa to \\(1\\) do \\(5\\) czy też \\(1:5\\), wpisz po prostu \\(1/5\\) lub \\(0,2\\).\n                </small>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zastanów się nad odpowiedzią, a następnie ją sprawdź.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>\n<em>\n                    Rysunki nie zachowują skali.\n                </em>\n</small>\n</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/skala_podobienstwa_1.png",
+      "alt": "trójkąty podobne",
+      "figcaption": ""
     },
     {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n                        Skala podobieństwa to \\(\\tfrac{5}{2}\\).\n                        <div>\n<img alt=\"trójkąty podobne\" src=\"static/skala_podobienstwa_5_.png\" width=\"400\"/>\n</div>\n<div>\n                            Odpowiadają sobie boki:\n                            <ul class=\"nolist\">\n<li>\n                                    \\(AB\\) o długości \\(2\\) oraz\n                                </li>\n<li>\n                                    \\(AD\\) o długości \\(2+3=5\\).\n                                </li>\n</ul>\n                            Stąd skala jest równa \\(\\tfrac{5}{2}=2,5\\).\n                        </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skala podobieństwa to \\(3\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/skala_podobienstwa_1_.png",
+          "alt": "trójkąty podobne",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "\n                            Dane są odpowiadające sobie boki przylegające do kątów\n                            <span style=\"color: red\">\n                                czerwonego\n                            </span>\n                            i\n                            <span style=\"color: green\">\n                                zielonego\n                            </span>\n                            (zaznaczone na pomarańczowo). Stąd skala jest równa \\(\\tfrac{6}{2}=3\\).\n                        "
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "media_src": "static/skala_podobienstwa_2.png",
+      "alt": "trójkąty podobne",
+      "figcaption": ""
     },
     {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n                        Skala podobieństwa to \\(\\tfrac{5}{2}\\).\n                        <div>\n<img alt=\"trójkąty podobne\" src=\"static/skala_podobienstwa_6_.png\" width=\"400\"/>\n</div>\n<div>\n                            Odpowiadają sobie boki:\n                            <ul class=\"nolist\">\n<li>\n                                    \\(BC\\) o długości \\(2\\) oraz\n                                </li>\n<li>\n                                    \\(DE\\) o długości \\(5\\).\n                                </li>\n</ul>\n                            Stąd skala jest równa \\(\\tfrac{5}{2}=2,5\\).\n                        </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skala podobieństwa to \\(4\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/skala_podobienstwa_2_.png",
+          "alt": "trójkąty podobne",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "\n                            Dane są odpowiadające sobie boki przylegające do kątów\n                            <span style=\"color: red\">\n                                czerwonego\n                            </span>\n                            i\n                            <span style=\"color: green\">\n                                zielonego\n                            </span>\n                            (zaznaczone na pomarańczowo). Stąd skala jest równa \\(\\tfrac{8}{2}=4\\).\n                        "
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "media_src": "static/skala_podobienstwa_3.png",
+      "alt": "trójkąty podobne",
+      "figcaption": ""
     },
     {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n                        Skala podobieństwa to \\(2\\).\n                        <div>\n<img alt=\"trójkąty podobne\" src=\"static/skala_podobienstwa_7_.png\" width=\"400\"/>\n</div>\n<div>\n                            Odpowiadają sobie boki:\n                            <ul class=\"nolist\">\n<li>\n                                    \\(AC\\) o długości \\(3\\) oraz\n                                </li>\n<li>\n                                    \\(AD\\) o długości \\(6\\).\n                                </li>\n</ul>\n                            bo oba przylegają do wspólnego kąta \\(A\\) i do kąta zaznaczonego na czerwono.\n                            <br/>\n                            Stąd skala jest równa \\(\\tfrac{6}{3}=2\\).\n                        </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skala podobieństwa to \\(4\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/skala_podobienstwa_3_.png",
+          "alt": "trójkąty podobne",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "\n                            Dane są odpowiadające sobie boki (zaznaczone na pomarańczowo) przylegające do kątów\n                            <span style=\"color: green\">\n                                zielonego\n                            </span>\n                            i nie oznaczonego kolorem. Stąd skala jest równa \\(\\tfrac{6}{2}=3\\).\n                        "
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "media_src": "static/skala_podobienstwa_4.png",
+      "alt": "trójkąty podobne",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skala podobieństwa to \\(\\tfrac{5}{2}\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/skala_podobienstwa_4.png",
+          "alt": "trójkąty podobne",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "\n                            Dane są odpowiadające sobie wysokości.\n                            <br/>\n                            Niebieska wysokość w trójkącie po lewej stronie (o długości \\(2\\)) opada na bok przylegający do kątów\n                            <span style=\"color: red\">\n                                czerwonego\n                            </span>\n                            i\n                            <span style=\"color: green\">\n                                zielonego\n                            </span>\n                            .\n                            <br/>\n                            W trójkącie po prawej na ten sam bok opada żółta wysokość (o długości \\(5\\)).\n                            <br/>\n                            Stąd skala jest równa \\(\\tfrac{5}{2}=2,5\\).\n                        "
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaka jest skala podobieństwa\n            <u>\n                trójkąta \\(ABC\\) do trójkąta \\(ADE\\)\n            </u>\n            ?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<small>\n            Uwaga,\n        </small>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<small>\n                    jeśli skala podobieństwa to \\(5\\) do \\(1\\) czy też \\(5:1\\), wpisz po prostu \\(5\\),\n                </small>\n</li>\n<li>\n<small>\n                    jeśli skala podobieństwa to \\(1\\) do \\(5\\) czy też \\(1:5\\), wpisz po prostu \\(1/5\\) lub \\(0,2\\).\n                </small>\n</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zastanów się nad odpowiedzią, a następnie ją sprawdź.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<small>\n<em>\n                    Rysunki nie zachowują skali.\n                </em>\n</small>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Boki \\(BC\\) i \\(DE\\) są równoległe.</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/skala_podobienstwa_5.png",
+      "alt": "trójkąty podobne",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skala podobieństwa to \\(\\tfrac{5}{2}\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/skala_podobienstwa_5_.png",
+          "alt": "trójkąty podobne",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Odpowiadają sobie boki:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                                    \\(AB\\) o długości \\(2\\) oraz\n                                </li>\n<li>\n                                    \\(AD\\) o długości \\(2+3=5\\).\n                                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Stąd skala jest równa \\(\\tfrac{5}{2}=2,5\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>Boki \\(BC\\) i \\(DE\\) są równoległe.</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/skala_podobienstwa_6.png",
+      "alt": "trójkąty podobne",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skala podobieństwa to \\(\\tfrac{5}{2}\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/skala_podobienstwa_6_.png",
+          "alt": "trójkąty podobne",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Odpowiadają sobie boki:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                                    \\(BC\\) o długości \\(2\\) oraz\n                                </li>\n<li>\n                                    \\(DE\\) o długości \\(5\\).\n                                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Stąd skala jest równa \\(\\tfrac{5}{2}=2,5\\).</p>"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "media_src": "static/skala_podobienstwa_7.png",
+      "alt": "trójkąty podobne",
+      "figcaption": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skala podobieństwa to \\(2\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/skala_podobienstwa_7_.png",
+          "alt": "trójkąty podobne",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Odpowiadają sobie boki:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                                    \\(AC\\) o długości \\(3\\) oraz\n                                </li>\n<li>\n                                    \\(AD\\) o długości \\(6\\).\n                                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>bo oba przylegają do wspólnego kąta \\(A\\) i do kąta zaznaczonego na czerwono.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Stąd skala jest równa \\(\\tfrac{6}{3}=2\\).</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "888590d15abd667f3afa9bc16f4ae01c4b4d9e91e2716c6802f0b33a693f4318"
+  "seed_hash": "9370aada08c9ab1e32fc6a6b51181388ec868e6bf7359503263d51bc47e3e223"
 }

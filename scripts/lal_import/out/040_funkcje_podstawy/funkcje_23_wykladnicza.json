@@ -17,16 +17,14 @@
       "body": "<p>\n            \\(a^{x_1}\\gt a^{x_2}\\)\n        </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<img alt=\"\" src=\"static/wykladnicza_rosnaca.png\" style=\"width: 600px;\"/>\n</p>"
+      "type": "image",
+      "media_src": "static/wykladnicza_rosnaca.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
       "body": "<p>\n            (następuje\n            <span style=\"color: red\">\n                zmiana\n            </span>\n            znaku nierówności)\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n"
     },
     {
       "type": "text",
@@ -37,8 +35,10 @@
       "body": "<p>\n            \\(a^{x_1}\\lt a^{x_2}\\)\n        </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<img alt=\"\" src=\"static/wykladnicza_malejaca.png\" style=\"width: 600px;\"/>\n</p>"
+      "type": "image",
+      "media_src": "static/wykladnicza_malejaca.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -46,5 +46,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "ce2c864ccf262b1d2abf40df2589707a2d05e2b8341fd7d4e6c66151dc195e50"
+  "seed_hash": "72f2e7c2b54862806fded6c425f927bf456f9a360a33ede678970cb5418a1380"
 }

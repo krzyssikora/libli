@@ -14,22 +14,23 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Użyj tego wzoru, by znaleźć najmniejszą wspólną wielokrotność liczb 72 i 60.\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        \\[\n                                \\text{NWW}(72, 60)=\\frac{72\\cdot 60}{12}=\\frac{\\color{red}{72}\\cdot 60}{\\color{red}{12}}=\\left[\\color{red}{\\text{skróćmy czerwone liczby przez 12}}\\right]=\\frac{\\color{red}{6}\\cdot 60}{\\color{red}{1}}=360\n                                \\]\n    "
+      "elements": [
+        {
+          "type": "math",
+          "latex": "\n                                \\text{NWW}(72, 60)=\\frac{72\\cdot 60}{12}=\\frac{\\color{red}{72}\\cdot 60}{\\color{red}{12}}=\\left[\\color{red}{\\text{skróćmy czerwone liczby przez 12}}\\right]=\\frac{\\color{red}{6}\\cdot 60}{\\color{red}{1}}=360\n                                "
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "50dfc49e531234d36f08c64f432433d2fcd107fa1df957631f745c7b8d6cef67"
+  "seed_hash": "6f759b691e8adfc3e6c148c0e4069c572bc98a1898a17a1a5c2dc012df59cc47"
 }

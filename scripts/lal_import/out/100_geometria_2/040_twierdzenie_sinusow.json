@@ -29,7 +29,12 @@
     {
       "type": "spoiler",
       "label": "Dlaczego?",
-      "body": "\n\n    Bo jeśli udowodnimy twierdzenie dla pary \\(a\\), \\(A\\), to potem możemy tak samo zrobić dla pary \\(b\\), \\(B\\) oraz pary \\(c\\), \\(C\\).\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Bo jeśli udowodnimy twierdzenie dla pary \\(a\\), \\(A\\), to potem możemy tak samo zrobić dla pary \\(b\\), \\(B\\) oraz pary \\(c\\), \\(C\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -38,19 +43,190 @@
     {
       "type": "spoiler",
       "label": "gdy kąt \\(A\\) jestprosty",
-      "body": "\n\n<div style=\"min-height: 300px;\">\n<img alt=\"dowód twierdzenia sinusów gdy A jest prosty\" height=\"350\" src=\"static/tw_sinusow_dowod_1.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n        Gdy kąt \\(A\\) jest prosty, równanie, którego prawdziwość mamy wykazać:\n                                    \\[\n                                    \\frac{a}{\\sin A}=2R\n                                    \\]\n                                    ma postać\n                                    \\[\n                                    \\frac{a}{\\sin 90^{\\circ}}=2R\n                                    \\]\n                                    a ponieważ \\(\\sin 90^{\\circ}=1\\), równanie do udowodnienia to po prostu\n                                    \\[\n                                    \\frac{a}{1}=2R\n                                    \\]\n                                    czyli\n                                    \\[\n                                    a=2R\n                                    \\]\n                                    Spójrzmy na rysunek. \\(a\\) jest długością boku przeciwległego do kąta \\(A\\), czyli \\(BC\\). Ponieważ kąt \\(A\\) jest prosty, bok \\(BC\\) jest średnicą.\n        <details>\n<summary>\n                pamiętasz dlaczego?\n            </summary>\n<div class=\"important\" style=\"min-height: 410px;\">\n<img alt=\"Kąt wpisany oparty na średnicy\" height=\"400\" src=\"static/tw_katy_2_polkole.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n<u>\n                        Kąt wpisany oparty na średnicy\n                    </u>\n</p>\n<p>\n                    Kąt wpisany oparty na połowie okręgu jest prosty.\n                </p>\n<p>\n                    Oznacza to, że\n                    <strong>\n                        przeciwprostokątna\n                    </strong>\n                    trójkąta prostokątnego jest\n                    <strong>\n                        średnicą\n                    </strong>\n                    okręgu opisanego na tym trójkącie.\n                </p>\n</div>\n</details>\n        Bok \\(BC\\) ma długość \\(a\\), i jest też średnicą koła, więc ma długość \\(2R\\). I dlatego\n                                    \\[\n                                    a=2R\n                                    \\]\n                                    co kończy dowód w sytuacji, gdy kąt \\(A\\) jest prosty.\n    </div>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tw_sinusow_dowod_1.png",
+          "alt": "dowód twierdzenia sinusów gdy A jest prosty",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Gdy kąt \\(A\\) jest prosty, równanie, którego prawdziwość mamy wykazać:\n                                    \\[\n                                    \\frac{a}{\\sin A}=2R\n                                    \\]\n                                    ma postać\n                                    \\[\n                                    \\frac{a}{\\sin 90^{\\circ}}=2R\n                                    \\]\n                                    a ponieważ \\(\\sin 90^{\\circ}=1\\), równanie do udowodnienia to po prostu\n                                    \\[\n                                    \\frac{a}{1}=2R\n                                    \\]\n                                    czyli\n                                    \\[\n                                    a=2R\n                                    \\]\n                                    Spójrzmy na rysunek. \\(a\\) jest długością boku przeciwległego do kąta \\(A\\), czyli \\(BC\\). Ponieważ kąt \\(A\\) jest prosty, bok \\(BC\\) jest średnicą.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz dlaczego?</h4>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_2_polkole.png",
+          "alt": "Kąt wpisany oparty na średnicy",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                        Kąt wpisany oparty na średnicy\n                    </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Kąt wpisany oparty na połowie okręgu jest prosty.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznacza to, że\n                    <strong>\n                        przeciwprostokątna\n                    </strong>\n                    trójkąta prostokątnego jest\n                    <strong>\n                        średnicą\n                    </strong>\n                    okręgu opisanego na tym trójkącie.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Bok \\(BC\\) ma długość \\(a\\), i jest też średnicą koła, więc ma długość \\(2R\\). I dlatego\n                                    \\[\n                                    a=2R\n                                    \\]\n                                    co kończy dowód w sytuacji, gdy kąt \\(A\\) jest prosty.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "gdy kąt \\(A\\) jestostry",
-      "body": "\n\n    Gdy kąt \\(A\\) jest ostry, wybierzmy na okręgu taki punkt \\(A'\\), żeby odcinek \\(A'B\\) był średnicą.\n    <div class=\"centered\">\n<img alt=\"dowód twierdzenia sinusów gdy A jest ostry\" src=\"static/tw_sinusow_dowod_2_1.png\" width=\"250\"/>\n<img alt=\"dowód twierdzenia sinusów gdy A jest ostry\" src=\"static/tw_sinusow_dowod_2_2.png\" width=\"250\"/>\n<img alt=\"dowód twierdzenia sinusów gdy A jest ostry\" src=\"static/tw_sinusow_dowod_2_3.png\" width=\"250\"/>\n</div>\n    Wówczas zaznaczone na rysunku kąty o wierzchołkach w punktach \\(A\\) i \\(A'\\) są tej samej miary.\n    <details>\n<summary>\n            pamiętasz dlaczego?\n        </summary>\n<div class=\"important\" style=\"min-height: 410px;\">\n<img alt=\"Kąty wpisane i środkowe\" height=\"400\" src=\"static/tw_katy_1_wpisane.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n<u>\n                    Kąty wpisane i środkowe\n                </u>\n</p>\n<ul>\n<li>\n                    każdy kąt wpisany oparty na tym samym łuku ma tę samą miarę,\n                </li>\n<li>\n                    jeśli kąt wpisany jest oparty na tym samym łuku, co kąt środkowy, to kąt środkowy ma miarę dwukrotnie większą niż kąt wpisany.\n                </li>\n</ul>\n</div>\n</details>\n    No a dodatkowo kąt \\(CA'B\\) jest prosty.\n    <details>\n<summary>\n            pamiętasz dlaczego?\n        </summary>\n<div class=\"important\" style=\"min-height: 410px;\">\n<img alt=\"Kąt wpisany oparty na średnicy\" height=\"400\" src=\"static/tw_katy_2_polkole.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n<u>\n                    Kąt wpisany oparty na średnicy\n                </u>\n</p>\n<p>\n                Kąt wpisany oparty na połowie okręgu jest prosty.\n            </p>\n<p>\n                Oznacza to, że\n                <strong>\n                    przeciwprostokątna\n                </strong>\n                trójkąta prostokątnego jest\n                <strong>\n                    średnicą\n                </strong>\n                okręgu opisanego na tym trójkącie.\n            </p>\n</div>\n</details>\n    Skupmy się na zaznaczonym na czerwono trójkącie \\(A'BC\\). W nim:\n    <ul class=\"nolist\">\n<li>\n            przyprostokątna naprzeciwległa do kąta \\(A'\\) to \\(BC\\), więc ma długość \\(a\\),\n        </li>\n<li>\n            przeciwprostokątna to \\(A'B\\), czyli średnica, więc ma długość \\(2R\\),\n        </li>\n<li>\n            kąt \\(A'\\), jak wspomnieliśmy, jest tej samej miary, co kąt \\(A\\).\n        </li>\n</ul>\n    Stąd\n                                                    \\[\n                                                    \\sin A=\\frac{a}{2R}\n                                                    \\]\n                                                    Pomnóżmy obie strony przez \\(2R\\)\n                                                    \\[\n                                                    2R\\sin A=a\n                                                    \\]\n                                                    i podzielmy przez \\(\\sin A\\)\n                                                    \\[\n                                                    2R=\\frac{a}{\\sin A}\n                                                    \\]\n                                                    co kończy dowód w sytuacji, gdy kąt \\(A\\) jest ostry.\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Gdy kąt \\(A\\) jest ostry, wybierzmy na okręgu taki punkt \\(A'\\), żeby odcinek \\(A'B\\) był średnicą.</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_sinusow_dowod_2_1.png",
+          "alt": "dowód twierdzenia sinusów gdy A jest ostry",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_sinusow_dowod_2_2.png",
+          "alt": "dowód twierdzenia sinusów gdy A jest ostry",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_sinusow_dowod_2_3.png",
+          "alt": "dowód twierdzenia sinusów gdy A jest ostry",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Wówczas zaznaczone na rysunku kąty o wierzchołkach w punktach \\(A\\) i \\(A'\\) są tej samej miary.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz dlaczego?</h4>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_1_wpisane.png",
+          "alt": "Kąty wpisane i środkowe",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                    Kąty wpisane i środkowe\n                </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                    każdy kąt wpisany oparty na tym samym łuku ma tę samą miarę,\n                </li>\n<li>\n                    jeśli kąt wpisany jest oparty na tym samym łuku, co kąt środkowy, to kąt środkowy ma miarę dwukrotnie większą niż kąt wpisany.\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>No a dodatkowo kąt \\(CA'B\\) jest prosty.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz dlaczego?</h4>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_2_polkole.png",
+          "alt": "Kąt wpisany oparty na średnicy",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                    Kąt wpisany oparty na średnicy\n                </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Kąt wpisany oparty na połowie okręgu jest prosty.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Oznacza to, że\n                <strong>\n                    przeciwprostokątna\n                </strong>\n                trójkąta prostokątnego jest\n                <strong>\n                    średnicą\n                </strong>\n                okręgu opisanego na tym trójkącie.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Skupmy się na zaznaczonym na czerwono trójkącie \\(A'BC\\). W nim:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n            przyprostokątna naprzeciwległa do kąta \\(A'\\) to \\(BC\\), więc ma długość \\(a\\),\n        </li>\n<li>\n            przeciwprostokątna to \\(A'B\\), czyli średnica, więc ma długość \\(2R\\),\n        </li>\n<li>\n            kąt \\(A'\\), jak wspomnieliśmy, jest tej samej miary, co kąt \\(A\\).\n        </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Stąd\n                                                    \\[\n                                                    \\sin A=\\frac{a}{2R}\n                                                    \\]\n                                                    Pomnóżmy obie strony przez \\(2R\\)\n                                                    \\[\n                                                    2R\\sin A=a\n                                                    \\]\n                                                    i podzielmy przez \\(\\sin A\\)\n                                                    \\[\n                                                    2R=\\frac{a}{\\sin A}\n                                                    \\]\n                                                    co kończy dowód w sytuacji, gdy kąt \\(A\\) jest ostry.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "gdy kąt \\(A\\) jestrozwarty",
-      "body": "\n\n    Gdy kąt \\(A\\) jest rozwarty, wybierzmy na okręgu taki punkt \\(A'\\), żeby odcinek \\(A'B\\) był średnicą. Oznaczmy środek okręgu literą \\(S\\) i połączmy wierzchołek \\(C\\) z \\(S\\).\n    <div class=\"centered\">\n<img alt=\"dowód twierdzenia sinusów gdy A jest rozwarty\" src=\"static/tw_sinusow_dowod_3_1.png\" width=\"250\"/>\n<img alt=\"dowód twierdzenia sinusów gdy A jest rozwarty\" src=\"static/tw_sinusow_dowod_3_2.png\" width=\"250\"/>\n<img alt=\"dowód twierdzenia sinusów gdy A jest rozwarty\" src=\"static/tw_sinusow_dowod_3_3.png\" width=\"250\"/>\n</div>\n    Zauważmy, że kąt \\(A\\) (oznaczony potrójnym\n    <span style=\"color: blue\">\n        niebieskim\n    </span>\n    łukiem) jest kątem wpisanym w koło oraz że:\n    <ol class=\"bold\">\n<li>\n            wklęsły kąt \\(CSB\\) (oznaczony podwójnym\n            <span style=\"color: blue\">\n                niebieskim\n            </span>\n            łukiem) jest kątem środkowym opartym na tym samym łuku, więc dwukrotnie większym - czyli ma miarę \\(2A\\),\n        </li>\n<li>\n            wypukły kąt \\(CSB\\) (oznaczony podwójnym\n            <span style=\"color: red\">\n                czerwonym\n            </span>\n            łukiem) ma miarę \\(360^{\\circ}-2A\\), bo wklęsły i wypukły kąt \\(CSB\\) tworzą razem kąt pełny,\n        </li>\n<li>\n            kąt \\(CA'B\\) (oznaczony pojedynczym\n            <span style=\"color: red\">\n                czerwonym\n            </span>\n            łukiem) jest kątem wspisanym opartym na tym samym łuku, co wypukły kąt \\(CSB\\), jest więc od niego dwukrotnie mniejszy, czyli ma miarę \\(\\frac{1}{2}(360^{\\circ}-2A)=180^{\\circ}-A\\)\n        </li>\n</ol>\n    Skupmy się na zaznaczonym na czerwono trójkącie \\(A'BC\\). W nim:\n    <ul class=\"nolist\">\n<li>\n            przyprostokątna naprzeciwległa do kąta \\(A'\\) to \\(BC\\), więc ma długość \\(a\\),\n        </li>\n<li>\n            przeciwprostokątna to \\(A'B\\), czyli średnica, więc ma długość \\(2R\\),\n        </li>\n<li>\n            kąt \\(A'\\), jak wspomnieliśmy, ma miarę \\(180^{\\circ}-A\\).\n        </li>\n</ul>\n    Stąd\n                                                    \\[\n                                                    \\sin (180^{\\circ}-A)=\\frac{a}{2R}\n                                                    \\]\n                                                    Przypomnijmy, że\n                                                    \\[\n                                                    \\sin (180^{\\circ}-A)=\\sin A\n                                                    \\]\n                                                    (co wynika na przykład z tego, że punkty wskazane przez te kąty na okręgu jednostkowym mają takie same współrzędne \\(y\\)-owe). Tak więc\n                                                    \\[\n                                                    \\sin A =\\frac{a}{2R}\n                                                    \\]\n                                                    Pomnóżmy obie strony przez \\(2R\\)\n                                                    \\[\n                                                    2R\\sin A=a\n                                                    \\]\n                                                    i podzielmy przez \\(\\sin A\\)\n                                                    \\[\n                                                    2R=\\frac{a}{\\sin A}\n                                                    \\]\n                                                    co kończy dowód w sytuacji, gdy kąt \\(A\\) jest rozwarty.\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Gdy kąt \\(A\\) jest rozwarty, wybierzmy na okręgu taki punkt \\(A'\\), żeby odcinek \\(A'B\\) był średnicą. Oznaczmy środek okręgu literą \\(S\\) i połączmy wierzchołek \\(C\\) z \\(S\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_sinusow_dowod_3_1.png",
+          "alt": "dowód twierdzenia sinusów gdy A jest rozwarty",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_sinusow_dowod_3_2.png",
+          "alt": "dowód twierdzenia sinusów gdy A jest rozwarty",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_sinusow_dowod_3_3.png",
+          "alt": "dowód twierdzenia sinusów gdy A jest rozwarty",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważmy, że kąt \\(A\\) (oznaczony potrójnym</p>"
+        },
+        {
+          "type": "text",
+          "body": "<span style=\"color: blue\">\n        niebieskim\n    </span>"
+        },
+        {
+          "type": "text",
+          "body": "<p>łukiem) jest kątem wpisanym w koło oraz że:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n            wklęsły kąt \\(CSB\\) (oznaczony podwójnym\n            <span style=\"color: blue\">\n                niebieskim\n            </span>\n            łukiem) jest kątem środkowym opartym na tym samym łuku, więc dwukrotnie większym - czyli ma miarę \\(2A\\),\n        </li>\n<li>\n            wypukły kąt \\(CSB\\) (oznaczony podwójnym\n            <span style=\"color: red\">\n                czerwonym\n            </span>\n            łukiem) ma miarę \\(360^{\\circ}-2A\\), bo wklęsły i wypukły kąt \\(CSB\\) tworzą razem kąt pełny,\n        </li>\n<li>\n            kąt \\(CA'B\\) (oznaczony pojedynczym\n            <span style=\"color: red\">\n                czerwonym\n            </span>\n            łukiem) jest kątem wspisanym opartym na tym samym łuku, co wypukły kąt \\(CSB\\), jest więc od niego dwukrotnie mniejszy, czyli ma miarę \\(\\frac{1}{2}(360^{\\circ}-2A)=180^{\\circ}-A\\)\n        </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Skupmy się na zaznaczonym na czerwono trójkącie \\(A'BC\\). W nim:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n            przyprostokątna naprzeciwległa do kąta \\(A'\\) to \\(BC\\), więc ma długość \\(a\\),\n        </li>\n<li>\n            przeciwprostokątna to \\(A'B\\), czyli średnica, więc ma długość \\(2R\\),\n        </li>\n<li>\n            kąt \\(A'\\), jak wspomnieliśmy, ma miarę \\(180^{\\circ}-A\\).\n        </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Stąd\n                                                    \\[\n                                                    \\sin (180^{\\circ}-A)=\\frac{a}{2R}\n                                                    \\]\n                                                    Przypomnijmy, że\n                                                    \\[\n                                                    \\sin (180^{\\circ}-A)=\\sin A\n                                                    \\]\n                                                    (co wynika na przykład z tego, że punkty wskazane przez te kąty na okręgu jednostkowym mają takie same współrzędne \\(y\\)-owe). Tak więc\n                                                    \\[\n                                                    \\sin A =\\frac{a}{2R}\n                                                    \\]\n                                                    Pomnóżmy obie strony przez \\(2R\\)\n                                                    \\[\n                                                    2R\\sin A=a\n                                                    \\]\n                                                    i podzielmy przez \\(\\sin A\\)\n                                                    \\[\n                                                    2R=\\frac{a}{\\sin A}\n                                                    \\]\n                                                    co kończy dowód w sytuacji, gdy kąt \\(A\\) jest rozwarty.</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "1b4ea1001fa3e1646df53948bd028d355da43615f981c8676e0035362198f467"
+  "seed_hash": "aacfc33902453b0038e0992ad4a2f57339fda737a1545dc88972b9fbf1dcbd3d"
 }

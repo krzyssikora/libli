@@ -22,7 +22,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -39,7 +39,408 @@
     {
       "type": "spoiler",
       "label": "dodatkowe wyjaśnienia",
-      "body": "\n\n<p>\n            Zauważmy, że jeśli wybieramy 2 obiekty z 6, to jednocześnie zostawiamy 4 obiekty niewybrane.\n        </p>\n<p>\n            Każdemu wyborowi 2 obiektów z 6 odpowiada pozostawienie 4 obiektów. I odwrotnie - każdemu wyborowi 4 obiektów z 6 odpowiada pozostawienie 2.\n        </p>\n<p>\n            Dlatego wyborów 2 z 6 jest tyle samo, co wyborów 4 z 6 - spójrz poniżej.\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder narrow_table\">\n<tr>\n<td></td>\n<td>wybrane 2 z 6</td>\n<td></td>\n<td>pozostawione 4 z 6</td>\n</tr>\n<tr><td>1</td><th>A, B</th><td></td><th>C, D, E, F</th></tr>\n<tr><td>2</td><th>A, C</th><td></td><th>B, D, E, F</th></tr>\n<tr><td>3</td><th>A, D</th><td></td><th>B, C, E, F</th></tr>\n<tr><td>4</td><th>A, E</th><td></td><th>B, C, D, F</th></tr>\n<tr><td>5</td><th>A, F</th><td></td><th>B, C, D, E</th></tr>\n<tr><td>6</td><th>B, C</th><td></td><th>A, D, E, F</th></tr>\n<tr><td>7</td><th>B, D</th><td></td><th>A, C, E, F</th></tr>\n<tr><td>8</td><th>B, E</th><td></td><th>A, C, D, F</th></tr>\n<tr><td>9</td><th>B, F</th><td></td><th>A, C, D, E</th></tr>\n<tr><td>10</td><th>C, D</th><td></td><th>A, B, E, F</th></tr>\n<tr><td>11</td><th>C, E</th><td></td><th>A, B, D, F</th></tr>\n<tr><td>12</td><th>C, F</th><td></td><th>A, B, D, E</th></tr>\n<tr><td>13</td><th>D, E</th><td></td><th>A, B, C, F</th></tr>\n<tr><td>14</td><th>D, F</th><td></td><th>A, B, C, E</th></tr>\n<tr><td>15</td><th>E, F</th><td></td><th>A, B, C, D</th></tr>\n<tr>\n<td></td>\n<td>pozostawione 2 z 6</td>\n<td></td>\n<td>wybrane 4 z 6</td>\n</tr>\n</table>\n</div>\n        \\[\n        \\binom{6}{2}=15=\\binom{6}{4}\n        \\]\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Zauważmy, że jeśli wybieramy 2 obiekty z 6, to jednocześnie zostawiamy 4 obiekty niewybrane.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Każdemu wyborowi 2 obiektów z 6 odpowiada pozostawienie 4 obiektów. I odwrotnie - każdemu wyborowi 4 obiektów z 6 odpowiada pozostawienie 2.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Dlatego wyborów 2 z 6 jest tyle samo, co wyborów 4 z 6 - spójrz poniżej.\n        </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybrane 2 z 6",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "pozostawione 4 z 6",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "1",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, B",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "C, D, E, F",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "2",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, C",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "B, D, E, F",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "3",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, D",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "B, C, E, F",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "4",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, E",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "B, C, D, F",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "5",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, F",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "B, C, D, E",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "6",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "B, C",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, D, E, F",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "7",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "B, D",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, C, E, F",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "8",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "B, E",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, C, D, F",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "9",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "B, F",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, C, D, E",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "10",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "C, D",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, B, E, F",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "11",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "C, E",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, B, D, F",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "12",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "C, F",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, B, D, E",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "13",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "D, E",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, B, C, F",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "14",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "D, F",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, B, C, E",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "15",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "E, F",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "A, B, C, D",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "pozostawione 2 z 6",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wybrane 4 z 6",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\binom{6}{2}=15=\\binom{6}{4}\n        "
+        }
+      ]
     },
     {
       "type": "text",
@@ -55,7 +456,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -64,7 +465,93 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Możliwych wyborów jest \\(\\binom{10}{3}\\), czyli\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{10!}{7!}\\)</div>\n<div class=\"switch_value\">\\(\\frac{10!}{3!}\\)</div>\n<div class=\"switch_value\">\\(\\frac{10!}{3!\\cdot 7!}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Teraz zgodnie z <strong>pierwszym</strong> zaleceniem, skrócimy  dłuższą silnię z mianownika, czyli\n                <div class=\"switch_line\">\n<div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(10!\\)</div>\n<div class=\"switch_value\">\\(7!\\)</div>\n<div class=\"switch_value\">\\(3!\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    W tym celu rozbijemy silnię w liczniku: \\(10!=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(7!\\cdot 8\\cdot 9\\cdot 10\\)</div>\n<div class=\"switch_value\">\\(7!\\cdot 3\\)</div>\n<div class=\"switch_value\">\\(7!\\cdot 3!\\)</div>\n<div class=\"switch_value\">\\(7!\\cdot 10\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                I teraz skracamy ułamek:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\frac{10!}{3!\\cdot 7!}=\\frac{7!\\cdot 8\\cdot 9\\cdot 10}{3!\\cdot 7!}=\\frac{\\require{cancel}\\cancel{7!}\\cdot 8\\cdot 9\\cdot 10}{3!\\cdot \\require{cancel}\\cancel{7!}}=\\frac{8\\cdot 9\\cdot 10}{3!}\n                    \\]\n                </div>\n                I teraz możemy zgodnie z <strong>drugim</strong> zaleceniem skrócić drugą silnię, czynnik po czynniku. Rozpiszmy ułamek:\n                \\[\n                \\frac{8\\cdot 9\\cdot 10}{3!}=\\frac{8\\cdot 9\\cdot 10}{1\\cdot 2\\cdot 3}\n                \\]\n                <div class=\"switch_line\">\n                    i skróćmy \\(8\\) z \\(2\\) oraz \\(9\\) z \\(3\\) otrzymując:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4\\cdot 3\\)</div>\n<div class=\"switch_value\">\\(4\\cdot 3\\cdot 10\\)</div>\n<div class=\"switch_value\">\\(4\\cdot 3\\cdot 5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Finalnie więc\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\binom{10}{3}=4\\cdot 3\\cdot 10=120\n                    \\]\n                </div>\n<p>\n                    Trzy osoby z dziesięciu można wybrać na 120 sposobów.\n                </p>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Możliwych wyborów jest \\(\\binom{10}{3}\\), czyli\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{10!}{7!}\\)",
+            "\\(\\frac{10!}{3!}\\)",
+            "\\(\\frac{10!}{3!\\cdot 7!}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz zgodnie z</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>pierwszym</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>zaleceniem, skrócimy  dłuższą silnię z mianownika, czyli</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(10!\\)",
+            "\\(7!\\)",
+            "\\(3!\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W tym celu rozbijemy silnię w liczniku: \\(10!=\\)\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(7!\\cdot 8\\cdot 9\\cdot 10\\)",
+            "\\(7!\\cdot 3\\)",
+            "\\(7!\\cdot 3!\\)",
+            "\\(7!\\cdot 10\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>I teraz skracamy ułamek:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\frac{10!}{3!\\cdot 7!}=\\frac{7!\\cdot 8\\cdot 9\\cdot 10}{3!\\cdot 7!}=\\frac{\\require{cancel}\\cancel{7!}\\cdot 8\\cdot 9\\cdot 10}{3!\\cdot \\require{cancel}\\cancel{7!}}=\\frac{8\\cdot 9\\cdot 10}{3!}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>I teraz możemy zgodnie z</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>drugim</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>zaleceniem skrócić drugą silnię, czynnik po czynniku. Rozpiszmy ułamek:\n                \\[\n                \\frac{8\\cdot 9\\cdot 10}{3!}=\\frac{8\\cdot 9\\cdot 10}{1\\cdot 2\\cdot 3}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    i skróćmy \\(8\\) z \\(2\\) oraz \\(9\\) z \\(3\\) otrzymując:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\cdot 3\\)",
+            "\\(4\\cdot 3\\cdot 10\\)",
+            "\\(4\\cdot 3\\cdot 5\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Finalnie więc</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\binom{10}{3}=4\\cdot 3\\cdot 10=120\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Trzy osoby z dziesięciu można wybrać na 120 sposobów.\n                </p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -72,5 +559,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "793ee86c6f38519d695f2506138c6f3003ddcaf6b8d7d5664bd28ba388cb11e7"
+  "seed_hash": "255c8c0f66b695581e6b6c17d648bc4ab864e29bc1621362b054c47dc1f51aeb"
 }

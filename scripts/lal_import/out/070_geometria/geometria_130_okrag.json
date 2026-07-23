@@ -2,59 +2,60 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/okrag_styczne_zad_2.png",
+      "alt": "okrąg i styczne - zadanie 2",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "\n<img alt=\"okrąg i styczne - zadanie 2\" height=\"400\" src=\"static/okrag_styczne_zad_2.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n            Rysunek przedstawia okrąg o środku w punkcie \\(O\\) oraz czworokąt \\(OABC\\).\n        </p>\n<ul class=\"nolist\">\n<li>\n                Wierczhołek \\(O\\) czworokąta to środek okręgu.\n            </li>\n<li>\n                Wierzchołek \\(A\\) czworokąta to punkt styczności boku \\(AB\\) i okręgu.\n            </li>\n<li>\n                Wierzchołek \\(C\\) czworokąta to punkt styczności boku \\(BC\\) i okręgu.\n            </li>\n</ul>\n<p>\n            Kąt \\(\\angle ABC\\) ma miarę \\(100^{\\circ}\\).\n        </p>\n<p>\n            Znajdź miarę kąta \\(\\angle AOC\\).\n        </p>\n"
+      "body": "<p>\n            Rysunek przedstawia okrąg o środku w punkcie \\(O\\) oraz czworokąt \\(OABC\\).\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n            zacznij rozwiązanie\n        "
+      "body": "<ul class=\"nolist\">\n<li>\n                Wierczhołek \\(O\\) czworokąta to środek okręgu.\n            </li>\n<li>\n                Wierzchołek \\(A\\) czworokąta to punkt styczności boku \\(AB\\) i okręgu.\n            </li>\n<li>\n                Wierzchołek \\(C\\) czworokąta to punkt styczności boku \\(BC\\) i okręgu.\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kąt \\(\\angle ABC\\) ma miarę \\(100^{\\circ}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź miarę kąta \\(\\angle AOC\\).\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "zacznij rozwiązanie"
     },
     {
       "type": "text",
       "body": "<p>\n                        Z twierdzenia \"o promieniu i stycznej\"\n                    </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"promień i styczna\" src=\"static/tw_promien_styczna.png\" width=\"320\"/>\n"
+      "type": "image",
+      "media_src": "static/tw_promien_styczna.png",
+      "alt": "promień i styczna",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "<p>wynika, że kąty \\(\\angle BCO\\) oraz \\(\\angle BAO\\) mają miarę</p>"
+      "type": "switch_gate",
+      "stem": "\n                        wynika, że kąty \\(\\angle BCO\\) oraz \\(\\angle BAO\\) mają miarę\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(60^{\\circ}\\)",
+        "\\(90^{\\circ}\\)",
+        "\\(120^{\\circ}\\)",
+        "\\(180^{\\circ}\\)"
+      ],
+      "answer": 1
     },
     {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(60^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(90^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(120^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(180^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n<img alt=\"okrąg i styczne - zadanie 2\" src=\"static/okrag_styczne_zad_2_1.png\" width=\"320\"/>\n"
+      "type": "image",
+      "media_src": "static/okrag_styczne_zad_2_1.png",
+      "alt": "okrąg i styczne - zadanie 2",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -65,28 +66,14 @@
       "latex": "\n                                                        (n-2)\\cdot 180^{\\circ}\n                                                        "
     },
     {
-      "type": "text",
-      "body": "<p>więc suma kątów w czworokącie \\(OABC\\) jest równa</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(270^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(360^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(540^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
+      "type": "switch_gate",
+      "stem": "\n                        więc suma kątów w czworokącie \\(OABC\\) jest równa\n                        \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(270^{\\circ}\\)",
+        "\\(360^{\\circ}\\)",
+        "\\(540^{\\circ}\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
@@ -97,40 +84,21 @@
       "body": "<ul class=\"nolist\">\n<li>\n                            danego w zadaniu \\(\\angle ABC=100^{\\circ}\\),\n                        </li>\n<li>\n                            ustalonych przed chwilą \\(\\angle OCB=\\angle OAB=90^{\\circ}\\).\n                        </li>\n</ul>"
     },
     {
-      "type": "text",
-      "body": "<p>I dlatego miara szukanego kąta \\(\\angle AOC\\) to</p>"
+      "type": "switch_gate",
+      "stem": "\n                        I dlatego miara szukanego kąta \\(\\angle AOC\\) to\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(80^{\\circ}\\)",
+        "\\(90^{\\circ}\\)",
+        "\\(120^{\\circ}\\)",
+        "\\(180^{\\circ}\\)"
+      ],
+      "answer": 0
     },
     {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(80^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(90^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(120^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(180^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n<img alt=\"okrąg i styczne - zadanie 2\" src=\"static/okrag_styczne_zad_2_2.png\" width=\"320\"/>\n"
+      "type": "image",
+      "media_src": "static/okrag_styczne_zad_2_2.png",
+      "alt": "okrąg i styczne - zadanie 2",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -138,5 +106,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "a0d5870ed00bab9ced9d150ab40eb5e3305d08d377ddfae32793807dd984cfa4"
+  "seed_hash": "35e1e297098fe1ef24422f8622d6fab975b6950845eae2b1a578727b25ab4769"
 }

@@ -2,29 +2,88 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Wskaż większą liczbę w każdej parze.\n    "
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Zaznacz większą.\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(2^{-132}\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(2^{-134}\\)\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Zaznacz większą.\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\left(\\frac{2}{3}\\right)^{-90}\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\left(\\frac{2}{3}\\right)^{-100}\\)\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Zaznacz większą.\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\left(\\sqrt{\\frac{1}{2}}\\right)^{200}\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\left(\\sqrt{\\frac{1}{2}}\\right)^{300}\\)\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Zaznacz większą.\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\left(\\sqrt{\\frac{4}{3}}\\right)^{56}\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\left(\\sqrt{\\frac{4}{3}}\\right)^{65}\\)\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Zaznacz większą.\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\left(\\sqrt{\\frac{4}{3}}\\right)^{-56}\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                \\(\\left(\\sqrt{\\frac{4}{3}}\\right)^{-65}\\)\n            </div>\n</li>\n</ul>"
+      "type": "choice",
+      "stem": "<p>Zaznacz większą.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(2^{-132}\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(2^{-134}\\)",
+          "is_correct": false
+        }
+      ]
     },
     {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
+      "type": "choice",
+      "stem": "<p>Zaznacz większą.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\left(\\frac{2}{3}\\right)^{-90}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(\\left(\\frac{2}{3}\\right)^{-100}\\)",
+          "is_correct": true
+        }
+      ]
     },
     {
-      "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+      "type": "choice",
+      "stem": "<p>Zaznacz większą.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\left(\\sqrt{\\frac{1}{2}}\\right)^{200}\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(\\left(\\sqrt{\\frac{1}{2}}\\right)^{300}\\)",
+          "is_correct": false
+        }
+      ]
     },
     {
-      "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi:\n    "
+      "type": "choice",
+      "stem": "<p>Zaznacz większą.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\left(\\sqrt{\\frac{4}{3}}\\right)^{56}\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(\\left(\\sqrt{\\frac{4}{3}}\\right)^{65}\\)",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>Zaznacz większą.</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(\\left(\\sqrt{\\frac{4}{3}}\\right)^{-56}\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(\\left(\\sqrt{\\frac{4}{3}}\\right)^{-65}\\)",
+          "is_correct": false
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "aa3a226bf1d8fc6a8d72e5d252a0056884a19624f86fe8c0c2b21cc777e0888f"
+  "seed_hash": "548fc11601ca8b9e1d40177336205bc0c992d48aea185d3fed4db8ac03393eef"
 }

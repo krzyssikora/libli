@@ -6,7 +6,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -28,16 +28,202 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W pierwszym roku pracy pensja pracownika była równa \\(10\\,000\\) złotych.\n        </p>\n<p>\n            W każdym kolejnym roku jego pensja rosła o \\(20\\%\\).\n        </p>\n<p>\n            Jaka była wysokość pensji tego pracownika w piątym roku pracy?\n        </p>\n"
+      "body": "<p>\n            W pierwszym roku pracy pensja pracownika była równa \\(10\\,000\\) złotych.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W każdym kolejnym roku jego pensja rosła o \\(20\\%\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaka była wysokość pensji tego pracownika w piątym roku pracy?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Zacznijmy od zdefiniowania ciągu \\((a_n)\\), z pomocą którego zapiszemy dane z zdania. \n                </p>\n<p>\n                    Niech dla \\(n\\in\\mathbb{N}^{+}\\) \n                </p>\n<ul class=\"nolist\">\n<li>\\(a_n\\) oznacza <strong>pensję pracownika w roku \\(n\\) w złotych</strong>.</li>\n</ul>\n<p>\n                    Skoro\n                </p>\n<blockquote>\n                    \"w pierwszym roku pracy pensja pracownika była równa \\(10\\,000\\) złotych\"\n                </blockquote>\n<div class=\"switch_line\">\n                    to znaczy, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_0=10000\\)</div>\n<div class=\"switch_value\">\\(a_1=10\\)</div>\n<div class=\"switch_value\">\\(a_1=10000\\)</div>\n<div class=\"switch_value\">\\(a_n=10000\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<blockquote>\n                    \"w każdym kolejnym roku jego pensja rosła o \\(20\\%\\)\"\n                </blockquote>\n                czyli pensja w każdym kolejnym roku (każdy kolejny wyraz ciągu) jest obliczana z pensji w poprzednim roku (z poprzedniego wyrazu ciągu) przez zwiększenie o \\(20\\%\\).\n                <div class=\"switch_line\">\n                    Zwiększyć liczbę o \\(20\\%\\) to inaczej\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">pomnożyć ją przez \\(20\\)</div>\n<div class=\"switch_value\">dodać do niej \\(20\\)</div>\n<div class=\"switch_value\">pomnożyć ją przez \\(120\\)</div>\n<div class=\"switch_value\">pomnożyć ją przez \\(1,2\\)</div>\n<div class=\"switch_value\">podzielić ją przez \\(20\\)</div>\n<div class=\"switch_value\">podzielić ją przez \\(1,2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Tak więc \\(a_2=1,2\\cdot a_1=\\) \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(10\\,020\\)</div>\n<div class=\"switch_value\">\\(12\\,000\\)</div>\n<div class=\"switch_value\">\\(10\\,200\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I dalej: \\(a_3=1,2\\cdot a_2=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(14\\,400\\)</div>\n<div class=\"switch_value\">\\(14\\,000\\)</div>\n<div class=\"switch_value\">\\(14\\,200\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I jeszcze \\(a_4=1,2\\cdot a_3=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(17\\,200\\)</div>\n<div class=\"switch_value\">\\(17\\,280\\)</div>\n<div class=\"switch_value\">\\(17\\,300\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I na zakończenie \\(a_5=1,2\\cdot a_4=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(20\\,736\\)</div>\n<div class=\"switch_value\">\\(20\\,700\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>rok pracy</th>\n<th>pensja</th>\n</tr>\n<tr>\n<td>\\(1\\)</td>\n<td>\\(10\\,000\\) złotych</td>\n</tr>\n<tr>\n<td>\\(2\\)</td>\n<td>\\(12\\,000\\) złotych</td>\n</tr>\n<tr>\n<td>\\(3\\)</td>\n<td>\\(14\\,400\\) złotych</td>\n</tr>\n<tr>\n<td>\\(4\\)</td>\n<td>\\(17\\,280\\) złotych</td>\n</tr>\n<tr>\n<td>\\(5\\)</td>\n<td>\\(20\\,736\\) złotych</td>\n</tr>\n</table>\n</div>\n                W piątym roku pensja pracownika to \\(20\\,736\\) złotych.\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od zdefiniowania ciągu \\((a_n)\\), z pomocą którego zapiszemy dane z zdania. \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Niech dla \\(n\\in\\mathbb{N}^{+}\\) \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\\(a_n\\) oznacza <strong>pensję pracownika w roku \\(n\\) w złotych</strong>.</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Skoro\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"w pierwszym roku pracy pensja pracownika była równa \\(10\\,000\\) złotych\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    to znaczy, że\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_0=10000\\)",
+            "\\(a_1=10\\)",
+            "\\(a_1=10000\\)",
+            "\\(a_n=10000\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"w każdym kolejnym roku jego pensja rosła o \\(20\\%\\)\"\n                </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>czyli pensja w każdym kolejnym roku (każdy kolejny wyraz ciągu) jest obliczana z pensji w poprzednim roku (z poprzedniego wyrazu ciągu) przez zwiększenie o \\(20\\%\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Zwiększyć liczbę o \\(20\\%\\) to inaczej\n                    \n\n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "pomnożyć ją przez \\(20\\)",
+            "dodać do niej \\(20\\)",
+            "pomnożyć ją przez \\(120\\)",
+            "pomnożyć ją przez \\(1,2\\)",
+            "podzielić ją przez \\(20\\)",
+            "podzielić ją przez \\(1,2\\)"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Tak więc \\(a_2=1,2\\cdot a_1=\\) \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(10\\,020\\)",
+            "\\(12\\,000\\)",
+            "\\(10\\,200\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dalej: \\(a_3=1,2\\cdot a_2=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(14\\,400\\)",
+            "\\(14\\,000\\)",
+            "\\(14\\,200\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I jeszcze \\(a_4=1,2\\cdot a_3=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(17\\,200\\)",
+            "\\(17\\,280\\)",
+            "\\(17\\,300\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I na zakończenie \\(a_5=1,2\\cdot a_4=\\)\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(20\\,736\\)",
+            "\\(20\\,700\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "rok pracy",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "pensja",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(10\\,000\\) złotych",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(12\\,000\\) złotych",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(14\\,400\\) złotych",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(17\\,280\\) złotych",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(20\\,736\\) złotych",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>W piątym roku pensja pracownika to \\(20\\,736\\) złotych.</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -49,5 +235,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "73afbe5d990219a3c8410239761ff0875adeb5a2b7686152d9ef18060aa97517"
+  "seed_hash": "d2e65467cf1ba6bca02eaf25bfeb791c24f2faedd61648c9e193b03aa3c5cb1d"
 }

@@ -13,8 +13,10 @@
       "body": "<p>\n    oraz wektor \\(\\color{#800080}{\\vec{AB}}\\).\n</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"wektor w układzie współrzędnych\" src=\"static/wektor_w_ukladzie_wspolrzednych.png\" style=\"width: 600px;\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/wektor_w_ukladzie_wspolrzednych.png",
+      "alt": "wektor w układzie współrzędnych",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -22,5 +24,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "f1d5ea537ba806d73cde3fc16df1d2b43d4531dbe382fb227d06915bc7f634d2"
+  "seed_hash": "a4083a95daa187e80305eab225e5886390b0fe07c7f5acd0bfc405ae0e774001"
 }

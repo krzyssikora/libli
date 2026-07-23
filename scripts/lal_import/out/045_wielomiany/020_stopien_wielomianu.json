@@ -30,7 +30,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "iframe",
@@ -43,7 +43,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "table",
@@ -165,5 +165,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "c675314b807334ffaf504863d2ee1d49d45b6e190cc6ae113986bbcbc921a93b"
+  "seed_hash": "cdbe4f0b008eba5c9bbbcecec1d757faab4a7af4d20728971cbbe75cabb3ab90"
 }

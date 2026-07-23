@@ -13,6 +13,6 @@
       "body": "<ol>\n<li>\n<a href=\"#zwiazki_30_45_60\">\n                Związki między długościami boków trójkątów prostokątnych o kątach ostrych 30° i 60° lub 45°\n            </a>\n</li>\n<li>\n<a href=\"#wartosci_30_45_60\">\n                Wartości funkcji trygonometrycznych kątów 30°, 45° i 60°\n            </a>\n<ul>\n<li>\n<a href=\"#wartosci_45\">\n                        Wartości funkcji trygonometrycznych kąta 45°\n                    </a>\n</li>\n<li>\n<a href=\"#wartosci_30_60\">\n                        Wartości funkcji trygonometrycznych kątów 30° i 60°\n                    </a>\n</li>\n<li>\n<a href=\"#podsumowanie\">\n                        Podsumowanie\n                    </a>\n</li>\n</ul>\n</li>\n</ol>"
     }
   ],
-  "fully_mapped": false,
+  "fully_mapped": true,
   "seed_hash": "c6c8c98b4fc0a9071f492cc7e138720cba50e586dababb0eee04acb2af8faba3"
 }

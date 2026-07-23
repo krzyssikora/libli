@@ -24,14 +24,14 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Uzupełnij tabelę, by w każdym wierszu były wpisane dane na temat tego samego koła i jego wycinka o wskazanym kącie środkowym.\n    "
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -39,162 +39,132 @@
         "cells": [
           [
             {
-              "html": "promień\n                    <br/>\n                    koła",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "promień\n                    <br/>\n                    koła"
             },
             {
-              "html": "pole\n                    <br/>\n                    koła",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "pole\n                    <br/>\n                    koła"
             },
             {
-              "html": "obwód\n                    <br/>\n                    koła",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "obwód\n                    <br/>\n                    koła"
             },
             {
-              "html": "kąt\n                    <br/>\n                    środkowy",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "kąt\n                    <br/>\n                    środkowy"
             },
             {
-              "html": "pole\n                    <br/>\n                    wycinka",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "pole\n                    <br/>\n                    wycinka"
             },
             {
-              "html": "długość\n                    <br/>\n                    łuku",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "długość\n                    <br/>\n                    łuku"
             }
           ],
           [
             {
-              "html": "\\(3\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(3\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "9"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "6"
             },
             {
-              "html": "\\(60^{\\circ}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(60^{\\circ}\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "3/2"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "1"
             }
           ],
           [
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "6"
             },
             {
-              "html": "\\(36\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(36\\pi\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "12"
             },
             {
-              "html": "\\(30^{\\circ}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(30^{\\circ}\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "3"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "1"
             }
           ],
           [
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "8"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "64"
             },
             {
-              "html": "\\(16\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(16\\pi\\)"
             },
             {
-              "html": "\\(135^{\\circ}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(135^{\\circ}\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "24"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "6"
             }
           ],
           [
             {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(4\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "16"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "8"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(^{\\circ}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "45"
             },
             {
-              "html": "\\(2\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(2\\pi\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(\\pi\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "1"
             }
           ]
         ]
@@ -202,35 +172,207 @@
     },
     {
       "type": "text",
-      "body": "\n    Doskonale!\n"
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/odcinek_kola_zadanie.png",
+      "alt": "odcinek koła",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p>\n            Wycinek koła o kącie środkowym \\(45^{\\circ}\\) w kole o promieniu \\(12\\) podzielono cięciwą na trójkąt i odcinek koła.\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n<img alt=\"odcinek koła\" src=\"static/odcinek_kola_zadanie.png\" style=\"height: 250px; float: right; margin: 0 0 0 15px;\"/>\n<p>\n            Wycinek koła o kącie środkowym \\(45^{\\circ}\\) w kole o promieniu \\(12\\) podzielono cięciwą na trójkąt i odcinek koła.\n        </p>\n<p>\n            Oblicz pole odcinka koła.\n        </p>\n"
+      "body": "<p>\n            Oblicz pole odcinka koła.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Zacznijmy od obliczenia pola całego wycinka (oznaczmy je \\(P_W\\)) z użyciem wzoru \\(P_W=\\frac{\\alpha}{360^{\\circ}}\\cdot \\pi r^2\\).\n                <div class=\"switch_line\">\n                    \\(P_W=\\frac{45^{\\circ}}{360^{\\circ}}\\cdot \\pi\\cdot 12^2=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(9\\pi\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(18\\pi\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(36\\pi\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Aby uzyskać pole odcinka koła, od policzonego właśnie pola wycinka musimy odjąć pole trójkąta.\n                <p>\n                    Znamy długości dwóch boków trójkąta (obie równe \\(12\\)) i miarę kąta między nimi (\\(45^{\\circ}\\)).\n                </p>\n                Pole trójkąta jest\n                <em>\n                    połową iloczynku dwóch boków i sinusa kąta między nimi\n                </em>\n                (\\(P_{\\Delta}=\\frac{1}{2}ab\\cdot \\sin C\\)).\n                <div class=\"switch_line\">\n                    W naszej sytuacji \\(P_{\\Delta}=\\frac{1}{2}\\cdot 12\\cdot 12\\cdot \\sin 45^{\\circ}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(36\\sqrt{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(36\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(36\\sqrt{3}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(72\\sqrt{2}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Na zakończenie, aby uzyskać pole odcinka, \\(P\\), wystarczy odjąć pole trójkąta od pola wycinka:\n                <div class=\"switch_line\">\n                    \\(P=P_W-P_{\\Delta}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(36\\sqrt{2}-18\\pi\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(18\\pi-36\\sqrt{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(18\\sqrt{2}-\\pi\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Pole odcinka to \\(18\\pi-36\\sqrt{2}\\) albo w przybliżeniu \\(5,64\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zacznijmy od obliczenia pola całego wycinka (oznaczmy je \\(P_W\\)) z użyciem wzoru \\(P_W=\\frac{\\alpha}{360^{\\circ}}\\cdot \\pi r^2\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(P_W=\\frac{45^{\\circ}}{360^{\\circ}}\\cdot \\pi\\cdot 12^2=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(9\\pi\\)",
+            "\\(18\\pi\\)",
+            "\\(36\\pi\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Aby uzyskać pole odcinka koła, od policzonego właśnie pola wycinka musimy odjąć pole trójkąta.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Znamy długości dwóch boków trójkąta (obie równe \\(12\\)) i miarę kąta między nimi (\\(45^{\\circ}\\)).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Pole trójkąta jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "<em>\n                    połową iloczynku dwóch boków i sinusa kąta między nimi\n                </em>"
+        },
+        {
+          "type": "text",
+          "body": "<p>(\\(P_{\\Delta}=\\frac{1}{2}ab\\cdot \\sin C\\)).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W naszej sytuacji \\(P_{\\Delta}=\\frac{1}{2}\\cdot 12\\cdot 12\\cdot \\sin 45^{\\circ}=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(36\\sqrt{2}\\)",
+            "\\(36\\)",
+            "\\(36\\sqrt{3}\\)",
+            "\\(72\\sqrt{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Na zakończenie, aby uzyskać pole odcinka, \\(P\\), wystarczy odjąć pole trójkąta od pola wycinka:</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(P=P_W-P_{\\Delta}=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(36\\sqrt{2}-18\\pi\\)",
+            "\\(18\\pi-36\\sqrt{2}\\)",
+            "\\(18\\sqrt{2}-\\pi\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Pole odcinka to \\(18\\pi-36\\sqrt{2}\\) albo w przybliżeniu \\(5,64\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/okrag_w_wycinku_zadanie_1.png",
+      "alt": "koło wipsane w wycinek koła",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "\n<img alt=\"koło wipsane w wycinek koła\" src=\"static/okrag_w_wycinku_zadanie_1.png\" style=\"height: 300px; float: right; margin: 0 0 0 15px;\"/>\n<p>\n            W wycinek koła wpisano mniejsze koło w taki sposób, że jest styczne zarówno do obu promieni jak i do łuku ograniczających wycinek.\n        </p>\n<p>\n            Wiedząc, że promień większego koła jest trzykrotnie dłuższy od promienia mniejszego koła, oblicz miarę kąta środkowego wycinka.\n        </p>\n"
+      "body": "<p>\n            W wycinek koła wpisano mniejsze koło w taki sposób, że jest styczne zarówno do obu promieni jak i do łuku ograniczających wycinek.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wiedząc, że promień większego koła jest trzykrotnie dłuższy od promienia mniejszego koła, oblicz miarę kąta środkowego wycinka.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\" style=\"min-height: 310px;\">\n<img alt=\"koło wipsane w wycinek koła\" src=\"static/okrag_w_wycinku_zadanie_2.png\" style=\"height: 300px; float: right; margin: 0 0 0 15px;\"/>\n                Przyjmijmy oznaczenia, jak na rysunku obok.\n                <ul class=\"nolist\">\n<li>\n                        \\(C\\) - środek większego koła,\n                    </li>\n<li>\n                        \\(S\\) - środek mniejszego koła,\n                    </li>\n<li>\n                        \\(A\\) - punkt styczności mniejszego koła z jednym z promieni wycinka,\n                    </li>\n<li>\n                        \\(P\\) - punkt styczności mniejszego i większego okręgu,\n                    </li>\n<li>\n                        \\(r\\) - długość promienia mniejszego okręgu.\n                    </li>\n</ul>\n<div class=\"switch_line\">\n                    Skoro tak, to długość promienia większego okręgu jest równa\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(3r\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(r^3\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Odcinek \\(CP\\) to promień większego koła. Odcinek \\(SP\\) to promień mniejszego koła. Dlatego długość odcinka \\(CS\\) jest równa\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(3r\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(2r\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(r\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\" style=\"min-height: 310px;\">\n<img alt=\"koło wipsane w wycinek koła\" src=\"static/okrag_w_wycinku_zadanie_3.png\" style=\"height: 300px; float: right; margin: 0 0 0 15px;\"/>\n                Pomyślmy teraz o trójkącie \\(CAS\\).\n                <br/>\n                Oznaczmy kąt z wierzchołkiem w \\(C\\) przez \\(\\alpha\\).\n                <br/>\n                Kąt z wierzchołkiem w punkcie \\(A\\) jest prosty, bo to kąt między styczną a promieniem.\n                <div class=\"switch_line\">\n                    Stosunek boków \\(\\frac{AS}{CS}\\) to\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sin\\alpha\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\cos\\alpha\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\text{tg }\\alpha\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\text{ctg }\\alpha\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Wiemy więc, że\n                \\[\n                \\sin\\alpha = \\frac{AS}{CS} = \\frac{r}{2r} = \\frac{1}{2}\n                \\]\n                <div class=\"switch_line\">\n                    Dlatego \\(\\alpha=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(15^{\\circ}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(30^{\\circ}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(45^{\\circ}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(60^{\\circ}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Mamy obliczyć kąt środkowy wycinka, a jego miara jest równa\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\alpha\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(2\\alpha\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(3\\alpha\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                I dlatego kąt środkowy wycinka ma miarę \\(60^{\\circ}\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/okrag_w_wycinku_zadanie_2.png",
+          "alt": "koło wipsane w wycinek koła",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Przyjmijmy oznaczenia, jak na rysunku obok.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        \\(C\\) - środek większego koła,\n                    </li>\n<li>\n                        \\(S\\) - środek mniejszego koła,\n                    </li>\n<li>\n                        \\(A\\) - punkt styczności mniejszego koła z jednym z promieni wycinka,\n                    </li>\n<li>\n                        \\(P\\) - punkt styczności mniejszego i większego okręgu,\n                    </li>\n<li>\n                        \\(r\\) - długość promienia mniejszego okręgu.\n                    </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro tak, to długość promienia większego okręgu jest równa\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(3r\\)",
+            "\\(r^3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Odcinek \\(CP\\) to promień większego koła. Odcinek \\(SP\\) to promień mniejszego koła. Dlatego długość odcinka \\(CS\\) jest równa\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(3r\\)",
+            "\\(2r\\)",
+            "\\(r\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/okrag_w_wycinku_zadanie_3.png",
+          "alt": "koło wipsane w wycinek koła",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Pomyślmy teraz o trójkącie \\(CAS\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Oznaczmy kąt z wierzchołkiem w \\(C\\) przez \\(\\alpha\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Kąt z wierzchołkiem w punkcie \\(A\\) jest prosty, bo to kąt między styczną a promieniem.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stosunek boków \\(\\frac{AS}{CS}\\) to\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\sin\\alpha\\)",
+            "\\(\\cos\\alpha\\)",
+            "\\(\\text{tg }\\alpha\\)",
+            "\\(\\text{ctg }\\alpha\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Wiemy więc, że\n                \\[\n                \\sin\\alpha = \\frac{AS}{CS} = \\frac{r}{2r} = \\frac{1}{2}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dlatego \\(\\alpha=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(15^{\\circ}\\)",
+            "\\(30^{\\circ}\\)",
+            "\\(45^{\\circ}\\)",
+            "\\(60^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Mamy obliczyć kąt środkowy wycinka, a jego miara jest równa\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\alpha\\)",
+            "\\(2\\alpha\\)",
+            "\\(3\\alpha\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>I dlatego kąt środkowy wycinka ma miarę \\(60^{\\circ}\\).</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "261ee3d6128682d3f9b70534ae0ac1892fdc1e914bcf73b203ac5de28f24ed99"
+  "seed_hash": "f2c1fbded63ac4ac459ec34682c9d2286f64e57c1e7489abde997bacc90619fb"
 }

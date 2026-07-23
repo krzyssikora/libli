@@ -169,10 +169,6 @@
       "body": "<p>\n    czyli\n</p>"
     },
     {
-      "type": "text",
-      "body": ""
-    },
-    {
       "type": "math",
       "latex": "\n    \\begin{cases}\n    \\begin{align}\n    u_1&=2\\\\\n    u_n&=2u_{n-1}&\\text{ dla }n\\ge 2\\\\\n    \\end{align}\n    \\end{cases}\n    "
     },
@@ -326,5 +322,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "ebe8b4afe00eeb5bc33b1dd51731d3520c1201786314bb0c44a1d51157e79b8a"
+  "seed_hash": "262bd77ec01789785cd07fb8d1fb6920ee05a6a3e4db15e0c3fee185506b76fc"
 }

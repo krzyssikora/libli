@@ -93,8 +93,10 @@
       "body": "<p>\n    Funkcje wykładnicza i logarytmiczna są często używane do modelowania sytuacji rzeczywistych. No i na przykład, gdy modelujemy liczbą bakterii, warto wiedzieć nie tylko, ile jest bakterii w danym momencie, lecz też jak szybkie jest tempo wzrostu tej liczby. Spójrz na wykres poniżej. Oczywiście tempo wzrostu w punkcie A jest mniejsze niż w punkcie B. Wygodnym narzędziem do mierzenia tempa wzrostu jest nachylenie stycznej do wykresu. W punkcie A to nachylenie ma wartość \\(\\frac{1}{2}\\), zaś w punkcie B ma wartość \\(2\\).\n</p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<img alt=\"nachylenie\" height=\"439\" src=\"static/nachylenie_wykladnicza.png\" style=\"width: 800px; height: 439px;\" width=\"800\"/>\n</p>"
+      "type": "image",
+      "media_src": "static/nachylenie_wykladnicza.png",
+      "alt": "nachylenie",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -122,5 +124,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "7926f560e7c493cf05ba8d1df52c74c11153b8fd222a4a4335b71d1257e7d8aa"
+  "seed_hash": "ef7b2626f50ebd043b0d60f51008df4a763f10c4dc2ea08dbaea94582383e65c"
 }

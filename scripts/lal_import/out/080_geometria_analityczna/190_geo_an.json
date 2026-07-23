@@ -3,7 +3,78 @@
     {
       "type": "spoiler",
       "label": "Przypomnienie: odległość między liczbami na osi liczbowej",
-      "body": "\n\n    Rysunek pokazuje, że odległość między liczbami \\(9\\) a \\(2\\) jest równa \\(7\\).\n    <div class=\"centered\">\n<img alt=\"odległość\" src=\"static/odleglosc_na_osi.png\" width=\"600\"/>\n</div>\n<p>\n        Jak obliczyć taką odległość? To proste - wystarczy znaleźć różnicę między liczbami, czyli od \\(9\\) odjąć \\(2\\).\n    </p>\n<p>\n        Czy możemy powiedzieć, że odległość między liczbami \\(a\\) i \\(b\\) to po prostu różnica \\(a-b\\)?\n    </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n                        \\(a=9\\)\n                    </td>\n<td>\n                        \\(b=2\\)\n                    </td>\n<td>\n                        \\(a-b=9-2=7\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        \\(a=2\\)\n                    </td>\n<td>\n                        \\(b=9\\)\n                    </td>\n<td>\n                        \\(a-b=2-9=-7\\)\n                    </td>\n</tr>\n</table>\n</div>\n</div>\n<p>\n        Jak widać, prosty wzór \\(a-b\\) ma tę wadę, że czasami daje wynik ujemny. Wystarczy jednak użyć wartości bezwzględnej, by mieć pewność, że wynik nie będzie ujemny.\n    </p>\n<div class=\"centered important\">\n        Odległość między liczbami \\(a\\) i \\(b\\) to \\(|a-b|\\).\n    </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Rysunek pokazuje, że odległość między liczbami \\(9\\) a \\(2\\) jest równa \\(7\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/odleglosc_na_osi.png",
+          "alt": "odległość",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Jak obliczyć taką odległość? To proste - wystarczy znaleźć różnicę między liczbami, czyli od \\(9\\) odjąć \\(2\\).\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Czy możemy powiedzieć, że odległość między liczbami \\(a\\) i \\(b\\) to po prostu różnica \\(a-b\\)?\n    </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(a=9\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(b=2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a-b=9-2=7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(a=2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(b=9\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a-b=2-9=-7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Jak widać, prosty wzór \\(a-b\\) ma tę wadę, że czasami daje wynik ujemny. Wystarczy jednak użyć wartości bezwzględnej, by mieć pewność, że wynik nie będzie ujemny.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n        Odległość między liczbami \\(a\\) i \\(b\\) to \\(|a-b|\\).\n    "
+        }
+      ]
     },
     {
       "type": "text",
@@ -14,20 +85,47 @@
       "body": "<p>Równanie okręgu o środku w punkcie \\((a,b)\\) i promieniu długości \\(r\\) (gdzie \\(a\\), \\(b\\) oraz \\(r\\) są dane) to równanie opisujące współrzędne \\(x\\) i \\(y\\) wszystkich punktów, które są w odległości \\(r\\) od punktu \\((a,b)\\).</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"okrąg\" src=\"static/rownanie_okregu_0.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/rownanie_okregu_0.png",
+      "alt": "okrąg",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie możesz przesuwać środek okręgu i zmieniać długość promienia za pomocą suwaka w lewym górnym rogu.\n        </p>\n<p>\n            Na okręgu widzisz punkt o współrzędnych \\((x,y)\\). Jest on połączony ze środkiem promieniem, i ten promień jest też przeciwprostokątną trójkąta prostokątnego.\n        </p>\n<p>\n            Przyprostokątne tego trójkąta wskazują na odległości w poziomie i w pionie od środka okręgu do punktu \\((x,y)\\).\n        </p>\n<p>\n            Kliknij \"\n            <strong>\n                pokaż odległości\n            </strong>\n            \", by zobaczyć, jakie są te dwie odległości. Zobaczysz wówczas\n            <u>\n                długości wszystkich boków trójkąta prostokątnego\n            </u>\n            .\n        </p>\n<p>\n            Równanie, które je łączy to teza twierdzenia Pitagorasa - kliknij \"\n            <strong>\n                pokaż równanie\n            </strong>\n            \", by je zobaczyć.\n        </p>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"800px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/szhw8fhm/width/800/height/800/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"równanie okręgu\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<p>\n            Zmieniaj położenie środka i długość promienia - i obserwuj, jak zmienia się równanie okręgu.\n        </p>\n<small>\n<u>\n                Zwróć uwagę\n            </u>\n            , że w równaniu okręgu nie ma już wartości bezwzględnych - a to dlatego, że kwadrat liczby jest nieujemny, niezależnie od tego, jaka była ta liczba.\n        </small>\n"
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać środek okręgu i zmieniać długość promienia za pomocą suwaka w lewym górnym rogu.\n        </p>"
     },
     {
       "type": "text",
-      "body": "<p>\n</p>"
+      "body": "<p>\n            Na okręgu widzisz punkt o współrzędnych \\((x,y)\\). Jest on połączony ze środkiem promieniem, i ten promień jest też przeciwprostokątną trójkąta prostokątnego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyprostokątne tego trójkąta wskazują na odległości w poziomie i w pionie od środka okręgu do punktu \\((x,y)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kliknij \"\n            <strong>\n                pokaż odległości\n            </strong>\n            \", by zobaczyć, jakie są te dwie odległości. Zobaczysz wówczas\n            <u>\n                długości wszystkich boków trójkąta prostokątnego\n            </u>\n            .\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Równanie, które je łączy to teza twierdzenia Pitagorasa - kliknij \"\n            <strong>\n                pokaż równanie\n            </strong>\n            \", by je zobaczyć.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/szhw8fhm/width/800/height/800/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zmieniaj położenie środka i długość promienia - i obserwuj, jak zmienia się równanie okręgu.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<small>\n<u>\n                Zwróć uwagę\n            </u>\n            , że w równaniu okręgu nie ma już wartości bezwzględnych - a to dlatego, że kwadrat liczby jest nieujemny, niezależnie od tego, jaka była ta liczba.\n        </small>"
     },
     {
       "type": "text",
@@ -39,17 +137,143 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Uzupełnij tabelę według wzoru.\n        <div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<th colspan=\"2\">\n                            środek okręgu\n                        </th>\n<th rowspan=\"2\">\n                            promień\n                        </th>\n<th rowspan=\"2\">\n                            równanie okręgu\n                        </th>\n</tr>\n<tr>\n<td>\n                            \\(x\\)\n                        </td>\n<td>\n                            \\(y\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(-1\\)\n                        </td>\n<td>\n                            \\(2\\)\n                        </td>\n<td>\n                            \\(5\\)\n                        </td>\n<td>\n                            \\((x+1)^2+(y-2)^2=25\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(5\\)\n                        </td>\n<td>\n                            \\(0\\)\n                        </td>\n<td>\n                            \\(2\\)\n                        </td>\n<td>\n                            \\((x-5)^2+y^2=4\\)\n                        </td>\n</tr>\n<tr>\n<td>\n<span class=\"myequation\">\n<input class=\"table_input\" placeholder=\"a\" type=\"text\"/>\n</span>\n</td>\n<td>\n<span class=\"myequation\">\n<input class=\"table_input\" placeholder=\"b\" type=\"text\"/>\n</span>\n</td>\n<td>\n<span class=\"myequation\">\n<input class=\"table_input\" placeholder=\"r\" type=\"text\"/>\n</span>\n</td>\n<td>\n                            \\((x-3)^2+(y+5)^2=9\\)\n                        </td>\n</tr>\n<tr>\n<td>\n<span class=\"myequation\">\n<input class=\"table_input\" placeholder=\"a\" type=\"text\"/>\n</span>\n</td>\n<td>\n<span class=\"myequation\">\n<input class=\"table_input\" placeholder=\"b\" type=\"text\"/>\n</span>\n</td>\n<td>\n                            \\(7\\)\n                        </td>\n<td>\n                            \\(x^2+(y-1)^2=\\)\n                            <span class=\"myequation\">\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</td>\n</tr>\n<tr>\n<td>\n<span class=\"myequation\">\n<input class=\"table_input\" placeholder=\"a\" type=\"text\"/>\n</span>\n</td>\n<td>\n                            \\(3\\)\n                        </td>\n<td>\n<span class=\"myequation\">\n<input class=\"table_input\" placeholder=\"r\" type=\"text\"/>\n</span>\n</td>\n<td>\n                            \\((x+2)^2+(y\\)\n                            <span class=\"myequation\">\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n                            \\()^2=16\\)\n                        </td>\n</tr>\n</table>\n</div>\n</div>\n"
+      "body": "<p>Uzupełnij tabelę według wzoru.</p>"
     },
     {
-      "type": "text",
-      "body": "\n    Świetnie!\n"
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "środek okręgu",
+              "header": true,
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "promień",
+              "header": true,
+              "rowspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "równanie okręgu",
+              "header": true,
+              "rowspan": 2
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(x\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(y\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(-1\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(5\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\((x+1)^2+(y-2)^2=25\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(5\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\((x-5)^2+y^2=4\\)"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "answer",
+              "answer": "-5"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "static",
+              "html": "\\((x-3)^2+(y+5)^2=9\\)"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "static",
+              "html": "\\(7\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "49"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "-2"
+            },
+            {
+              "kind": "static",
+              "html": "\\(3\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "-3"
+            }
+          ]
+        ]
+      }
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "f011060fa06d476c08d584931df0fa59a236e634ea3c628057fd65baf31f2bc9"
+  "seed_hash": "5ca1d70eeafcccb1afbd2c3de7947143b50eedfeac05f4deab261dd0fc664d1d"
 }

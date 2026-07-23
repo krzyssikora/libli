@@ -2,70 +2,135 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W trapezie \\(ABCD\\) podstawy \\(AB\\) i \\(CD\\) są długości \\(40\\) i \\(10\\) odpowiednio. \n        </p>\n<p>\n            Wysokość \\(CE\\) trapezu ma długość \\(8\\).\n        </p>\n<p>\n            Oblicz:\n        </p>\n<ol class=\"bold\">\n<li>\n                długości odcinków \\(AE\\) i \\(BE\\),\n            </li>\n<li>\n                długość ramion trapezu,\n            </li>\n<li>\n                obwód trapezu.\n            </li>\n</ol>\n"
+      "body": "<p>\n            W trapezie \\(ABCD\\) podstawy \\(AB\\) i \\(CD\\) są długości \\(40\\) i \\(10\\) odpowiednio. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wysokość \\(CE\\) trapezu ma długość \\(8\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                długości odcinków \\(AE\\) i \\(BE\\),\n            </li>\n<li>\n                długość ramion trapezu,\n            </li>\n<li>\n                obwód trapezu.\n            </li>\n</ol>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedzi",
-      "body": "\n\n<ol class=\"bold\">\n<li>\n                \\(AE=25\\), \\(BE=15\\)\n            </li>\n<li>\n                \\(17\\)\n            </li>\n<li>\n                \\(84\\)\n            </li>\n</ol>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                \\(AE=25\\), \\(BE=15\\)\n            </li>\n<li>\n                \\(17\\)\n            </li>\n<li>\n                \\(84\\)\n            </li>\n</ol>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W trapezie \\(ABCD\\) kąt między podstawą \\(CD\\) a ramieniem \\(AD\\) ma miarę \\(123^{\\circ}\\), a kąt między podstawą \\(AB\\) a ramieniem \\(BC\\) ma miarę \\(45^{\\circ}\\). \n        </p>\n<p>\n            Oblicz miary pozostałych kątów trapezu.\n        </p>\n"
+      "body": "<p>\n            W trapezie \\(ABCD\\) kąt między podstawą \\(CD\\) a ramieniem \\(AD\\) ma miarę \\(123^{\\circ}\\), a kąt między podstawą \\(AB\\) a ramieniem \\(BC\\) ma miarę \\(45^{\\circ}\\). \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz miary pozostałych kątów trapezu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        Kąt \\(DAB\\) ma miarę \\(57^{\\circ}\\), a kąt \\(BCD\\) ma miarę \\(35^{\\circ}\\).\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Kąt \\(DAB\\) ma miarę \\(57^{\\circ}\\), a kąt \\(BCD\\) ma miarę \\(35^{\\circ}\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W trapezie \\(ABCD\\) (\\(AB\\parallel CD\\)) punkty \\(M\\) i \\(N\\) to środki ramion \\(AD\\) i \\(BC\\) odpowiednio. \n        </p>\n<p>\n            Długości odcinków \\(MN\\), \\(NC\\), \\(CD\\) i \\(DM\\) to odpowiednio \\(33\\), \\(17\\), \\(12\\) i \\(10\\).\n        </p>\n<p>\n            Oblicz\n        </p>\n<ol class=\"bold\">\n<li>\n                obwód trapezu \\(ABCD\\),\n            </li>\n<li>\n                wysokość trapezu \\(ABCD\\),\n            </li>\n<li>\n                pole trapezu \\(ABCD\\).\n            </li>\n</ol>\n"
+      "body": "<p>\n            W trapezie \\(ABCD\\) (\\(AB\\parallel CD\\)) punkty \\(M\\) i \\(N\\) to środki ramion \\(AD\\) i \\(BC\\) odpowiednio. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Długości odcinków \\(MN\\), \\(NC\\), \\(CD\\) i \\(DM\\) to odpowiednio \\(33\\), \\(17\\), \\(12\\) i \\(10\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                obwód trapezu \\(ABCD\\),\n            </li>\n<li>\n                wysokość trapezu \\(ABCD\\),\n            </li>\n<li>\n                pole trapezu \\(ABCD\\).\n            </li>\n</ol>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedzi",
-      "body": "\n\n<ol class=\"bold\">\n<li>\\(120\\)</li>\n<li>\\(16\\)</li>\n<li>\\(528\\)</li>\n</ol>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\\(120\\)</li>\n<li>\\(16\\)</li>\n<li>\\(528\\)</li>\n</ol>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W trapezie \\(ABCD\\) (\\(AB\\parallel CD\\)) punkt \\(M\\) i \\(N\\) to środki ramion \\(AD\\) i \\(BC\\) odpowiednio. \n        </p>\n<ul class=\"nolist\">\n<li>\n                punkt \\(M\\) jest położony na ramieniu \\(AD\\) w taki sposób, że \\(DM:AM=1:4\\),\n            </li>\n<li>\n                punkt \\(N\\) jest położony na ramieniu \\(BC\\) w taki sposób, że \\(CN:BN=1:4\\).\n            </li>\n</ul>\n<p>\n            Wiedząc, że \\(BC=10\\), a \\(MN=13\\), znajdź długość podstawy \\(AB\\).\n        </p>\n"
+      "body": "<p>\n            W trapezie \\(ABCD\\) (\\(AB\\parallel CD\\)) punkt \\(M\\) i \\(N\\) to środki ramion \\(AD\\) i \\(BC\\) odpowiednio. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                punkt \\(M\\) jest położony na ramieniu \\(AD\\) w taki sposób, że \\(DM:AM=1:4\\),\n            </li>\n<li>\n                punkt \\(N\\) jest położony na ramieniu \\(BC\\) w taki sposób, że \\(CN:BN=1:4\\).\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wiedząc, że \\(BC=10\\), a \\(MN=13\\), znajdź długość podstawy \\(AB\\).\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(AB=22\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(AB=22\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W trapezie \\(ABCD\\) podstawa \\(CD\\) jest dwukrotnie krótsza od podstawy \\(AB\\) i równa wysokości. Pole trapezu jest równe \\(24\\). \n        </p>\n<p>\n            Znajdź długość podstawy \\(AB\\).\n        </p>\n"
+      "body": "<p>\n            W trapezie \\(ABCD\\) podstawa \\(CD\\) jest dwukrotnie krótsza od podstawy \\(AB\\) i równa wysokości. Pole trapezu jest równe \\(24\\). \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długość podstawy \\(AB\\).\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(AB=8\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(AB=8\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "e16c8fd39e04086c758a264104b2a1354d0bebc6ee10fd995d40faaf9f5be1f4"
+  "seed_hash": "6b63c91d963efac956f58192154c37fca036504d22f6d85e6804dae066f399bf"
 }

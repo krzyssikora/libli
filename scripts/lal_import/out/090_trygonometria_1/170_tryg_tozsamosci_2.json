@@ -6,79 +6,45 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dany jest kąt \\(\\alpha\\), gdzie \\(180^{\\circ}\\lt\\alpha\\lt 270^{\\circ}\\) oraz\n        </p>\n        \\[\n        \\frac{6\\sin\\alpha-\\cos\\alpha}{2\\cos\\alpha-\\sin\\alpha}=2\n        \\]\n        <ol class=\"bold\">\n<li>\n                Znajdź dokładną wartość \\(\\text{tg }\\alpha\\).\n            </li>\n<li>\n                Użyj tablic trygonometrycznych, aby oszacować wartość kąta \\(alpha\\) z dokładnością do \\(1^{\\circ}\\).\n            </li>\n</ol>\n"
+      "body": "<p>\n            Dany jest kąt \\(\\alpha\\), gdzie \\(180^{\\circ}\\lt\\alpha\\lt 270^{\\circ}\\) oraz\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        \\frac{6\\sin\\alpha-\\cos\\alpha}{2\\cos\\alpha-\\sin\\alpha}=2\n        "
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                Znajdź dokładną wartość \\(\\text{tg }\\alpha\\).\n            </li>\n<li>\n                Użyj tablic trygonometrycznych, aby oszacować wartość kąta \\(alpha\\) z dokładnością do \\(1^{\\circ}\\).\n            </li>\n</ol>"
     },
     {
       "type": "text",
       "body": "<p>\n                Mamy znaleźć \\(\\text{tg }\\alpha\\), którego nie ma w danym równaniu. Najlepiej będzie zacząć od uproszczenia równania.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "<p>Przemnóżmy obie strony równania przez mianownik z lewej strony. Otrzymamy:</p>"
+      "type": "switch_gate",
+      "stem": "\n                Przemnóżmy obie strony równania przez mianownik z lewej strony. Otrzymamy:\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(6\\sin\\alpha-\\cos\\alpha=2\\cos\\alpha-\\sin\\alpha\\)",
+        "\\(6\\sin\\alpha-\\cos\\alpha=4\\cos\\alpha-\\sin\\alpha\\)",
+        "\\(6\\sin\\alpha-\\cos\\alpha=4\\cos\\alpha-2\\sin\\alpha\\)",
+        "\\(12\\sin\\alpha-2\\cos\\alpha=2\\cos\\alpha-\\sin\\alpha\\)"
+      ],
+      "answer": 2
     },
     {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(6\\sin\\alpha-\\cos\\alpha=2\\cos\\alpha-\\sin\\alpha\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(6\\sin\\alpha-\\cos\\alpha=4\\cos\\alpha-\\sin\\alpha\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(6\\sin\\alpha-\\cos\\alpha=4\\cos\\alpha-2\\sin\\alpha\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(12\\sin\\alpha-2\\cos\\alpha=2\\cos\\alpha-\\sin\\alpha\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Przenieśmy \\(\\sin\\alpha\\) na lewo, a \\(\\cos\\alpha\\) na prawo, by otrzymać</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(8\\sin\\alpha=5\\cos\\alpha\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(2\\sin\\alpha=-\\cos\\alpha\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(2\\cos\\alpha=-\\sin\\alpha\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(4\\sin\\alpha=5\\cos\\alpha\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Przenieśmy \\(\\sin\\alpha\\) na lewo, a \\(\\cos\\alpha\\) na prawo, by otrzymać\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(8\\sin\\alpha=5\\cos\\alpha\\)",
+        "\\(2\\sin\\alpha=-\\cos\\alpha\\)",
+        "\\(2\\cos\\alpha=-\\sin\\alpha\\)",
+        "\\(4\\sin\\alpha=5\\cos\\alpha\\)"
+      ],
+      "answer": 0
     },
     {
       "type": "text",
@@ -89,56 +55,23 @@
       "latex": "\n                                                                                                \\text{tg }\\alpha =\\frac{\\sin\\alpha}{\\cos\\alpha}\n                                                                                                "
     },
     {
-      "type": "text",
-      "body": "<p>Podzielmy więc obie strony równania przez \\(\\cos\\alpha\\)</p>"
+      "type": "switch_gate",
+      "stem": "\n                Podzielmy więc obie strony równania przez \\(\\cos\\alpha\\)\n                \n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(8\\text{tg }\\alpha=5\\)",
+        "\\(5\\text{tg }\\alpha=8\\)"
+      ],
+      "answer": 0
     },
     {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(8\\text{tg }\\alpha=5\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(5\\text{tg }\\alpha=8\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>I dlatego \\(\\text{tg }\\alpha=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\tfrac{8}{5}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(0,625\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(-3\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                I dlatego \\(\\text{tg }\\alpha=\\)\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\tfrac{8}{5}\\)",
+        "\\(0,625\\)",
+        "\\(-3\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
@@ -149,36 +82,20 @@
       "body": "<p>\n                Teraz mamy użyć tablic trygonometrycznych, aby oszacować wartość kąta \\(\\alpha\\) z dokładnością do \\(1^{\\circ}\\). Poszukajmy w tablicach wartości tangensa bliskiej \\(0,625\\).\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"tablice, tangens\" src=\"static/tablice_tg.png\" width=\"400\"/>\n"
+      "type": "image",
+      "media_src": "static/tablice_tg.png",
+      "alt": "tablice, tangens",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "<p>W tablicach nie znajdziemy wartości tangensa równej dokładnie \\(0625\\), ale znajdziemy wartość bardzo bliską, więc dlatego</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\alpha=0,6249\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\alpha=30^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\alpha=32^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                W tablicach nie znajdziemy wartości tangensa równej dokładnie \\(0625\\), ale znajdziemy wartość bardzo bliską, więc dlatego\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\alpha=0,6249\\)",
+        "\\(\\alpha=30^{\\circ}\\)",
+        "\\(\\alpha=32^{\\circ}\\)"
+      ],
+      "answer": 2
     },
     {
       "type": "text",
@@ -189,36 +106,20 @@
       "body": "<p>\n                Poszukujemy więc kąta w trzeciej ćwiartce, który jest wyznaczony przez punkt o współrzędnych przeciwnych do punktu wyznaczającego kąt \\(32^{\\circ}\\).\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"tangens 32\" src=\"static/tg32.png\" width=\"400\"/>\n"
+      "type": "image",
+      "media_src": "static/tg32.png",
+      "alt": "tangens 32",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "<p>I dlatego wartość kąta \\(\\alpha\\) to</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\alpha=238^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\alpha=212^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\alpha=232^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                I dlatego wartość kąta \\(\\alpha\\) to\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\alpha=238^{\\circ}\\)",
+        "\\(\\alpha=212^{\\circ}\\)",
+        "\\(\\alpha=232^{\\circ}\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
@@ -226,5 +127,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "babe44a52e2239919a1ce417cc89698a74408d20c2931d0ec2924538b826ff7f"
+  "seed_hash": "886c928bc893a722ce74ef6ef05cba6089931757192440f2e04849d9a435a12f"
 }

@@ -2,27 +2,48 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "<p class=\"question_text\">\n        Które z poniższych wielkości są wprost proporcjonalne?\n    </p>"
     },
     {
-      "type": "text",
-      "body": "<ul style=\"list-style: none;\">\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                obwód koła do średnicy\n            </div>\n<div ,=\"\" class=\"truth\">\n                tak\n            </div>\n<div ,=\"\" class=\"false\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                cena pączków (kupionych detalicznie, bez promocji) do ich liczby\n            </div>\n<div ,=\"\" class=\"truth\">\n                tak\n            </div>\n<div ,=\"\" class=\"false\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                pole kwadratu do długości boku\n            </div>\n<div ,=\"\" class=\"truth\">\n                tak\n            </div>\n<div ,=\"\" class=\"false\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                liczba bagaży w luku bagażowym pewnego typu samolotu do średniej masy tych bagaży\n            </div>\n<div ,=\"\" class=\"truth\">\n                tak\n            </div>\n<div ,=\"\" class=\"false\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                cena biletu komunikacji miejskiej do czasu ważności biletu\n            </div>\n<div ,=\"\" class=\"truth\">\n                tak\n            </div>\n<div ,=\"\" class=\"false\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                droga przebytą przez samochód jadący ze stała prędkością do czasu jazdy\n            </div>\n<div ,=\"\" class=\"truth\">\n                tak\n            </div>\n<div ,=\"\" class=\"false\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                obwód trójkąta równobocznego do długości boku\n            </div>\n<div ,=\"\" class=\"truth\">\n                tak\n            </div>\n<div ,=\"\" class=\"false\">\n                nie\n            </div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! To już koniec tej sekcji.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        To nie jest dobra odpowiedź, spróbuj jeszcze raz.\n    "
+      "type": "choice_grid",
+      "columns": [
+        "tak",
+        "nie"
+      ],
+      "rows": [
+        {
+          "statement": "obwód koła do średnicy",
+          "correct": 0
+        },
+        {
+          "statement": "cena pączków (kupionych detalicznie, bez promocji) do ich liczby",
+          "correct": 0
+        },
+        {
+          "statement": "pole kwadratu do długości boku",
+          "correct": 1
+        },
+        {
+          "statement": "liczba bagaży w luku bagażowym pewnego typu samolotu do średniej masy tych bagaży",
+          "correct": 1
+        },
+        {
+          "statement": "cena biletu komunikacji miejskiej do czasu ważności biletu",
+          "correct": 1
+        },
+        {
+          "statement": "droga przebytą przez samochód jadący ze stała prędkością do czasu jazdy",
+          "correct": 0
+        },
+        {
+          "statement": "obwód trójkąta równobocznego do długości boku",
+          "correct": 0
+        }
+      ]
     },
     {
       "type": "text",
@@ -30,5 +51,5 @@
     }
   ],
   "fully_mapped": false,
-  "seed_hash": "2eb50761379e950abfa4f8438c93883bfcb724afeb7984b943e980d9dde50f98"
+  "seed_hash": "a543b8ab612abf62a6151b3cabc56b05555f3abe7b24df3cacb9406d4a1fc450"
 }

@@ -14,18 +14,61 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Klikaj obramowane granatowo stwierdzenia, aż zobaczysz prawdziwe zdania - wtedy zatwierdź.\n        </p>\n<div class=\"switch_options\">\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                    Wartość bezwzględna z liczby dodatniej to\n                </div>\n<div class=\"switch_value\">\n                    ta sama liczba\n                </div>\n<div class=\"switch_value\">\n                    liczba ze zmienionym znakiem\n                </div>\n<div class=\"switch_around\">\n                    .\n                </div>\n</div>\n<div class=\"switch_line\">\n<div class=\"switch_around\">\n                    Wartość bezwzględna z liczby ujemnej to\n                </div>\n<div class=\"switch_value\">\n                    ta sama liczba\n                </div>\n<div class=\"switch_value\">\n                    liczba ze zmienionym znakiem\n                </div>\n<div class=\"switch_around\">\n                    .\n                </div>\n</div>\n<div class=\"switch_confirm ks_button\">\n                zatwierdź\n            </div>\n<div class=\"switch_summary success hidden\">\n                Świetnie!\n            </div>\n</div>\n"
+      "body": "<p>\n            Klikaj obramowane granatowo stwierdzenia, aż zobaczysz prawdziwe zdania - wtedy zatwierdź.\n        </p>"
+    },
+    {
+      "type": "switch_grid",
+      "prompt": "",
+      "lines": [
+        {
+          "stem": "\n\n                    Wartość bezwzględna z liczby dodatniej to\n                \n\n\n￿0￿\n                    .\n                \n",
+          "cyclers": [
+            {
+              "options": [
+                "ta sama liczba",
+                "liczba ze zmienionym znakiem"
+              ],
+              "answer": 0
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                    Wartość bezwzględna z liczby ujemnej to\n                \n\n\n￿0￿\n                    .\n                \n",
+          "cyclers": [
+            {
+              "options": [
+                "ta sama liczba",
+                "liczba ze zmienionym znakiem"
+              ],
+              "answer": 1
+            }
+          ]
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "definicja wartości bezwzględnej(kliknij, by zobaczyć)",
-      "body": "\n\n        Wartość bezwzględną z liczby rzeczywistej \\(a\\) definiujemy następująco:\n                                    \\[\n                                    |a|=\\begin{cases}\n                                    a&amp; \\text{gdy } a\\ge 0\\\\\n                                    -a&amp; \\text{gdy } a\\lt 0\n                                    \\end{cases}\n                                    \\]\n                                    Oznacza to, że gdy liczymy wartość bezwzględną\n        <ul>\n<li>\n                z liczby dodatniej, wynikiem jest ta sama liczba\n            </li>\n<li>\n                z liczby ujemnej, wynikiem jest liczba przeciwna, czyli z \\(-a\\).\n                <br/>\n                Zauważ, że gdy \\(\\lt 0\\) to wówczas \\(-a\\gt 0\\).\n            </li>\n</ul>\n        Dla kompletności definicji musimy zastanowić się, czym jest \\(|0|\\). Oczywiście odległość od \\(0\\) do \\(0\\) to... \\(0\\), czyli\n                                    \\[|0|=0\\]\n                                    Najwygodniej więc dołączyć \\(0\\) do liczb dodatnich, i dlatego w pierwszym wierszu powyższej definicji widzimy \"gdy \\(a\\ge 0\\)\".\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Wartość bezwzględną z liczby rzeczywistej \\(a\\) definiujemy następująco:\n                                    \\[\n                                    |a|=\\begin{cases}\n                                    a& \\text{gdy } a\\ge 0\\\\\n                                    -a& \\text{gdy } a\\lt 0\n                                    \\end{cases}\n                                    \\]\n                                    Oznacza to, że gdy liczymy wartość bezwzględną</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                z liczby dodatniej, wynikiem jest ta sama liczba\n            </li>\n<li>\n                z liczby ujemnej, wynikiem jest liczba przeciwna, czyli z \\(-a\\).\n                <br/>\n                Zauważ, że gdy \\(\\lt 0\\) to wówczas \\(-a\\gt 0\\).\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla kompletności definicji musimy zastanowić się, czym jest \\(|0|\\). Oczywiście odległość od \\(0\\) do \\(0\\) to... \\(0\\), czyli\n                                    \\[|0|=0\\]\n                                    Najwygodniej więc dołączyć \\(0\\) do liczb dodatnich, i dlatego w pierwszym wierszu powyższej definicji widzimy \"gdy \\(a\\ge 0\\)\".</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "8575dc2e38cd5ca0fc8f6ed9405089a0c0438a991d4e050f2d8dc274840d493e"
+  "seed_hash": "704f31cc1ae37ce8c72f8f9b1ee2286b8222679eb37fa2bf77ac5828f5b5097a"
 }

@@ -9,29 +9,74 @@
       "body": "\n        Przypomnij sobie wzory na działania na potęgach i sprawdź, czy dobrze pamiętasz.\n    "
     },
     {
+      "type": "text",
+      "body": "<p>\\(a^n\\cdot a^k=\\)</p>"
+    },
+    {
       "type": "spoiler",
       "label": "\\(a^n\\cdot a^k=a^{n+k}\\)",
-      "body": "\n                    \\(a^n\\cdot a^k=a^{n+k}\\)\n                "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(a^n\\cdot a^k=a^{n+k}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(a^n: a^k=\\)</p>"
     },
     {
       "type": "spoiler",
       "label": "\\(a^n: a^k=a^{n-k}\\)",
-      "body": "\n                    \\(a^n: a^k=a^{n-k}\\)\n                "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(a^n: a^k=a^{n-k}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\left(a^n\\right)^k=\\)</p>"
     },
     {
       "type": "spoiler",
       "label": "\\(\\left(a^n\\right)^k=a^{nk}\\)",
-      "body": "\n                    \\(\\left(a^n\\right)^k=a^{nk}\\)\n                "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\left(a^n\\right)^k=a^{nk}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(a^nb^n=\\)</p>"
     },
     {
       "type": "spoiler",
       "label": "\\(a^nb^n=(ab)^{n}\\)",
-      "body": "\n                    \\(a^nb^n=(ab)^{n}\\)\n                "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(a^nb^n=(ab)^{n}\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(a^n:b^n=\\left(\\frac{a}{b}\\right)^n=\\)</p>"
     },
     {
       "type": "spoiler",
       "label": "\\(a^n:b^n=\\left(\\frac{a}{b}\\right)^n=\\frac{a^n}{b^n}\\)",
-      "body": "\n                    \\(a^n:b^n=\\left(\\frac{a}{b}\\right)^n=\\frac{a^n}{b^n}\\)\n                "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(a^n:b^n=\\left(\\frac{a}{b}\\right)^n=\\frac{a^n}{b^n}\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -165,5 +210,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "673eb048e581345ee42467cd1eb281a5b538ca3add4c60d5babe1084f7e20377"
+  "seed_hash": "335ceb2c4e0a7005c193b78f587607155779b07956ca54b3a8d8e82f524f0f9e"
 }

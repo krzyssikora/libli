@@ -9,54 +9,238 @@
       "body": "\n        \\(\\log_a x+\\log_a y=\\log_a (x\\cdot y)\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "dowód - zobacz",
-      "body": "\n<p>\n            Przyjmijmy oznaczenia:\n        </p>\n<ul class=\"nolist\">\n<li>\n                \\(k=\\log_a x\\)\n            </li>\n<li>\n                \\(m=\\log_a y\\)\n            </li>\n<li>\n                \\(n=\\log_a \\left(\\frac{x}{y}\\right)\\)\n            </li>\n</ul>\n<p>\n            Pokażemy, że \\(k-m=n\\)\n        </p>\n<p>\n            Zamieniając trzy powyższe równania logarytmiczne na potęgi otrzymamy:\n        </p>\n<ul class=\"nolist\">\n<li>\n                \\(a^k=x\\)\n            </li>\n<li>\n                \\(a^m=y\\)\n            </li>\n<li>\n                \\(a^n=\\frac{x}{y}\\)\n            </li>\n</ul>\n<p>\n            Jeśli podstawimy \\(x\\) oraz \\(y\\) z pierwszych dwóch równań do równania trzeciego, otrzymamy:\n        </p>\n        \\[\n        a^n=\\frac{a^k}{a^m}\n        \\]\n        <p>\n            Kiedy dzielimy dwie potęgi o tej samej podstawie, odejmujemy wykładniki, skąd:\n        </p>\n        \\[n=k-m\\]\n        <p>\n            co kończy dowód.\n        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Przyjmijmy oznaczenia:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                \\(k=\\log_a x\\)\n            </li>\n<li>\n                \\(m=\\log_a y\\)\n            </li>\n<li>\n                \\(n=\\log_a \\left(\\frac{x}{y}\\right)\\)\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Pokażemy, że \\(k-m=n\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zamieniając trzy powyższe równania logarytmiczne na potęgi otrzymamy:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                \\(a^k=x\\)\n            </li>\n<li>\n                \\(a^m=y\\)\n            </li>\n<li>\n                \\(a^n=\\frac{x}{y}\\)\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Jeśli podstawimy \\(x\\) oraz \\(y\\) z pierwszych dwóch równań do równania trzeciego, otrzymamy:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        a^n=\\frac{a^k}{a^m}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Kiedy dzielimy dwie potęgi o tej samej podstawie, odejmujemy wykładniki, skąd:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "n=k-m"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            co kończy dowód.\n        </p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(\\log_a x-\\log_a y=\\log_a \\left(\\frac{x}{y}\\right)\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "dowód - zobacz",
-      "body": "\n<p>\n            Oznaczmy:\n        </p>\n<ul class=\"nolist\">\n<li>\n                \\(\\log_a \\left(n^s\\right)=p\\)\n            </li>\n<li>\n                \\(\\log_a n=q\\)\n            </li>\n</ul>\n<p>\n            Pokażemy, że:\n        </p>\n        \\[\n        p=s\\cdot q\n        \\]\n        <p>\n            Zamieniając dwa powyższe równania logarytmiczne na potęgi otrzymamy:\n        </p>\n<ul class=\"nolist\">\n<li>\n                \\(a^p=n^s\\)\n            </li>\n<li>\n                \\(a^q=n\\)\n            </li>\n</ul>\n<p>\n            Wstawiając \\(n\\) z drugiego równania do pierwszego, otrzymujemy:\n        </p>\n        \\[\n        a^p=\\left(a^q\\right)^s\n        \\]\n        <p>\n            Kiedy podnosimy potęgę do potęgi, mnożymy wykładniki, więc:\n        </p>\n        \\[\n        a^p=a^{q\\cdot s}\n        \\]\n        <p>\n            skąd:\n        </p>\n        \\[\n        p=q\\cdot s\n        \\]\n        <p>\n            co było do okazania.\n        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Oznaczmy:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                \\(\\log_a \\left(n^s\\right)=p\\)\n            </li>\n<li>\n                \\(\\log_a n=q\\)\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Pokażemy, że:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        p=s\\cdot q\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zamieniając dwa powyższe równania logarytmiczne na potęgi otrzymamy:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                \\(a^p=n^s\\)\n            </li>\n<li>\n                \\(a^q=n\\)\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Wstawiając \\(n\\) z drugiego równania do pierwszego, otrzymujemy:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        a^p=\\left(a^q\\right)^s\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Kiedy podnosimy potęgę do potęgi, mnożymy wykładniki, więc:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        a^p=a^{q\\cdot s}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            skąd:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        p=q\\cdot s\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            co było do okazania.\n        </p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(\\log_a \\left(n^s\\right)=s\\cdot\\log_a n\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "dowód - zobacz",
-      "body": "\n<p>\n            Przyjmijmy oznaczenia:\n        </p>\n<ul class=\"nolist\">\n<li>\n                \\(k=\\log_a b\\)\n            </li>\n<li>\n                \\(m=\\log_c b\\)\n            </li>\n<li>\n                \\(n=\\log_c a\\)\n            </li>\n</ul>\n<p>\n            Pokażemy, że \\(k=\\frac{m}{n}\\)\n        </p>\n<p>\n            Zamieniając trzy powyższe równania logarytmiczne na potęgi otrzymamy:\n        </p>\n<ul class=\"nolist\">\n<li>\n                \\(a^k=b\\)\n            </li>\n<li>\n                \\(c^m=b\\)\n            </li>\n<li>\n                \\(c^n=a\\)\n            </li>\n</ul>\n<p>\n            Zestawmy najpierw razem pierwsze dwa równania:\n        </p>\n        \\[\n        a^k=c^m\n        \\]\n        <p>\n            i teraz podstawmy do tak otrzymanego równania \\(a=c^n\\):\n        </p>\n        \\[\n        \\left(c^n\\right)^k=c^m\n        \\]\n        <p>\n            Kiedy podnosimy potęgę do potęgi, mnożymy wykładniki, więc:\n        </p>\n        \\[c^{n\\cdot k}=c^m\\]\n        <p>\n            czyli:\n        </p>\n        \\[n\\cdot k=m\\]\n        <p>\n            a to oznacza, że:\n        </p>\n        \\[k=\\frac{m}{n}\\]\n        <p>\n            co kończy dowód.\n        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Przyjmijmy oznaczenia:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                \\(k=\\log_a b\\)\n            </li>\n<li>\n                \\(m=\\log_c b\\)\n            </li>\n<li>\n                \\(n=\\log_c a\\)\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Pokażemy, że \\(k=\\frac{m}{n}\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zamieniając trzy powyższe równania logarytmiczne na potęgi otrzymamy:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                \\(a^k=b\\)\n            </li>\n<li>\n                \\(c^m=b\\)\n            </li>\n<li>\n                \\(c^n=a\\)\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zestawmy najpierw razem pierwsze dwa równania:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        a^k=c^m\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            i teraz podstawmy do tak otrzymanego równania \\(a=c^n\\):\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\left(c^n\\right)^k=c^m\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Kiedy podnosimy potęgę do potęgi, mnożymy wykładniki, więc:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "c^{n\\cdot k}=c^m"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            czyli:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "n\\cdot k=m"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            a to oznacza, że:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "k=\\frac{m}{n}"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            co kończy dowód.\n        </p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(\\log_a b=\\frac{\\log_c b}{\\log_c a}\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "dowód - zobacz",
-      "body": "\n<p>\n            Przyjmijmy oznaczenia:\n        </p>\n<ul class=\"nolist\">\n<li>\n                \\(k=\\log_a x\\)\n            </li>\n<li>\n                \\(m=\\log_a y\\)\n            </li>\n<li>\n                \\(n=\\log_a (x\\cdot y)\\)\n            </li>\n</ul>\n<p>\n            Pokażemy, że \\(k+m=n\\)\n        </p>\n<p>\n            Zamieniając trzy powyższe równania logarytmiczne na potęgi otrzymamy:\n        </p>\n<ul class=\"nolist\">\n<li>\n                \\(a^k=x\\)\n            </li>\n<li>\n                \\(a^m=y\\)\n            </li>\n<li>\n                \\(a^n=x\\cdot y\\)\n            </li>\n</ul>\n<p>\n            Jeśli podstawimy \\(x\\) oraz \\(y\\) z pierwszych dwóch równań do równania trzeciego, otrzymamy:\n        </p>\n        \\[\n        a^n=a^k\\cdot a^m\n        \\]\n        <p>\n            Kiedy mnożymy dwie potęgi o tej samej podstawie, dodajemy wykładniki, skąd:\n        </p>\n        \\[n=k+m\\]\n        <p>\n            co kończy dowód.\n        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Przyjmijmy oznaczenia:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                \\(k=\\log_a x\\)\n            </li>\n<li>\n                \\(m=\\log_a y\\)\n            </li>\n<li>\n                \\(n=\\log_a (x\\cdot y)\\)\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Pokażemy, że \\(k+m=n\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zamieniając trzy powyższe równania logarytmiczne na potęgi otrzymamy:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                \\(a^k=x\\)\n            </li>\n<li>\n                \\(a^m=y\\)\n            </li>\n<li>\n                \\(a^n=x\\cdot y\\)\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Jeśli podstawimy \\(x\\) oraz \\(y\\) z pierwszych dwóch równań do równania trzeciego, otrzymamy:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        a^n=a^k\\cdot a^m\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Kiedy mnożymy dwie potęgi o tej samej podstawie, dodajemy wykładniki, skąd:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "n=k+m"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            co kończy dowód.\n        </p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "c407a1eea9c7490444d2139dfc98c2489cc3e3d807e8efac0cb9c9d8c5f45412"
+  "seed_hash": "bd37e4f061ffec7f3108241595f02ece7c7878cecd97cbbdbaeb2da227d44bff"
 }

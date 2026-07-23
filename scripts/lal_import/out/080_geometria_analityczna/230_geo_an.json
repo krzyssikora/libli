@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -15,21 +15,224 @@
     {
       "type": "spoiler",
       "label": "wskazówka do zadania",
-      "body": "\n\n<div class=\"important\" style=\"min-height: 410px;\">\n<img alt=\"Kąt wpisany oparty na średnicy\" height=\"400\" src=\"static/tw_katy_2_polkole.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n<u>\n                    Kąt wpisany oparty na średnicy\n                </u>\n</p>\n<p>\n                Kąt wpisany oparty na połowie okręgu jest prosty.\n            </p>\n<p>\n                Oznacza to, że\n                <strong>\n                    przeciwprostokątna\n                </strong>\n                trójkąta prostokątnego jest\n                <strong>\n                    średnicą\n                </strong>\n                okręgu opisanego na tym trójkącie.\n            </p>\n</div>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_2_polkole.png",
+          "alt": "Kąt wpisany oparty na średnicy",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                    Kąt wpisany oparty na średnicy\n                </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Kąt wpisany oparty na połowie okręgu jest prosty.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Oznacza to, że\n                <strong>\n                    przeciwprostokątna\n                </strong>\n                trójkąta prostokątnego jest\n                <strong>\n                    średnicą\n                </strong>\n                okręgu opisanego na tym trójkącie.\n            </p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Z naszej wiedzy na temat okręgu opisanego na trójkącie prostokątnym wynika, że środek okręgu opisanego jest\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        jednym z wierzchołków\n                    </div>\n<div class=\"switch_value\">\n                        środkiem jednego z boków\n                    </div>\n<div class=\"switch_value\">\n                        wewnątrz\n                    </div>\n<div class=\"switch_value\">\n                        na zewnętrz\n                    </div>\n                    trójkąta.\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Przeciwprostokątna trójkąta prostokątnego jest średnicą okręgu opisanego na tym trójkącie, więc środek okręgu to środek przeciwprostokątnej, czyli najdłuższego boku.\n                </p>\n<p>\n                    Jedną z metod znalezienia przeciwprostokątnej jest obliczenie długości wszystkich boków trójkąta. Ten najdłuższy - to przeciwprostokątna.\n                </p>\n<p>\n                    Zacznijmy od boku \\(AB\\). Przypomnijmy, że\n                </p>\n<div class=\"important\">\n                    Długość odcinka \\(AB\\), gdzie\n                                                                                                        \\[\n                                                                                                        A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n                                                                                                        \\]\n                                                                                                        jest dana wzorem\n                                                                                                        \\[\n                                                                                                        AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n                                                                                                        \\]\n                </div>\n<div class=\"switch_line\">\n                    I dlatego \\(AB=\\sqrt{(-7-2)^2+(2-5)^2}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sqrt{90}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(16\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(12\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sqrt{34}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Moglibyśmy przedstawić \\(\\sqrt{90}\\) jako \\(3\\sqrt{10}\\), ale dla porównań trzech pierwiastków wygodniejsze będzie zachowanie liczb w całości pod pierwiastkiem.\n                </p>\n<p>\n                    Czas na bok \\(AC=\\sqrt{(x_C-x_A)^2+(y_C-y_A)^2}\\).\n                </p>\n<div class=\"switch_line\">\n                    Tak więc \\(AC=\\sqrt{(4-2)^2+(-1-5)^2}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sqrt{40}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sqrt{32}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sqrt{64}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                I ostatni bok \\(BC=\\sqrt{(x_C-x_B)^2+(y_C-y_B)^2}\\).\n                <div class=\"switch_line\">\n                    Czyli \\(BC=\\sqrt{(4-(-7))^2+(-1-2)^2}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sqrt{196}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sqrt{18}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sqrt{130}\\)\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Otrzymaliśmy:\n                <ul class=\"nolist\">\n<li>\n                        \\(AB=\\sqrt{90}\\)\n                    </li>\n<li>\n                        \\(BC=\\sqrt{130}\\)\n                    </li>\n<li>\n                        \\(AC=\\sqrt{40}\\)\n                    </li>\n</ul>\n<div class=\"switch_line\">\n                    Przeciwprostokątną jest bok\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(AB\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(BC\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(AC\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Środek okręgu to środek boku \\(BC\\). Przypomnijmy, że\n                <div class=\"important\">\n                    Środek odcinka \\(BC\\), gdzie \\(B=(x_B, y_B)\\), \\(C=(x_C, y_C)\\) to punkt \\(S\\) dany:\n                                                                                                        \\[\n                                                                                                        S=\\left(\\frac{x_B+x_C}{2}, \\frac{y_B+y_C}{2}\\right)\n                                                                                                        \\]\n                </div>\n<div class=\"switch_line\">\n                    Skoro  \\(B=(-7,2)\\) i \\(C=(4, -1)\\), to \\(S=\\left(\\frac{-7+4}{2}, \\frac{2+(-1)}{2}\\right)=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\((-1,5; 0,5)\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\((-3, 1)\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\((-5,5; 1,5)\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Środek okręgu to punkt \\(S=\\left(-1\\tfrac{1}{2}, \\tfrac{1}{2}\\right)\\), a promień to\n                <ul class=\"nolist\">\n<li>\n                        albo odległość od punktu \\(S\\) do dowolnego z wierzchołków trójkąta,\n                    </li>\n<li>\n                        albo połowa przeciwprostokątnej \\(BC\\).\n                    </li>\n</ul>\n                Skorzystajmy z tej drugiej obserwacji.\n                <div class=\"switch_line\">\n                    Promień okręgu \\(r=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{1}{2}\\sqrt{90}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sqrt{45}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Środek okręgu to punkt \\(S=\\left(-1,5; 0,5\\right)\\), a promień to \\(\\frac{\\sqrt{90}}{2}\\).\n                <div class=\"switch_line\">\n                    Równanie okręgu to\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\((x-1,5)^2+(y+0,5)^2=\\tfrac{\\sqrt{90}}{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\((x+1,5)^2+(y-0,5)^2=\\tfrac{45}{2}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Równanie okręgu to \\(\\left(x-1\\tfrac{1}{2}\\right)^2+\\left(y+\\tfrac{1}{2}\\right)^2=\\tfrac{\\sqrt{90}}{2}\\), a okrąg i trójkąt wyglądają tak:\n                <div class=\"centered\">\n<img alt=\"okrąg opisany na trójkącie prostokątnym\" height=\"400\" src=\"static/okrag_na_trojkacie_prostokatnym.png\"/>\n</div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z naszej wiedzy na temat okręgu opisanego na trójkącie prostokątnym wynika, że środek okręgu opisanego jest\n                    \n\n\n\n￿0￿\n                    trójkąta.\n                    \n",
+          "options": [
+            "jednym z wierzchołków",
+            "środkiem jednego z boków",
+            "wewnątrz",
+            "na zewnętrz"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przeciwprostokątna trójkąta prostokątnego jest średnicą okręgu opisanego na tym trójkącie, więc środek okręgu to środek przeciwprostokątnej, czyli najdłuższego boku.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jedną z metod znalezienia przeciwprostokątnej jest obliczenie długości wszystkich boków trójkąta. Ten najdłuższy - to przeciwprostokątna.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od boku \\(AB\\). Przypomnijmy, że\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    Długość odcinka \\(AB\\), gdzie\n                                                                                                        \\[\n                                                                                                        A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n                                                                                                        \\]\n                                                                                                        jest dana wzorem\n                                                                                                        \\[\n                                                                                                        AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n                                                                                                        \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego \\(AB=\\sqrt{(-7-2)^2+(2-5)^2}=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\sqrt{90}\\)",
+            "\\(16\\)",
+            "\\(12\\)",
+            "\\(\\sqrt{34}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Moglibyśmy przedstawić \\(\\sqrt{90}\\) jako \\(3\\sqrt{10}\\), ale dla porównań trzech pierwiastków wygodniejsze będzie zachowanie liczb w całości pod pierwiastkiem.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Czas na bok \\(AC=\\sqrt{(x_C-x_A)^2+(y_C-y_A)^2}\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Tak więc \\(AC=\\sqrt{(4-2)^2+(-1-5)^2}=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\sqrt{40}\\)",
+            "\\(\\sqrt{32}\\)",
+            "\\(\\sqrt{64}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>I ostatni bok \\(BC=\\sqrt{(x_C-x_B)^2+(y_C-y_B)^2}\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Czyli \\(BC=\\sqrt{(4-(-7))^2+(-1-2)^2}=\\)\n                    \n\n\n\n\n￿0￿",
+          "options": [
+            "\\(\\sqrt{196}\\)",
+            "\\(\\sqrt{18}\\)",
+            "\\(\\sqrt{130}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Otrzymaliśmy:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        \\(AB=\\sqrt{90}\\)\n                    </li>\n<li>\n                        \\(BC=\\sqrt{130}\\)\n                    </li>\n<li>\n                        \\(AC=\\sqrt{40}\\)\n                    </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Przeciwprostokątną jest bok\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(AB\\)",
+            "\\(BC\\)",
+            "\\(AC\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Środek okręgu to środek boku \\(BC\\). Przypomnijmy, że</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    Środek odcinka \\(BC\\), gdzie \\(B=(x_B, y_B)\\), \\(C=(x_C, y_C)\\) to punkt \\(S\\) dany:\n                                                                                                        \\[\n                                                                                                        S=\\left(\\frac{x_B+x_C}{2}, \\frac{y_B+y_C}{2}\\right)\n                                                                                                        \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro  \\(B=(-7,2)\\) i \\(C=(4, -1)\\), to \\(S=\\left(\\frac{-7+4}{2}, \\frac{2+(-1)}{2}\\right)=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\((-1,5; 0,5)\\)",
+            "\\((-3, 1)\\)",
+            "\\((-5,5; 1,5)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Środek okręgu to punkt \\(S=\\left(-1\\tfrac{1}{2}, \\tfrac{1}{2}\\right)\\), a promień to</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        albo odległość od punktu \\(S\\) do dowolnego z wierzchołków trójkąta,\n                    </li>\n<li>\n                        albo połowa przeciwprostokątnej \\(BC\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Skorzystajmy z tej drugiej obserwacji.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Promień okręgu \\(r=\\)\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{1}{2}\\sqrt{90}\\)",
+            "\\(\\sqrt{45}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Środek okręgu to punkt \\(S=\\left(-1,5; 0,5\\right)\\), a promień to \\(\\frac{\\sqrt{90}}{2}\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie okręgu to\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\((x-1,5)^2+(y+0,5)^2=\\tfrac{\\sqrt{90}}{2}\\)",
+            "\\((x+1,5)^2+(y-0,5)^2=\\tfrac{45}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Równanie okręgu to \\(\\left(x-1\\tfrac{1}{2}\\right)^2+\\left(y+\\tfrac{1}{2}\\right)^2=\\tfrac{\\sqrt{90}}{2}\\), a okrąg i trójkąt wyglądają tak:</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/okrag_na_trojkacie_prostokatnym.png",
+          "alt": "okrąg opisany na trójkącie prostokątnym",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "alternatywna wobec rozwiązania metoda na sprawdzenie, który bok trójkąta jest przeciwprostokątną",
-      "body": "\n\n<p>\n            Aby odpowiedzieć na to pytanie, wystarczy sprawdzić, który kąt jest prosty. W tym celu obliczymy nachylenie boków trójkąta (czyli współczynników kierunkowych prostych zawierających boki). Przypomnijmy:\n        </p>\n<div class=\"important\">\n            Nachylenie odcinka / prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) to liczba\n                                                                                                \\[\n                                                                                                \\frac{\\text{SKOK}}{\\text{KROK}}=\\frac{y_B-y_A}{x_B-x_A}\n                                                                                                \\]\n        </div>\n        I teraz możemy policzyć:\n        <ul class=\"nolist\">\n<li>\n                nachylenie \\(AB\\): \\(\\frac{2-5}{-7-2}=\\frac{-3}{-9}=\\frac{1}{3}\\)\n            </li>\n<li>\n                nachylenie \\(BC\\): \\(\\frac{-1-2}{4-(-7)}=\\frac{-3}{11}=-\\frac{3}{11}\\)\n            </li>\n<li>\n                nachylenie \\(AC\\): \\(\\frac{-1-5}{4-2}=\\frac{-6}{2}=-3\\)\n            </li>\n</ul>\n        Teraz zauważmy, że\n        <div class=\"centered\">\n            iloczyn nachylenia \\(AB\\) i nachylenia \\(AC\\) to \\(\\frac{1}{3}\\cdot(-3)=-1\\)\n        </div>\n        a to oznacza, że boki \\(AB\\) i \\(AC\\) są\n        <strong>\n            prostopadłe\n        </strong>\n        , czyli kąt w wierzchołku \\(A\\) jest prosty. Tym samym przeciwprostokątna to bok \\(BC\\).\n    "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n</p>"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Aby odpowiedzieć na to pytanie, wystarczy sprawdzić, który kąt jest prosty. W tym celu obliczymy nachylenie boków trójkąta (czyli współczynników kierunkowych prostych zawierających boki). Przypomnijmy:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            Nachylenie odcinka / prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) to liczba\n                                                                                                \\[\n                                                                                                \\frac{\\text{SKOK}}{\\text{KROK}}=\\frac{y_B-y_A}{x_B-x_A}\n                                                                                                \\]\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>I teraz możemy policzyć:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                nachylenie \\(AB\\): \\(\\frac{2-5}{-7-2}=\\frac{-3}{-9}=\\frac{1}{3}\\)\n            </li>\n<li>\n                nachylenie \\(BC\\): \\(\\frac{-1-2}{4-(-7)}=\\frac{-3}{11}=-\\frac{3}{11}\\)\n            </li>\n<li>\n                nachylenie \\(AC\\): \\(\\frac{-1-5}{4-2}=\\frac{-6}{2}=-3\\)\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz zauważmy, że</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            iloczyn nachylenia \\(AB\\) i nachylenia \\(AC\\) to \\(\\frac{1}{3}\\cdot(-3)=-1\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>a to oznacza, że boki \\(AB\\) i \\(AC\\) są</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n            prostopadłe\n        </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>, czyli kąt w wierzchołku \\(A\\) jest prosty. Tym samym przeciwprostokątna to bok \\(BC\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -37,29 +240,23 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Znajdź równanie okręgu opisanego na trójkącie prostokątnym \\(ABC\\), gdzie \\(A=(-1, 4)\\), \\(B=(-7,1)\\), a \\(C=(1,0)\\).\n    "
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n        \\((x+3)^2+\\left(y-\\tfrac{1}{2}\\right)^2=\\tfrac{65}{4}\\)\n    </div>",
-      "reason": "unmapped <div> in lesson body"
-    },
-    {
-      "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
-      "reason": "show_solution button without solution"
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((x+3)^2+\\left(y-\\tfrac{1}{2}\\right)^2=\\tfrac{65}{4}\\)</p>"
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "0d88880704a8ace30b48353843614d8e47ae31d5499c5554ca4a8a6791574ce2"
+  "fully_mapped": true,
+  "seed_hash": "fea63fa7868b825c7a41c94fe4ef8701e371ab9769f532b800eb9414aa02ada7"
 }

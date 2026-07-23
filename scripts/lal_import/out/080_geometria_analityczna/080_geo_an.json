@@ -18,31 +18,132 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Znajdź współrzędne środka cięzkości trójkąta \\(ABC\\) o wierzchołkach:\n        </p>\n<ul class=\"nolist\">\n<li>\n                \\(A=(1, -3)\\),\n            </li>\n<li>\n                \\(B=(10, 4)\\),\n            </li>\n<li>\n                \\(C=(4, 5)\\).\n            </li>\n</ul>\n"
+      "body": "<p>\n            Znajdź współrzędne środka cięzkości trójkąta \\(ABC\\) o wierzchołkach:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                \\(A=(1, -3)\\),\n            </li>\n<li>\n                \\(B=(10, 4)\\),\n            </li>\n<li>\n                \\(C=(4, 5)\\).\n            </li>\n</ul>"
     },
     {
       "type": "spoiler",
       "label": "Zobacz rozwiązanie",
-      "body": "\n\n<div class=\"important\">\n<p>\n                Punkt \\(S\\) jest zdefiniowany:\n            </p>\n            \\[\n                    S=\\left(\\frac{x_A+x_B+x_C}{3},\\frac{y_A+y_B+y_C}{3}\\right)\n                    \\]\n            <p>\n                czyli w kontekście zadania:\n            </p>\n            \\[\n                    S=\\left(\\frac{1+10+4}{3},\\frac{-3+4+5}{3}\\right)\n                    \\]\n            <p>\n                I dlatego środek ciężkości trójkąta \\(ABC\\) to\n                <span class=\"myequation\">\n                    \\(S=\\big(\\)\n                    <input class=\"table_input\" placeholder=\"x\" type=\"text\"/>\n                    ,\n                    <input class=\"table_input\" placeholder=\"y\" type=\"text\"/>\n                    \\(\\big)\\)\n                </span>\n</p>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Punkt \\(S\\) jest zdefiniowany:\n            </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                    S=\\left(\\frac{x_A+x_B+x_C}{3},\\frac{y_A+y_B+y_C}{3}\\right)\n                    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                czyli w kontekście zadania:\n            </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                    S=\\left(\\frac{1+10+4}{3},\\frac{-3+4+5}{3}\\right)\n                    "
+        },
+        {
+          "type": "fillblank",
+          "stem": "\n                I dlatego środek ciężkości trójkąta \\(ABC\\) to\n                <span class=\"myequation\">\n                    \\(S=\\big(\\)\n                    ￿0￿\n                    ,\n                    ￿1￿\n                    \\(\\big)\\)\n                </span>\n",
+          "blanks": [
+            [
+              "5"
+            ],
+            [
+              "2"
+            ]
+          ]
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        W trójkącie \\(ABC\\) dane są wierzchołki:\n        <ul class=\"nolist\">\n<li>\n                \\(A=(0, 2)\\),\n            </li>\n<li>\n                \\(C=(4, 4)\\).\n            </li>\n</ul>\n        Środek ciężkości tego trójkąta to \\(S=\\left(3, 1\\tfrac{1}{2}\\right)\\).\n        <p>\n            Znajdź współrzęne wierzchołka \\(B\\).\n        </p>\n"
+      "body": "<p>W trójkącie \\(ABC\\) dane są wierzchołki:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                \\(A=(0, 2)\\),\n            </li>\n<li>\n                \\(C=(4, 4)\\).\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Środek ciężkości tego trójkąta to \\(S=\\left(3, 1\\tfrac{1}{2}\\right)\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzęne wierzchołka \\(B\\).\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "Zobacz rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Zacznijmy od wzorów na współrzędne środka cięzkości:\n                </p>\n                \\[\n    S=\\left(\\frac{x_A+x_B+x_C}{3},\\frac{y_A+y_B+y_C}{3}\\right)\n    \\]\n                <p>\n                    Przyjmijmy dodatkowo, że \\(B=(x_B, y_B)\\).\n                </p>\n<div class=\"switch_line\">\n                    Podstawiając współrzędne \\(x\\)-owe i mnożąc równanie przez \\(3\\) otrzymujemy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(3\\cdot 3=0+x_B+4\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(3\\cdot x_B=0+3+4\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(3\\cdot 3=2+x_B+4\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Postępując podobnie z równaniem ze zmiennymi \\(y\\)-owymi otrzymujemy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(3\\cdot y_B=2+1\\tfrac{1}{2}+4\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(3\\cdot 1\\tfrac{1}{2}=2+y_B+4\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(3\\cdot 1\\tfrac{1}{2}=0+y_B+4\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Z równania \\(3\\cdot 3=0+x_B+4\\) dostajemy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(x_B=5\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(x_B=-1)\n                    &lt;/div&gt;\n                    &lt;div class=\"switch_value\"&gt;\n                        \\(x_B=2\\)\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Z równania \\(3\\cdot 1\\tfrac{1}{2}=2+y_B+4\\) dostajemy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(y_B=1,5\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(y_B=-1,5\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(y_B=-4,5\\)\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Punkt \\(B\\) ma współrzędne \\(\\left(5,-1\\tfrac{1}{2}\\right)\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od wzorów na współrzędne środka cięzkości:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n    S=\\left(\\frac{x_A+x_B+x_C}{3},\\frac{y_A+y_B+y_C}{3}\\right)\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przyjmijmy dodatkowo, że \\(B=(x_B, y_B)\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Podstawiając współrzędne \\(x\\)-owe i mnożąc równanie przez \\(3\\) otrzymujemy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(3\\cdot 3=0+x_B+4\\)",
+            "\\(3\\cdot x_B=0+3+4\\)",
+            "\\(3\\cdot 3=2+x_B+4\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Postępując podobnie z równaniem ze zmiennymi \\(y\\)-owymi otrzymujemy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(3\\cdot y_B=2+1\\tfrac{1}{2}+4\\)",
+            "\\(3\\cdot 1\\tfrac{1}{2}=2+y_B+4\\)",
+            "\\(3\\cdot 1\\tfrac{1}{2}=0+y_B+4\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z równania \\(3\\cdot 3=0+x_B+4\\) dostajemy\n                    \n\n\n\n￿0￿",
+          "options": [
+            "\\(x_B=5\\)",
+            "\\(x_B=-1)\n                    &lt;/div&gt;\n                    &lt;div class=\"switch_value\"&gt;\n                        \\(x_B=2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z równania \\(3\\cdot 1\\tfrac{1}{2}=2+y_B+4\\) dostajemy\n                    \n\n\n\n\n￿0￿",
+          "options": [
+            "\\(y_B=1,5\\)",
+            "\\(y_B=-1,5\\)",
+            "\\(y_B=-4,5\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Punkt \\(B\\) ma współrzędne \\(\\left(5,-1\\tfrac{1}{2}\\right)\\).</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "ead86a6d01e960c99402f2d3147942501d15389701c757370b3fcc324c1a8d56"
+  "seed_hash": "12f52ef714d8c1ebd8bbadf0600a2650abb8dda111c12859aef26ea5bbd52ead"
 }

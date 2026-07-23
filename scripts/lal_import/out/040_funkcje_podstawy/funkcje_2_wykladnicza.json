@@ -10,7 +10,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -54,7 +54,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -140,7 +140,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -226,11 +226,43 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Spójrz na dwa wykresy poniżej.\n            <br/>\n<span style=\"color: green\">\n                Zielony\n            </span>\n            to wykres \\(y=2^x\\).\n            <br/>\n<span style=\"color: red\">\n                Czerwony\n            </span>\n            to wykres \\(y=\\left(\\frac{1}{2}\\right)^x\\).\n            <br/>\n            Na wykresach widzisz punkty z powyższych tabel.\n        </p>\n<p>\n            Przesuwaj niebieski suwak, by zobaczyć wykresy funkcji\n        </p>\n        $$\n                                y=a^x\n                                $$\n        <p>\n            dla różnych wartości \\(a\\), ale takich, że \\(a&gt;0\\) oraz \\(a\\ne 1\\).\n        </p>\n<p>\n            Taka funkcja nazywa się\n            <strong>\n                funkcją wykładniczą\n            </strong>\n            .\n        </p>\n<p>\n            Spróbuj odpowiedzieć na spisane niżej pytania, a potem porównaj swoje odpowiedzi z moimi.\n        </p>\n<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"841px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/c6xwrren/width/908/height/841/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"funkcja wykładnicza\" width=\"908px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>\n<p>\n            Dana jest funkcja wykładnicza \\(y=a^x\\), gdzie \\(a&gt;0\\) oraz \\(a\\ne 1\\).\n        </p>\n<p>\n<div class=\"grid_nb\">\n<!-- see f_lin_5.html -->\n<div class=\"my_column\">\n                    Jaka jest dziedzina funkcji wykładniczej\n                </div>\n<div class=\"my_column\">\n<input id=\"przycisk1\" type=\"button\" value=\"pokaż odpowiedź\"/>\n</div>\n<div class=\"my_column\" id=\"content_to_hide1\">\n<p>\n                        \\(x\\in\\mathbb{R}\\)\n                    </p>\n</div>\n</div>\n<div class=\"grid_nb\">\n<div class=\"my_column\">\n                    Jaki jest zbiór wartości funkcji wykładniczej?\n                </div>\n<div class=\"my_column\">\n<input id=\"przycisk2\" type=\"button\" value=\"pokaż odpowiedź\"/>\n</div>\n<div class=\"my_column\" id=\"content_to_hide2\">\n<p>\n                        \\(y\\in\\mathbb{R}^{+}\\) albo \\(y\\in (0,+\\infty)\\) albo \\(y&gt;0\\)\n                    </p>\n</div>\n</div>\n<div class=\"grid_nb\">\n<div class=\"my_column\">\n                    Kiedy funkcja wykładnicza rośnie, a kiedy maleje?\n                </div>\n<div class=\"my_column\">\n<input id=\"przycisk3\" type=\"button\" value=\"pokaż odpowiedź\"/>\n</div>\n<div class=\"my_column\" id=\"content_to_hide3\">\n<p>\n                        Rośnie dla \\(a\\gt 1\\), a maleje dla \\(0\\lt a\\lt 1\\).\n                    </p>\n</div>\n</div>\n<div class=\"grid_nb\">\n<div class=\"my_column\">\n                    Kiedy wykresy funkcji wykładniczych są do siebie symetryczne względem osi \\(y\\)?\n                </div>\n<div class=\"my_column\">\n<input id=\"przycisk4\" type=\"button\" value=\"pokaż odpowiedź\"/>\n</div>\n<div class=\"my_column\" id=\"content_to_hide4\">\n<p>\n                        Wykresy są symetryczne względem osi \\(y\\), jeśli podstawy potęg są liczbami odwrotnymi.\n                    </p>\n<p>\n                        Dla przykładu, symetryczne są wykresy funkcji:\n                    </p>\n<ul>\n<li>\n                            \\(y=2^x\\) oraz \\(y=\\left(\\frac{1}{2}\\right)^x\\)\n                        </li>\n<li>\n                            \\(y=\\left(\\frac{3}{4}\\right)^x\\) oraz \\(y=\\left(\\frac{4}{3}\\right)^x\\)\n                        </li>\n</ul>\n</div>\n</div>\n<div class=\"grid_nb\">\n<div class=\"my_column\">\n                    Jakie są równania asymptot funkcji wykładniczej?\n                </div>\n<div class=\"my_column\">\n<input id=\"przycisk5\" type=\"button\" value=\"pokaż odpowiedź\"/>\n</div>\n<div class=\"my_column\" id=\"content_to_hide5\">\n<p>\n                        Funkcja wykładnicza \\(y=a^x\\), niezależnie od wartości \\(a\\) ma jedną asymptotę - poziomą, o równaniu \\(y=0\\).\n                    </p>\n</div>\n</div>\n<div class=\"grid_nb\">\n<div class=\"my_column\">\n                    W jakich punktach funkcja wykładnicza przecina osie układu współrzędnych?\n                </div>\n<div class=\"my_column\">\n<input id=\"przycisk6\" type=\"button\" value=\"pokaż odpowiedź\"/>\n</div>\n<div class=\"my_column\" id=\"content_to_hide6\">\n<p>\n                        Funkcja wykładnicza \\(y=a^x\\), niezależnie od wartości \\(a\\) przecina oś \\(y\\) w punkcie \\((0, 1)\\) i nie dotyka osi \\(x\\).\n                    </p>\n</div>\n</div>\n</p>\n"
+      "body": "<p>\n            Spójrz na dwa wykresy poniżej.\n            <br/>\n<span style=\"color: green\">\n                Zielony\n            </span>\n            to wykres \\(y=2^x\\).\n            <br/>\n<span style=\"color: red\">\n                Czerwony\n            </span>\n            to wykres \\(y=\\left(\\frac{1}{2}\\right)^x\\).\n            <br/>\n            Na wykresach widzisz punkty z powyższych tabel.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwaj niebieski suwak, by zobaczyć wykresy funkcji\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>$$\n                                y=a^x\n                                $$</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            dla różnych wartości \\(a\\), ale takich, że \\(a&gt;0\\) oraz \\(a\\ne 1\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Taka funkcja nazywa się\n            <strong>\n                funkcją wykładniczą\n            </strong>\n            .\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Spróbuj odpowiedzieć na spisane niżej pytania, a potem porównaj swoje odpowiedzi z moimi.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"841px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/c6xwrren/width/908/height/841/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"funkcja wykładnicza\" width=\"908px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dana jest funkcja wykładnicza \\(y=a^x\\), gdzie \\(a&gt;0\\) oraz \\(a\\ne 1\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<div class=\"grid_nb\">\n<!-- see f_lin_5.html -->\n<div class=\"my_column\">\n                    Jaka jest dziedzina funkcji wykładniczej\n                </div>\n<div class=\"my_column\">\n<input id=\"przycisk1\" type=\"button\" value=\"pokaż odpowiedź\"/>\n</div>\n<div class=\"my_column\" id=\"content_to_hide1\">\n<p>\n                        \\(x\\in\\mathbb{R}\\)\n                    </p>\n</div>\n</div>\n<div class=\"grid_nb\">\n<div class=\"my_column\">\n                    Jaki jest zbiór wartości funkcji wykładniczej?\n                </div>\n<div class=\"my_column\">\n<input id=\"przycisk2\" type=\"button\" value=\"pokaż odpowiedź\"/>\n</div>\n<div class=\"my_column\" id=\"content_to_hide2\">\n<p>\n                        \\(y\\in\\mathbb{R}^{+}\\) albo \\(y\\in (0,+\\infty)\\) albo \\(y&gt;0\\)\n                    </p>\n</div>\n</div>\n<div class=\"grid_nb\">\n<div class=\"my_column\">\n                    Kiedy funkcja wykładnicza rośnie, a kiedy maleje?\n                </div>\n<div class=\"my_column\">\n<input id=\"przycisk3\" type=\"button\" value=\"pokaż odpowiedź\"/>\n</div>\n<div class=\"my_column\" id=\"content_to_hide3\">\n<p>\n                        Rośnie dla \\(a\\gt 1\\), a maleje dla \\(0\\lt a\\lt 1\\).\n                    </p>\n</div>\n</div>\n<div class=\"grid_nb\">\n<div class=\"my_column\">\n                    Kiedy wykresy funkcji wykładniczych są do siebie symetryczne względem osi \\(y\\)?\n                </div>\n<div class=\"my_column\">\n<input id=\"przycisk4\" type=\"button\" value=\"pokaż odpowiedź\"/>\n</div>\n<div class=\"my_column\" id=\"content_to_hide4\">\n<p>\n                        Wykresy są symetryczne względem osi \\(y\\), jeśli podstawy potęg są liczbami odwrotnymi.\n                    </p>\n<p>\n                        Dla przykładu, symetryczne są wykresy funkcji:\n                    </p>\n<ul>\n<li>\n                            \\(y=2^x\\) oraz \\(y=\\left(\\frac{1}{2}\\right)^x\\)\n                        </li>\n<li>\n                            \\(y=\\left(\\frac{3}{4}\\right)^x\\) oraz \\(y=\\left(\\frac{4}{3}\\right)^x\\)\n                        </li>\n</ul>\n</div>\n</div>\n<div class=\"grid_nb\">\n<div class=\"my_column\">\n                    Jakie są równania asymptot funkcji wykładniczej?\n                </div>\n<div class=\"my_column\">\n<input id=\"przycisk5\" type=\"button\" value=\"pokaż odpowiedź\"/>\n</div>\n<div class=\"my_column\" id=\"content_to_hide5\">\n<p>\n                        Funkcja wykładnicza \\(y=a^x\\), niezależnie od wartości \\(a\\) ma jedną asymptotę - poziomą, o równaniu \\(y=0\\).\n                    </p>\n</div>\n</div>\n<div class=\"grid_nb\">\n<div class=\"my_column\">\n                    W jakich punktach funkcja wykładnicza przecina osie układu współrzędnych?\n                </div>\n<div class=\"my_column\">\n<input id=\"przycisk6\" type=\"button\" value=\"pokaż odpowiedź\"/>\n</div>\n<div class=\"my_column\" id=\"content_to_hide6\">\n<p>\n                        Funkcja wykładnicza \\(y=a^x\\), niezależnie od wartości \\(a\\) przecina oś \\(y\\) w punkcie \\((0, 1)\\) i nie dotyka osi \\(x\\).\n                    </p>\n</div>\n</div>\n</p>"
     },
     {
       "type": "text",
@@ -253,16 +285,14 @@
       "body": "<p>\n            \\(a^{x_1}\\gt a^{x_2}\\)\n        </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<img alt=\"\" src=\"static/wykladnicza_rosnaca.png\" style=\"width: 600px;\"/>\n</p>"
+      "type": "image",
+      "media_src": "static/wykladnicza_rosnaca.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
       "body": "<p>\n            (następuje\n            <span style=\"color: red\">\n                zmiana\n            </span>\n            znaku nierówności)\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n"
     },
     {
       "type": "text",
@@ -273,8 +303,10 @@
       "body": "<p>\n            \\(a^{x_1}\\lt a^{x_2}\\)\n        </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<img alt=\"\" src=\"static/wykladnicza_malejaca.png\" style=\"width: 600px;\"/>\n</p>"
+      "type": "image",
+      "media_src": "static/wykladnicza_malejaca.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -282,7 +314,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -298,10 +330,6 @@
     },
     {
       "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "text",
       "body": "<h2 id=\"Zastosowania\">\n    Zastosowania funkcji wykładniczej\n</h2>"
     },
     {
@@ -310,15 +338,27 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Ilość cezu-134 modelowana jest przez funkcję\n        </p>\n        $$\n                                C=C_0\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\n                                $$\n        <p>\n            gdzie \\(C\\) jest ilością cezu-134 w gramach, \\(t\\) to czas w latach, a \\(C_0\\) to pewna stała.\n        </p>\n<p>\n            Początkowa ilość cezu-134 w tym pomiarze była równa 40 gramów.\n        </p>\n<ol>\n<li>\n                Znajdź wartość stałej \\(C_0\\).\n            </li>\n<li>\n                Według tego modelu, jaki jest\n                <a href=\"https://pl.wikipedia.org/wiki/Czas_po%C5%82owicznego_rozpadu\" target=\"_blank\">\n                    czas połowicznego rozpadu\n                </a>\n                cezu-134?\n            </li>\n<li>\n                Po jakim czasie ilość cezu-134 spadnie poniżej 5 gramów?\n            </li>\n</ol>\n"
+      "body": "<p>\n            Ilość cezu-134 modelowana jest przez funkcję\n        </p>"
     },
     {
       "type": "text",
-      "body": "<p>\n</p>"
+      "body": "<p>$$\n                                C=C_0\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\n                                $$</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            gdzie \\(C\\) jest ilością cezu-134 w gramach, \\(t\\) to czas w latach, a \\(C_0\\) to pewna stała.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Początkowa ilość cezu-134 w tym pomiarze była równa 40 gramów.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n                Znajdź wartość stałej \\(C_0\\).\n            </li>\n<li>\n                Według tego modelu, jaki jest\n                <a href=\"https://pl.wikipedia.org/wiki/Czas_po%C5%82owicznego_rozpadu\" target=\"_blank\">\n                    czas połowicznego rozpadu\n                </a>\n                cezu-134?\n            </li>\n<li>\n                Po jakim czasie ilość cezu-134 spadnie poniżej 5 gramów?\n            </li>\n</ol>"
     },
     {
       "type": "text",
@@ -381,8 +421,10 @@
       "body": "<p>\n                Tak więc zmienna \\(t\\) odpowiada zmiennej \\(x\\) i będzie przedstawiona na osi poziomej, a zmienna \\(C\\) odpowiada zmiennej \\(y\\) i będzie przedstawiona na osi pionowej.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<img alt=\"\" height=\"502\" src=\"static/wykladnicza_zastosowania_1.png\" style=\"width: 800px; height: 502px;\" width=\"800\"/>\n</p>"
+      "type": "image",
+      "media_src": "static/wykladnicza_zastosowania_1.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -401,216 +443,240 @@
       "body": "<p>\n                a to oznacza, że funkcja jest malejąca. Cześć wykresu po lewej stronie osi pionowej jest narysowana linią przerywaną, by wskazać na kształt wykresu, lecz w sytuacji opisanej w zadaniu wykres zaczyna się od osi pionowej, czyli w czasie \\(t=0\\), gdy cezu-134 jest \\(C=40\\) gramów.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n"
+      "type": "spoiler",
+      "label": "Analiza zadania - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Użyjmy informacji o początkowej ilości cezu, tzn faktu, że \\(C=40\\) dla \\(t=0\\):\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(C=C_0\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\\quad\\rightarrow\\quad t=0, C=40\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(40=C_0\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^0\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Ponieważ \\(\\left(\\frac{\\sqrt{2}}{2}\\right)^0=1\\), od razu otrzymujemy wartość stałej \\(C_0\\):\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(C_0=40\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Tym samym znamy już w pełni równanie funkcji modelującej ilość cezu-134:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>$$\n                                                C=40\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\n                                                $$</p>"
+        }
+      ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<input id=\"show_solution1\" type=\"button\" value=\"Analiza zadania - zobacz\"/>",
-      "reason": "unmapped <input> in lesson body"
+      "type": "spoiler",
+      "label": "Wyliczenie stałej - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Czas połowicznego rozpadu to, w uproszczeniu, czas w którym połowa substancji ulega zanikowi.\n            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/czas_polowicznego_rozpadu.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Początkowa ilość cezu to 40 gramów, szukamy więc czasu, gdy ilość ta spadnie do 20 gramów:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(C=40\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\\quad\\rightarrow\\quad C=20\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(20=40\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Dzieląc obie strony równania na 40 otrzymamy:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(\\left(\\frac{\\sqrt{2}}{2}\\right)^t=\\frac{1}{2}\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Zauważmy, że zarówno \\(\\frac{\\sqrt{2}}{2}\\) z lewej strony równania, jak i \\(\\frac{1}{2}\\) z prawej to potęgi dwójki:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                    \\(\\sqrt{2}=2^{\\frac{1}{2}}\\), czyli \\(\\frac{\\sqrt{2}}{2}=\\frac{2^{\\frac{1}{2}}}{2^1}=2^{\\frac{1}{2}-1}=2^{-\\frac{1}{2}}\\)\n                </li>\n<li>\n                    \\(\\frac{1}{2}=2^{-1}\\)\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Dlatego równanie możemy przekształcić w:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(\\left(2^{-\\frac{1}{2}}\\right)^t=2^{-1}\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                czyli:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(2^{-\\frac{1}{2}t}=2^{-1}\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Widzimy dwie równe potęgi, o identycznych podstawach, więc i ich wykładniki muszą być równe:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(-\\frac{1}{2}t=-1\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                więc\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(t=2\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Czas połowicznego rozpadu cez-134 jest równy (według tego modelu) 2 lata.\n            </p>"
+        }
+      ]
     },
     {
-      "type": "text",
-      "body": "<p>\n                Użyjmy informacji o początkowej ilości cezu, tzn faktu, że \\(C=40\\) dla \\(t=0\\):\n            </p>"
+      "type": "spoiler",
+      "label": "Czas połowicznego rozpadu - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Chcemy, by ilość cezu spadła poniżej 5 gramów, czyli by \\(C\\lt 5\\). Znajdźmy więc taki czas \\(t\\), dla którego \\(C=5\\).\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(C=40\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\\quad\\rightarrow\\quad C=5\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(5=40\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Dzieląc obie strony równania na 40 otrzymamy:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(\\left(\\frac{\\sqrt{2}}{2}\\right)^t=\\frac{1}{8}\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Zauważmy, że podobnie jak poprzednio, obie strony równania możemy przedstawić jako potęgi dwójki:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                    \\(\\sqrt{2}=2^{\\frac{1}{2}}\\), czyli \\(\\frac{\\sqrt{2}}{2}=\\frac{2^{\\frac{1}{2}}}{2^1}=2^{\\frac{1}{2}-1}=2^{-\\frac{1}{2}}\\)\n                </li>\n<li>\n                    \\(\\frac{1}{8}=\\frac{1}{2^3}=2^{-3}\\)\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                czyli równanie przyjmuje formę:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(\\left(2^{-\\frac{1}{2}}\\right)^t=2^{-3}\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                czyli:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(2^{-\\frac{1}{2}t}=2^{-3}\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Porówujemy wykładniki:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(-\\frac{1}{2}t=-3\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                więc\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(t=6\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Po sześciu latach ilość cezu spada do 5 gramów, a potem poniżej tego poziomu.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Warto zwrócić uwagę, że sześć lat to trzykrotny okres połowicznego rozpadu:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                    po pierwszym okresie, czyli po 2 latach, ilość cezu spada z \\(40\\) do \\(40:2=20\\) gramów,\n                </li>\n<li>\n                    po drugim okresie, czyli po 4 latach, ilość cezu spada z \\(20\\) do \\(20:2=10\\) gramów,\n                </li>\n<li>\n                    po trzecim okresie, czyli po 6 latach, ilość cezu spada z \\(10\\) do \\(10:2=5\\) gramów.\n                </li>\n</ul>"
+        }
+      ]
     },
     {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(C=C_0\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\\quad\\rightarrow\\quad t=0, C=40\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(40=C_0\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^0\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Ponieważ \\(\\left(\\frac{\\sqrt{2}}{2}\\right)^0=1\\), od razu otrzymujemy wartość stałej \\(C_0\\):\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(C_0=40\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Tym samym znamy już w pełni równanie funkcji modelującej ilość cezu-134:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>$$\n                                                C=40\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\n                                                $$</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<input id=\"show_solution2\" type=\"button\" value=\"Wyliczenie stałej - zobacz\"/>",
-      "reason": "unmapped <input> in lesson body"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Czas połowicznego rozpadu to, w uproszczeniu, czas w którym połowa substancji ulega zanikowi.\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<img alt=\"\" height=\"313\" src=\"static/czas_polowicznego_rozpadu.png\" style=\"width: 801px; height: 313px;\" width=\"801\"/>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Początkowa ilość cezu to 40 gramów, szukamy więc czasu, gdy ilość ta spadnie do 20 gramów:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(C=40\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\\quad\\rightarrow\\quad C=20\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(20=40\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Dzieląc obie strony równania na 40 otrzymamy:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(\\left(\\frac{\\sqrt{2}}{2}\\right)^t=\\frac{1}{2}\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Zauważmy, że zarówno \\(\\frac{\\sqrt{2}}{2}\\) z lewej strony równania, jak i \\(\\frac{1}{2}\\) z prawej to potęgi dwójki:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li>\n                    \\(\\sqrt{2}=2^{\\frac{1}{2}}\\), czyli \\(\\frac{\\sqrt{2}}{2}=\\frac{2^{\\frac{1}{2}}}{2^1}=2^{\\frac{1}{2}-1}=2^{-\\frac{1}{2}}\\)\n                </li>\n<li>\n                    \\(\\frac{1}{2}=2^{-1}\\)\n                </li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Dlatego równanie możemy przekształcić w:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(\\left(2^{-\\frac{1}{2}}\\right)^t=2^{-1}\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                czyli:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(2^{-\\frac{1}{2}t}=2^{-1}\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Widzimy dwie równe potęgi, o identycznych podstawach, więc i ich wykładniki muszą być równe:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(-\\frac{1}{2}t=-1\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                więc\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(t=2\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Czas połowicznego rozpadu cez-134 jest równy (według tego modelu) 2 lata.\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<input id=\"show_solution3\" type=\"button\" value=\"Czas połowicznego rozpadu - zobacz\"/>",
-      "reason": "unmapped <input> in lesson body"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Chcemy, by ilość cezu spadła poniżej 5 gramów, czyli by \\(C\\lt 5\\). Znajdźmy więc taki czas \\(t\\), dla którego \\(C=5\\).\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(C=40\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\\quad\\rightarrow\\quad C=5\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(5=40\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Dzieląc obie strony równania na 40 otrzymamy:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(\\left(\\frac{\\sqrt{2}}{2}\\right)^t=\\frac{1}{8}\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Zauważmy, że podobnie jak poprzednio, obie strony równania możemy przedstawić jako potęgi dwójki:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li>\n                    \\(\\sqrt{2}=2^{\\frac{1}{2}}\\), czyli \\(\\frac{\\sqrt{2}}{2}=\\frac{2^{\\frac{1}{2}}}{2^1}=2^{\\frac{1}{2}-1}=2^{-\\frac{1}{2}}\\)\n                </li>\n<li>\n                    \\(\\frac{1}{8}=\\frac{1}{2^3}=2^{-3}\\)\n                </li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                czyli równanie przyjmuje formę:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(\\left(2^{-\\frac{1}{2}}\\right)^t=2^{-3}\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                czyli:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(2^{-\\frac{1}{2}t}=2^{-3}\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Porówujemy wykładniki:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(-\\frac{1}{2}t=-3\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                więc\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                    \\(t=6\\)\n                </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Po sześciu latach ilość cezu spada do 5 gramów, a potem poniżej tego poziomu.\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Warto zwrócić uwagę, że sześć lat to trzykrotny okres połowicznego rozpadu:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li>\n                    po pierwszym okresie, czyli po 2 latach, ilość cezu spada z \\(40\\) do \\(40:2=20\\) gramów,\n                </li>\n<li>\n                    po drugim okresie, czyli po 4 latach, ilość cezu spada z \\(20\\) do \\(20:2=10\\) gramów,\n                </li>\n<li>\n                    po trzecim okresie, czyli po 6 latach, ilość cezu spada z \\(10\\) do \\(10:2=5\\) gramów.\n                </li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<input id=\"show_solution4\" type=\"button\" value=\"Po jakim czasie cezu będzie mniej niż 5 gramów - zobacz\"/>",
-      "reason": "unmapped <input> in lesson body"
+      "type": "spoiler",
+      "label": "Po jakim czasie cezu będzie mniej niż 5 gramów - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Na pierwszy rzut oka równanie może wydać się skomplikowane. Są w nim trzy niewiadome (\\(C, C_0, t\\)), a nie ma zmiannych, do jakich przyzwyczailiśmy się ucząc się o funkcjach, czyli \\(x\\) oraz \\(y\\).\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Z brakiem \\(x\\)-a i \\(y\\)-a można łatwo sobie poradzić. Gdybyśmy chcieli narysować wykres obrazujący tę sytuację, naturalnym wyborem byłoby przedstawienie upływającego czasu na osi poziomej (\\(x\\)), a zmieniającą się ilość cezu na osi pionowej (\\(y\\)) tak, jakby równanie miało postać:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>$$\n                                                C=C_0\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t \\quad \\quad \\longrightarrow \\quad \\quad y=C_0\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^x\n                                                $$</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Tak więc zmienna \\(t\\) odpowiada zmiennej \\(x\\) i będzie przedstawiona na osi poziomej, a zmienna \\(C\\) odpowiada zmiennej \\(y\\) i będzie przedstawiona na osi pionowej.\n            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/wykladnicza_zastosowania_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Na powyższym rysunku widzisz czerwoną krzywą - wykres funkcji \\(C=C_0\\cdot \\left(\\frac{\\sqrt{2}}{2}\\right)^t\\). Zwróć uwagę, że jest to funkcja wykładnicza.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Podstawa potęgi \\(\\left(\\frac{\\sqrt{2}}{2}\\right)^t\\), czyli liczba \\(\\frac{\\sqrt{2}}{2}\\) jest mniejsza od 1, bo:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<span class=\"myequation\">\n                    \\(\\frac{\\sqrt{2}}{2}=\\sqrt{\\frac{2}{4}}\\lt 1\\)\n                </span>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                a to oznacza, że funkcja jest malejąca. Cześć wykresu po lewej stronie osi pionowej jest narysowana linią przerywaną, by wskazać na kształt wykresu, lecz w sytuacji opisanej w zadaniu wykres zaczyna się od osi pionowej, czyli w czasie \\(t=0\\), gdy cezu-134 jest \\(C=40\\) gramów.\n            </p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -618,5 +684,5 @@
     }
   ],
   "fully_mapped": false,
-  "seed_hash": "0ac6743ab92e50cdb403afa5392d57357768b2a49514450019542a61472f6632"
+  "seed_hash": "9ca74fd43624717d05ef3fdaac20495fc060459a3290ffed8cd72ed243798925"
 }

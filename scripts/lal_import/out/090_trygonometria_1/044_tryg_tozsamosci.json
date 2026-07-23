@@ -2,114 +2,134 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Wiedząc, że \\(\\sin\\alpha=\\frac{4}{5}\\) dla pewnego kąta ostrego \\(\\alpha\\), znajdź wartości pozostałych funkcji trygonometrycznych tego kąta.\n    "
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-4-1\" id=\"tab-4-1\">\n                    nagranie\n                </a>\n</li>\n<li>\n<a href=\"#tabcontent-4-2\" id=\"tab-4-2\">\n                    krok po kroku\n                </a>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Rozwiązanie z użyciem tożsamości trygonometrycznych.\n            </p>"
-    },
-    {
-      "type": "video",
-      "media_src": "static/tryg_tozsamosci_1.mp4"
-    },
-    {
-      "type": "spoiler",
-      "label": "ważna uwaga na temat jednego z obliczeń w powyższym nagraniu (kliknij)",
-      "body": "\n\n<div style=\"border: 1px solid gray; border-radius: 5px; padding: 5px;\">\n<p>\n                        Z równania \\(\\cos^2\\alpha=\\frac{9}{25}\\) wywnioskowałem, że \\(\\cos\\alpha=\\frac{3}{5}\\).\n                    </p>\n<p>\n                        Należy jednak pamiętać, że np.\n                    </p>\n<ul class=\"nolist\">\n<li>\n                            jeśli \\(x^2=4\\) to \\(x=2\\) albo \\(x=-2\\)\n                        </li>\n<li>\n                            jeśli \\(x^2=9\\) to \\(x=3\\) albo \\(x=-3\\)\n                        </li>\n<li>\n                            jeśli \\(x^2=25\\) to \\(x=5\\) albo \\(x=-5\\)\n                        </li>\n</ul>\n<p>\n                        Tu podobnie:\n                    </p>\n<p>\n                        Jeśli \\(\\cos^2\\alpha=\\frac{9}{25}\\) to \\(\\cos\\alpha=\\frac{3}{5}\\) albo \\(\\cos\\alpha=-\\frac{3}{5}\\).\n                    </p>\n<p>\n                        Jednak na razie ujemna wartość cosinusa nas nie interesuje. Cosinus kąta ostrego to stosunek dwóch długości, a tym samym musi być dodatni.\n                    </p>\n</div>\n"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Rozwiązanie z użyciem rysunku.\n            </p>"
-    },
-    {
-      "type": "video",
-      "media_src": "static/tryg_tozsamosci_2.mp4"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<strong>\n                        Uwaga!\n                    </strong>\n                    Na nagraniach, zarówno w tym zadaniu jak i w kolejnym, opisane są dwie metody: z użyciem tożsamości trygonometrycznych oraz z użyciem rysunku trójkąta prostokątnego. W opisie tego zadania użyjemy wyłącznie metody z rysunkiem, natomiast w zadaniu kolejnym - wyłącznie metody z tożsamościami trygonometrycznymi.\n                </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Rysunek poniżej przedstawia trójkąt prostokątny z kątem ostrym \\(\\alpha\\), którego sinus ma wartość \\(\\frac{4}{5}\\).\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<img alt=\"tożsamości trygonometryczne, zadanie, 1\" height=\"409\" src=\"static/tryg_tozsamosci_zad1.png\" style=\"width: 350px; height: 409px;\" width=\"350\"/>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Sinus to stosunek\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li>\n                            przyprostokątnej naprzeciwległej do kąta \\(\\alpha\\) (więc ta ma długość 4) do\n                        </li>\n<li>\n                            przeciwprostokątnej (więc ta ma długość 5).\n                        </li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Z twierdzenia Pitagorasa wyliczamy, że długość przyprostokątnej przyległej do kąta \\(\\alpha\\) to\n                        <span class=\"myequation\">\n<span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                        pokaż dalej\n                    "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<img alt=\"tożsamości trygonometryczne, zadanie, 2\" height=\"455\" src=\"static/tryg_tozsamosci_zad2.png\" style=\"width: 350px; height: 455px;\" width=\"350\"/>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                            Znając wszystkie boki w trójkącie prostokątnym i pamiętając, jak zdefiniowane są funkcje trygonometryczne kąta \\(\\alpha\\), możemy zapisać wartości brakujących funkcji\n                        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n<img alt=\"trójkąt prostokątny z kątem ostrym alfa\" height=\"243\" src=\"static/trojkat_prost_alfa.png\" style=\"width: 400px; height: 243px;\" width=\"400\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(\n                                                                                                                \\begin{align*}\n                                                                                                                \\sin\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{red}{c}}\\\\[10pt]\n                                                                                                                \\cos\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{red}{c}}\\\\[10pt]\n                                                                                                                \\text{tg }\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{yellow}{b}}\\\\[10pt]\n                                                                                                                \\text{ctg }\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{blue}{a}}\\\\\n                                                                                                                \\end{align*}\n                                                                                                                \\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<span class=\"myequation\">\n                            \\(\\cos\\alpha=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n</span>"
-    },
-    {
-      "type": "text",
-      "body": "\n                        pokaż dalej\n                    "
-    },
-    {
-      "type": "text",
-      "body": "\n<span class=\"myequation\">\n                            \\(\\text{tg }\\alpha=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n</span>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                        pokaż dalej\n                    "
-    },
-    {
-      "type": "text",
-      "body": "\n<span class=\"myequation\">\n                            \\(\\text{ctg }\\alpha=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n</span>\n"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                    Czyli ostatecznie\n                    <span class=\"myequation\">\n                        \\(\\sin\\alpha = \\frac{4}{5}, \\cos\\alpha=\\frac{3}{5}, \\text{tg }\\alpha = \\frac{4}{3}, \\text{ctg }\\alpha = \\frac{3}{4}\\)\n                    </span>\n</p>"
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                Rozwiązanie z użyciem tożsamości trygonometrycznych.\n            </p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/tryg_tozsamosci_1.mp4"
+            },
+            {
+              "type": "spoiler",
+              "label": "ważna uwaga na temat jednego z obliczeń w powyższym nagraniu (kliknij)",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "<p>\n                        Z równania \\(\\cos^2\\alpha=\\frac{9}{25}\\) wywnioskowałem, że \\(\\cos\\alpha=\\frac{3}{5}\\).\n                    </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                        Należy jednak pamiętać, że np.\n                    </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<ul class=\"nolist\">\n<li>\n                            jeśli \\(x^2=4\\) to \\(x=2\\) albo \\(x=-2\\)\n                        </li>\n<li>\n                            jeśli \\(x^2=9\\) to \\(x=3\\) albo \\(x=-3\\)\n                        </li>\n<li>\n                            jeśli \\(x^2=25\\) to \\(x=5\\) albo \\(x=-5\\)\n                        </li>\n</ul>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                        Tu podobnie:\n                    </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                        Jeśli \\(\\cos^2\\alpha=\\frac{9}{25}\\) to \\(\\cos\\alpha=\\frac{3}{5}\\) albo \\(\\cos\\alpha=-\\frac{3}{5}\\).\n                    </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                        Jednak na razie ujemna wartość cosinusa nas nie interesuje. Cosinus kąta ostrego to stosunek dwóch długości, a tym samym musi być dodatni.\n                    </p>"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Rozwiązanie z użyciem rysunku.\n            </p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/tryg_tozsamosci_2.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n<strong>\n                        Uwaga!\n                    </strong>\n                    Na nagraniach, zarówno w tym zadaniu jak i w kolejnym, opisane są dwie metody: z użyciem tożsamości trygonometrycznych oraz z użyciem rysunku trójkąta prostokątnego. W opisie tego zadania użyjemy wyłącznie metody z rysunkiem, natomiast w zadaniu kolejnym - wyłącznie metody z tożsamościami trygonometrycznymi.\n                </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/tryg_tozsamosci_zad1.png",
+              "alt": "tożsamości trygonometryczne, zadanie, 1",
+              "figcaption": ""
+            },
+            {
+              "type": "fill_gate",
+              "stem": "\n<p>\n                        Rysunek poniżej przedstawia trójkąt prostokątny z kątem ostrym \\(\\alpha\\), którego sinus ma wartość \\(\\frac{4}{5}\\).\n                    </p>\n<p>\n<img alt=\"tożsamości trygonometryczne, zadanie, 1\" height=\"409\" src=\"static/tryg_tozsamosci_zad1.png\" style=\"width: 350px; height: 409px;\" width=\"350\"/>\n</p>\n<p>\n                        Sinus to stosunek\n                    </p>\n<ul>\n<li>\n                            przyprostokątnej naprzeciwległej do kąta \\(\\alpha\\) (więc ta ma długość 4) do\n                        </li>\n<li>\n                            przeciwprostokątnej (więc ta ma długość 5).\n                        </li>\n</ul>\n<p>\n                        Z twierdzenia Pitagorasa wyliczamy, że długość przyprostokątnej przyległej do kąta \\(\\alpha\\) to\n                        <span class=\"myequation\">\n<span>\n￿0￿\n</span>\n</span>\n</p>\n",
+              "answers": [
+                [
+                  "3"
+                ]
+              ]
+            },
+            {
+              "type": "image",
+              "media_src": "static/tryg_tozsamosci_zad2.png",
+              "alt": "tożsamości trygonometryczne, zadanie, 2",
+              "figcaption": ""
+            },
+            {
+              "type": "image",
+              "media_src": "static/trojkat_prost_alfa.png",
+              "alt": "trójkąt prostokątny z kątem ostrym alfa",
+              "figcaption": ""
+            },
+            {
+              "type": "fill_gate",
+              "stem": "\n<p>\n<img alt=\"tożsamości trygonometryczne, zadanie, 2\" height=\"455\" src=\"static/tryg_tozsamosci_zad2.png\" style=\"width: 350px; height: 455px;\" width=\"350\"/>\n</p>\n<p>\n                            Znając wszystkie boki w trójkącie prostokątnym i pamiętając, jak zdefiniowane są funkcje trygonometryczne kąta \\(\\alpha\\), możemy zapisać wartości brakujących funkcji\n                        </p>\n<div style=\"display: inline-block; vertical-align: middle;\">\n<img alt=\"trójkąt prostokątny z kątem ostrym alfa\" height=\"243\" src=\"static/trojkat_prost_alfa.png\" style=\"width: 400px; height: 243px;\" width=\"400\"/>\n</div>\n<div class=\"important\" style=\"display: inline-block; margin-left: 20px;\">\n                            \\[\\begin{align*}\n                                                                                                                \\sin\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{red}{c}}\\\\[10pt]\n                                                                                                                \\cos\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{red}{c}}\\\\[10pt]\n                                                                                                                \\text{tg }\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{yellow}{b}}\\\\[10pt]\n                                                                                                                \\text{ctg }\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{blue}{a}}\\\\\n                                                                                                                \\end{align*}\\]\n                        </div>\n<p>\n</p>\n<span class=\"myequation\">\n                            \\(\\cos\\alpha=\\)\n                            <span>\n￿0￿\n</span>\n</span>\n",
+              "answers": [
+                [
+                  "3/5"
+                ]
+              ]
+            },
+            {
+              "type": "fill_gate",
+              "stem": "\n<span class=\"myequation\">\n                            \\(\\text{tg }\\alpha=\\)\n                            <span>\n￿0￿\n</span>\n</span>\n",
+              "answers": [
+                [
+                  "4/3"
+                ]
+              ]
+            },
+            {
+              "type": "fill_gate",
+              "stem": "\n<span class=\"myequation\">\n                            \\(\\text{ctg }\\alpha=\\)\n                            <span>\n￿0￿\n</span>\n</span>\n",
+              "answers": [
+                [
+                  "3/4"
+                ]
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "b15be7c639d79c21854885fd1e4d1f751ca21da9ee7d9efa1310f28af31c4d1e"
+  "fully_mapped": true,
+  "seed_hash": "05380de44c0642010ac6dfc0278ec2c6e9da49b0a23383ccdb24c866fd89bdb3"
 }

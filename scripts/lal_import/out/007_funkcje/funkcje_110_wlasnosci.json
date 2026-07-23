@@ -9,8 +9,10 @@
       "body": "<p>\n            Rysunek poniżej przedstawia wykres funkcji \\(g\\).\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_11.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/zbior_wartosci_11.png",
+      "alt": "odczytywanie wartości z wykresu",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -35,8 +37,10 @@
       "body": "<p>\n                Dziedzina jest zaznaczona na rysunku poniżej.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_12.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/zbior_wartosci_12.png",
+      "alt": "odczytywanie wartości z wykresu",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -51,8 +55,10 @@
       "body": "<p>\n                Te dwie ograniczające wartości widzimy na rysunku poniżej.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_13.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/zbior_wartosci_13.png",
+      "alt": "odczytywanie wartości z wykresu",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -73,8 +79,10 @@
       "body": "<p>\n                Zbiór wartości widzisz zaznaczony na rysunku poniżej.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_14.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/zbior_wartosci_14.png",
+      "alt": "odczytywanie wartości z wykresu",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -86,5 +94,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "e9b821f22bcbd7d98545ba78b185c7d557138466bc8ba754e3cafda58d928217"
+  "seed_hash": "d011678ad7499243f7c8085ffb79c15ad47f56251da3ad3f962d30563e667459"
 }

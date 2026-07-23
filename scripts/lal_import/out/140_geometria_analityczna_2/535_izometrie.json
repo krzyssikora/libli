@@ -38,7 +38,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -156,5 +156,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "45103c2a298d1303373a811cdf55b291b4f75c57b84051ca0e080daa5804a340"
+  "seed_hash": "91e860a1d89353e0552f92336b1575932939b34fc613309084523640410241b7"
 }

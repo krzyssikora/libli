@@ -2,23 +2,286 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Punkt \\(A=(-3,1)\\) jest wierzchołkiem kwadratu. Przekątna \\(BD\\) kwadratu zawiera się w prostej \\(y=-2x+10\\).\n        </p>\n<p>\n            Oblicz pole kwadratu i współrzędne punktu przecięcia przekątnych.\n        </p>\n"
+      "body": "<p>\n            Punkt \\(A=(-3,1)\\) jest wierzchołkiem kwadratu. Przekątna \\(BD\\) kwadratu zawiera się w prostej \\(y=-2x+10\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz pole kwadratu i współrzędne punktu przecięcia przekątnych.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "metoda rozwiązania",
-      "body": "\n\n<p>\n</p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"476px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/xypma986/width/625/height/476/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"geometria analityczna 2, zadanie 1550\" width=\"625px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">ten email</a>.\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n<details>\n<summary>dlaczego ta metoda jest poprawna?</summary>\n<p>\n                Przekątne kwadratu dzielą się na połowy pod kątem prostym.\n            </p>\n</details>\n"
+      "elements": [
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/xypma986/width/625/height/476/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        },
+        {
+          "type": "text",
+          "body": "<h4>dlaczego ta metoda jest poprawna?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Przekątne kwadratu dzielą się na połowy pod kątem prostym.\n            </p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Zacznimy od prostej prostopadłej do \\(y=-2x+10\\) i przechodzącej przez punkt \\(A=(-3,1)\\).\n                </p>\n<div class=\"switch_line\">\n                    Współczynnik kierunkowy tej prostej to \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(-\\frac{1}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Prosta prostopadła ma równanie\n                </p>\n                \\[\n                y=\\tfrac{1}{2}x+b\n                \\]\n                <p>\n                    i przechodzi przez punkt \\(A=(-3,1)\\), więc\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    y&amp;=\\tfrac{1}{2}x+b\\\\\n                    1&amp;=\\tfrac{1}{2}\\cdot(-3)+b\\\\\n                    1&amp;=-\\tfrac{3}{2}+b\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Równanie prostej prostopadłej to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=\\tfrac{1}{2}x+2\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(y=\\tfrac{1}{2}x-2\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(y=\\tfrac{1}{2}x-\\tfrac{1}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Otrzymana prosta, \\(y=\\tfrac{1}{2}x+2\\tfrac{1}{2}\\), zawiera drugą przekątną. Aby znaleźć punkt wspólny obu przekątnych musimy rozwiązać układ równań\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{cases}\n                    y=\\tfrac{1}{2}x+2\\tfrac{1}{2}\\\\\n                    y=-2x+10\n                    \\end{cases}\n                    \\]\n                </div>\n<p>\n                    Zrobimy to przyrównując wyrażenia na \\(y\\):\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\tfrac{1}{2}x+2\\tfrac{1}{2}=-2x+10\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Z tego równania wyliczamy, że \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x=3\\)</div>\n<div class=\"switch_value\">\\(x=-3\\)</div>\n<div class=\"switch_value\">\\(x=-5\\)</div>\n<div class=\"switch_value\">\\(x=5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Aby znaleźć współrzędną \\(y\\)-ową punktu przecięcia przekątnych podstawiamy \\(x=3\\) do równania \\(y=-2x+10\\) i dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=4\\)</div>\n<div class=\"switch_value\">\\(y=16\\)</div>\n<div class=\"switch_value\">\\(y=-16\\)</div>\n<div class=\"switch_value\">\\(y=-4\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Znaleźliśmy punkt przecięcia przekątnych \\(AC\\) i \\(BD\\) kwadratu - \\(S=(3,4)\\).\n                </p>\n<p>\n                    Przekątne kwadratu dzielą się na połowy, czyli punkt \\(S\\) jest środkiem przekątnej \\(AC\\). Użyjemy tego faktu, by znaleźć współrzędne wierzchołka \\(C\\).\n                </p>\n<details>\n<summary>pamiętasz wzór na środek odcinka?</summary>\n<div class=\"important\">\n<p>\n                            Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:\n                        </p>\n<div class=\"centered\">\n<img alt=\"środek odcinka\" src=\"static/srodek_odcinka.png\" width=\"400\"/>\n</div>\n                        \\[\n                        S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n                        \\]\n                    </div>\n<!-- ADD INTERNAL LINK -->\n<!-- 050_geo_an.html -->\n</details>\n<div class=\"switch_line\">\n                    Jeśli \\(C=(x_C,y_C)\\), to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x_C=\\frac{-3+3}{2}\\) i \\(y_C=\\frac{1+4}{2}\\)</div>\n<div class=\"switch_value\">\\(3=\\frac{-3+x_C}{2}\\) i \\(4=\\frac{1+y_C}{2}\\)</div>\n<div class=\"switch_value\">\\(x_C=3-(-3)\\) i \\(y_C=4-1\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Stąd wyliczamy, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x_C=9\\) i \\(y_C=7\\)</div>\n<div class=\"switch_value\">\\(x_C=12\\) i \\(y_C=6\\)</div>\n<div class=\"switch_value\">\\(x_C=0\\) i \\(y_C=10\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Mamy juz wierzchołki na jednej przekątnej.\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1550_1.png\" style=\"max-height: 250px;\"/>\n</figure>\n<p>\n                    Musimy jeszcze znaleźć wierzchołki \\(B\\) i \\(D\\) na drugiej przekątnej.\n                </p>\n<p>\n                    Przekątne kwadratu dzielą się na połowy, więc \\(B\\) i \\(D\\) leżą w takiej samej odległości od \\(S\\), jak punkt \\(C\\).\n                </p>\n<p>\n                    Obliczmy więc najpierw długość odcinka \\(SC\\).\n                </p>\n<details>\n<summary>pamiętasz, jak?</summary>\n<div class=\"important\">\n<p>\n                            Długość odcinka o końcach \\(K=(x_K, y_K)\\) i \\(M=(x_M, y_M)\\) dana jest wzorem\n                        </p>\n<div class=\"table_wrapper\">\n                            \\[\n                            KM=\\sqrt{(x_M-x_K)^2+(y_M-y_K)^2}\n                            \\]\n                        </div>\n</div>\n<p>\n<!-- Więcej na temat długości odcinka znajdziesz <a href=\"#\">tutaj</a>. -->\n<!-- ADD INTERNAL LINK -->\n</p>\n</details>\n<div class=\"switch_line\">\n                    \\(S=(3, 4)\\) i \\(C=(9,7)\\), więc długość odcinka \\(SC\\) dana jest wyrażeniem\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(6^2+3^2\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{6^2+3^2}\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{6^2+5,5^2}\\)</div>\n<div class=\"switch_value\">\\(6^2+5,5^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    |SC|&amp;=\\sqrt{(9-3)^2+(7-4)^2}=\\\\\n                    &amp;=\\sqrt{6^2+3^2}=\\\\\n                    &amp;=\\sqrt{36+9}=\\\\\n                    &amp;=\\sqrt{45}\n                    \\end{align}\n                    \\]\n                </div>\n<p>\n                    Ten wynik można dalej uprościć (do \\(3\\sqrt{5}\\)), ale w tej sytuacji nie musimy tego robić. Chcemy bowiem nakreślić okrąg o środku w \\(S\\) i promieniu równemu długości \\(SC\\), a następnie znaleźć \\(B\\) i \\(D\\) - punkty wspólne tego okręgu i prostej \\(y=-2x+10\\).\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1550_2.png\" style=\"max-height: 350px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Równanie tego okręgu to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((x-3)^2+(x-4)^2=\\sqrt{45}\\)</div>\n<div class=\"switch_value\">\\((x-3)^2+(x-4)^2=45\\)</div>\n<div class=\"switch_value\">\\((x+3)^2+(x+4)^2=45\\)</div>\n<div class=\"switch_value\">\\((x+3)^2+(x+4)^2=\\sqrt{45}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Musimy rozwiązać układ równań\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{cases}\n                    (x-3)^2+(y-4)^2=45\\\\\n                    y=-2x+10\n                    \\end{cases}\n                    \\]\n                </div>\n<p>\n                    W tym celu podstawimy \\(y=-2x+10\\) do równania okręgu i uprościmy tak otrzymane równanie:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    (x-3)^2+(-2x+10-4)^2&amp;=45\\\\\n                    (x-3)^2+(-2x+6)^2&amp;=45\\\\\n                    x^2-6x+9+4x^2-24x+36-45&amp;=0\\\\\n                    5x^2-30x&amp;=0\\\\\n                    x^2-6x&amp;=0\\\\\n                    x(x-6)&amp;=0\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    W ostatnim kroku rozłożyliśmy wyrażenie kwadratowe na czynniki, skąd widać, że rozwiązaniami równania są \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x=0\\) i \\(x=6\\)</div>\n<div class=\"switch_value\">\\(x=0\\) i \\(x=-6\\)</div>\n<div class=\"switch_value\">\\(x=-6\\) i \\(x=6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Aby znaleźć współrzędne \\(y\\)-owe punktów \\(B\\) i \\(D\\) wystarczy podstawić otrzymane wartości \\(x\\) do równania prostej, \\(y=-2x+10\\).\n                <div class=\"switch_line\">\n                    Dla \\(x=0\\) i \\(x=6\\) otrzymamy odpowiednio\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=10\\) i \\(y=-2\\)</div>\n<div class=\"switch_value\">\\(y=0\\) i \\(y=-22\\)</div>\n<div class=\"switch_value\">\\(y=10\\) i \\(y=2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Otrzymaliśmy \\(B=(6, -2)\\) oraz \\(D=(0,10)\\).\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1550_3.png\" style=\"max-height: 350px;\"/>\n</figure>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznimy od prostej prostopadłej do \\(y=-2x+10\\) i przechodzącej przez punkt \\(A=(-3,1)\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Współczynnik kierunkowy tej prostej to \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\)",
+            "\\(\\frac{1}{2}\\)",
+            "\\(-\\frac{1}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Prosta prostopadła ma równanie\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=\\tfrac{1}{2}x+b\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    i przechodzi przez punkt \\(A=(-3,1)\\), więc\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    y&amp;=\\tfrac{1}{2}x+b\\\\\n                    1&amp;=\\tfrac{1}{2}\\cdot(-3)+b\\\\\n                    1&amp;=-\\tfrac{3}{2}+b\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie prostej prostopadłej to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=\\tfrac{1}{2}x+2\\tfrac{1}{2}\\)",
+            "\\(y=\\tfrac{1}{2}x-2\\tfrac{1}{2}\\)",
+            "\\(y=\\tfrac{1}{2}x-\\tfrac{1}{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Otrzymana prosta, \\(y=\\tfrac{1}{2}x+2\\tfrac{1}{2}\\), zawiera drugą przekątną. Aby znaleźć punkt wspólny obu przekątnych musimy rozwiązać układ równań\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{cases}\n                    y=\\tfrac{1}{2}x+2\\tfrac{1}{2}\\\\\n                    y=-2x+10\n                    \\end{cases}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zrobimy to przyrównując wyrażenia na \\(y\\):\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\tfrac{1}{2}x+2\\tfrac{1}{2}=-2x+10\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z tego równania wyliczamy, że \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x=3\\)",
+            "\\(x=-3\\)",
+            "\\(x=-5\\)",
+            "\\(x=5\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby znaleźć współrzędną \\(y\\)-ową punktu przecięcia przekątnych podstawiamy \\(x=3\\) do równania \\(y=-2x+10\\) i dostajemy\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=4\\)",
+            "\\(y=16\\)",
+            "\\(y=-16\\)",
+            "\\(y=-4\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Znaleźliśmy punkt przecięcia przekątnych \\(AC\\) i \\(BD\\) kwadratu - \\(S=(3,4)\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przekątne kwadratu dzielą się na połowy, czyli punkt \\(S\\) jest środkiem przekątnej \\(AC\\). Użyjemy tego faktu, by znaleźć współrzędne wierzchołka \\(C\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz wzór na środek odcinka?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:\n                        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/srodek_odcinka.png",
+          "alt": "środek odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "math",
+          "latex": "\n                        S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n                        "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jeśli \\(C=(x_C,y_C)\\), to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x_C=\\frac{-3+3}{2}\\) i \\(y_C=\\frac{1+4}{2}\\)",
+            "\\(3=\\frac{-3+x_C}{2}\\) i \\(4=\\frac{1+y_C}{2}\\)",
+            "\\(x_C=3-(-3)\\) i \\(y_C=4-1\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd wyliczamy, że\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x_C=9\\) i \\(y_C=7\\)",
+            "\\(x_C=12\\) i \\(y_C=6\\)",
+            "\\(x_C=0\\) i \\(y_C=10\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mamy juz wierzchołki na jednej przekątnej.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1550_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Musimy jeszcze znaleźć wierzchołki \\(B\\) i \\(D\\) na drugiej przekątnej.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przekątne kwadratu dzielą się na połowy, więc \\(B\\) i \\(D\\) leżą w takiej samej odległości od \\(S\\), jak punkt \\(C\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Obliczmy więc najpierw długość odcinka \\(SC\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz, jak?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Długość odcinka o końcach \\(K=(x_K, y_K)\\) i \\(M=(x_M, y_M)\\) dana jest wzorem\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                            \\[\n                            KM=\\sqrt{(x_M-x_K)^2+(y_M-y_K)^2}\n                            \\]\n                        "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(S=(3, 4)\\) i \\(C=(9,7)\\), więc długość odcinka \\(SC\\) dana jest wyrażeniem\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6^2+3^2\\)",
+            "\\(\\sqrt{6^2+3^2}\\)",
+            "\\(\\sqrt{6^2+5,5^2}\\)",
+            "\\(6^2+5,5^2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    |SC|&amp;=\\sqrt{(9-3)^2+(7-4)^2}=\\\\\n                    &amp;=\\sqrt{6^2+3^2}=\\\\\n                    &amp;=\\sqrt{36+9}=\\\\\n                    &amp;=\\sqrt{45}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Ten wynik można dalej uprościć (do \\(3\\sqrt{5}\\)), ale w tej sytuacji nie musimy tego robić. Chcemy bowiem nakreślić okrąg o środku w \\(S\\) i promieniu równemu długości \\(SC\\), a następnie znaleźć \\(B\\) i \\(D\\) - punkty wspólne tego okręgu i prostej \\(y=-2x+10\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1550_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie tego okręgu to\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((x-3)^2+(x-4)^2=\\sqrt{45}\\)",
+            "\\((x-3)^2+(x-4)^2=45\\)",
+            "\\((x+3)^2+(x+4)^2=45\\)",
+            "\\((x+3)^2+(x+4)^2=\\sqrt{45}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Musimy rozwiązać układ równań\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{cases}\n                    (x-3)^2+(y-4)^2=45\\\\\n                    y=-2x+10\n                    \\end{cases}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    W tym celu podstawimy \\(y=-2x+10\\) do równania okręgu i uprościmy tak otrzymane równanie:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    (x-3)^2+(-2x+10-4)^2&amp;=45\\\\\n                    (x-3)^2+(-2x+6)^2&amp;=45\\\\\n                    x^2-6x+9+4x^2-24x+36-45&amp;=0\\\\\n                    5x^2-30x&amp;=0\\\\\n                    x^2-6x&amp;=0\\\\\n                    x(x-6)&amp;=0\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W ostatnim kroku rozłożyliśmy wyrażenie kwadratowe na czynniki, skąd widać, że rozwiązaniami równania są \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x=0\\) i \\(x=6\\)",
+            "\\(x=0\\) i \\(x=-6\\)",
+            "\\(x=-6\\) i \\(x=6\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Aby znaleźć współrzędne \\(y\\)-owe punktów \\(B\\) i \\(D\\) wystarczy podstawić otrzymane wartości \\(x\\) do równania prostej, \\(y=-2x+10\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dla \\(x=0\\) i \\(x=6\\) otrzymamy odpowiednio\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=10\\) i \\(y=-2\\)",
+            "\\(y=0\\) i \\(y=-22\\)",
+            "\\(y=10\\) i \\(y=2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Otrzymaliśmy \\(B=(6, -2)\\) oraz \\(D=(0,10)\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1550_3.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "4560cf42c7cb49cb14084f3eefa4a3fc1528a0c07eba4ae35bc32ba2de3f24fb"
+  "seed_hash": "a6f6a9650780b1e0d9f4903375387631ad7369860902f9ed0b119906d938cabd"
 }

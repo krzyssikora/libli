@@ -9,8 +9,10 @@
       "body": "<p>\n    Bardziej formalnie:\n</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"miejsce zerowe na grafie\" src=\"static/miejsce_zerowe_0.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/miejsce_zerowe_0.png",
+      "alt": "miejsce zerowe na grafie",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -45,8 +47,10 @@
       "body": "<p>\n        Na wykresie funkcji miejsce zerowe można znaleźć na osi \\(OX\\).\n    </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"miejsce zerowe na wykresie\" src=\"static/miejsce_zerowe_1.png\" width=\"400\"/>\n"
+      "type": "image",
+      "media_src": "static/miejsce_zerowe_1.png",
+      "alt": "miejsce zerowe na wykresie",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -61,8 +65,10 @@
       "body": "<p>\n            Fragment wykresu funkcji \\(f:\\mathbb{R}\\longrightarrow\\mathbb{R}\\) pokazuje wszystkie miejsca zerowe funkcji \\(f\\).\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"miejsce zerowe na wykresie\" src=\"static/miejsce_zerowe_2.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/miejsce_zerowe_2.png",
+      "alt": "miejsce zerowe na wykresie",
+      "figcaption": ""
     },
     {
       "type": "switch_gate",
@@ -91,5 +97,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "5d3a0af77e29eeb4c8c691c58bb8159254b8c08bb704a7343522ce2c143abc17"
+  "seed_hash": "6e58ea46379fcf26021fc317a87a0f698a3ab200bae726eaa81221e478bb7b26"
 }

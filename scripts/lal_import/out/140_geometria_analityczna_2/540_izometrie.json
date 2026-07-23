@@ -16,18 +16,141 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Udowodnij, że przesunięcie \\(P\\) zdefiniowane wzorem:\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            P(x,y) = (x+5, y-2) \n            \\]\n        </div>\n<p>\n            jest izometrią.\n        </p>\n"
+      "body": "<p>\n            Udowodnij, że przesunięcie \\(P\\) zdefiniowane wzorem:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "\n            \\[\n            P(x,y) = (x+5, y-2) \n            \\]\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            jest izometrią.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<details>\n<summary>pamiętasz sposób?</summary>\n<figure>\n<img src=\"static/izometria_schemat_dowodu.png\" style=\"max-height: 300px;\"/>\n</figure>\n</details>\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n<strong>krok 1.</strong>\n</p>\n<p>\n                    Rozpatrzmy dwa dowolne punkty, \\(A=(x_A, y_A)\\) oraz \\(B=(x_B, y_B)\\).\n                </p>\n<div class=\"switch_line\">\n                    Odległość między nimi jest równa\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\sqrt{(x_A-y_A)^2+(x_B-y_B)^2}\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{(x_A-x_B)^2+(y_A-y_B)^2}\\)</div>\n<div class=\"switch_value\">\\((x_A-x_B)^2+(y_A-y_B)^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n<strong>krok 2.</strong>\n</p>\n<p>\n                    Teraz znajdźmy obrazy punktów \\(A\\) i \\(B\\) w przesunięciu \\(P\\).\n                </p>\n<div class=\"switch_line\">\n                    Punkt \\(A\\) po przesunięciu (czyli \\(P(A)\\)) ma postać\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((x_A+5, y_A-2)\\)</div>\n<div class=\"switch_value\">\\((x_A+5, x_A-2)\\)</div>\n<div class=\"switch_value\">\\((x_A+5, y_A)\\)</div>\n<div class=\"switch_value\">\\((x_A, y_A-2)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Punkt \\(B\\) po przesunięciu (czyli \\(P(B)\\)) ma postać\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((x_B+5, y_B-2)\\)</div>\n<div class=\"switch_value\">\\((x_B+5, x_B-2)\\)</div>\n<div class=\"switch_value\">\\((x_B+5, y_B)\\)</div>\n<div class=\"switch_value\">\\((x_B, y_B-2)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n<strong>krok 3.</strong>\n</p>\n<p>\n                    Obliczmy odległość między obrazami punktów \\(A\\) i \\(B\\), czyli \\(|P(A)P(B)|\\) wiedząc, że:\n                </p>\n<ul class=\"nolist\">\n<li>\\(P(A)=(x_A+5, y_A-2)\\)</li>\n<li>\\(P(B)=(x_B+5, y_B-2)\\)</li>\n</ul>\n<div class=\"switch_line\">\n                    Ta odległość jest równa\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\sqrt{(x_A+5-x_B+5)^2+(y_A-2-y_B-2)^2}\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{(x_A+5-(x_B+5))^2+(y_A-2-(y_B-2))^2}\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{(x_A+5-(y_A-2))^2+(x_B+5-(y_B-2))^2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Uprośćmy to wyrażenie:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    |P(A)P(B)|&amp;=\\sqrt{(x_A+5-(x_B+5))^2+(y_A-2-(y_B-2))^2}=\\\\\n                    &amp;=\\sqrt{(x_A+5-x_B-5)^2+(y_A-2-y_B+2)^2}=\\\\\n                    &amp;=\\sqrt{(x_A-x_B)^2+(y_A-y_B)^2}\n                    \\end{align}\n                    \\]\n                </div>\n<p>\n<strong>krok 4.</strong>\n</p>\n<div class=\"switch_line\">\n                    Tak więc odległość \\(|P(A)P(B)|\\) jest \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">równa</div>\n<div class=\"switch_value\">większa od</div>\n<div class=\"switch_value\">mniejsza od</div> \n                    odległości \\(|AB|\\)\n                    <div class=\"switch_show_next ks_button\">zatwierdź</div> .\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Odległości są równe:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    |P(A)P(B)|=|AB|\n                    \\]\n                </div>\n<p>\n                    więc przesunięcie \\(P\\) jest izometrią.\n                </p>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz sposób?</h4>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/izometria_schemat_dowodu.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>krok 1.</strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Rozpatrzmy dwa dowolne punkty, \\(A=(x_A, y_A)\\) oraz \\(B=(x_B, y_B)\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Odległość między nimi jest równa\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\sqrt{(x_A-y_A)^2+(x_B-y_B)^2}\\)",
+            "\\(\\sqrt{(x_A-x_B)^2+(y_A-y_B)^2}\\)",
+            "\\((x_A-x_B)^2+(y_A-y_B)^2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>krok 2.</strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz znajdźmy obrazy punktów \\(A\\) i \\(B\\) w przesunięciu \\(P\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Punkt \\(A\\) po przesunięciu (czyli \\(P(A)\\)) ma postać\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((x_A+5, y_A-2)\\)",
+            "\\((x_A+5, x_A-2)\\)",
+            "\\((x_A+5, y_A)\\)",
+            "\\((x_A, y_A-2)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Punkt \\(B\\) po przesunięciu (czyli \\(P(B)\\)) ma postać\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((x_B+5, y_B-2)\\)",
+            "\\((x_B+5, x_B-2)\\)",
+            "\\((x_B+5, y_B)\\)",
+            "\\((x_B, y_B-2)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>krok 3.</strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Obliczmy odległość między obrazami punktów \\(A\\) i \\(B\\), czyli \\(|P(A)P(B)|\\) wiedząc, że:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\\(P(A)=(x_A+5, y_A-2)\\)</li>\n<li>\\(P(B)=(x_B+5, y_B-2)\\)</li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ta odległość jest równa\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\sqrt{(x_A+5-x_B+5)^2+(y_A-2-y_B-2)^2}\\)",
+            "\\(\\sqrt{(x_A+5-(x_B+5))^2+(y_A-2-(y_B-2))^2}\\)",
+            "\\(\\sqrt{(x_A+5-(y_A-2))^2+(x_B+5-(y_B-2))^2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Uprośćmy to wyrażenie:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    |P(A)P(B)|&amp;=\\sqrt{(x_A+5-(x_B+5))^2+(y_A-2-(y_B-2))^2}=\\\\\n                    &amp;=\\sqrt{(x_A+5-x_B-5)^2+(y_A-2-y_B+2)^2}=\\\\\n                    &amp;=\\sqrt{(x_A-x_B)^2+(y_A-y_B)^2}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>krok 4.</strong>\n</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Tak więc odległość \\(|P(A)P(B)|\\) jest \n                    \n\n\n￿0￿ \n                    odległości \\(|AB|\\)\n                     .\n                ",
+          "options": [
+            "równa",
+            "większa od",
+            "mniejsza od"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Odległości są równe:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    |P(A)P(B)|=|AB|\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    więc przesunięcie \\(P\\) jest izometrią.\n                </p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "7808777986b96396a52b5f70ad00d4fdf3f8ae0e054e340dd4c1e3946b1e821b"
+  "seed_hash": "e526f43a4d5c5611c92272e529a26590c98f6c7e3ac4c992d99c8a2409463440"
 }

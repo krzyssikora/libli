@@ -9,12 +9,56 @@
       "body": "\n        Wskaż poprawne określenia poniższych przedziałów.\n    "
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\((2,3)\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            otwarty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            domknięty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            ograniczony\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            lewostronnie\n            <br/>\n            otwarty\n        </div>\n</div>\n<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\(\\langle 4, 7\\rangle\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            otwarty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            domknięty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            ograniczony\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            lewostronnie\n            <br/>\n            otwarty\n        </div>\n</div>\n<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\((4, +\\infty)\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            otwarty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            domknięty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            ograniczony\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            lewostronnie\n            <br/>\n            otwarty\n        </div>\n</div>\n<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\(\\langle -\\infty, 7)\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            otwarty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            domknięty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            ograniczony\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            lewostronnie\n            <br/>\n            otwarty\n        </div>\n</div>\n<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\(\\langle 7, 11)\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            otwarty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            domknięty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            ograniczony\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            lewostronnie\n            <br/>\n            otwarty\n        </div>\n</div>\n<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\((-10, -2\\rangle\\)\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            otwarty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            domknięty\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            ograniczony\n        </div>\n<div class=\"multi_many_ans ks_button\">\n            lewostronnie\n            <br/>\n            otwarty\n        </div>\n</div>\n<div class=\"confirm_multiple ks_button\">\n        potwierdź\n    </div>",
-      "reason": "interactive_widget (Group B): confirm_multiple,multi_many_ans,multi_many_option"
+      "type": "multi_grid",
+      "columns": [
+        "otwarty",
+        "domknięty",
+        "ograniczony",
+        "lewostronnie otwarty"
+      ],
+      "rows": [
+        {
+          "statement": "\\((2,3)\\)",
+          "correct": [
+            0,
+            2
+          ]
+        },
+        {
+          "statement": "\\(\\langle 4, 7\\rangle\\)",
+          "correct": [
+            1,
+            2
+          ]
+        },
+        {
+          "statement": "\\((4, +\\infty)\\)",
+          "correct": [
+            0
+          ]
+        },
+        {
+          "statement": "\\(\\langle -\\infty, 7)\\)",
+          "correct": [
+            1
+          ]
+        },
+        {
+          "statement": "\\(\\langle 7, 11)\\)",
+          "correct": [
+            2
+          ]
+        },
+        {
+          "statement": "\\((-10, -2\\rangle\\)",
+          "correct": [
+            2,
+            3
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "9119cd4d9a7a715deb58e326ffc104c798b771514e5c231cae5186344615e824"
+  "fully_mapped": true,
+  "seed_hash": "ede523b1a2976464ef7b6e6191e2b849e153579f8a80067f6c49acd79faf6d8f"
 }

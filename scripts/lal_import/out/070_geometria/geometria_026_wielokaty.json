@@ -30,14 +30,14 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Uzupełnij wartości w tabeli\n    "
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": true,
         "header_col": false,
@@ -45,76 +45,62 @@
         "cells": [
           [
             {
-              "html": "\\(n\\), liczba wierzchołków",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(n\\), liczba wierzchołków"
             },
             {
-              "html": "wartość ze wzoru \\((n-3)\\cdot n\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "wartość ze wzoru \\((n-3)\\cdot n\\)"
             },
             {
-              "html": "rysunek",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "rysunek"
             },
             {
-              "html": "prawdziwa liczba przekątnych",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "prawdziwa liczba przekątnych"
             }
           ],
           [
             {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(4\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "4"
             },
             {
-              "html": "<img alt=\"\" height=\"268\" src=\"static/4kat_przekatne.png\" style=\"width: 300px; height: 268px;\" width=\"300\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "image",
+              "media_src": "static/4kat_przekatne.png",
+              "alt": ""
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "2"
             }
           ],
           [
             {
-              "html": "\\(5\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(5\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "10"
             },
             {
-              "html": "<img alt=\"\" height=\"268\" src=\"static/5kat_przekatne.png\" style=\"width: 300px; height: 268px;\" width=\"300\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "image",
+              "media_src": "static/5kat_przekatne.png",
+              "alt": ""
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "5"
             }
           ]
         ]
       }
-    },
-    {
-      "type": "text",
-      "body": "\n    Twoje odpowiedzi są poprawne, ale... czy widzisz, że coś się nie zgadza?\n"
     },
     {
       "type": "text",
@@ -125,8 +111,10 @@
       "body": "<p>\n    Spójrz na rysunek.\n</p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<img alt=\"\" height=\"425\" src=\"static/przekatne.png\" style=\"width: 800px; height: 425px;\" width=\"800\"/>\n</p>"
+      "type": "image",
+      "media_src": "static/przekatne.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -142,5 +130,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "a2aad92a9363210f20b337b8004430106d3e39ece0d04bdab713babcbd6bb412"
+  "seed_hash": "08a654edfdb69d6c9ca15d5e834594f69886937654ce40d1649c1d240633804b"
 }

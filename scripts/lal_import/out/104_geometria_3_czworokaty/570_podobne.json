@@ -34,7 +34,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "image",
@@ -49,7 +49,12 @@
     {
       "type": "spoiler",
       "label": "sprawdź",
-      "body": "\n\n<ol class=\"bold\" type=\"A\">\n<li>\n<strong>nie jest</strong> podobny, bo kąty są różne,\n            </li>\n<li>\n<strong>jest</strong> podobny, bo kąty są równe, a boki proporcjonalne: \\(\\frac{6}{3}=\\frac{4}{2}\\),\n            </li>\n<li>\n<strong>nie jest</strong> podobny mimo, że kąty są równe, bo boki nie są proporcjonalne: \\(\\frac{6}{4}\\ne\\frac{4}{2}\\).\n            </li>\n</ol>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\" type=\"A\">\n<li>\n<strong>nie jest</strong> podobny, bo kąty są różne,\n            </li>\n<li>\n<strong>jest</strong> podobny, bo kąty są równe, a boki proporcjonalne: \\(\\frac{6}{3}=\\frac{4}{2}\\),\n            </li>\n<li>\n<strong>nie jest</strong> podobny mimo, że kąty są równe, bo boki nie są proporcjonalne: \\(\\frac{6}{4}\\ne\\frac{4}{2}\\).\n            </li>\n</ol>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -61,7 +66,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -110,7 +115,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -159,7 +164,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -181,7 +186,38 @@
     {
       "type": "spoiler",
       "label": "dlaczego boki są proporcjonalne?",
-      "body": "\n\n<p>\n                Wprowadźmy oznaczenia, jak na rysunku poniżej:\n            </p>\n<ul class=\"nolist\">\n<li>\n                    \\(a_1\\), \\(b_1\\) - boki mniejszego, czerwonego prostokąta,\n                </li>\n<li>\n                    \\(a_2\\), \\(b_2\\) - boki większego, początkowo niebieskiego prostokąta,\n                </li>\n<li>\n                    \\(c_1\\) - przekątna mniejszego prostokąta,\n                </li>\n<li>\n                    \\(c_2\\) - przekątna większego prostokąta.<br/>\n<strong>Uwaga</strong>! Tu rysunek może być mylący - \\(c_2\\) to cała przekątna, a nie tylko jej fragment na zewnątrz małego prostokąta.\n                </li>\n</ul>\n<figure>\n<img src=\"static/podobienstwo_prostokaty.png\" style=\"max-height: 250px;\"/>\n</figure>\n<p>\n                I teraz:\n            </p>\n<ul>\n<li>\n                    nad przekątną: trójkąt prostokątny o bokach \\(a_1\\) i \\(c_1\\) jest podobny do trójkąta prostokątnego o bokach \\(a_2\\) i \\(c_2\\), skąd wynika:\n                    \\[\n                    \\frac{a_2}{a_1}=\\frac{c_2}{c_1}\n                    \\]\n                </li>\n<li>\n                    pod przekątną: trójkąt prostokątny o bokach \\(b_1\\) i \\(c_1\\) jest podobny do trójkąta prostokątnego o bokach \\(b_2\\) i \\(c_2\\), skąd wynika:\n                    \\[\n                    \\frac{b_2}{b_1}=\\frac{c_2}{c_1}\n                    \\]\n                </li>\n</ul>\n<p>\n                Zestawiając oba równania:\n            </p>\n            \\[\n            \\frac{a_2}{a_1}=\\frac{b_2}{b_1}\n            \\]\n        "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Wprowadźmy oznaczenia, jak na rysunku poniżej:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                    \\(a_1\\), \\(b_1\\) - boki mniejszego, czerwonego prostokąta,\n                </li>\n<li>\n                    \\(a_2\\), \\(b_2\\) - boki większego, początkowo niebieskiego prostokąta,\n                </li>\n<li>\n                    \\(c_1\\) - przekątna mniejszego prostokąta,\n                </li>\n<li>\n                    \\(c_2\\) - przekątna większego prostokąta.<br/>\n<strong>Uwaga</strong>! Tu rysunek może być mylący - \\(c_2\\) to cała przekątna, a nie tylko jej fragment na zewnątrz małego prostokąta.\n                </li>\n</ul>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/podobienstwo_prostokaty.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                I teraz:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                    nad przekątną: trójkąt prostokątny o bokach \\(a_1\\) i \\(c_1\\) jest podobny do trójkąta prostokątnego o bokach \\(a_2\\) i \\(c_2\\), skąd wynika:\n                    \\[\n                    \\frac{a_2}{a_1}=\\frac{c_2}{c_1}\n                    \\]\n                </li>\n<li>\n                    pod przekątną: trójkąt prostokątny o bokach \\(b_1\\) i \\(c_1\\) jest podobny do trójkąta prostokątnego o bokach \\(b_2\\) i \\(c_2\\), skąd wynika:\n                    \\[\n                    \\frac{b_2}{b_1}=\\frac{c_2}{c_1}\n                    \\]\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Zestawiając oba równania:\n            </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n            \\frac{a_2}{a_1}=\\frac{b_2}{b_1}\n            "
+        }
+      ]
     },
     {
       "type": "text",
@@ -193,5 +229,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "3d3cdf6cdbecdedc4e6adb90210ea4e75356f496e9b5604d73c9c87812ec9aae"
+  "seed_hash": "a2cde7df9405a945b35bd231c1872f37f1baf5e18819707076c5a4c78351afc3"
 }

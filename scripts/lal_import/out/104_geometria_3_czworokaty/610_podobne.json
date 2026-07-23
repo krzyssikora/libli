@@ -16,7 +16,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -46,25 +46,117 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Na rysunkach poniżej kąty w czworokątach o polach \\(P_1\\) i \\(P_2\\) oznaczone takimi samymi kolorami mają równe miary.\n        </p>\n<p>\n            Rysunki nie zachowują skali.\n        </p>\n<p>\n            Wskaż stosunek pól \\(P_2\\) do \\(P_1\\).\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<th>\n                        czworokąty\n                    </th>\n<th>\n                        stosunek pól \\(P_2\\) do \\(P_1\\)\n                    </th>\n</tr>\n<tr>\n<td><img src=\"static/geometria_3_zadanie_1280_1.png\" style=\"max-width: 400px;\"/></td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<td><img src=\"static/geometria_3_zadanie_1280_2.png\" style=\"max-width: 400px;\"/></td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<td><img src=\"static/geometria_3_zadanie_1280_3.png\" style=\"max-width: 400px;\"/></td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n</table>\n</div>\n"
+      "body": "<p>\n            Na rysunkach poniżej kąty w czworokątach o polach \\(P_1\\) i \\(P_2\\) oznaczone takimi samymi kolorami mają równe miary.\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n    Doskonale!\n"
+      "body": "<p>\n            Rysunki nie zachowują skali.\n        </p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p>\n            Wskaż stosunek pól \\(P_2\\) do \\(P_1\\).\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "czworokąty"
+            },
+            {
+              "kind": "static",
+              "html": "stosunek pól \\(P_2\\) do \\(P_1\\)"
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/geometria_3_zadanie_1280_1.png",
+              "alt": ""
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/geometria_3_zadanie_1280_2.png",
+              "alt": ""
+            },
+            {
+              "kind": "answer",
+              "answer": "2.25|2,25"
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/geometria_3_zadanie_1280_3.png",
+              "alt": ""
+            },
+            {
+              "kind": "answer",
+              "answer": "9"
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dokończ zdania. W każdym z nich czworokąty \\(W_1\\) i \\(W_2\\) są podobne.\n        </p>\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n<strong>1.</strong> Jeśli pole czworokąta \\(W_2\\) jest czterokrotnie większe od pola czworokąta \\(W_1\\), to skala podobieństwa czworokąta \\(W_2\\) do \\(W_1\\) jest równa\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4\\)</div>\n<div class=\"switch_value\">\\(2\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{4}\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n<strong>2.</strong> Jeśli pole czworokąta \\(W_2\\) jest 25 razy większe od pola czworokąta \\(W_1\\), to skala podobieństwa czworokąta \\(W_2\\) do \\(W_1\\) jest równa\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(5\\)</div>\n<div class=\"switch_value\">\\(25\\)</div>\n<div class=\"switch_value\">\\(0,2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n<strong>3.</strong> Jeśli pole czworokąta \\(W_2\\) jest dziewięciokrotnie mniejsze od pola czworokąta \\(W_1\\), to skala podobieństwa czworokąta \\(W_2\\) do \\(W_1\\) jest równa\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{3}\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{9}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<hr/>\n                Jeśli stosunek pól wielokątów podobnych jest równy \\(k^2=s\\), to skala podobieństwa tych wielokątów jest równa \\(k=\\sqrt{s}\\).\n            </div>\n</div>\n"
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dokończ zdania. W każdym z nich czworokąty \\(W_1\\) i \\(W_2\\) są podobne.\n        </p>"
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n1. Jeśli pole czworokąta \\(W_2\\) jest czterokrotnie większe od pola czworokąta \\(W_1\\), to skala podobieństwa czworokąta \\(W_2\\) do \\(W_1\\) jest równa\n                    \n\n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(4\\)",
+        "\\(2\\)",
+        "\\(\\frac{1}{4}\\)",
+        "\\(\\frac{1}{2}\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n2. Jeśli pole czworokąta \\(W_2\\) jest 25 razy większe od pola czworokąta \\(W_1\\), to skala podobieństwa czworokąta \\(W_2\\) do \\(W_1\\) jest równa\n                    \n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(5\\)",
+        "\\(25\\)",
+        "\\(0,2\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n3. Jeśli pole czworokąta \\(W_2\\) jest dziewięciokrotnie mniejsze od pola czworokąta \\(W_1\\), to skala podobieństwa czworokąta \\(W_2\\) do \\(W_1\\) jest równa\n                    \n\n\n\n￿0￿.\n                ",
+      "options": [
+        "\\(3\\)",
+        "\\(\\frac{1}{3}\\)",
+        "\\(\\frac{1}{9}\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli stosunek pól wielokątów podobnych jest równy \\(k^2=s\\), to skala podobieństwa tych wielokątów jest równa \\(k=\\sqrt{s}\\).</p>"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "97b7957745005305f002f62b78a2bba54ae68f80b01163f45cc5d354c709da49"
+  "seed_hash": "d56af46e71b721a2f2d8c79b0271beec9aec39a9a73937d9bf2e5b8a13ec4b97"
 }

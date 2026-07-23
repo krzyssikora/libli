@@ -17,16 +17,14 @@
       "body": "<p>\n            \\(\\log_{a} x_1\\gt \\log_{a} x_2 \\)\n        </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<img alt=\"funkcja logarytmiczna malejąca\" src=\"static/logarytmiczna_malejaca.png\" style=\"width: 800px;\" width=\"800\"/>\n</p>"
+      "type": "image",
+      "media_src": "static/logarytmiczna_malejaca.png",
+      "alt": "funkcja logarytmiczna malejąca",
+      "figcaption": ""
     },
     {
       "type": "text",
       "body": "<p>\n            (następuje\n            <span style=\"color: red\">\n                zmiana\n            </span>\n            znaku nierówności)\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n"
     },
     {
       "type": "text",
@@ -37,8 +35,10 @@
       "body": "<p>\n            \\(log_{a} x_1\\lt \\log_{a} x_2\\)\n        </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<img alt=\"funkcja logarytmiczna rosnąca\" src=\"static/logarytmiczna_rosnaca.png\" style=\"width: 800px;\" width=\"800\"/>\n</p>"
+      "type": "image",
+      "media_src": "static/logarytmiczna_rosnaca.png",
+      "alt": "funkcja logarytmiczna rosnąca",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -46,5 +46,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "87d6e76c34d39f902e06056b088f4d39676a934b15dff9da1b4cedb7b2a81741"
+  "seed_hash": "8cfef6f4c44e8330d91ddf541bd2ce7fc428a1f57dabbf33b715822152c4722e"
 }

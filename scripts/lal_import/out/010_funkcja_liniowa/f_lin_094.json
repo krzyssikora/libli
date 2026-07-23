@@ -2,53 +2,61 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Duża sieć sklepów ma sklepy w wielu miastach. Zarząd tej sieci zorientował się, że obroty każdego sklepu zależą\n            <strong>\n                w sposób liniowy\n            </strong>\n            od populacji miasta.\n        </p>\n<p>\n            W mieście o populacji 240 tysięcy mieszkańców sklep tej sieci ma obroty 4,1 miliona złotych, a w mieście a populacji 400 tysięcy mieszkańców sklep tej sieci ma obroty 4,5 miliona złotych.\n        </p>\n<ol>\n<li>\n                Znajdź liniową relację między \\(x\\) - populacją miasta w setkach tysięcy mieszkańców a \\(y\\) - obrotami sklepu w milionach złotych.\n            </li>\n<li>\n                Jakich obrotów spodziewać się po sklepie w miejscowości o populacji 300 tysięcy mieszkańców?\n            </li>\n<li>\n                Obroty jednego ze sklepów to 4,4 mln złotych. Jaka jest populacja miejscowości, gdzie sklep się znajduje?\n            </li>\n</ol>\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n<ol>\n<li>\n                \\(y=0,25x+3,5\\)\n            </li>\n<li>\n                4,25 mln zł\n            </li>\n<li>\n                360 tysięcy mieszkańców\n            </li>\n</ol>\n</div>",
-      "reason": "unmapped <div> in lesson body"
+      "body": "<p>\n            Duża sieć sklepów ma sklepy w wielu miastach. Zarząd tej sieci zorientował się, że obroty każdego sklepu zależą\n            <strong>\n                w sposób liniowy\n            </strong>\n            od populacji miasta.\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
-      "reason": "show_solution button without solution"
+      "body": "<p>\n            W mieście o populacji 240 tysięcy mieszkańców sklep tej sieci ma obroty 4,1 miliona złotych, a w mieście a populacji 400 tysięcy mieszkańców sklep tej sieci ma obroty 4,5 miliona złotych.\n        </p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<ol>\n<li>\n                Znajdź liniową relację między \\(x\\) - populacją miasta w setkach tysięcy mieszkańców a \\(y\\) - obrotami sklepu w milionach złotych.\n            </li>\n<li>\n                Jakich obrotów spodziewać się po sklepie w miejscowości o populacji 300 tysięcy mieszkańców?\n            </li>\n<li>\n                Obroty jednego ze sklepów to 4,4 mln złotych. Jaka jest populacja miejscowości, gdzie sklep się znajduje?\n            </li>\n</ol>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                \\(y=0,25x+3,5\\)\n            </li>\n<li>\n                4,25 mln zł\n            </li>\n<li>\n                360 tysięcy mieszkańców\n            </li>\n</ol>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dyrekcja fabryki przeprowadziła badania, z których wynika, że koncentracja pyłków PM2,5 jest funkcją liniową odległości od fabryki.\n        </p>\n<p>\n            W miejscu odległym o 3 kmilometry od fabryki koncentracja pyłków wynosi 45 mikrogramów na metr sześcienny (\\(\\mu\\text{g/m}^3)\\).\n        </p>\n<p>\n            W miejscu odległym o 9 kilometrów od fabryki koncentracja pyłków jest równa 35 mikrogramów na metr sześcienny.\n        </p>\n<ol>\n<li>\n                Znajdź liniową relację między \\(x\\), odległością od fabryki w kilometrach a \\(y\\), koncentracją pyłków w mikrogramach na metr sześcienny.\n            </li>\n<li>\n                Jaka jest koncentracja pyłków w fabryce?\n            </li>\n<li>\n                W jakiej odległości od fabryki koncentracja pyłków spada do poziomu 20 mikrogramów na metr sześcienny?\n            </li>\n</ol>\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n<ol>\n<li>\n                \\(y=-5/3x+50\\)\n            </li>\n<li>\n                \\(50\\mu\\text{g/m}^3\\)\n            </li>\n<li>\n                18 kilometrów\n            </li>\n</ol>\n</div>",
-      "reason": "unmapped <div> in lesson body"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n"
+      "body": "<p>\n            Dyrekcja fabryki przeprowadziła badania, z których wynika, że koncentracja pyłków PM2,5 jest funkcją liniową odległości od fabryki.\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
-      "reason": "show_solution button without solution"
+      "type": "text",
+      "body": "<p>\n            W miejscu odległym o 3 kmilometry od fabryki koncentracja pyłków wynosi 45 mikrogramów na metr sześcienny (\\(\\mu\\text{g/m}^3)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W miejscu odległym o 9 kilometrów od fabryki koncentracja pyłków jest równa 35 mikrogramów na metr sześcienny.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n                Znajdź liniową relację między \\(x\\), odległością od fabryki w kilometrach a \\(y\\), koncentracją pyłków w mikrogramach na metr sześcienny.\n            </li>\n<li>\n                Jaka jest koncentracja pyłków w fabryce?\n            </li>\n<li>\n                W jakiej odległości od fabryki koncentracja pyłków spada do poziomu 20 mikrogramów na metr sześcienny?\n            </li>\n</ol>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                \\(y=-5/3x+50\\)\n            </li>\n<li>\n                \\(50\\mu\\text{g/m}^3\\)\n            </li>\n<li>\n                18 kilometrów\n            </li>\n</ol>"
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "7f7305478faf9c22b14548daf0a4d4423d3b7942900169271c66ca0757fafe74"
+  "fully_mapped": true,
+  "seed_hash": "ab01ebad120946a4851bf5acd01726657f977a4d9e1adf8550b850d585df0cfc"
 }

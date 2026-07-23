@@ -1,10 +1,8 @@
 {
   "elements": [
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>\n    Maciek wszedł na wieżę i rzucił piłkę do góry.\n</p><p>\n    Wysokość piłki jest dana równaniem\n</p><p>\\[y=-5x^2+15x+20\\]</p><p>\n    gdzie \\(y\\) to wysokość w metrach liczona od poziomu ziemi, a \\(x\\) to czas w sekundach liczony od momentu rzutu \\((x\\ge 0)\\).\n</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>\n    Maciek wszedł na wieżę i rzucił piłkę do góry.\n</p><p>\n    Wysokość piłki jest dana równaniem\n</p><p>\\[y=-5x^2+15x+20\\]</p><p>\n    gdzie \\(y\\) to wysokość w metrach liczona od poziomu ziemi, a \\(x\\) to czas w sekundach liczony od momentu rzutu \\((x\\ge 0)\\).\n</p>"
     },
     {
       "type": "choice",
@@ -115,10 +113,8 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>\n    Producent pewnego samochodu przeprowadził badania na temat zużycia paliwa. Okazało się, że jeśli samochód ten jedzie z prędkością między 15 a 75 kilometrów na godzinę, to zużycie paliwa może być wyliczane ze wzoru:\n</p><p>\\[y=\\frac{1}{500}x^2-\\frac{8}{50}x+\\frac{41}{5}\\]</p><p>\n    gdzie \\(x\\) to prędkość samochodu w kilometrach na godzinę \\((15\\le x\\le 75)\\), a \\(y\\) to zużycie paliwa w litrach na 100 kilometrów.\n</p><p>\n    Zacznij od przedstawienia równania w postaci kanonicznej, a następnie użyj tego równania, by odpowiedzieć na pytania.\n</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>\n    Producent pewnego samochodu przeprowadził badania na temat zużycia paliwa. Okazało się, że jeśli samochód ten jedzie z prędkością między 15 a 75 kilometrów na godzinę, to zużycie paliwa może być wyliczane ze wzoru:\n</p><p>\\[y=\\frac{1}{500}x^2-\\frac{8}{50}x+\\frac{41}{5}\\]</p><p>\n    gdzie \\(x\\) to prędkość samochodu w kilometrach na godzinę \\((15\\le x\\le 75)\\), a \\(y\\) to zużycie paliwa w litrach na 100 kilometrów.\n</p><p>\n    Zacznij od przedstawienia równania w postaci kanonicznej, a następnie użyj tego równania, by odpowiedzieć na pytania.\n</p>"
     },
     {
       "type": "choice",
@@ -202,6 +198,6 @@
       ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "c6916fc7d9684f3292baeaad4f41306e9e6959a39feea953652cf9e08aebc302"
+  "fully_mapped": true,
+  "seed_hash": "01e5236fccaa816f3383dbe07d7eef5bd972b10c77816de66036fb9b1c85b8f8"
 }

@@ -22,11 +22,24 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W aplecie poniżej możesz:\n        </p>\n<ul>\n<li>\n                przesuwać suwak, by zmieniać wartość parametru \\(\\color{blue}{a}\\), i widzieć, że nie zmienia się położenie mniejśc zerowych,\n            </li>\n<li>\n                zmieniać wartości miejsc zerowych \\(\\color{red}{x_1}\\) oraz \\(\\color{red}{x_2}\\), by zmieniać położenie wykresu bez zmiany jego kształtu.\n            </li>\n</ul>\n<div>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"800px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/cnzeatug/width/800/height/800/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"funkcja kwadratowa - równanie iloczynowe\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<p>\n            Co się stanie, jeśli wpiszesz tę samą liczbę dla obu miejsc zerowych?\n        </p>\n"
+      "body": "<p>\n            W aplecie poniżej możesz:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                przesuwać suwak, by zmieniać wartość parametru \\(\\color{blue}{a}\\), i widzieć, że nie zmienia się położenie mniejśc zerowych,\n            </li>\n<li>\n                zmieniać wartości miejsc zerowych \\(\\color{red}{x_1}\\) oraz \\(\\color{red}{x_2}\\), by zmieniać położenie wykresu bez zmiany jego kształtu.\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/cnzeatug/width/800/height/800/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Co się stanie, jeśli wpiszesz tę samą liczbę dla obu miejsc zerowych?\n        </p>"
     },
     {
       "type": "text",
@@ -50,5 +63,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "666680db36f27f8c4811226af51e10af00d4e9d138dbda63bfba707ad8dd8f0f"
+  "seed_hash": "fc59b097d73251f7d080a79a5e53759befedfa92806b1232610b9b1dc19efce1"
 }

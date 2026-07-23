@@ -2,99 +2,199 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Wpisz współrzędne narysowanych wektorów przyjmując, że bok kratki ma długość \\(1\\).\n    "
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
-        "border": "grid",
+        "border": "rows",
         "cells": [
           [
             {
-              "html": "wektor",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "wektor"
             },
             {
-              "html": "współrzędne",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "współrzędne"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
             }
           ],
           [
             {
-              "html": "<img alt=\"wektor\" src=\"static/wektor_1.png\" width=\"200\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "image",
+              "media_src": "static/wektor_1.png",
+              "alt": "wektor"
             },
             {
-              "html": "\\([\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(,\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(]\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\([\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
             }
           ],
           [
             {
-              "html": "<img alt=\"wektor\" src=\"static/wektor_2.png\" width=\"200\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "image",
+              "media_src": "static/wektor_2.png",
+              "alt": "wektor"
             },
             {
-              "html": "\\([\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(,\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(]\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\([\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
             }
           ],
           [
             {
-              "html": "<img alt=\"wektor\" src=\"static/wektor_3.png\" width=\"200\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "image",
+              "media_src": "static/wektor_3.png",
+              "alt": "wektor"
             },
             {
-              "html": "\\([\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(,\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(]\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\([\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "-3"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
             }
           ],
           [
             {
-              "html": "<img alt=\"wektor\" src=\"static/wektor_4.png\" width=\"200\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "image",
+              "media_src": "static/wektor_4.png",
+              "alt": "wektor"
             },
             {
-              "html": "\\([\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(,\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(]\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\([\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "-3"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
             }
           ],
           [
             {
-              "html": "<img alt=\"wektor\" src=\"static/wektor_5.png\" width=\"200\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "image",
+              "media_src": "static/wektor_5.png",
+              "alt": "wektor"
             },
             {
-              "html": "\\([\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(,\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(]\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\([\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "-4"
+            },
+            {
+              "kind": "static",
+              "html": "\\(,\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "-1"
+            },
+            {
+              "kind": "static",
+              "html": "\\(]\\)",
+              "halign": "left"
             }
           ]
         ]
       }
-    },
-    {
-      "type": "text",
-      "body": "\n    Świetnie!\n"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "0d790085f690a0c7a916b24507d3c4a75c618043cdb8d27c19aad79d472501e6"
+  "seed_hash": "171e7bb6958dcd619661d389efb338174d6d1745aeaa3d670054a382f997eea1"
 }

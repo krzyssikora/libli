@@ -18,11 +18,19 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Funkcja \\(y=f(x)\\) jest dana równaniem\n        <div class=\"table_wrapper\">\\[\n        f(x)=\\frac{4x-2}{2x+3}, quad x\\ne -\\tfrac{3}{2}\n        \\]</div>\n        Naszkicuj wykres tej funkcji.\n    "
+      "body": "<p>Funkcja \\(y=f(x)\\) jest dana równaniem</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        f(x)=\\frac{4x-2}{2x+3}, quad x\\ne -\\tfrac{3}{2}\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>Naszkicuj wykres tej funkcji.</p>"
     },
     {
       "type": "text",
@@ -39,29 +47,217 @@
     {
       "type": "spoiler",
       "label": "1punkt przecięcia wykresu z osią OX",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                        Punkt przecięcia wykresu z osią OX to taki punkt wykresu, którego współrzędna \n                        <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x\\)-owa</div>\n<div class=\"switch_value\">\\(y\\)-owa</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>\n                         jest równa \\(0\\).\n                    </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                        Zgadza się, punkt na osi OX jest wsdkazany przez miejsce zerowe. Obliczmy więc\n                    </p>\n<div class=\"table_wrapper\">\\[\n                    \\frac{4x-2}{2x+3}=0\n                    \\]</div>\n<div class=\"switch_line\">\n                        skąd wynika\n                        <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4x-2=0\\)</div>\n<div class=\"switch_value\">\\(2x+3=0\\)</div>\n<div class=\"switch_value\">\\(4x-2=2x-3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                    </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                        A to oznacza, że\n                        <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x=2\\)</div>\n<div class=\"switch_value\">\\(x=-\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(x=\\tfrac{1}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                    </div>\n</div>\n<div class=\"switch_step hidden\">\n                    Punkt przecięcia wykresu z osią OK ma współrzędne \\(\\left(\\tfrac{1}{2},0\\right)\\).\n                    <figure>\n<img src=\"static/homograficzna_zadanie_2_1.png\"/>\n</figure>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                        Punkt przecięcia wykresu z osią OX to taki punkt wykresu, którego współrzędna \n                        \n\n\n￿0￿\n                         jest równa \\(0\\).\n                    ",
+          "options": [
+            "\\(x\\)-owa",
+            "\\(y\\)-owa"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Zgadza się, punkt na osi OX jest wsdkazany przez miejsce zerowe. Obliczmy więc\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                    \\frac{4x-2}{2x+3}=0\n                    \\]"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                        skąd wynika\n                        \n\n\n\n￿0￿.\n                    ",
+          "options": [
+            "\\(4x-2=0\\)",
+            "\\(2x+3=0\\)",
+            "\\(4x-2=2x-3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                        A to oznacza, że\n                        \n\n\n\n￿0￿.\n                    ",
+          "options": [
+            "\\(x=2\\)",
+            "\\(x=-\\tfrac{1}{2}\\)",
+            "\\(x=\\tfrac{1}{2}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Punkt przecięcia wykresu z osią OK ma współrzędne \\(\\left(\\tfrac{1}{2},0\\right)\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/homograficzna_zadanie_2_1.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "2punkt przecięcia wykresu z osią OY",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                        Punkt przecięcia wykresu z osią OY to taki punkt wykresu, którego współrzędna \n                        <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x\\)-owa</div>\n<div class=\"switch_value\">\\(y\\)-owa</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>\n                         jest równa \\(0\\).\n                    </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                        POdstawmy więc \\(x=0\\) do równania funkcji:\n                    </p>\n<div class=\"table_wrapper\">\\[\n                    y=\\frac{4\\cdot 0-2}{2\\cdot 0+3}\n                    \\]</div>\n<div class=\"switch_line\">\n                        A to oznacza, że\n                        <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=\\tfrac{2}{5}\\)</div>\n<div class=\"switch_value\">\\(y=-\\tfrac{2}{3}\\)</div>\n<div class=\"switch_value\">\\(y=\\tfrac{2}{3}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                    </div>\n</div>\n<div class=\"switch_step hidden\">\n                    Punkt przecięcia wykresu z osią OY ma współrzędne \\(\\left(0, -\\tfrac{2}{3}\\right)\\).                \n                    <figure>\n<img src=\"static/homograficzna_zadanie_2_2.png\"/>\n</figure>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                        Punkt przecięcia wykresu z osią OY to taki punkt wykresu, którego współrzędna \n                        \n\n\n￿0￿\n                         jest równa \\(0\\).\n                    ",
+          "options": [
+            "\\(x\\)-owa",
+            "\\(y\\)-owa"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        POdstawmy więc \\(x=0\\) do równania funkcji:\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                    y=\\frac{4\\cdot 0-2}{2\\cdot 0+3}\n                    \\]"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                        A to oznacza, że\n                        \n\n\n\n￿0￿.\n                    ",
+          "options": [
+            "\\(y=\\tfrac{2}{5}\\)",
+            "\\(y=-\\tfrac{2}{3}\\)",
+            "\\(y=\\tfrac{2}{3}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Punkt przecięcia wykresu z osią OY ma współrzędne \\(\\left(0, -\\tfrac{2}{3}\\right)\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/homograficzna_zadanie_2_2.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "3asymptota pionowa",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                        Zauważmy, że asymptota pionowa hiperboli jest prostą pionową poprowadzoną przez \\(x\\), dla którego funkcja nie ma wartości.\n                    </p>\n<p>\n                        Jest to ta wartość \\(x\\), dla której ułamek w równaniu funkcji, \\(\\frac{4x-2}{2x+3}\\), nie jest określony.\n                    </p>\n<div class=\"switch_line\">\n                        Dlatego równanie asymptoty pionowej to\n                        <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x=-\\tfrac{3}{2}\\)</div>\n<div class=\"switch_value\">\\(x=\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(x=\\tfrac{3}{2}\\)</div>\n<div class=\"switch_value\">\\(y=-\\tfrac{3}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                    </div>\n</div>\n<div class=\"switch_step hidden\">\n                    Asymptota pionowa to prosta o równaniu \\(x=-\\tfrac{3}{2}\\). \n                    <figure>\n<img src=\"static/homograficzna_zadanie_2_3.png\"/>\n</figure>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                        Zauważmy, że asymptota pionowa hiperboli jest prostą pionową poprowadzoną przez \\(x\\), dla którego funkcja nie ma wartości.\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Jest to ta wartość \\(x\\), dla której ułamek w równaniu funkcji, \\(\\frac{4x-2}{2x+3}\\), nie jest określony.\n                    </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                        Dlatego równanie asymptoty pionowej to\n                        \n\n\n\n\n￿0￿.\n                    ",
+          "options": [
+            "\\(x=-\\tfrac{3}{2}\\)",
+            "\\(x=\\tfrac{1}{2}\\)",
+            "\\(x=\\tfrac{3}{2}\\)",
+            "\\(y=-\\tfrac{3}{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Asymptota pionowa to prosta o równaniu \\(x=-\\tfrac{3}{2}\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/homograficzna_zadanie_2_3.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "4asymptota pozioma",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                        Asymptota pozioma to prosta na takiej wysokości, do jakiej coraz bliższe są wartości funkcji \\(y\\), gdy \\(x\\)-y stają się bardzo duże. (Albo bardzo małe - ale w znaczeniu: ujemne o dużej wartości bezwzględnej.)\n                    </p>\n<p>\n                        W poniższym aplecie możesz wpisywać różne wartości \\(x\\), by zobaczyć, jaka będzie wartość funkcji, \\(y\\). Wpisuj coraz większe wartości (albo \"coraz bardziej ujemne\"). Co dzieje się z \\(y\\)-ami? Co obserwujesz?\n                    </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                                Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                            </small>\n<br/>\n<small>\n                                Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                            </small>\n</div>\n<iframe height=\"247px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/fw8yxg5e/width/534/height/247/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"asymptota pozioma - przykład\" width=\"534px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                                    aplet nie działa poprawnie?\n                                </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                                    Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                                    <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                        ten email\n                                    </a>\n                                    .\n                                </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n<div class=\"switch_line\">\n                        Im większa wartość \\(x\\), tym wartość \\(y\\) jest\n                        <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">większa</div>\n<div class=\"switch_value\">mniejsza</div>\n<div class=\"switch_value\">bliższa \\(2\\)</div>\n<div class=\"switch_value\">bliższa \\(0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                    </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                        Rzeczywiście, przeanalizujmy to razem. Gdy podstawiamy dużą wartość \\(x\\), na przykład <strong>miliard</strong>, do równania funkcji, otrzymujemy:\n                    </p>\n<div class=\"table_wrapper\">\\[\n                    \\frac{\\color{red}{4}\\color{orange}{\\cdot(\\,\\text{miliard})}\\color{blue}{-2}}{\\color{red}{2}\\color{orange}{\\cdot(\\,\\text{miliard})}\\color{blue}{+3}}\n                    \\]</div>\n<p>\n                        Zauważ, że niebieskie \\(\\color{blue}{-2}\\) oraz \\color{blue}{+3} są bardzo niewielkie w porównaniu z czerwonymi liczbami. Im większa wartość \\(x\\), tym bardziej są <strong>nieznaczące</strong>. Stąd przybliżona wartość \\(y\\) to\n                    </p>\n<div class=\"table_wrapper\">\\[\n                    \\approx\\frac{\\color{red}{4}\\color{orange}{\\cdot(\\,\\text{miliard})}}{\\color{red}{2}\\color{orange}{\\cdot(\\,\\text{miliard})}}=\n                    \\frac{\\color{red}{4}}{\\color{red}{2}}=2\n                    \\]</div>\n                    Dlatego asymptota pozioma to prosta o równaniu \\(y=2\\). \n                    <figure>\n<img src=\"static/homograficzna_zadanie_2_4.png\"/>\n</figure>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                        Asymptota pozioma to prosta na takiej wysokości, do jakiej coraz bliższe są wartości funkcji \\(y\\), gdy \\(x\\)-y stają się bardzo duże. (Albo bardzo małe - ale w znaczeniu: ujemne o dużej wartości bezwzględnej.)\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        W poniższym aplecie możesz wpisywać różne wartości \\(x\\), by zobaczyć, jaka będzie wartość funkcji, \\(y\\). Wpisuj coraz większe wartości (albo \"coraz bardziej ujemne\"). Co dzieje się z \\(y\\)-ami? Co obserwujesz?\n                    </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/fw8yxg5e/width/534/height/247/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                        Im większa wartość \\(x\\), tym wartość \\(y\\) jest\n                        \n\n\n\n\n￿0￿.\n                    ",
+          "options": [
+            "większa",
+            "mniejsza",
+            "bliższa \\(2\\)",
+            "bliższa \\(0\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Rzeczywiście, przeanalizujmy to razem. Gdy podstawiamy dużą wartość \\(x\\), na przykład <strong>miliard</strong>, do równania funkcji, otrzymujemy:\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                    \\frac{\\color{red}{4}\\color{orange}{\\cdot(\\,\\text{miliard})}\\color{blue}{-2}}{\\color{red}{2}\\color{orange}{\\cdot(\\,\\text{miliard})}\\color{blue}{+3}}\n                    \\]"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Zauważ, że niebieskie \\(\\color{blue}{-2}\\) oraz \\color{blue}{+3} są bardzo niewielkie w porównaniu z czerwonymi liczbami. Im większa wartość \\(x\\), tym bardziej są <strong>nieznaczące</strong>. Stąd przybliżona wartość \\(y\\) to\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                    \\approx\\frac{\\color{red}{4}\\color{orange}{\\cdot(\\,\\text{miliard})}}{\\color{red}{2}\\color{orange}{\\cdot(\\,\\text{miliard})}}=\n                    \\frac{\\color{red}{4}}{\\color{red}{2}}=2\n                    \\]"
+        },
+        {
+          "type": "text",
+          "body": "<p>Dlatego asymptota pozioma to prosta o równaniu \\(y=2\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/homograficzna_zadanie_2_4.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "5wykres",
-      "body": "\n\n<p>\n                Najpierw narysujmy krzywą pod asymptotą poziomą i w prawo od pionowej tak, by przechodziła przez dwa zaznaczone punkty i zbliżała się do asymptot.\n             </p>\n<figure>\n<img src=\"static/homograficzna_zadanie_2_5.png\"/>\n</figure>\n<p>\n                 Na zakończeniem rysujemy krzywą nad asymptotą poziomą i w lewo od pionowej - symetryczną do tej pierwszej w punkcie przecięcia asymptot.\n             </p>\n<figure>\n<img src=\"static/homograficzna_zadanie_2_6.png\"/>\n</figure>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Najpierw narysujmy krzywą pod asymptotą poziomą i w prawo od pionowej tak, by przechodziła przez dwa zaznaczone punkty i zbliżała się do asymptot.\n             </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/homograficzna_zadanie_2_5.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                 Na zakończeniem rysujemy krzywą nad asymptotą poziomą i w lewo od pionowej - symetryczną do tej pierwszej w punkcie przecięcia asymptot.\n             </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/homograficzna_zadanie_2_6.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "f4c01faad41f87af07a8e1e59e885f3337588be0a0c6090adf24bdb373495013"
+  "seed_hash": "3d6a8f775c2d55c7f05cb284838f0c514d466be8e15ca833b50f351b17bd200f"
 }

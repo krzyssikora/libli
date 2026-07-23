@@ -2,57 +2,661 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W deltoidzie \\(ABCD\\) dane są długości boków:\n        </p>\n<ul class=\"nolist\">\n<li>\n                \\(AB=AD=25\\)\n            </li>\n<li>\n                \\(BC=BD=29\\)\n            </li>\n</ul>\n<p>\n            oraz przekątnej \\(BD=40\\).\n        </p>\n<p>\n            Znajdź długość drugiej przekątnej oraz pole deltoidu.\n        </p>\n"
+      "body": "<p>\n            W deltoidzie \\(ABCD\\) dane są długości boków:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                \\(AB=AD=25\\)\n            </li>\n<li>\n                \\(BC=BD=29\\)\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            oraz przekątnej \\(BD=40\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długość drugiej przekątnej oraz pole deltoidu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<figure>\n<img src=\"static/geometria_3_zadanie_130_1.png\" style=\"max-width: 300px;\"/>\n</figure>\n<p>\n                    Jak wiemy, jedna z przekątnych deltoidu jest jego osią symetrii.\n                </p>\n<div class=\"switch_line\">\n                    W przypadku deltoidu z zadania tą przekątną jest \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(AC\\)</div>\n<div class=\"switch_value\">\\(BD\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dorysujmy tę przekątną i oznaczmy punkt przecięcia przekątnych przez \\(E\\).\n                <figure>\n<img src=\"static/geometria_3_zadanie_130_2.png\" style=\"max-width: 300px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Punkt \\(E\\) dzieli\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">przekątną \\(AC\\) na połowy</div>\n<div class=\"switch_value\">przekątną \\(BD\\) na połowy</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Przekątne przecinają się pod kątem prostym, więc przyjrzyjmy się trójkątowi prostokątnemu \\(CDE\\).\n                <figure>\n<img src=\"static/geometria_3_zadanie_130_3.png\" style=\"max-width: 300px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Możemy obliczyć długość odcinka \\(CE\\) z twierdzenia Pitagorasa:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(CE^2=29^2-20^2\\)</div>\n<div class=\"switch_value\">\\(CE^2=29^2+20^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I dlatego \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(CE=441\\)</div>\n<div class=\"switch_value\">\\(CE=21\\)</div>\n<div class=\"switch_value\">\\(CE=9\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Teraz przyjrzyjmy się trójkątowi prostokątnemu \\(AED\\).\n                <figure>\n<img src=\"static/geometria_3_zadanie_130_4.png\" style=\"max-width: 300px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Możemy obliczyć długość odcinka \\(AE\\) z twierdzenia Pitagorasa:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(AE^2=25^2-20^2\\)</div>\n<div class=\"switch_value\">\\(AE^2=25^2+20^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I dlatego\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(AE=225\\)</div>\n<div class=\"switch_value\">\\(AE=15\\)</div>\n<div class=\"switch_value\">\\(AE=5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    A skoro \\(CE=21\\) i \\(AE=15\\), to długość całej przekątnej \\(AC\\) jest równa\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(36\\)</div>\n<div class=\"switch_value\">\\(30\\)</div>\n<div class=\"switch_value\">\\(42\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Przekątna \\(AC\\) ma dugość \\(36\\).\n                <figure>\n<img src=\"static/geometria_3_zadanie_130_5.png\" style=\"max-width: 300px;\"/>\n</figure>\n                Pozostaje nam obliczyć pole, które dane jest wzorem\n                <div class=\"table_wrapper\">\n                    \\[\n                    P=\\frac{\\text{przekątna}_1\\cdot\\text{przekątna}_2}{2}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Stąd pole deltoidu \\(P=\\frac{40\\cdot 36}{2}=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(360\\)</div>\n<div class=\"switch_value\">\\(720\\)</div>\n<div class=\"switch_value\">\\(1440\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Przekątna \\(AC\\) ma długość \\(36\\), a pole deltoidu jest równe \\(720\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_130_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jak wiemy, jedna z przekątnych deltoidu jest jego osią symetrii.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W przypadku deltoidu z zadania tą przekątną jest \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(AC\\)",
+            "\\(BD\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Dorysujmy tę przekątną i oznaczmy punkt przecięcia przekątnych przez \\(E\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_130_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Punkt \\(E\\) dzieli\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "przekątną \\(AC\\) na połowy",
+            "przekątną \\(BD\\) na połowy"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Przekątne przecinają się pod kątem prostym, więc przyjrzyjmy się trójkątowi prostokątnemu \\(CDE\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_130_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Możemy obliczyć długość odcinka \\(CE\\) z twierdzenia Pitagorasa:\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(CE^2=29^2-20^2\\)",
+            "\\(CE^2=29^2+20^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(CE=441\\)",
+            "\\(CE=21\\)",
+            "\\(CE=9\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz przyjrzyjmy się trójkątowi prostokątnemu \\(AED\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_130_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Możemy obliczyć długość odcinka \\(AE\\) z twierdzenia Pitagorasa:\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(AE^2=25^2-20^2\\)",
+            "\\(AE^2=25^2+20^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(AE=225\\)",
+            "\\(AE=15\\)",
+            "\\(AE=5\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A skoro \\(CE=21\\) i \\(AE=15\\), to długość całej przekątnej \\(AC\\) jest równa\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(36\\)",
+            "\\(30\\)",
+            "\\(42\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Przekątna \\(AC\\) ma dugość \\(36\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_130_5.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Pozostaje nam obliczyć pole, które dane jest wzorem</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    P=\\frac{\\text{przekątna}_1\\cdot\\text{przekątna}_2}{2}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd pole deltoidu \\(P=\\frac{40\\cdot 36}{2}=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(360\\)",
+            "\\(720\\)",
+            "\\(1440\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Przekątna \\(AC\\) ma długość \\(36\\), a pole deltoidu jest równe \\(720\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Przekątne deltoidu są długości \\(18\\) i \\(52\\). Jeden z boków tego deltoidu ma długość \\(15\\).\n        </p>\n<p>\n            Oblicz obwód deltoidu.\n        </p>\n"
+      "body": "<p>\n            Przekątne deltoidu są długości \\(18\\) i \\(52\\). Jeden z boków tego deltoidu ma długość \\(15\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz obwód deltoidu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<p>\n<small><i>Uwaga! Rysunki użyte w tym zadaniu nie zachowują skali.</i></small>\n</p>\n            Pamiętajmy, że w deltoidach jedna z przekątnych dzieli drugą na połowy.\n            <figure>\n<img src=\"static/geometria_3_zadanie_140_1.png\" style=\"max-width: 300px;\"/>\n</figure>\n<p>\n                To teraz musimy się skoncentrować.\n            </p>\n<p>\n                W zadaniu mamy przekątne o długościach \\(18\\) i \\(52\\).\n            </p>\n<ul class=\"nolist\">\n<li>\n                    Jeśli przekątna o długości \\(18\\) jest podzielona drugą na połowy, to te połowy są długości \\(9\\).\n                </li>\n<li>\n                    Jeśli przekątna o długości \\(52\\) jest podzielona drugą na połowy, to te połowy są długości \\(26\\).\n                </li>\n</ul>\n<p>\n                Wiemy też, że jeden z boków ma długość \\(15\\).\n            </p>\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Dlatego przekątną podzieloną na na połowy może być \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">tylko ta krótsza</div>\n<div class=\"switch_value\">tylko ta dłuższa</div>\n<div class=\"switch_value\">każda z dwóch przekątnych</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Gdyby dłuższa przekątna była podzielona na połowy, to mielibyśmy do czynienia z sytuacją, jak na ryzunku niżej.\n                <figure>\n<img src=\"static/geometria_3_zadanie_140_2.png\" style=\"max-width: 300px;\"/>\n</figure>\n                Na rysunku na czerwono zaznaczono \n                <ul>\n<li>\n                        przeciwprostokątną o długości \\(15\\) i\n                    </li>\n<li>\n                        przyprostokątną o długości \\(26\\).\n                    </li>\n</ul>\n<p>\n                    Przeciwprostokątna nie może być krótsza od przyprostokątnej, więc taki przypadek nie zachodzi. Skupmy się na drugim, w którym na połowy podzielona jest krótsza przekątna.\n                </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_140_3.png\" style=\"max-width: 300px;\"/>\n</figure>\n<p>\n                    Oznaczmy długości dwóch fragmentów dłuższej przekątnej przez \\(d\\) i \\(e\\), jak na rysunku.\n                </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_140_4.png\" style=\"max-width: 300px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Długość \\(d\\) obliczymy z twierdzenia Pitagorasa za pomocą równania\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(d^2=15^2-9^2\\)</div>\n<div class=\"switch_value\">\\(d^2=15^2+9^2\\)</div>\n<div class=\"switch_value\">\\(d^2+15^2=9^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Stąd \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(d=144\\)</div>\n<div class=\"switch_value\">\\(d=12\\)</div>\n<div class=\"switch_value\">\\(d=6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Drugi fragment dłuższej przekątnej to oczywiście \\(e=52-12=40\\).\n                <figure>\n<img src=\"static/geometria_3_zadanie_140_5.png\" style=\"max-width: 300px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Z twierdzenia Pitagorasa dla trójkąta zaznaczonego na zielono wiemy, że \\(b^2=9^2+40^2\\), skąd wyliczamy, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(b=41\\)</div>\n<div class=\"switch_value\">\\(b=43\\)</div>\n<div class=\"switch_value\">\\(b=49\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_3_zadanie_140_6.png\" style=\"max-width: 300px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Z tą wiedzą możemy wyliczyć, że obwód deltoidu to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(112\\)</div>\n<div class=\"switch_value\">\\(56\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dłuższa przekątna to oś symetrii deltoidu,\n                <figure>\n<img src=\"static/geometria_3_zadanie_140_6.png\" style=\"max-width: 300px;\"/>\n</figure>\n                więc obwód to\n                <div class=\"table_wrapper\">\n                    \\[\n                    15+15+41+41=112\n                    \\]\n                </div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<small><i>Uwaga! Rysunki użyte w tym zadaniu nie zachowują skali.</i></small>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Pamiętajmy, że w deltoidach jedna z przekątnych dzieli drugą na połowy.</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_140_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                To teraz musimy się skoncentrować.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                W zadaniu mamy przekątne o długościach \\(18\\) i \\(52\\).\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                    Jeśli przekątna o długości \\(18\\) jest podzielona drugą na połowy, to te połowy są długości \\(9\\).\n                </li>\n<li>\n                    Jeśli przekątna o długości \\(52\\) jest podzielona drugą na połowy, to te połowy są długości \\(26\\).\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Wiemy też, że jeden z boków ma długość \\(15\\).\n            </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dlatego przekątną podzieloną na na połowy może być \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "tylko ta krótsza",
+            "tylko ta dłuższa",
+            "każda z dwóch przekątnych"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Gdyby dłuższa przekątna była podzielona na połowy, to mielibyśmy do czynienia z sytuacją, jak na ryzunku niżej.</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_140_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Na rysunku na czerwono zaznaczono</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                        przeciwprostokątną o długości \\(15\\) i\n                    </li>\n<li>\n                        przyprostokątną o długości \\(26\\).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przeciwprostokątna nie może być krótsza od przyprostokątnej, więc taki przypadek nie zachodzi. Skupmy się na drugim, w którym na połowy podzielona jest krótsza przekątna.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_140_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy długości dwóch fragmentów dłuższej przekątnej przez \\(d\\) i \\(e\\), jak na rysunku.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_140_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Długość \\(d\\) obliczymy z twierdzenia Pitagorasa za pomocą równania\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d^2=15^2-9^2\\)",
+            "\\(d^2=15^2+9^2\\)",
+            "\\(d^2+15^2=9^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d=144\\)",
+            "\\(d=12\\)",
+            "\\(d=6\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Drugi fragment dłuższej przekątnej to oczywiście \\(e=52-12=40\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_140_5.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z twierdzenia Pitagorasa dla trójkąta zaznaczonego na zielono wiemy, że \\(b^2=9^2+40^2\\), skąd wyliczamy, że\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b=41\\)",
+            "\\(b=43\\)",
+            "\\(b=49\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_140_6.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z tą wiedzą możemy wyliczyć, że obwód deltoidu to\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(112\\)",
+            "\\(56\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Dłuższa przekątna to oś symetrii deltoidu,</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_140_6.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>więc obwód to</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    15+15+41+41=112\n                    \\]\n                "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Boki deltoidu mają długości \\(3+\\sqrt{3}\\) oraz \\(\\sqrt{6}\\).\n        </p>\n<p>\n            Kąt między bokami o długości \\(3+\\sqrt{3}\\) ma miarę \\(30^{\\circ}\\).\n        </p>\n<p>\n            Kąt między bokami o długości \\(\\sqrt{6}\\) ma miarę \\(60^{\\circ}\\).\n        </p>\n<p>\n            Oblicz pole deltoidu.\n        </p>\n"
+      "body": "<p>\n            Boki deltoidu mają długości \\(3+\\sqrt{3}\\) oraz \\(\\sqrt{6}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kąt między bokami o długości \\(3+\\sqrt{3}\\) ma miarę \\(30^{\\circ}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kąt między bokami o długości \\(\\sqrt{6}\\) ma miarę \\(60^{\\circ}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz pole deltoidu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Zacznijmy od rysunku.\n                <figure>\n<img src=\"static/geometria_3_zadanie_150_1.png\" style=\"max-width: 300px;\"/>\n</figure>\n                Zadanie można rozwiązać na różne sposoby. Wybierzemy najprostszy.\n                <details>\n<summary>A tu przeczytasz, jakiego sposobu nie przetestujemy</summary>\n                    Narysujmy przekątną łączącą wierzchołki znanych kątów oraz zaznaczoną poniżej na czerwono wysokość w jednym z dwóch powstałych w ten sposób trójkątów.\n                    <figure>\n<img src=\"static/geometria_3_zadanie_150_2.png\" style=\"max-width: 300px;\"/>\n</figure>\n                    Wówczas możemy:\n                    <ol class=\"bold\">\n<li>\n                            znaleźć długość czerwonej wysokości (z \\(\\sin 30^{\\circ}\\)),\n                        </li>\n<li>\n                            znaleźć długość podstawy w tym samym trójkącie prostokątnym (z \\(\\cos 30^{\\circ}\\)),\n                        </li>\n<li>\n                            znaleźć długość pozostałej części narysowanej przekątnej (z twierdzenia Pitagorasa)\n                        </li>\n<li>\n                            mając obie przekątne (jedna jest dwukrotnością wysokości, druga jest sumą dwóch fragmentów obliczonych powyżej) możemy obliczyć pole.\n                        </li>\n</ol>\n                    Ale to za dużo pracy...\n                </details>\n<div class=\"switch_line\">\n                    Zauważmy, że oba kąty, których miary nie są dane są\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">proste</div>\n<div class=\"switch_value\">wklęsłe</div>\n<div class=\"switch_value\">sobie równe</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Wiemy też, że suma wszystkich kątów wewnętrznych deltoidu to \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(180^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(360^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(540^{\\circ}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_3_zadanie_150_3.png\" style=\"max-width: 300px;\"/>\n</figure>\n<div class=\"table_wrapper\">\n                    \\[\n                    60^{\\circ}+30^{\\circ}+2\\alpha=360^{\\circ}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Z tego równania wyliczamy, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\alpha=135^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(\\alpha=270^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(\\alpha=120^{\\circ}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Teraz możemy użyć wzoru na pole deltoidu.\n                <details>\n<summary>tego wzoru</summary>\n<div class=\"important\">\n                        \\[\n                        P=a\\cdot b\\cdot \\sin\\alpha\n                        \\]\n                        <figure>\n<img src=\"static/deltoid_pole_alpha_1.png\" style=\"max-width: 400px;\"/>\n</figure>\n</div>\n</details>\n<div class=\"switch_line\">\n                    Pole deltoidu możemy policzyć ze wzoru\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(P=\\sqrt{6}\\cdot(3+\\sqrt{3})\\sin 135^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(P=(3+\\sqrt{3})\\cdot(3+\\sqrt{3})\\sin 30^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(P=\\sqrt{6}\\cdot\\sqrt{6}\\sin 60^{\\circ}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Aby obliczyć pole musimy jeszcze wiedzieć, że \\(\\sin 135^{\\circ}=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(-\\frac{\\sqrt{2}}{2}\\)</div>\n<div class=\"switch_value\">\\(\\frac{\\sqrt{2}}{2}\\)</div>\n<div class=\"switch_value\">\\(\\frac{\\sqrt{3}}{2}\\)</div>\n<div class=\"switch_value\">\\(-\\frac{1}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                I teraz wystarczy uprościć wyrażenie:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    P&amp;=\\sqrt{6}\\cdot(3+\\sqrt{3})\\sin 135^{\\circ}=\\\\\n                    &amp;=\\sqrt{6}\\cdot(3+\\sqrt{3})\\cdot \\frac{\\sqrt{2}}{2}=\\\\\n                    &amp;=(3\\sqrt{6}+\\sqrt{18})\\cdot \\frac{\\sqrt{2}}{2}=\\\\\n                    &amp;=\\frac{3\\sqrt{12}}{2}+\\frac{\\sqrt{36}}{2}=\\\\\n                    &amp;=\\frac{3\\cdot 2\\sqrt{3}}{2}+\\frac{6}{2}=\\\\\n                    &amp;=3\\sqrt{3}+3\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zacznijmy od rysunku.</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_150_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Zadanie można rozwiązać na różne sposoby. Wybierzemy najprostszy.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>A tu przeczytasz, jakiego sposobu nie przetestujemy</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Narysujmy przekątną łączącą wierzchołki znanych kątów oraz zaznaczoną poniżej na czerwono wysokość w jednym z dwóch powstałych w ten sposób trójkątów.</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_150_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Wówczas możemy:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                            znaleźć długość czerwonej wysokości (z \\(\\sin 30^{\\circ}\\)),\n                        </li>\n<li>\n                            znaleźć długość podstawy w tym samym trójkącie prostokątnym (z \\(\\cos 30^{\\circ}\\)),\n                        </li>\n<li>\n                            znaleźć długość pozostałej części narysowanej przekątnej (z twierdzenia Pitagorasa)\n                        </li>\n<li>\n                            mając obie przekątne (jedna jest dwukrotnością wysokości, druga jest sumą dwóch fragmentów obliczonych powyżej) możemy obliczyć pole.\n                        </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Ale to za dużo pracy...</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Zauważmy, że oba kąty, których miary nie są dane są\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "proste",
+            "wklęsłe",
+            "sobie równe"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wiemy też, że suma wszystkich kątów wewnętrznych deltoidu to \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(180^{\\circ}\\)",
+            "\\(360^{\\circ}\\)",
+            "\\(540^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_150_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    60^{\\circ}+30^{\\circ}+2\\alpha=360^{\\circ}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z tego równania wyliczamy, że\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\alpha=135^{\\circ}\\)",
+            "\\(\\alpha=270^{\\circ}\\)",
+            "\\(\\alpha=120^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz możemy użyć wzoru na pole deltoidu.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>tego wzoru</h4>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                        P=a\\cdot b\\cdot \\sin\\alpha\n                        "
+        },
+        {
+          "type": "image",
+          "media_src": "static/deltoid_pole_alpha_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Pole deltoidu możemy policzyć ze wzoru\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(P=\\sqrt{6}\\cdot(3+\\sqrt{3})\\sin 135^{\\circ}\\)",
+            "\\(P=(3+\\sqrt{3})\\cdot(3+\\sqrt{3})\\sin 30^{\\circ}\\)",
+            "\\(P=\\sqrt{6}\\cdot\\sqrt{6}\\sin 60^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby obliczyć pole musimy jeszcze wiedzieć, że \\(\\sin 135^{\\circ}=\\)\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(-\\frac{\\sqrt{2}}{2}\\)",
+            "\\(\\frac{\\sqrt{2}}{2}\\)",
+            "\\(\\frac{\\sqrt{3}}{2}\\)",
+            "\\(-\\frac{1}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>I teraz wystarczy uprościć wyrażenie:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    P&amp;=\\sqrt{6}\\cdot(3+\\sqrt{3})\\sin 135^{\\circ}=\\\\\n                    &amp;=\\sqrt{6}\\cdot(3+\\sqrt{3})\\cdot \\frac{\\sqrt{2}}{2}=\\\\\n                    &amp;=(3\\sqrt{6}+\\sqrt{18})\\cdot \\frac{\\sqrt{2}}{2}=\\\\\n                    &amp;=\\frac{3\\sqrt{12}}{2}+\\frac{\\sqrt{36}}{2}=\\\\\n                    &amp;=\\frac{3\\cdot 2\\sqrt{3}}{2}+\\frac{6}{2}=\\\\\n                    &amp;=3\\sqrt{3}+3\n                    \\end{align}\n                    \\]\n                "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Boki deltoidu są długości \\(15\\) i \\(41\\), a jedna z przekątnych \\(52\\).\n        </p>\n<p>\n            Oblicz pole deltoidu.\n        </p>\n"
+      "body": "<p>\n            Boki deltoidu są długości \\(15\\) i \\(41\\), a jedna z przekątnych \\(52\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz pole deltoidu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Przyjrzyj się dwóm rysunkom poniżej.\n                <div class=\"table_wrapper\">\n<table class=\"my_table_TL narrow_table\">\n<tr>\n<td>\n<strong>A.</strong>\n</td>\n<td>\n<strong>B.</strong>\n</td>\n</tr>\n<tr>\n<td>\n<img src=\"static/geometria_3_zadanie_160_1.png\" style=\"max-height: 300px;\"/>\n</td>\n<td>\n<img src=\"static/geometria_3_zadanie_160_2.png\" style=\"max-height: 300px;\"/>\n</td>\n</tr>\n</table>\n</div>\n<div class=\"switch_line\">\n                    Musimy zająć się\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">obiema sytuacjami, <strong>A</strong> i <strong>B</strong></div>\n<div class=\"switch_value\">tylko sytuacją <strong>A</strong></div>\n<div class=\"switch_value\">tylko sytuacją <strong>B</strong></div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Zgadza się, sytuacja <strong>B</strong> nas nie interesuje, bo trójkąt o bokach \\(15\\), \\(15\\), \\(52\\) nie istnieje - nie spełnia <span class=\"ks_tooltip\" title=\"suma długości dowolnych dwóch boków jest większa od długości trzeciego boku\">nierówności trójkąta</span>.\n                </p>\n<p>\n                    Zajmijmy się więc sytuacją <strong>A</strong>. \n                </p>\n<p>\n                    Przekątna o długości \\(52\\) dzieli deltoid na dwa trójkąty przystające. W takim trójkącie narysujmy wysokość \\(h\\) dzielącą przekątną na odcinki \\(x\\) oraz \\(52-x\\).\n                </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_160_3.png\" style=\"max-width: 300px;\"/>\n</figure>\n<p>\n                    Ta wysokość dzieli trójkątna dwa trójkąty prostokątne. Użyjemy twierdzenia Pitagorasa w każdym z nich.\n                </p>\n<div class=\"switch_line\">\n                    W tym z lewej otrzymamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x^2+h^2=15^2\\)</div>\n<div class=\"switch_value\">\\(x+h=15\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Natomiast w tym z prawej: \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(h^2+41^2=(52-x)^2\\)</div>\n<div class=\"switch_value\">\\(h^2+(52-x)^2=41^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Upraszczając drugie równanie otrzymujemy:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    h^2+(52-x)^2&amp;=41^2\\\\\n                    h^2+52^2-2\\cdot 52\\cdot x+x^2&amp;=41^2\\\\\n                    h^2-104 x+x^2&amp;=-1023\\\\\n                    \\end{align}\n                    \\]\n                </div>\n<p>\n                    Mamy więc dwa równania:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{cases}\n                    h^2-104 x+x^2=-1023\\\\\n                    h^2+x^2=225\n                    \\end{cases}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Ten układ równań możemy rozwiązać \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">dodając</div>\n<div class=\"switch_value\">odejmując</div>\n<div class=\"switch_around\"> równania stronami</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Otrzymujemy:\n                \\[\n                -104x=-1248\n                \\]\n                <div class=\"switch_line\">\n                    I stąd \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x=12\\)</div>\n<div class=\"switch_value\">\\(x=13\\)</div>\n<div class=\"switch_value\">\\(x=14\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Z pierwszego równania wyliczamy: \\(h^2=15^2-12^2\\), więc \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(h=9\\)</div>\n<div class=\"switch_value\">\\(h=81\\)</div>\n<div class=\"switch_value\">\\(h=3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_3_zadanie_160_4.png\" style=\"max-width: 300px;\"/>\n</figure>\n<div class=\"switch_line\">\n                    Druga przekątna ma długość\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(9\\)</div>\n<div class=\"switch_value\">\\(18\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Pozostaje nam obliczyć pole, które dane jest wzorem\n                <div class=\"table_wrapper\">\n                    \\[\n                    P=\\frac{\\text{przekątna}_1\\cdot\\text{przekątna}_2}{2}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    \\(P=\\frac{52\\cdot 18}{2}=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(234\\)</div>\n<div class=\"switch_value\">\\(468\\)</div>\n<div class=\"switch_value\">\\(936\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Pole deltoidu jest równe \\(468\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Przyjrzyj się dwóm rysunkom poniżej.</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_160_1.png",
+          "alt": "",
+          "figcaption": "A."
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_160_2.png",
+          "alt": "",
+          "figcaption": "B."
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Musimy zająć się\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "obiema sytuacjami, <strong>A</strong> i <strong>B</strong>",
+            "tylko sytuacją <strong>A</strong>",
+            "tylko sytuacją <strong>B</strong>"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zgadza się, sytuacja <strong>B</strong> nas nie interesuje, bo trójkąt o bokach \\(15\\), \\(15\\), \\(52\\) nie istnieje - nie spełnia <span class=\"ks_tooltip\" title=\"suma długości dowolnych dwóch boków jest większa od długości trzeciego boku\">nierówności trójkąta</span>.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zajmijmy się więc sytuacją <strong>A</strong>. \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Przekątna o długości \\(52\\) dzieli deltoid na dwa trójkąty przystające. W takim trójkącie narysujmy wysokość \\(h\\) dzielącą przekątną na odcinki \\(x\\) oraz \\(52-x\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_160_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Ta wysokość dzieli trójkątna dwa trójkąty prostokątne. Użyjemy twierdzenia Pitagorasa w każdym z nich.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W tym z lewej otrzymamy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x^2+h^2=15^2\\)",
+            "\\(x+h=15\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Natomiast w tym z prawej: \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(h^2+41^2=(52-x)^2\\)",
+            "\\(h^2+(52-x)^2=41^2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Upraszczając drugie równanie otrzymujemy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    h^2+(52-x)^2&amp;=41^2\\\\\n                    h^2+52^2-2\\cdot 52\\cdot x+x^2&amp;=41^2\\\\\n                    h^2-104 x+x^2&amp;=-1023\\\\\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mamy więc dwa równania:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{cases}\n                    h^2-104 x+x^2=-1023\\\\\n                    h^2+x^2=225\n                    \\end{cases}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ten układ równań możemy rozwiązać \n                    \n\n\n￿0￿ równania stronami\n.\n                ",
+          "options": [
+            "dodając",
+            "odejmując"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Otrzymujemy:\n                \\[\n                -104x=-1248\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I stąd \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x=12\\)",
+            "\\(x=13\\)",
+            "\\(x=14\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z pierwszego równania wyliczamy: \\(h^2=15^2-12^2\\), więc \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(h=9\\)",
+            "\\(h=81\\)",
+            "\\(h=3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_160_4.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Druga przekątna ma długość\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(9\\)",
+            "\\(18\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Pozostaje nam obliczyć pole, które dane jest wzorem</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    P=\\frac{\\text{przekątna}_1\\cdot\\text{przekątna}_2}{2}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(P=\\frac{52\\cdot 18}{2}=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(234\\)",
+            "\\(468\\)",
+            "\\(936\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Pole deltoidu jest równe \\(468\\).</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "8858a72c7797c34dbf090b6f2552eb663529685bdfc249a880e6d59baecdfc2d"
+  "seed_hash": "6217b50aaf6c5fe72ba37c4afbc1362f254c9ef7dddb47ecf4500c489ca3ddfa"
 }

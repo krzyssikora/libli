@@ -2,157 +2,115 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Wiedząc, że \\(\\text{tg }\\alpha=2\\) dla pewnego kąta ostrego \\(\\alpha\\), znajdź wartości poostałych funkcji trygonometrycznych tego kąta.\n        </p>\n"
+      "body": "<p>\n            Wiedząc, że \\(\\text{tg }\\alpha=2\\) dla pewnego kąta ostrego \\(\\alpha\\), znajdź wartości poostałych funkcji trygonometrycznych tego kąta.\n        </p>"
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-5-1\" id=\"tab-5-1\">\n                    nagranie\n                </a>\n</li>\n<li>\n<a href=\"#tabcontent-5-2\" id=\"tab-5-2\">\n                    krok po kroku\n                </a>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Rozwiązanie z użyciem tożsamości trygonometrycznych.\n            </p>"
-    },
-    {
-      "type": "video",
-      "media_src": "static/tryg_tozsamosci_3.mp4"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Rozwiązanie z użyciem rysunku.\n            </p>"
-    },
-    {
-      "type": "video",
-      "media_src": "static/tryg_tozsamosci_4.mp4"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<strong>\n                        Uwaga!\n                    </strong>\n                    Na nagraniach, zarówno w poprzednim zadaniu jak i w tym, opisane są dwie metody: z użyciem tożsamości trygonometrycznych oraz z użyciem rysunku trójkąta prostokątnego. W opisie poprzedniego zadania użyliśmy wyłącznie metody z rysunkiem, natomiast w tym zadaniu użyjemy wyłącznie metody z tożsamościami trygonometrycznymi.\n                </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                    Na początku przypomnijmy sobie tożsamości, które dopiero co poznaliśmy:\n                </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\\sin^2\\alpha+\\cos^2\\alpha=1"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                            (\n                            <strong>\n                                jedynka trygonometryczna\n                            </strong>\n                            )\n                        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                        \\[\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\]\n                        \\[\\text{ctg }\\alpha = \\frac{\\cos\\alpha}{\\sin\\alpha}\\]\n                    "
-    },
-    {
-      "type": "text",
-      "body": "\n                        \\[\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\]\n                    "
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Z drugiej tożsamości wiemy, że\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                            \\(\\frac{\\sin\\alpha}{\\cos\\alpha}=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Przyjmijmy dla ułatwienia, że \\(s=\\sin\\alpha\\) oraz \\(c=\\cos\\alpha\\). Wówczas pierwsze dwie tożsamości tworzą następujący układ równań:\n                    </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\\begin{cases}\n                                                                                                        s^2+c^2&=1\\\\\n                                                                                                        \\frac{s}{c}&=2\n                                                                                                        \\end{cases}"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Z drugiego równania możemy wyliczyć \\(s\\):\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<span class=\"myequation\">\n                        \\(s=\\)\n                        <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Teraz podstawimy \\(s=2c\\) do pierwszego równania:\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                            \\((2c)^2+c^2=1\\)\n                        </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                            \\(4c^2+c^2=1\\)\n                        </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                            \\(5c^2=1\\)\n                        </span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Czyli\n                        <span class=\"myequation\">\n                            \\(c^2=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        A skoro \\(c^2=\\frac{1}{5}\\) i \\(s^2+c^2=1\\) to\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<span class=\"myequation\">\n                            \\(s^2=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Mamy więc \\(c^2=\\frac{1}{5}\\), czyli \\(c=\\frac{1}{\\sqrt{5}}=\\frac{\\sqrt{5}}{5}\\)\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        oraz \\(s^2=\\frac{4}{5}\\), czyli \\(s=\\frac{2}{\\sqrt{5}}=\\frac{2\\sqrt{5}}{5}\\)\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Pozostało nam znaleźć wartość \\(\\text{ctg }\\alpha\\), do czego możemy użyć trzeciej tożsamości: \\(\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\).\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Wiedząc, że \\(\\text{tg }\\alpha = 2\\)\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Otrzymujemy\n                        <span class=\"myequation\">\n                            \\(\\text{ctg }\\alpha = \\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                    Czyli ostatecznie\n                    <span class=\"myequation\">\n                        \\(\\sin\\alpha = \\frac{2\\sqrt{5}}{5}, \\cos\\alpha=\\frac{\\sqrt{5}}{5}, \\text{tg }\\alpha = 2, \\text{ctg }\\alpha = \\frac{1}{2}\\)\n                    </span>\n</p>"
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                Rozwiązanie z użyciem tożsamości trygonometrycznych.\n            </p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/tryg_tozsamosci_3.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Rozwiązanie z użyciem rysunku.\n            </p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/tryg_tozsamosci_4.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n<strong>\n                        Uwaga!\n                    </strong>\n                    Na nagraniach, zarówno w poprzednim zadaniu jak i w tym, opisane są dwie metody: z użyciem tożsamości trygonometrycznych oraz z użyciem rysunku trójkąta prostokątnego. W opisie poprzedniego zadania użyliśmy wyłącznie metody z rysunkiem, natomiast w tym zadaniu użyjemy wyłącznie metody z tożsamościami trygonometrycznymi.\n                </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                    Na początku przypomnijmy sobie tożsamości, które dopiero co poznaliśmy:\n                </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\\sin^2\\alpha+\\cos^2\\alpha=1"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            (\n                            <strong>\n                                jedynka trygonometryczna\n                            </strong>\n                            )\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                        \\[\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\]\n                        \\[\\text{ctg }\\alpha = \\frac{\\cos\\alpha}{\\sin\\alpha}\\]\n                    "
+            },
+            {
+              "type": "text",
+              "body": "\n                        \\[\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\]\n                    "
+            },
+            {
+              "type": "fill_gate",
+              "stem": "\n<p>\n                        Z drugiej tożsamości wiemy, że\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(\\frac{\\sin\\alpha}{\\cos\\alpha}=\\)\n                            <span>\n￿0￿\n</span>\n</span>\n</p>\n",
+              "answers": [
+                [
+                  "2"
+                ]
+              ]
+            },
+            {
+              "type": "fill_gate",
+              "stem": "\n<p>\n                        Przyjmijmy dla ułatwienia, że \\(s=\\sin\\alpha\\) oraz \\(c=\\cos\\alpha\\). Wówczas pierwsze dwie tożsamości tworzą następujący układ równań:\n                    </p>\n                    \\[\\begin{cases}\n                                                                                                        s^2+c^2&=1\\\\\n                                                                                                        \\frac{s}{c}&=2\n                                                                                                        \\end{cases}\\]\n                    <p>\n                        Z drugiego równania możemy wyliczyć \\(s\\):\n                    </p>\n<p>\n</p>\n<span class=\"myequation\">\n                        \\(s=\\)\n                        <span>\n￿0￿\n</span>\n</span>\n",
+              "answers": [
+                [
+                  "2c"
+                ]
+              ]
+            },
+            {
+              "type": "fill_gate",
+              "stem": "\n<p>\n                        Teraz podstawimy \\(s=2c\\) do pierwszego równania:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\((2c)^2+c^2=1\\)\n                        </span>\n</p>\n<p>\n<span class=\"myequation\">\n                            \\(4c^2+c^2=1\\)\n                        </span>\n</p>\n<p>\n<span class=\"myequation\">\n                            \\(5c^2=1\\)\n                        </span>\n</p>\n<p>\n                        Czyli\n                        <span class=\"myequation\">\n                            \\(c^2=\\)\n                            <span>\n￿0￿\n</span>\n</span>\n</p>\n",
+              "answers": [
+                [
+                  "1/5"
+                ]
+              ]
+            },
+            {
+              "type": "fill_gate",
+              "stem": "\n<p>\n                        A skoro \\(c^2=\\frac{1}{5}\\) i \\(s^2+c^2=1\\) to\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(s^2=\\)\n                            <span>\n￿0￿\n</span>\n</span>\n</p>\n",
+              "answers": [
+                [
+                  "4/5"
+                ]
+              ]
+            },
+            {
+              "type": "fill_gate",
+              "stem": "\n<p>\n                        Mamy więc \\(c^2=\\frac{1}{5}\\), czyli \\(c=\\frac{1}{\\sqrt{5}}=\\frac{\\sqrt{5}}{5}\\)\n                    </p>\n<p>\n                        oraz \\(s^2=\\frac{4}{5}\\), czyli \\(s=\\frac{2}{\\sqrt{5}}=\\frac{2\\sqrt{5}}{5}\\)\n                    </p>\n<p>\n                        Pozostało nam znaleźć wartość \\(\\text{ctg }\\alpha\\), do czego możemy użyć trzeciej tożsamości: \\(\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\).\n                    </p>\n<p>\n                        Wiedząc, że \\(\\text{tg }\\alpha = 2\\)\n                    </p>\n<p>\n                        Otrzymujemy\n                        <span class=\"myequation\">\n                            \\(\\text{ctg }\\alpha = \\)\n                            <span>\n￿0￿\n</span>\n</span>\n</p>\n",
+              "answers": [
+                [
+                  "1/2"
+                ]
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "927ac736cc6688e6d23f1c983ea0776e16ed231f1ebe9d3f0fe527c0e4bf3f89"
+  "fully_mapped": true,
+  "seed_hash": "8d7d513312ca299613222a09e9a4e70e4b04d35d42b8c4ca75940bdd0a308563"
 }

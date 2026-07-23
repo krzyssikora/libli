@@ -14,15 +14,15 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Rozwiąż układ równań metodą podstawienia.\n        \\[\n        \\begin{cases}\n        2x+3y=4\\\\\n        3x-2y=8\n        \\end{cases}\n        \\]\n    "
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -33,8 +33,8 @@
       "latex": "\n            \\begin{matrix}\n            (1)&2x+3y=4\\\\\n            (2)&3x-2y=8\n            \\end{matrix}\n            "
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -45,8 +45,8 @@
       "latex": "\n            \\begin{matrix}\n            (1):&2x=4-3y\\\\\n            &x=\\color{red}{2-\\frac{3}{2}y}\n            \\end{matrix}\n            "
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -57,8 +57,8 @@
       "latex": "\n            \\begin{matrix}\n            (2):&3x-2y=8&\\leftarrow x=\\color{red}{2-\\frac{3}{2}y}\\\\\n            &3(\\color{red}{2-\\frac{3}{2}y})-2y=8&\\\\\n            \\end{matrix}\n            "
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -69,8 +69,8 @@
       "latex": "\n            3(2-\\frac{3}{2}y)-2y=8\\\\\n            6-\\frac{9}{2}y-2y=8\\\\\n            -\\frac{13}{2}y=8-6\\\\\n            -\\frac{13}{2}y=2\\\\\n            y=2\\cdot (-\\frac{2}{13})\\\\\n            y=\\color{blue}{-\\frac{4}{13}}\n            "
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -81,8 +81,8 @@
       "body": "<p>\n                W tym celu musimy podstawić wyliczoną przed chwilą wartość \\(y=\\color{blue}{-\\frac{4}{13}}\\) do\n                <strong>\n                    któregokolwiek\n                </strong>\n                z początkowych równań.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -101,8 +101,8 @@
       "body": "<p>\\[\n            x=2\\frac{6}{13}, y=-\\frac{4}{13}\n            \\]\n            I to właściwie kończy rozwiązanie zadania, jednak tu dodajmy jeszcze jedną uwagę.</p>"
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -117,10 +117,12 @@
       "body": "<p>\n                możemy narysować proste, by zobaczyć przybliżone położenie punktu przecięcia, i sprawdzić, czy jest ono zgodne z naszymi wyliczeniami:\n            </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<img alt=\"\" class=\"img_center\" src=\"static/uklad_rownan_1.png\" style=\"width: 1000px\"/>\n</p>"
+      "type": "image",
+      "media_src": "static/uklad_rownan_1.png",
+      "alt": "",
+      "figcaption": ""
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "2fce0ceccab567bdedaca8203c5e4716b9375251166a24eeade7ba4eb15287e1"
+  "seed_hash": "9be562f931ef9b3f5a19b0463bf1a6e11836a5bde2aeb51c783a6dbf04f21d08"
 }

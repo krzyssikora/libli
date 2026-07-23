@@ -5,19 +5,29 @@
       "body": "<p>\n    Warto znać trzy wzory na pole rombu.\n</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img src=\"static/romb_pole_a_h.png\" style=\"float: right; height: 180px;\"/>\n    Jeśli bok rombu ma długość \\(a\\), a jego wysokość \\(h\\), to pole rombu, \\(P\\), dane jest wzorem\n    \\[\n    P=ah\n    \\]\n"
+      "type": "image",
+      "media_src": "static/romb_pole_a_h.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p>Jeśli bok rombu ma długość \\(a\\), a jego wysokość \\(h\\), to pole rombu, \\(P\\), dane jest wzorem\n    \\[\n    P=ah\n    \\]</p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Romb o podstawie \\(a\\) i wysokości \\(h\\) ma pole \\(P\\).\n        </p>\n<p>\n            Uzupełnij tabelę. Wpisz same wyniki, bez obliczeń.\n        </p>\n"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
-      "type": "table",
+      "type": "text",
+      "body": "<p>\n            Romb o podstawie \\(a\\) i wysokości \\(h\\) ma pole \\(P\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uzupełnij tabelę. Wpisz same wyniki, bez obliczeń.\n        </p>"
+    },
+    {
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": true,
@@ -25,123 +35,153 @@
         "cells": [
           [
             {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": ""
             },
             {
-              "html": "\\(a\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(a\\)"
             },
             {
-              "html": "\\(h\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(h\\)"
             },
             {
-              "html": "\\(P\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(P\\)"
             }
           ],
           [
             {
-              "html": "1.",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "1."
             },
             {
-              "html": "\\(5\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(5\\)"
             },
             {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(4\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "20"
             }
           ],
           [
             {
-              "html": "2.",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "2."
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "3"
             },
             {
-              "html": "\\(5\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(5\\)"
             },
             {
-              "html": "\\(15\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(15\\)"
             }
           ],
           [
             {
-              "html": "3.",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "3."
             },
             {
-              "html": "\\(7\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(7\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "1.5|1,5"
             },
             {
-              "html": "\\(10,5\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(10,5\\)"
             }
           ]
         ]
       }
     },
     {
-      "type": "text",
-      "body": "\n    No jasne!\n"
-    },
-    {
       "type": "spoiler",
       "label": "rozwiązania",
-      "body": "\n\n<ol class=\"bold table_wrapper\">\n<li>\\(P=5\\cdot 4=20\\)</li>\n<li>\\(P=a\\cdot h\\quad\\Rightarrow\\quad 15=a\\cdot 5\\quad\\Rightarrow\\quad a=3\\)</li>\n<li>\\(P=a\\cdot h\\quad\\Rightarrow\\quad 10,5=7h\\quad\\Rightarrow\\quad h=1,5\\)</li>\n</ol>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold table_wrapper\">\n<li>\\(P=5\\cdot 4=20\\)</li>\n<li>\\(P=a\\cdot h\\quad\\Rightarrow\\quad 15=a\\cdot 5\\quad\\Rightarrow\\quad a=3\\)</li>\n<li>\\(P=a\\cdot h\\quad\\Rightarrow\\quad 10,5=7h\\quad\\Rightarrow\\quad h=1,5\\)</li>\n</ol>"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "media_src": "static/romb_pole_d1_d2.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "\n<img src=\"static/romb_pole_d1_d2.png\" style=\"float: right; height: 180px;\"/>\n    Jeśli przekątne rombu mają długości \\(d_1\\) i \\(d_2\\), to pole rombu, \\(P\\), dane jest wzorem\n    \\[\n    P=\\frac{d_1d_2}{2}\n    \\]\n"
+      "body": "<p>Jeśli przekątne rombu mają długości \\(d_1\\) i \\(d_2\\), to pole rombu, \\(P\\), dane jest wzorem\n    \\[\n    P=\\frac{d_1d_2}{2}\n    \\]</p>"
     },
     {
       "type": "spoiler",
       "label": "Uzasadnienie wzoru",
-      "body": "\n\n<p>\n<strong>Po pierwsze</strong>, przyjrzyj się poniższej animacji. Pokazuje ona, że pole rombu jest równe polu prostokąta, którego jeden bok ma długość jednej przekątnej rombu, a drugi - połowy drugiej przekątnej.\n    </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n            </small>\n<br/>\n<small>\n                Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n            </small>\n</div>\n<iframe height=\"528px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/jby2hjh2/width/675/height/528/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"pole rombu o danych przekątnych\" width=\"675px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                    aplet nie działa poprawnie?\n                </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                    Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                    <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                        ten email\n                    </a>\n                    .\n                </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n<p>\n<strong>Po drugie</strong>, przyjrzyj się poniższej animacji. Pokazuje ona, że pole dwóch rombów o przekątnych długości \\(d_1\\) i \\(d_2\\) jest równe polu prostokąta o bokach długości \\(d_1\\) i \\(d_2\\).\n    </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n            </small>\n<br/>\n<small>\n                Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n            </small>\n</div>\n<iframe height=\"468px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/cdwkzwjy/width/625/height/468/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"pole rombu o danych przekątnych 2\" width=\"625px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                    aplet nie działa poprawnie?\n                </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                    Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                    <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                        ten email\n                    </a>\n                    .\n                </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n<p>\n<strong>Po trzecie</strong>, romb jest równoległobokiem.\n    </p>\n<p>\n        Poznaliśmy wcześniej wzór na pole równoległoboku o przekątnych \\(d_1\\) i \\(d_2\\) oraz kącie między nimi o mierze \\(\\beta\\):\n    </p>\n    \\[\n    P=\\frac{1}{2} d_1d_2\\sin\\beta\n    \\]\n    <p>\n        W przypadku rombu, \\(\\beta=90^{\\circ}\\), więc \\(\\sin\\beta=\\sin 90^{\\circ}=1\\).\n    </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Po pierwsze</strong>, przyjrzyj się poniższej animacji. Pokazuje ona, że pole rombu jest równe polu prostokąta, którego jeden bok ma długość jednej przekątnej rombu, a drugi - połowy drugiej przekątnej.\n    </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/jby2hjh2/width/675/height/528/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Po drugie</strong>, przyjrzyj się poniższej animacji. Pokazuje ona, że pole dwóch rombów o przekątnych długości \\(d_1\\) i \\(d_2\\) jest równe polu prostokąta o bokach długości \\(d_1\\) i \\(d_2\\).\n    </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/cdwkzwjy/width/625/height/468/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Po trzecie</strong>, romb jest równoległobokiem.\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Poznaliśmy wcześniej wzór na pole równoległoboku o przekątnych \\(d_1\\) i \\(d_2\\) oraz kącie między nimi o mierze \\(\\beta\\):\n    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n    P=\\frac{1}{2} d_1d_2\\sin\\beta\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        W przypadku rombu, \\(\\beta=90^{\\circ}\\), więc \\(\\sin\\beta=\\sin 90^{\\circ}=1\\).\n    </p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Romb o przekątnych o długościach \\(d_1\\) i \\(d_2\\) ma pole \\(P\\).\n        </p>\n<p>\n            Uzupełnij tabelę. Wpisz same wyniki, bez obliczeń.\n        </p>\n"
+      "body": "<p>\n            Romb o przekątnych o długościach \\(d_1\\) i \\(d_2\\) ma pole \\(P\\).\n        </p>"
     },
     {
-      "type": "table",
+      "type": "text",
+      "body": "<p>\n            Uzupełnij tabelę. Wpisz same wyniki, bez obliczeń.\n        </p>"
+    },
+    {
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": true,
@@ -149,118 +189,113 @@
         "cells": [
           [
             {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": ""
             },
             {
-              "html": "\\(d_1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(d_1\\)"
             },
             {
-              "html": "\\(d_2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(d_2\\)"
             },
             {
-              "html": "\\(P\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(P\\)"
             }
           ],
           [
             {
-              "html": "1.",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "1."
             },
             {
-              "html": "\\(5\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(5\\)"
             },
             {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(4\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "10"
             }
           ],
           [
             {
-              "html": "2.",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "2."
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "2"
             },
             {
-              "html": "\\(6\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(6\\)"
             },
             {
-              "html": "\\(6\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(6\\)"
             }
           ],
           [
             {
-              "html": "3.",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "3."
             },
             {
-              "html": "\\(3\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(3\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "5"
             },
             {
-              "html": "\\(7,5\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(7,5\\)"
             }
           ]
         ]
       }
     },
     {
-      "type": "text",
-      "body": "\n    Świetnie!\n"
-    },
-    {
       "type": "spoiler",
       "label": "rozwiązania",
-      "body": "\n\n<ol class=\"bold table_wrapper\">\n<li>\\(P=\\frac{5\\cdot 4}{2}=10\\)</li>\n<li>\\(P=\\cdot{d_1d_2}{2}\\quad\\Rightarrow\\quad 6=\\frac{d_1\\cdot 6}{2}\\quad\\Rightarrow\\quad d_1=2\\)</li>\n<li>\\(P=\\cdot{d_1d_2}{2}\\quad\\Rightarrow\\quad 7,5=\\frac{3d_2}{2}\\quad\\Rightarrow\\quad d_2=5\\)</li>\n</ol>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold table_wrapper\">\n<li>\\(P=\\frac{5\\cdot 4}{2}=10\\)</li>\n<li>\\(P=\\cdot{d_1d_2}{2}\\quad\\Rightarrow\\quad 6=\\frac{d_1\\cdot 6}{2}\\quad\\Rightarrow\\quad d_1=2\\)</li>\n<li>\\(P=\\cdot{d_1d_2}{2}\\quad\\Rightarrow\\quad 7,5=\\frac{3d_2}{2}\\quad\\Rightarrow\\quad d_2=5\\)</li>\n</ol>"
+        }
+      ]
+    },
+    {
+      "type": "image",
+      "media_src": "static/romb_pole_a_alpha.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "\n<img src=\"static/romb_pole_a_alpha.png\" style=\"float: right; height: 180px;\"/>\n    Jeśli bok rombu ma długość \\(a\\), a kąt wewnętrzny rombu ma miarę \\(\\alpha\\), to pole rombu, \\(P\\), dane jest wzorem\n    \\[\n    P=a^2\\sin\\alpha\n    \\]\n"
+      "body": "<p>Jeśli bok rombu ma długość \\(a\\), a kąt wewnętrzny rombu ma miarę \\(\\alpha\\), to pole rombu, \\(P\\), dane jest wzorem\n    \\[\n    P=a^2\\sin\\alpha\n    \\]</p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Romb o boku o długości \\(a\\) i kącie ostrym \\(\\alpha\\) ma pole \\(P\\).\n        </p>\n<p>\n            Uzupełnij tabelę. Wpisz same wyniki, bez obliczeń.\n        </p>\n"
+      "body": "<p>\n            Romb o boku o długości \\(a\\) i kącie ostrym \\(\\alpha\\) ma pole \\(P\\).\n        </p>"
     },
     {
-      "type": "table",
+      "type": "text",
+      "body": "<p>\n            Uzupełnij tabelę. Wpisz same wyniki, bez obliczeń.\n        </p>"
+    },
+    {
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": true,
@@ -268,105 +303,90 @@
         "cells": [
           [
             {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": ""
             },
             {
-              "html": "\\(a\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(a\\)"
             },
             {
-              "html": "\\(\\alpha\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\alpha\\)"
             },
             {
-              "html": "\\(P\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(P\\)"
             }
           ],
           [
             {
-              "html": "1.",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "1."
             },
             {
-              "html": "\\(6\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(6\\)"
             },
             {
-              "html": "\\(30^{\\circ}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(30^{\\circ}\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "18"
             }
           ],
           [
             {
-              "html": "2.",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "2."
             },
             {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(4\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(^{\\circ}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "60"
             },
             {
-              "html": "\\(8\\sqrt{3}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(8\\sqrt{3}\\)"
             }
           ],
           [
             {
-              "html": "3.",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "3."
             },
             {
-              "html": "\\(5\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(5\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(^{\\circ}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "45"
             },
             {
-              "html": "\\(\\tfrac{25}{2}\\sqrt{2}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\tfrac{25}{2}\\sqrt{2}\\)"
             }
           ]
         ]
       }
     },
     {
-      "type": "text",
-      "body": "\n    Znakomicie!\n"
-    },
-    {
       "type": "spoiler",
       "label": "rozwiązania",
-      "body": "\n\n<ol class=\"bold table_wrapper\">\n<li>\\(P=6^2\\cdot \\sin 30^{\\circ}=36\\cdot\\frac{1}{2}=18\\)</li>\n<li>\\(P=a^2\\sin\\alpha\\quad\\Rightarrow\\quad 8\\sqrt{3}=4^2\\cdot \\sin\\alpha\\quad\\Rightarrow\\quad \\sin\\alpha=\\frac{\\sqrt{3}}{2}\\quad\\Rightarrow\\quad \\alpha=60^{\\circ}\\)</li>\n<li>\\(P=a^2\\sin\\alpha\\quad\\Rightarrow\\quad \\tfrac{25}{2}\\sqrt{2}=5^2\\sin\\alpha\\quad\\Rightarrow\\quad \\sin\\alpha=\\frac{\\sqrt{2}}{2}\\quad\\Rightarrow\\quad \\alpha=45^{\\circ}\\)</li>\n</ol>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold table_wrapper\">\n<li>\\(P=6^2\\cdot \\sin 30^{\\circ}=36\\cdot\\frac{1}{2}=18\\)</li>\n<li>\\(P=a^2\\sin\\alpha\\quad\\Rightarrow\\quad 8\\sqrt{3}=4^2\\cdot \\sin\\alpha\\quad\\Rightarrow\\quad \\sin\\alpha=\\frac{\\sqrt{3}}{2}\\quad\\Rightarrow\\quad \\alpha=60^{\\circ}\\)</li>\n<li>\\(P=a^2\\sin\\alpha\\quad\\Rightarrow\\quad \\tfrac{25}{2}\\sqrt{2}=5^2\\sin\\alpha\\quad\\Rightarrow\\quad \\sin\\alpha=\\frac{\\sqrt{2}}{2}\\quad\\Rightarrow\\quad \\alpha=45^{\\circ}\\)</li>\n</ol>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "e01a8a6c6338a976d6e94654542249dd9a6000415897f836cc0579facc710339"
+  "seed_hash": "0738457385a7a52ab15c1fdb06309b4175efbd2f20196393af4c29e85b1010e0"
 }

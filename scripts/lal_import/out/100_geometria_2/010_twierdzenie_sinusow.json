@@ -28,11 +28,25 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/tw_sinusow_zad_1.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "\n<img alt=\"trojkat ABC\" height=\"200\" src=\"static/tw_sinusow_zad_1.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n            W trójkącie \\(ABC\\) kąt \\(A\\) ma miarę \\(30^{\\circ}\\), a boki \\(a\\) i \\(b\\) są odpowiednio długości \\(3\\sqrt{2}\\) i \\(6\\).\n        </p>\n<p>\n            Znajdź miary pozostałych kątów wewnętrznych w trójkącie \\(ABC\\).\n        </p>\n<p>\n</p>\n<small style=\"position: absolute; right: 2px; bottom: 2px;\">\n<i>\n                (Rysunek nie zachowuje skali.)\n            </i>\n</small>\n"
+      "body": "<p>\n            W trójkącie \\(ABC\\) kąt \\(A\\) ma miarę \\(30^{\\circ}\\), a boki \\(a\\) i \\(b\\) są odpowiednio długości \\(3\\sqrt{2}\\) i \\(6\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź miary pozostałych kątów wewnętrznych w trójkącie \\(ABC\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<small style=\"position: absolute; right: 2px; bottom: 2px;\">\n<i>\n                (Rysunek nie zachowuje skali.)\n            </i>\n</small>"
     },
     {
       "type": "text",
@@ -44,18 +58,48 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        W poniższym aplecie możesz przesuwać wierzchołki trójkąta \\(ABC\\).\n        <div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"869px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/tucxbyx5/width/700/height/869/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"twierdzenie sinusów\" width=\"700px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n        Przesuwając je, obserwuj, jak zmieniają się długości boków i wartości sinusa kątów, a dokładniej - stosunek długości każdego boku do sinusa przeciwległego kąta.\n        <p>\n            Przyjrzyj się także, jak ten stosunek ma się do długości\n            <span style=\"color: red;\">\n                promienia okręgu opisanego\n            </span>\n            na tym trójkącie.\n        </p>\n"
+      "body": "<p>W poniższym aplecie możesz przesuwać wierzchołki trójkąta \\(ABC\\).</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/tucxbyx5/width/700/height/869/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Przesuwając je, obserwuj, jak zmieniają się długości boków i wartości sinusa kątów, a dokładniej - stosunek długości każdego boku do sinusa przeciwległego kąta.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się także, jak ten stosunek ma się do długości\n            <span style=\"color: red;\">\n                promienia okręgu opisanego\n            </span>\n            na tym trójkącie.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "Twierdzenie sinusów",
-      "body": "\n\n<div class=\"important\">\n<p>\n<strong>\n                    Twierdzenie sinusów\n                </strong>\n</p>\n<p>\n                W każdym trójkącie stosunek długości dowolnego boku do sinusa kąta leżącego naprzeciwko jest stały, a dokładniej: równy dwukrotności promienia, czyli średnicy okręgu opisanego.\n            </p>\n            Zapisujemy to:\n            \\[\n            \\frac{a}{\\sin A}=\\frac{b}{\\sin B}=\\frac{c}{\\sin C}= 2R\n            \\]\n        </div>\n        Poźniej będziesz mieć możliwość zapoznania się z dowodem twierdzenia sinusów, ale zacznijmy od rozwiązania powyższego zadania.\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                    Twierdzenie sinusów\n                </strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                W każdym trójkącie stosunek długości dowolnego boku do sinusa kąta leżącego naprzeciwko jest stały, a dokładniej: równy dwukrotności promienia, czyli średnicy okręgu opisanego.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Zapisujemy to:\n            \\[\n            \\frac{a}{\\sin A}=\\frac{b}{\\sin B}=\\frac{c}{\\sin C}= 2R\n            \\]</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Poźniej będziesz mieć możliwość zapoznania się z dowodem twierdzenia sinusów, ale zacznijmy od rozwiązania powyższego zadania.</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "5c22c93796a2b2160806a9344c06cfb06ba9db539c29ab77069135b3b9ca9719"
+  "seed_hash": "74057acc0f3063a08bb251be3876d2fd3a43d70b0f75256496159e08edb39072"
 }

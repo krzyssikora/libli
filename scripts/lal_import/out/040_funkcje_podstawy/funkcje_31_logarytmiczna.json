@@ -2,14 +2,14 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Dla każdej liczby \\(x\\) w tabeli oblicz i wpisz wartość \\(y=\\log_{2}x\\)\n    "
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -17,66 +17,54 @@
         "cells": [
           [
             {
-              "html": "\\(x\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(x\\)"
             },
             {
-              "html": "\\(\\frac{1}{4}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\frac{1}{4}\\)"
             },
             {
-              "html": "\\(\\frac{1}{2}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\frac{1}{2}\\)"
             },
             {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(1\\)"
             },
             {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(2\\)"
             },
             {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(4\\)"
             }
           ],
           [
             {
-              "html": "\\(y\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(y\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-2"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-1"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "0"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "1"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "2"
             }
           ]
         ]
@@ -84,18 +72,14 @@
     },
     {
       "type": "text",
-      "body": "\n    Świetnie!\n"
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Dla każdej liczby \\(x\\) w tabeli oblicz i wpisz wartość \\(y=\\log_{\\frac{1}{2}}x\\)\n    "
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -103,76 +87,60 @@
         "cells": [
           [
             {
-              "html": "\\(x\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(x\\)"
             },
             {
-              "html": "\\(\\frac{1}{4}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\frac{1}{4}\\)"
             },
             {
-              "html": "\\(\\frac{1}{2}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\frac{1}{2}\\)"
             },
             {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(1\\)"
             },
             {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(2\\)"
             },
             {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(4\\)"
             }
           ],
           [
             {
-              "html": "\\(y\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(y\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "2"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "1"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "0"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-1"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-2"
             }
           ]
         ]
       }
-    },
-    {
-      "type": "text",
-      "body": "\n    Znakomicie!\n"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "d25f2339a25c1bf1b19ff67c0693fd70b02694c96e44743710110a419ac7e9b9"
+  "seed_hash": "638fd1c55830d7bf39062177f42650a07a54c7cbdf28e07d2845ba039a3f5ee4"
 }

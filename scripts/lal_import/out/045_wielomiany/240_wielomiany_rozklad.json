@@ -26,7 +26,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -43,40 +43,523 @@
     {
       "type": "spoiler",
       "label": "Po pierwsze, \\(W(1)\\)",
-      "body": "\n\n        \\[\n        \\begin{align*}\n        W(1)&amp;=1^5-2\\cdot 1^4-13\\cdot 1^3+28\\cdot 1^2+46\\cdot 1-60=\\\\\n            &amp;=1-2-13+28+46-60=\\\\\n            &amp;=0\n        \\end{align*}\n        \\]\n    "
+      "elements": [
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align*}\n        W(1)&=1^5-2\\cdot 1^4-13\\cdot 1^3+28\\cdot 1^2+46\\cdot 1-60=\\\\\n            &=1-2-13+28+46-60=\\\\\n            &=0\n        \\end{align*}\n        "
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "Po drugie, \\(W(x):(x-1)\\)",
-      "body": "\n\n<p>\n            Wielomian \\(W(x)\\) jest podzielny przez \\((x-1)\\), tzn. dzieli się bez reszty:\n        </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                            \\(x^{4}\\)\n                        </td>\n<td>\n                            \\(-x^{3}\\)\n                        </td>\n<td>\n                            \\(-14x^{2}\\)\n                        </td>\n<td>\n                            \\(+14x\\)\n                        </td>\n<td>\n                            \\(+60\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\((x^{5}\\)\n                        </td>\n<td>\n                            \\(-2x^{4}\\)\n                        </td>\n<td>\n                            \\(-13x^{3}\\)\n                        </td>\n<td>\n                            \\(+28x^{2}\\)\n                        </td>\n<td>\n                            \\(+46x\\)\n                        </td>\n<td>\n                            \\(-60)\\)\n                        </td>\n<td>\n                            \\(:(x-1)\\)\n                        </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                            \\(x^{5}\\)\n                        </td>\n<td>\n                            \\(-x^{4}\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(=\\)\n                        </td>\n<td>\n                            \\(-x^{4}\\)\n                        </td>\n<td>\n                            \\(-13x^{3}\\)\n                        </td>\n<td>\n                            \\(+28x^{2}\\)\n                        </td>\n<td>\n                            \\(+46x\\)\n                        </td>\n<td>\n                            \\(-60\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(-x^{4}\\)\n                        </td>\n<td>\n                            \\(+x^{3}\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(=\\)\n                        </td>\n<td>\n                            \\(-14x^{3}\\)\n                        </td>\n<td>\n                            \\(+28x^{2}\\)\n                        </td>\n<td>\n                            \\(+46x\\)\n                        </td>\n<td>\n                            \\(-60\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(-14x^{3}\\)\n                        </td>\n<td>\n                            \\(+14x^{2}\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(=\\)\n                        </td>\n<td>\n                            \\(14x^{2}\\)\n                        </td>\n<td>\n                            \\(+46x\\)\n                        </td>\n<td>\n                            \\(-60\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(14x^{2}\\)\n                        </td>\n<td>\n                            \\(-14x\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(=\\)\n                        </td>\n<td>\n                            \\(60x\\)\n                        </td>\n<td>\n                            \\(-60\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(60x\\)\n                        </td>\n<td>\n                            \\(-60\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(=\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n</table>\n</div>\n</div>\n<p>\n            Czyli innymi słowy\n        </p>\n        \\[\n        W(x)=(x-1)(x^4-x^3-14x^2+14x+60)\n        \\]\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Wielomian \\(W(x)\\) jest podzielny przez \\((x-1)\\), tzn. dzieli się bez reszty:\n        </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(x^{4}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-x^{3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-14x^{2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+14x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+60\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\((x^{5}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-2x^{4}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-13x^{3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+28x^{2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+46x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-60)\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(:(x-1)\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(x^{5}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-x^{4}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-x^{4}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-13x^{3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+28x^{2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+46x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-60\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-x^{4}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+x^{3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-14x^{3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+28x^{2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+46x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-60\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-14x^{3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+14x^{2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(14x^{2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+46x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-60\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(14x^{2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-14x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(60x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-60\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(60x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-60\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Czyli innymi słowy\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        W(x)=(x-1)(x^4-x^3-14x^2+14x+60)\n        "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Uzupełnij zdania, wpisując odpowiednie liczby.\n    "
     },
     {
-      "type": "text",
-      "body": "<p>\n        Jeśli wielomian \\(W(x)\\) jest podzielny przez \\((x-3)\\) to pierwiastkiem wielomianu jest liczba\n        <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n        .\n    </p>"
+      "type": "fillblank",
+      "stem": "\n        Jeśli wielomian \\(W(x)\\) jest podzielny przez \\((x-3)\\) to pierwiastkiem wielomianu jest liczba\n        ￿0￿\n        .\n    ",
+      "blanks": [
+        [
+          "3"
+        ]
+      ]
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n        Jeśli wielomian \\(W(x)\\) jest podzielny przez \\((x+2)\\) to pierwiastkiem wielomianu jest liczba\n        ￿0￿\n        .\n    ",
+      "blanks": [
+        [
+          "-2"
+        ]
+      ]
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n        Jeśli wielomian \\(W(x)\\) jest podzielny przez \\((x+5)\\) to pierwiastkiem wielomianu jest liczba\n        ￿0￿\n        .\n    ",
+      "blanks": [
+        [
+          "-5"
+        ]
+      ]
     },
     {
       "type": "text",
-      "body": "<p>\n        Jeśli wielomian \\(W(x)\\) jest podzielny przez \\((x+2)\\) to pierwiastkiem wielomianu jest liczba\n        <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n        .\n    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n        Jeśli wielomian \\(W(x)\\) jest podzielny przez \\((x+5)\\) to pierwiastkiem wielomianu jest liczba\n        <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n        .\n    </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n        Świetnie!\n    "
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -87,122 +570,50 @@
       "body": "<p>\\(W(x)\\) to wielomian taki, że \\(W(4)=0\\).</p>"
     },
     {
-      "type": "text",
-      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Wówczas \\(W(x)\\) jest podzielny przez</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((x+4)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((x-4)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((4x-1)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((4x+1)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n\n\n                Wówczas \\(W(x)\\) jest podzielny przez\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\((x+4)\\)",
+        "\\((x-4)\\)",
+        "\\((4x-1)\\)",
+        "\\((4x+1)\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
       "body": "<p>\\(W(x)\\) to wielomian taki, że \\(W(-1)=0\\).</p>"
     },
     {
-      "type": "text",
-      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Wówczas \\(W(x)\\) jest podzielny przez</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((x+1)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((x-1)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((x)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n\n\n                Wówczas \\(W(x)\\) jest podzielny przez\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\((x+1)\\)",
+        "\\((x-1)\\)",
+        "\\((x)\\)"
+      ],
+      "answer": 0
     },
     {
       "type": "text",
       "body": "<p>\\(W(x)\\) to wielomian taki, że \\(W(6)=0\\).</p>"
     },
     {
-      "type": "text",
-      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
+      "type": "switch_gate",
+      "stem": "\n\n\n                Wówczas \\(W(x)\\) jest podzielny przez\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\((x+6)\\)",
+        "\\((x-6)\\)",
+        "\\((6x+1)\\)",
+        "\\((6x-1)\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
-      "body": "<p>Wówczas \\(W(x)\\) jest podzielny przez</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((x+6)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((x-6)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((6x+1)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\((6x-1)\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n            Doskonale!\n        "
+      "body": "<p>Doskonale!</p>"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "3276dfef26f88ae9b508cf7de53916a59511f54057fc6564144d62738b349f12"
+  "seed_hash": "b9e78143cddf17d81173bfb966948d5b12a66f653f990c337822eedfd4424312"
 }

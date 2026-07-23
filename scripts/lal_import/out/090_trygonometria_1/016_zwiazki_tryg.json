@@ -2,18 +2,20 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dla trójkąta prostokątnego przedstawionego na rysunku poniżej, uzupełnij tabelę wartościami funkcji trygonometrycznych kątów \\(\\alpha\\) i \\(\\beta\\).\n        </p>\n<img alt=\"wartości funkcji trygonometrycznych\" height=\"377\" src=\"static/tryg_wartosci.png\" style=\"width: 788px; height: 377px;\" width=\"788\"/>\n"
+      "body": "<p>\n            Dla trójkąta prostokątnego przedstawionego na rysunku poniżej, uzupełnij tabelę wartościami funkcji trygonometrycznych kątów \\(\\alpha\\) i \\(\\beta\\).\n        </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n</p>"
+      "type": "image",
+      "media_src": "static/tryg_wartosci.png",
+      "alt": "wartości funkcji trygonometrycznych",
+      "figcaption": ""
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -21,93 +23,74 @@
         "cells": [
           [
             {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": ""
             },
             {
-              "html": "\\(\\sin\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\sin\\)"
             },
             {
-              "html": "\\(\\cos\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\cos\\)"
             },
             {
-              "html": "\\(\\text{tg}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\text{tg}\\)"
             },
             {
-              "html": "\\(\\text{ctg}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\text{ctg}\\)"
             }
           ],
           [
             {
-              "html": "\\(\\quad\\alpha\\quad\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\quad\\alpha\\quad\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "8/17"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "15/17"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "8/15"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "15/8"
             }
           ],
           [
             {
-              "html": "\\(\\quad\\beta\\quad\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\quad\\beta\\quad\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "15/17"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "8/17"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "15/8"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "8/15"
             }
           ]
         ]
       }
-    },
-    {
-      "type": "text",
-      "body": "\n    Świetnie!\n"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "38ae36899961e417b771b2286810367012ce25bb30cdde658908b969f974a3d3"
+  "seed_hash": "4929cc428ee5129a9e26c0c52d203187456442e6392dfd698acb0d0508dead50"
 }

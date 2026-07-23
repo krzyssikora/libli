@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -13,71 +13,103 @@
       "body": "<p>Zachęcam, żebyś spróbował/-a odpowiedzieć na to pytanie samodzielnie, używając wyliczeń ukrytych poniżej jako wskazówek i możliwości sprawdzenia.</p>"
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
       "body": "<p>\n                Spójrzmy na wykres:\n            </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<img alt=\"\" height=\"530\" src=\"static/przyklad_01.png\" style=\"width: 984px; height: 530px; border: 2px;\" width=\"984\"/>\n</p>"
+      "type": "image",
+      "media_src": "static/przyklad_01.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
       "body": "<p>\n                Z wykresu widzimy,  że szukana współrzędna \\(x\\) jest miedzy \\(4\\) a \\(5\\).\n                <br/>\n                Współrzędne punktu \\(A\\) muszą spełniać równanie prostej  (czyli po podstawieniu dać prawdziwą równość).\n                <br/>\n                Żeby znaleźć dokładną wartość brakującej współrzędnej \\(x\\), podstawmy znaną nam współrzędną \\(y=3\\) do równania prostej.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
-      "body": "\n            \\(y=\\frac{3}{7}x+1\\quad \\leftarrow\\quad y=3\\)\n            <br/>\n            \\(3=\\frac{3}{7}x+1\\)\n        "
+      "body": "<p>\\(y=\\frac{3}{7}x+1\\quad \\leftarrow\\quad y=3\\)</p>"
     },
     {
       "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "body": "<p>\\(3=\\frac{3}{7}x+1\\)</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
-      "body": "\n            Przenieśmy liczby na jedną stronę, a zmienne na drugą:\n            <br/>\n            \\(3-1=\\frac{3}{7}x\\)\n            <br/>\n            czyli:\n            <br/>\n            \\(2=\\frac{3}{7}x\\)\n        "
+      "body": "<p>Przenieśmy liczby na jedną stronę, a zmienne na drugą:</p>"
     },
     {
       "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "body": "<p>\\(3-1=\\frac{3}{7}x\\)</p>"
     },
     {
       "type": "text",
-      "body": "\n            Podzielmy obie strony przez \\(\\frac{3}{7}\\):\n            <br/>\n            \\(x=2:\\frac{3}{7}\\)\n        "
+      "body": "<p>czyli:</p>"
     },
     {
       "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "body": "<p>\\(2=\\frac{3}{7}x\\)</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
-      "body": "\n            i obliczmy wartość \\(x\\):\n            <br/>\n            \\(x=2\\cdot \\frac{7}{3}=\\frac{14}{3}=4\\frac{2}{3}\\)\n        "
+      "body": "<p>Podzielmy obie strony przez \\(\\frac{3}{7}\\):</p>"
     },
     {
       "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "body": "<p>\\(x=2:\\frac{3}{7}\\)</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
-      "body": "\n            Jak widzisz, współrzędna \\(x\\) punktu \\(A\\) rzeczywiście znajduje się między \\(4\\) a \\(5\\).\n            <br/>\n<img alt=\"\" height=\"530\" src=\"static/przyklad_02.png\" style=\"width: 984px; height: 530px; border: 2px;\" width=\"984\"/>\n"
+      "body": "<p>i obliczmy wartość \\(x\\):</p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p>\\(x=2\\cdot \\frac{7}{3}=\\frac{14}{3}=4\\frac{2}{3}\\)</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jak widzisz, współrzędna \\(x\\) punktu \\(A\\) rzeczywiście znajduje się między \\(4\\) a \\(5\\).</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/przyklad_02.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "<p class=\"question_text\">\n        Oblicz i wpisz do poniższej tabeli brakującą współrzędną:\n    </p>"
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -85,87 +117,72 @@
         "cells": [
           [
             {
-              "html": "równanie prostej",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "równanie prostej"
             },
             {
-              "html": "\\(x\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(x\\)"
             },
             {
-              "html": "\\(y\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(y\\)"
             }
           ],
           [
             {
-              "html": "\\(y=-3x-1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(y=-3x-1\\)"
             },
             {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(2\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-7"
             }
           ],
           [
             {
-              "html": "\\(y=2x+3\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(y=2x+3\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-5/2"
             },
             {
-              "html": "\\(-2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-2\\)"
             }
           ],
           [
             {
-              "html": "\\(y=-\\frac{2}{3}x+2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(y=-\\frac{2}{3}x+2\\)"
             },
             {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(4\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-2/3"
             }
           ],
           [
             {
-              "html": "\\(y=\\frac{1}{2}x-2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(y=\\frac{1}{2}x-2\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "6"
             },
             {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(1\\)"
             }
           ]
         ]
@@ -177,5 +194,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "9c956cb5e3ff3467de40e1bf1768b3b67a6c4a5bb687c5c20d6c1fd636d24f1e"
+  "seed_hash": "c4a2d8edc1101013f843d8c403ff5cb079b3a37b9c7719440be0d3f127de6064"
 }

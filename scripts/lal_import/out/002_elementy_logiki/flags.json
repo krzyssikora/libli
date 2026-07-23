@@ -1,14 +1,1 @@
-[
-  {
-    "kind": "unmapped_pattern",
-    "reason": "unmapped <div> in lesson body",
-    "raw_excerpt": "<div class=\"question_solution hidden\">\n<p>\n            Przeczytane zdanie powinno brzmieć mniej-więcej tak:\n        </p>\n<blockquote class=\"centered\">\n            Liczba jest większa od 5 lub równa 5 wtedy i tylko wtedy, gdy jest większa lub równa 5.\n        </blockquote>\n<p>\n            Gdy je prze",
-    "unit_json": "020_logika.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "show_solution button without solution",
-    "raw_excerpt": "<div class=\"show_solution ks_button\">\n        Rozwiązanie - zobacz\n    </div>",
-    "unit_json": "020_logika.json"
-  }
-]
+[]

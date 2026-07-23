@@ -6,7 +6,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -15,22 +15,137 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Obliczmy najpierw długość połowy obwodu.\n                <div class=\"switch_line\">\n                    \\(p=\\frac{a+b+c}{2}=\\frac{4+13+15}{2}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(32\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(16\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(30\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                A teraz policzmy trzy różnice:\n                <ul class=\"nolist\">\n<li>\n                        \\(p-a=16-4=12\\)\n                    </li>\n<li>\n                        \\(p-b=16-13=3\\)\n                    </li>\n</ul>\n<div class=\"switch_line\">\n                    \\(p-c=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(1\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(3\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(12\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Podstawmy te wyniki do wzoru na pole trójkąta:\n                \\[\n                \\begin{align*}\n                P&amp;=\\sqrt{p(p-a)(p-b)(p-c)}\\\\\n                &amp;=\\sqrt{16\\cdot 12\\cdot 3\\cdot 1}\n                \\end{align*}\n                \\]\n                <div class=\"switch_line\">\n                    W ten sposób otrzymujemy \\(P=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(576\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(24\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(26\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(36\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Pole trójkąta jest równe \\(24\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Obliczmy najpierw długość połowy obwodu.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(p=\\frac{a+b+c}{2}=\\frac{4+13+15}{2}=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(32\\)",
+            "\\(16\\)",
+            "\\(30\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>A teraz policzmy trzy różnice:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        \\(p-a=16-4=12\\)\n                    </li>\n<li>\n                        \\(p-b=16-13=3\\)\n                    </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(p-c=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(1\\)",
+            "\\(3\\)",
+            "\\(12\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawmy te wyniki do wzoru na pole trójkąta:\n                \\[\n                \\begin{align*}\n                P&=\\sqrt{p(p-a)(p-b)(p-c)}\\\\\n                &=\\sqrt{16\\cdot 12\\cdot 3\\cdot 1}\n                \\end{align*}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W ten sposób otrzymujemy \\(P=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(576\\)",
+            "\\(24\\)",
+            "\\(26\\)",
+            "\\(36\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Pole trójkąta jest równe \\(24\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Trójkąt ma boki długości \\(9\\), \\(10\\) i \\(17\\).\n        <p>\n            Oblicz długość promienia okręgu opisanego na tym trójkącie.\n        </p>\n"
+      "body": "<p>Trójkąt ma boki długości \\(9\\), \\(10\\) i \\(17\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz długość promienia okręgu opisanego na tym trójkącie.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Zaczniemy od obliczenia pola ze wzoru Herona.\n                <div class=\"switch_line\">\n                    Połowa obwodu jest równa\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(36\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(18\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(9\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Trzy różnice:\n                <ul class=\"nolist\">\n<li>\n                        \\(p-a=18-9=9\\)\n                    </li>\n<li>\n                        \\(p-b=18-10=8\\)\n                    </li>\n<li>\n                        \\(p-c=18-17=1\\)\n                    </li>\n</ul>\n<div class=\"switch_line\">\n                    więc pole \\(P=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(1296\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(36\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Znamy pole (\\(36\\)) oraz długości boków (\\(9\\), \\(10\\) i \\(17\\)).\n                <p>\n                    Użyjmy wzoru\n                </p>\n                \\[\n                P=\\frac{abc}{4R}\n                \\]\n                by dostać\n                \\[\n                36=\\frac{9\\cdot 10\\cdot 17}{4R}\n                \\]\n                <div class=\"switch_line\">\n                    Z tego równania wyliczamy, że \\(R=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{17}{10}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{10}{17}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{85}{8}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{8}{85}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Promień okręgu opisanego na trójkącie ma długość \\(\\frac{85}{8}=10\\tfrac{5}{8}\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zaczniemy od obliczenia pola ze wzoru Herona.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Połowa obwodu jest równa\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(36\\)",
+            "\\(18\\)",
+            "\\(9\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Trzy różnice:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        \\(p-a=18-9=9\\)\n                    </li>\n<li>\n                        \\(p-b=18-10=8\\)\n                    </li>\n<li>\n                        \\(p-c=18-17=1\\)\n                    </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    więc pole \\(P=\\)\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(1296\\)",
+            "\\(36\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Znamy pole (\\(36\\)) oraz długości boków (\\(9\\), \\(10\\) i \\(17\\)).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Użyjmy wzoru\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                P=\\frac{abc}{4R}\n                \\]\n                by dostać\n                \\[\n                36=\\frac{9\\cdot 10\\cdot 17}{4R}\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z tego równania wyliczamy, że \\(R=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{17}{10}\\)",
+            "\\(\\tfrac{10}{17}\\)",
+            "\\(\\tfrac{85}{8}\\)",
+            "\\(\\tfrac{8}{85}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Promień okręgu opisanego na trójkącie ma długość \\(\\frac{85}{8}=10\\tfrac{5}{8}\\).</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "9ea289d9ad67dabaa3a176ac04b38a8a80af8df0a5ab38b79c6546b0bc947172"
+  "seed_hash": "137b696dae32b12db73e9ade5ae2380ab4c44bde277eff2d82380653a52d4300"
 }

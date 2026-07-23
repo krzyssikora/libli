@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "choice",
-      "stem": "<p>Dziedzina funkcji</p><p>\\[</p><p>f(x)=\\sqrt{7-x}</p><p>\\]</p><p>to</p>",
+      "stem": "<p>Dziedzina funkcji</p><p>\\[\nf(x)=\\sqrt{7-x}\n\\]</p><p>to</p>",
       "multiple": false,
       "choices": [
         {
@@ -24,7 +24,7 @@
     },
     {
       "type": "choice",
-      "stem": "<p>Dziedzina funkcji</p><p>\\[</p><p>g(x)=\\frac{x+5}{x-5}</p><p>\\]</p><p>to</p>",
+      "stem": "<p>Dziedzina funkcji</p><p>\\[\ng(x)=\\frac{x+5}{x-5}\n\\]</p><p>to</p>",
       "multiple": false,
       "choices": [
         {
@@ -147,5 +147,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "3e7a2b0f269c9eda7578d23e45a7779cf96a011eb7b5cee575d3e71438ca355f"
+  "seed_hash": "e4b453077409f3a8b1e7c9e2a844caaaad0962035ca578c6f974723efde4d194"
 }

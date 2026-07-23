@@ -2,70 +2,131 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Cztery osoby wsiadają do pustego wagonu kolejowego, w którym jest dziewięć przedziałów. Każda z tych osób wybiera pusty przedział, bo chce siedzieć sama.\n        </p>\n<p>\n            Na ile sposobów mogą wybrać przedziały w tym wagonie? \n        </p>\n"
+      "body": "<p>\n            Cztery osoby wsiadają do pustego wagonu kolejowego, w którym jest dziewięć przedziałów. Każda z tych osób wybiera pusty przedział, bo chce siedzieć sama.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów mogą wybrać przedziały w tym wagonie? \n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n        \\(V_9^$\\frac{9!}{(9-4)!}=\\frac{9!}{5!}=9\\cdot 8\\cdot 7\\cdot 6\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(V_9^$\\frac{9!}{(9-4)!}=\\frac{9!}{5!}=9\\cdot 8\\cdot 7\\cdot 6\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Zamek cyfrowy do drzwi otwiera się po wpisaniu odpowiedniego kodu. Kod składa się z dwóch liter oraz czterech cyfr,\n        </p>\n<p>\n            Do dyspozycji są trzy litery: X, Y i Z oraz wszystkie dziewięć cyfr. Zarówno litery jak i cyfry mogą się powtarzać, ale nas interesują kody, w których ani litery ani cyfry się nie powtarzają. Ile jest takich kodów?\n        </p>\n"
+      "body": "<p>\n            Zamek cyfrowy do drzwi otwiera się po wpisaniu odpowiedniego kodu. Kod składa się z dwóch liter oraz czterech cyfr,\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Do dyspozycji są trzy litery: X, Y i Z oraz wszystkie dziewięć cyfr. Zarówno litery jak i cyfry mogą się powtarzać, ale nas interesują kody, w których ani litery ani cyfry się nie powtarzają. Ile jest takich kodów?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<p>\n            Część kodu składająca się z liter: \\(V_3^2=\\frac{3!}{(3-2)!}=3\\cdot 2=6\\)\n        </p>\n<p>\n            Część kodu składająca się z cyfr: \\(V_{10}^4=\\frac{10!}{(10-4)!}=10\\cdot 9\\cdot 8\\cdot 7=5\\,040\\)\n        </p>\n<p>\n            Cały kod: \\(6\\cdot 5\\,040=30\\,240\\)\n        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Część kodu składająca się z liter: \\(V_3^2=\\frac{3!}{(3-2)!}=3\\cdot 2=6\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Część kodu składająca się z cyfr: \\(V_{10}^4=\\frac{10!}{(10-4)!}=10\\cdot 9\\cdot 8\\cdot 7=5\\,040\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Cały kod: \\(6\\cdot 5\\,040=30\\,240\\)\n        </p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Tymczasowe hasła do kont nowych uczniów szkoły do internetowego dziennika to losowe ciągi pięciu liter ze zbioru: A, B, C, D, E, F, G, H, I, J.\n        </p>\n<p>\n            Ile jest haseł złożonych z samych spółgłosek, w których litery się nie powtarzają.\n        </p>\n"
+      "body": "<p>\n            Tymczasowe hasła do kont nowych uczniów szkoły do internetowego dziennika to losowe ciągi pięciu liter ze zbioru: A, B, C, D, E, F, G, H, I, J.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile jest haseł złożonych z samych spółgłosek, w których litery się nie powtarzają.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<p>\n            W podanym zbiorze liter jest 7 spółgłosek.\n        </p>\n        \\(V_7^5=\\frac{7!}{(7-5)!}=\\frac{7!}{2!}=7\\cdot 6\\cdot 5\\cdot 4\\cdot 3=2\\,520\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            W podanym zbiorze liter jest 7 spółgłosek.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(V_7^5=\\frac{7!}{(7-5)!}=\\frac{7!}{2!}=7\\cdot 6\\cdot 5\\cdot 4\\cdot 3=2\\,520\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Julek wziął ze sobą dziesięć książek na wakacje. Gdy chciał zacząć czytać pierwszą, uznał, że wziął ich dwukrotnie za dużo. Wybrał więc pięć książek i ułożył je w kolejności, w jakiej chciał je przeczytać.\n        </p>\n<p>\n            Na ile sposobów mógł to zrobić?\n        </p>\n"
+      "body": "<p>\n            Julek wziął ze sobą dziesięć książek na wakacje. Gdy chciał zacząć czytać pierwszą, uznał, że wziął ich dwukrotnie za dużo. Wybrał więc pięć książek i ułożył je w kolejności, w jakiej chciał je przeczytać.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów mógł to zrobić?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n        \\(V_{10}^5=\\frac{10!}{(10-5)!}=\\frac{10!}{5!}=10\\cdot 9\\cdot 8\\cdot 7\\cdot 6=30\\,240\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(V_{10}^5=\\frac{10!}{(10-5)!}=\\frac{10!}{5!}=10\\cdot 9\\cdot 8\\cdot 7\\cdot 6=30\\,240\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Kierownik kina ma wybrać filmy na nocny maraton filmowy. Maraton odbędzie się w dwóch największych salach w kinie. W każdej z sal odbędą się kolejno projekcje trzech różnych filmów. W jednej z nich będą to horrory, a w drugiej - thrillery. \n        </p>\n<p>\n            Asystent kierownika przyniósł mu listę dziesięciu horrorów i jedenastu thrillerów do wyboru.\n        </p>\n<p>\n            Ile możliwych wyborów ma przed sobą kierownik kina?\n        </p>\n"
+      "body": "<p>\n            Kierownik kina ma wybrać filmy na nocny maraton filmowy. Maraton odbędzie się w dwóch największych salach w kinie. W każdej z sal odbędą się kolejno projekcje trzech różnych filmów. W jednej z nich będą to horrory, a w drugiej - thrillery. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Asystent kierownika przyniósł mu listę dziesięciu horrorów i jedenastu thrillerów do wyboru.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile możliwych wyborów ma przed sobą kierownik kina?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n        \\(V_{10}^3\\cdot V_{11}^3=\\frac{10!}{(10-3)!}\\cdot \\frac{11!}{(11-3)!}=10\\cdot 9\\cdot 8\\cdot 11\\cdot 10\\cdot 9=712\\,800\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(V_{10}^3\\cdot V_{11}^3=\\frac{10!}{(10-3)!}\\cdot \\frac{11!}{(11-3)!}=10\\cdot 9\\cdot 8\\cdot 11\\cdot 10\\cdot 9=712\\,800\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "2a82c3bcb5f2966b209050bf23fab26464e339dbf98e4ef7021645b84f9d3b8a"
+  "seed_hash": "2d4b71dc20a28df2a9d399254f0b145177b32ae9a4fe632b8d301a3465e9cbb1"
 }

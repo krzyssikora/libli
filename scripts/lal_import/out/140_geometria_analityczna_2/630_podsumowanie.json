@@ -2,23 +2,266 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Punkty \\(A=(-12,-13)\\) i \\(B=(4, -1)\\) są wierzchołkami trójkąta prostokątnego \\(ABC\\), w którym kąt \\(ACB\\) jest prosty. \n        </p>\n<p>\n            Punkt \\(C\\) leży na prostej o równaniu \\(y=x+7\\).\n        </p>\n<p>\n            Znajdź współrzędne punktu \\(C\\). Uwzględnij wszystkie możliwości.\n        </p>\n"
+      "body": "<p>\n            Punkty \\(A=(-12,-13)\\) i \\(B=(4, -1)\\) są wierzchołkami trójkąta prostokątnego \\(ABC\\), w którym kąt \\(ACB\\) jest prosty. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkt \\(C\\) leży na prostej o równaniu \\(y=x+7\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzędne punktu \\(C\\). Uwzględnij wszystkie możliwości.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "metoda rozwiązania",
-      "body": "\n\n<p>\n            Poniższa animacja przedstawia w skrócie, co należy zrobić, by znaleźć możliwe współrzędne punktu \\(C\\).\n        </p>\n<p>\n            Przyjrzyj się uważnie animacji. Zrób to ponownie w razie potrzeby. Jakie twierdzenie na temat okręgów powoduje, że ta metoda jest poprawna?\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"524px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/gd2eudne/width/613/height/524/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"geometria analityczna 2, zadanie 1480\" width=\"613px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">ten email</a>.\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n<details>\n<summary>wiesz, o jakim twierdzeniu mowa?</summary>\n<p>\n                Znalezione w ten sposób punkty \\(C\\) są wierzchołkami <strong>kątów wpisanych opartych na średnicy</strong>.\n            </p>\n<img alt=\"Kąt wpisany oparty na średnicy\" height=\"400\" src=\"static/tw_katy_2_polkole.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<div class=\"important\" style=\"min-height: 410px;\">\n<p>\n<u>\n                        Kąt wpisany oparty na średnicy\n                    </u>\n</p>\n<p>\n                    Kąt wpisany oparty na połowie okręgu jest prosty.\n                </p>\n<p>\n                    Gdy kąt wpisany jest oparty na połowie okręgu, czasem mówimy, że jest oparty na średnicy.\n                </p>\n</div>\n<!-- ADD INTERNAL LINK -->\n<!-- geometria_170_okrag.html -->\n</details>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Poniższa animacja przedstawia w skrócie, co należy zrobić, by znaleźć możliwe współrzędne punktu \\(C\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Przyjrzyj się uważnie animacji. Zrób to ponownie w razie potrzeby. Jakie twierdzenie na temat okręgów powoduje, że ta metoda jest poprawna?\n        </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/gd2eudne/width/613/height/524/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        },
+        {
+          "type": "text",
+          "body": "<h4>wiesz, o jakim twierdzeniu mowa?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Znalezione w ten sposób punkty \\(C\\) są wierzchołkami <strong>kątów wpisanych opartych na średnicy</strong>.\n            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_2_polkole.png",
+          "alt": "Kąt wpisany oparty na średnicy",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                        Kąt wpisany oparty na średnicy\n                    </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Kąt wpisany oparty na połowie okręgu jest prosty.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Gdy kąt wpisany jest oparty na połowie okręgu, czasem mówimy, że jest oparty na średnicy.\n                </p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Zacznijmy od znalezienia współrzędnych punktu \\(S\\) - środka odcinka \\(AB\\).\n                </p>\n<details>\n<summary>pamiętasz, jak?</summary>\n<div class=\"important\">\n<p>\n                            Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:\n                        </p>\n<div class=\"centered\">\n<img alt=\"środek odcinka\" src=\"static/srodek_odcinka.png\" width=\"400\"/>\n</div>\n                        \\[\n                        S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n                        \\]\n                    </div>\n<!-- ADD INTERNAL LINK -->\n<!-- 050_geo_an.html -->\n</details>\n<div class=\"switch_line\">\n                    Współrzędne punktu \\(S\\) to \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((-8,-6)\\)</div>\n<div class=\"switch_value\">\\((-4,-7)\\)</div>\n<div class=\"switch_value\">\\((-8,-7)\\)</div>\n<div class=\"switch_value\">\\((-4,-6)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>. \n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Teraz chcemy znaleźć równanie okręgu o średnicy \\(AB\\). Środkiem tego okręgu jest punkt \\(S\\), więc promieniem jest na przykład odcinek \\(SA\\). Aby znaleźć promień, obliczmy długość tego odcinka.\n                </p>\n<details>\n<summary>pamiętasz, jak?</summary>\n<div class=\"important\">\n                        Długość odcinka \\(AB\\), gdzie\n                        \\[\n                        A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n                        \\]\n                        jest dana wzorem\n                        \\[\n                        AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n                        \\]\n                    </div>\n<!-- ADD INTERNAL LINK -->\n<!-- 020_geo_an.html -->\n</details>\n<div class=\"switch_line\">\n                    Długość odcinka \\(AS\\) jest dana wyrażeniem (po wstępnym uproszczeniu)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\sqrt{8^2+6^2}\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{16^2+20^2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Stąd \\(r\\), promień szukanego okręgu to\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    r=|AS|&amp;=\\sqrt{8^2+6^2}=\\\\\n                    &amp;=\\sqrt{64+36}=\\\\\n                    &amp;=\\sqrt{100}=\\\\\n                    &amp;=10\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Równanie okręgu o środku w punkcie \\(S=(-4,-7)\\) i promieniu \\(r=10\\) to  \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((x-4)^2+(y-7)^2=10\\)</div>\n<div class=\"switch_value\">\\((x+4)^2+(y+7)^2=100\\)</div>\n<div class=\"switch_value\">\\((x+4)^2+(y+7)^2=10\\)</div>\n<div class=\"switch_value\">\\((x-4)^2+(y-7)^2=100\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Czas znaleźć punkty wspólne prostej \\(y=x+7\\) i okręgu \\((x+4)^2+(y+7)^2=100\\).\n                </p>\n<p>\n                    Te punkty wskażą możliwe położenia punktu \\(C\\).\n                </p>\n<details>\n<summary>rozumiesz, dlaczego?</summary>\n<div class=\"important\" style=\"min-height: 310px;\">\n<img alt=\"Kąt wpisany oparty na średnicy\" src=\"static/geometria_analityczna_2_zadanie_1480_1.png\" style=\"float: right; margin: 0 0 0 15px; max-height: 300px;\"/>\n<p>\n                            Kąty \\(AC_1B\\) i \\(AC_2B\\) to <u>kąty wpisane oparte na średnicy</u> okręgu, \\(AB\\).\n                        </p>\n<p>\n                            Każdy kąt wpisany oparty na średnicy (na połowie okręgu) jest prosty.\n                        </p>\n</div>\n</details>\n<p>\n                    Układ równań\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{cases}\n                    y=x+7\\\\\n                    (x+4)^2+(y+7)^2=100\n                    \\end{cases}\n                    \\]\n                </div>\n<p>\n                    rozwiążemy metodą podstawienia, tj. podstawiając \\(y\\) z równania prostej do równania okręgu.\n                </p>\n<div class=\"switch_line\">\n                    Otrzymamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((x+4)^2+(x+14)^2=100\\)</div>\n<div class=\"switch_value\">\\((x+4)^2+x^2=100\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Wymnóżmy nawiasy:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    (x+4)^2+(x+14)^2&amp;=100\\\\\n                    x^2+8x+16+x^2+28x+196-100&amp;=0\\\\\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Po skróceniu wyrazów podobnych i podzieleniu obu stron równania przez \\(2\\) dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x^2+18x+56=0\\)</div>\n<div class=\"switch_value\">\\(x^2+36x+112=0\\)</div>\n<div class=\"switch_value\">\\(x^2+18x+156=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Rozwiążemy równanie \\(x^2+18x+56=0\\) na przykład za pomocą wzoru.\n                </p>\n<details>\n<summary>pamiętasz wzór?</summary>\n<div class=\"important\">\n<p>\n                            Miejsca zerowe \\(x_1\\) i \\(x_2\\) równania\n                        </p>\n                        \\[\n                        ax^2+bx+c=0\n                        \\]\n                        <p>\n                            obliczne są według wzorów:\n                        </p>\n<div class=\"centered table_wrapper\">\n<p>\n                                wyróżnik:\\(\\quad \\Delta=b^2-4ac\\)\n                            </p>\n                            \\(x_1=\\frac{-b-\\sqrt{\\Delta}}{2a}\\quad\\) oraz \\(\\quad x_2=\\frac{-b+\\sqrt{\\Delta}}{2a}\\)\n                            <p></p>\n</div>\n</div>\n</details>\n<div class=\"switch_line\">\n                    Rozwiązaniami równania \\(x^2+18x+56=0\\) są liczby \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4\\) oraz \\(14\\)</div>\n<div class=\"switch_value\">\\(-14\\) oraz \\(-4\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Liczby \\(x=-14\\) oraz \\(x=-4\\) to dwie możliwe współrzędne \\(x\\)-owe punktu \\(C\\). Aby znaleźć współrzędne \\(y\\)-owe, podstawimy te liczby do równania prostej \\(y=x+7\\).\n                </p>\n<div class=\"switch_line\">\n                    Otrzymamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=-7\\) dla \\(x=-14\\) oraz \\(y=3\\) dla \\(x=-4\\)</div>\n<div class=\"switch_value\">\\(y=-21\\) dla \\(x=-14\\) oraz \\(y=-11\\) dla \\(x=-4\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1480_2.png\" style=\"max-height: 300px;\"/>\n</figure>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od znalezienia współrzędnych punktu \\(S\\) - środka odcinka \\(AB\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz, jak?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:\n                        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/srodek_odcinka.png",
+          "alt": "środek odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "math",
+          "latex": "\n                        S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n                        "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Współrzędne punktu \\(S\\) to \n                    \n\n\n\n\n￿0￿. \n                ",
+          "options": [
+            "\\((-8,-6)\\)",
+            "\\((-4,-7)\\)",
+            "\\((-8,-7)\\)",
+            "\\((-4,-6)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz chcemy znaleźć równanie okręgu o średnicy \\(AB\\). Środkiem tego okręgu jest punkt \\(S\\), więc promieniem jest na przykład odcinek \\(SA\\). Aby znaleźć promień, obliczmy długość tego odcinka.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz, jak?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        Długość odcinka \\(AB\\), gdzie\n                        \\[\n                        A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n                        \\]\n                        jest dana wzorem\n                        \\[\n                        AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Długość odcinka \\(AS\\) jest dana wyrażeniem (po wstępnym uproszczeniu)\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\sqrt{8^2+6^2}\\)",
+            "\\(\\sqrt{16^2+20^2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Stąd \\(r\\), promień szukanego okręgu to\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    r=|AS|&amp;=\\sqrt{8^2+6^2}=\\\\\n                    &amp;=\\sqrt{64+36}=\\\\\n                    &amp;=\\sqrt{100}=\\\\\n                    &amp;=10\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie okręgu o środku w punkcie \\(S=(-4,-7)\\) i promieniu \\(r=10\\) to  \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((x-4)^2+(y-7)^2=10\\)",
+            "\\((x+4)^2+(y+7)^2=100\\)",
+            "\\((x+4)^2+(y+7)^2=10\\)",
+            "\\((x-4)^2+(y-7)^2=100\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Czas znaleźć punkty wspólne prostej \\(y=x+7\\) i okręgu \\((x+4)^2+(y+7)^2=100\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Te punkty wskażą możliwe położenia punktu \\(C\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>rozumiesz, dlaczego?</h4>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1480_1.png",
+          "alt": "Kąt wpisany oparty na średnicy",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Kąty \\(AC_1B\\) i \\(AC_2B\\) to <u>kąty wpisane oparte na średnicy</u> okręgu, \\(AB\\).\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Każdy kąt wpisany oparty na średnicy (na połowie okręgu) jest prosty.\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Układ równań\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{cases}\n                    y=x+7\\\\\n                    (x+4)^2+(y+7)^2=100\n                    \\end{cases}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    rozwiążemy metodą podstawienia, tj. podstawiając \\(y\\) z równania prostej do równania okręgu.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymamy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((x+4)^2+(x+14)^2=100\\)",
+            "\\((x+4)^2+x^2=100\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Wymnóżmy nawiasy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    (x+4)^2+(x+14)^2&amp;=100\\\\\n                    x^2+8x+16+x^2+28x+196-100&amp;=0\\\\\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po skróceniu wyrazów podobnych i podzieleniu obu stron równania przez \\(2\\) dostajemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x^2+18x+56=0\\)",
+            "\\(x^2+36x+112=0\\)",
+            "\\(x^2+18x+156=0\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Rozwiążemy równanie \\(x^2+18x+56=0\\) na przykład za pomocą wzoru.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz wzór?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Miejsca zerowe \\(x_1\\) i \\(x_2\\) równania\n                        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                        ax^2+bx+c=0\n                        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            obliczne są według wzorów:\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                wyróżnik:\\(\\quad \\Delta=b^2-4ac\\)\n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(x_1=\\frac{-b-\\sqrt{\\Delta}}{2a}\\quad\\) oraz \\(\\quad x_2=\\frac{-b+\\sqrt{\\Delta}}{2a}\\)</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Rozwiązaniami równania \\(x^2+18x+56=0\\) są liczby \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\) oraz \\(14\\)",
+            "\\(-14\\) oraz \\(-4\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Liczby \\(x=-14\\) oraz \\(x=-4\\) to dwie możliwe współrzędne \\(x\\)-owe punktu \\(C\\). Aby znaleźć współrzędne \\(y\\)-owe, podstawimy te liczby do równania prostej \\(y=x+7\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymamy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=-7\\) dla \\(x=-14\\) oraz \\(y=3\\) dla \\(x=-4\\)",
+            "\\(y=-21\\) dla \\(x=-14\\) oraz \\(y=-11\\) dla \\(x=-4\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1480_2.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "2611277974f1898dbeed40eff9c4be0770912c3c988e3ceceb97f97af44d1661"
+  "seed_hash": "12f806126fd0ee6b7468dbef04dd94f77c78e86a8b14f09d11dc47295c3fc3c2"
 }

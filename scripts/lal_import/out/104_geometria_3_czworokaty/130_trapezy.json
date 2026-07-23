@@ -6,16 +6,45 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Które z poniższych trapezów, powinny, Twoim zdaniem, nazywać się równoramiennymi?\n        <figure>\n<img src=\"static/trapez_rownoramienny_ktory_pasuje.png\" style=\"max-width: 600px;\"/>\n</figure>\n<p>\n            A które rzeczywiście nazywają się równoramiennymi?\n        </p>\n"
+      "body": "<p>Które z poniższych trapezów, powinny, Twoim zdaniem, nazywać się równoramiennymi?</p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trapez_rownoramienny_ktory_pasuje.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            A które rzeczywiście nazywają się równoramiennymi?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n\n<figure>\n<img src=\"static/trapez_rownoramienny_te_pasuja.png\" style=\"max-width: 600px;\"/>\n</figure>\n<p>\n            Trapez <strong>C</strong> <u>nie jest równoramienny</u>, co oczywiste, bo ma ramiona różnej długości.\n        </p>\n<p>\n            Pozostałe trzy trapezy mają ramiona równej długości, jednak <strong>A</strong> i <strong>D</strong> <u>są równoramienne</u>, natomiast <strong>C</strong> <u>nie jest równoramienny</u>.\n        </p>\n<p>\n            Jak zatem zdefiniować <strong>trapez równoramienny</strong>?\n        </p>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/trapez_rownoramienny_te_pasuja.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Trapez <strong>C</strong> <u>nie jest równoramienny</u>, co oczywiste, bo ma ramiona różnej długości.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Pozostałe trzy trapezy mają ramiona równej długości, jednak <strong>A</strong> i <strong>D</strong> <u>są równoramienne</u>, natomiast <strong>C</strong> <u>nie jest równoramienny</u>.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Jak zatem zdefiniować <strong>trapez równoramienny</strong>?\n        </p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -41,5 +70,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "0bda82e08bb1d79d808829e6a8a6ca18171fdd779282cac9a7df0b885cb1d07c"
+  "seed_hash": "c804b7a5e9f3a0cc21f260d1632934fbd51aca12c28216f0b2cfd5e017b3f165"
 }

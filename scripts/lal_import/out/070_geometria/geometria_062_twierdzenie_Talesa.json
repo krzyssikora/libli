@@ -5,8 +5,10 @@
       "body": "<p>\n    Dla przykładu, na rysunku poniżej proste \\(a\\), \\(b\\) i \\(c\\) są równoległe.\n</p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<img alt=\"\" height=\"400\" src=\"static/twierdzenie_Talesa.png\" style=\"width: 800px; height: 400px;\" width=\"800\"/>\n</p>"
+      "type": "image",
+      "media_src": "static/twierdzenie_Talesa.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -30,5 +32,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "56f6251774e43c8363e92cfcb4dd0b1aca064f9c707ae88f6d60471d83475ed8"
+  "seed_hash": "a3f1cf97aa6efff8923a4e26693c479506ce2dfb98fb6c902016d6a67c25b1fd"
 }

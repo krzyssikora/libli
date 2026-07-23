@@ -5,12 +5,18 @@
       "body": "<p>Przypomnijmy sobie przed chwilą wprowadzone wzory:</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"pole trójkąta\" height=\"200\" src=\"static/pole_trojkata_bkb_wzor.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n    Jeśli boki trójkąta mają długości \\(a\\), \\(b\\) oraz \\(c\\), a przeciwległe im kąty mają miary odpowiednio \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\), to pole trójkąta \\(P\\) jest dane wzorem\n    \\[\n    P=\\frac{1}{2}ab\\sin\\gamma=\\frac{1}{2}ac\\sin\\beta=\\frac{1}{2}bc\\sin\\alpha\n    \\]\n    Czyli pole jest połową iloczynu długości boków i sinusa kąta między nimi.\n"
+      "type": "image",
+      "media_src": "static/pole_trojkata_bkb_wzor.png",
+      "alt": "pole trójkąta",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p>Jeśli boki trójkąta mają długości \\(a\\), \\(b\\) oraz \\(c\\), a przeciwległe im kąty mają miary odpowiednio \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\), to pole trójkąta \\(P\\) jest dane wzorem\n    \\[\n    P=\\frac{1}{2}ab\\sin\\gamma=\\frac{1}{2}ac\\sin\\beta=\\frac{1}{2}bc\\sin\\alpha\n    \\]\n    Czyli pole jest połową iloczynu długości boków i sinusa kąta między nimi.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -19,7 +25,62 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Tak naprawdę to wszystko jedno, z którego wzoru skorzystamy, zacznimy więc od pierwszego z brzegu:\n                \\[\n                P=\\frac{1}{2}ab\\sin\\gamma\n                \\]\n                Jest to wzór na pole \\(P\\) w zależności od \\(a\\), \\(b\\) oraz \\(\\gamma\\).\n                <div class=\"switch_line\">\n                    Chcemy wzoru na \\(P\\) w zależności od\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(a\\), \\(b\\), \\(\\alpha\\) i \\(\\beta\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(a\\), \\(b\\) i \\(c\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(a\\), \\(b\\), \\(c\\) i \\(R\\), promienia okręgu opisanego na trójkącie\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Chcemy więc wyeliminować z danego wzoru \\(\\gamma\\), a wprowadzić \\(R\\). Skorzystamy z twierdzenia sinusów.\n                <details>\n<summary>\n                        twierdzenie sinusów - przypomnienie\n                    </summary>\n<div class=\"important\">\n                        W trójkącie \\(ABC\\), w którym boki przeciwległe wierzchołkom \\(A\\), \\(B\\) i \\(C\\) mają długości \\(a\\), \\(b\\) i \\(c\\) odpowiednio, a promień okręgu opisanego na trójkącie ma długość \\(R\\), zachodzą równości:\n                        \\[\n                        \\frac{a}{\\sin A}=\\frac{b}{\\sin B}=\\frac{c}{\\sin C}=2R\n                        \\]\n                        Jeśli kąty o wierzchołkach \\(A\\), \\(B\\) i \\(C\\) nazwiemy odpowiednio \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\), to równości przyjmują postać:\n                        \\[\n                        \\frac{a}{\\sin \\alpha}=\\frac{b}{\\sin \\beta}=\\frac{c}{\\sin \\gamma}=2R\n                        \\]\n                    </div>\n</details>\n<div class=\"switch_line\">\n                    Z twierdzenia sinusów\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sin \\gamma = 2Rc\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sin \\gamma = \\frac{c}{2R}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\sin \\gamma = \\frac{2R}{c}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Podstawmy ten wynik do wzoru na pole trójkąta:\n                \\[\n                \\begin{align*}\n                P&amp;=\\frac{1}{2}ab\\sin\\gamma\\\\\n                &amp;=\\frac{1}{2}ab\\cdot\\frac{c}{2R}\n                \\end{align*}\n                \\]\n                <div class=\"switch_line\">\n                    W ten sposób otrzymujemy \\(P=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\( \\frac{abc}{4R}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\( \\frac{abc}{R}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\( \\frac{c}{4abR}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Otrzymany wzór ma postać\n                \\[\n                P=\\frac{abc}{4R}\n                \\]\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Tak naprawdę to wszystko jedno, z którego wzoru skorzystamy, zacznimy więc od pierwszego z brzegu:\n                \\[\n                P=\\frac{1}{2}ab\\sin\\gamma\n                \\]\n                Jest to wzór na pole \\(P\\) w zależności od \\(a\\), \\(b\\) oraz \\(\\gamma\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Chcemy wzoru na \\(P\\) w zależności od\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(a\\), \\(b\\), \\(\\alpha\\) i \\(\\beta\\)",
+            "\\(a\\), \\(b\\) i \\(c\\)",
+            "\\(a\\), \\(b\\), \\(c\\) i \\(R\\), promienia okręgu opisanego na trójkącie"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Chcemy więc wyeliminować z danego wzoru \\(\\gamma\\), a wprowadzić \\(R\\). Skorzystamy z twierdzenia sinusów.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>twierdzenie sinusów - przypomnienie</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        W trójkącie \\(ABC\\), w którym boki przeciwległe wierzchołkom \\(A\\), \\(B\\) i \\(C\\) mają długości \\(a\\), \\(b\\) i \\(c\\) odpowiednio, a promień okręgu opisanego na trójkącie ma długość \\(R\\), zachodzą równości:\n                        \\[\n                        \\frac{a}{\\sin A}=\\frac{b}{\\sin B}=\\frac{c}{\\sin C}=2R\n                        \\]\n                        Jeśli kąty o wierzchołkach \\(A\\), \\(B\\) i \\(C\\) nazwiemy odpowiednio \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\), to równości przyjmują postać:\n                        \\[\n                        \\frac{a}{\\sin \\alpha}=\\frac{b}{\\sin \\beta}=\\frac{c}{\\sin \\gamma}=2R\n                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z twierdzenia sinusów\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\sin \\gamma = 2Rc\\)",
+            "\\(\\sin \\gamma = \\frac{c}{2R}\\)",
+            "\\(\\sin \\gamma = \\frac{2R}{c}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawmy ten wynik do wzoru na pole trójkąta:\n                \\[\n                \\begin{align*}\n                P&=\\frac{1}{2}ab\\sin\\gamma\\\\\n                &=\\frac{1}{2}ab\\cdot\\frac{c}{2R}\n                \\end{align*}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W ten sposób otrzymujemy \\(P=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\( \\frac{abc}{4R}\\)",
+            "\\( \\frac{abc}{R}\\)",
+            "\\( \\frac{c}{4abR}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Otrzymany wzór ma postać\n                \\[\n                P=\\frac{abc}{4R}\n                \\]</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -27,14 +88,26 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Trójkąt ma boki o  długości \\(a\\), \\(b\\) i \\(c\\).\n        </p>\n<p>\n            Pole trójkąta jest równe \\(P\\).\n        </p>\n<p>\n            Okrąg opisany na trójkącie ma promień długości \\(R\\).\n        </p>\n<p>\n            Uzupełnij tabelę.\n        </p>\n"
+      "body": "<p>\n            Trójkąt ma boki o  długości \\(a\\), \\(b\\) i \\(c\\).\n        </p>"
     },
     {
-      "type": "table",
+      "type": "text",
+      "body": "<p>\n            Pole trójkąta jest równe \\(P\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Okrąg opisany na trójkącie ma promień długości \\(R\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Uzupełnij tabelę.\n        </p>"
+    },
+    {
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -42,120 +115,96 @@
         "cells": [
           [
             {
-              "html": "\\(a\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(a\\)"
             },
             {
-              "html": "\\(b\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(b\\)"
             },
             {
-              "html": "\\(c\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(c\\)"
             },
             {
-              "html": "\\(R\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(R\\)"
             },
             {
-              "html": "\\(P\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(P\\)"
             }
           ],
           [
             {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(4\\)"
             },
             {
-              "html": "\\(5\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(5\\)"
             },
             {
-              "html": "\\(7\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(7\\)"
             },
             {
-              "html": "\\(\\tfrac{35}{24}\\sqrt{6}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\tfrac{35}{24}\\sqrt{6}\\)"
             },
             {
-              "html": "<span class=\"myequation\">\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                        \\(\\cdot\\sqrt{6}\\)\n                    </span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "4"
             }
           ],
           [
             {
-              "html": "\\(7\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(7\\)"
             },
             {
-              "html": "\\(9\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(9\\)"
             },
             {
-              "html": "\\(12\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(12\\)"
             },
             {
-              "html": "\\(\\tfrac{27}{10}\\sqrt{5}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\tfrac{27}{10}\\sqrt{5}\\)"
             },
             {
-              "html": "<span class=\"myequation\">\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                        \\(\\cdot\\sqrt{5}\\)\n                    </span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "14"
             }
           ],
           [
             {
-              "html": "\\(11\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(11\\)"
             },
             {
-              "html": "\\(9\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(9\\)"
             },
             {
-              "html": "\\(16\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(16\\)"
             },
             {
-              "html": "\\(\\tfrac{22}{7}\\sqrt{7}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\tfrac{22}{7}\\sqrt{7}\\)"
             },
             {
-              "html": "<span class=\"myequation\">\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                        \\(\\cdot\\sqrt{7}\\)\n                    </span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "18"
             }
           ]
         ]
       }
-    },
-    {
-      "type": "text",
-      "body": "\n    Świetnie!\n"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "388b31246d711950f94632069edd91131d69a99272520d0d214ce9532aef38a3"
+  "seed_hash": "52fb33b17da8e84b40d1ef8a080261e0a61ab78f7a5573b331872011d43b394b"
 }

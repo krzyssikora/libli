@@ -6,7 +6,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -15,54 +15,104 @@
     {
       "type": "spoiler",
       "label": "(1)",
-      "body": "\n                        \\(\\pm\\sqrt{2}\\), \\(\\pm 2\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\pm\\sqrt{2}\\), \\(\\pm 2\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(2)",
-      "body": "\n                        \\(\\pm 2\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\pm 2\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(3)",
-      "body": "\n                        \\(-1\\), \\(\\frac{1}{2}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-1\\), \\(\\frac{1}{2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(4)",
-      "body": "\n                        \\(\\pm\\frac{1}{2}\\), \\(0\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\pm\\frac{1}{2}\\), \\(0\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(5)",
-      "body": "\n                        \\(\\pm\\frac{\\sqrt{2}}{2}\\), \\(\\pm 2\\sqrt{2}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\pm\\frac{\\sqrt{2}}{2}\\), \\(\\pm 2\\sqrt{2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(6)",
-      "body": "\n                        \\(\\pm\\frac{\\sqrt{2}}{2}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\pm\\frac{\\sqrt{2}}{2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(7)",
-      "body": "\n                        \\(`-\\frac{41}{51}\\), \\(`-\\frac{23}{34}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(`-\\frac{41}{51}\\), \\(`-\\frac{23}{34}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(8)",
-      "body": "\n                        \\(99\\), \\(105\\tfrac{1}{2}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(99\\), \\(105\\tfrac{1}{2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(9)",
-      "body": "\n                        \\(`-\\frac{1}{2}\\), \\(\\pm 1\\), \\(\\frac{3}{2}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(`-\\frac{1}{2}\\), \\(\\pm 1\\), \\(\\frac{3}{2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(10)",
-      "body": "\n                        \\(0\\), \\(-1\\), \\(\\frac{1}{2}\\), \\(`-\\frac{3}{2}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(0\\), \\(-1\\), \\(\\frac{1}{2}\\), \\(`-\\frac{3}{2}\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "1052b626d1aa228e6211a027ffbbc985c0860b5635e687b7c9e87c63c5f079ea"
+  "seed_hash": "717c538ef164cc7216586f5f0455aa82327f5a3c6282d850bebc3687884e942e"
 }

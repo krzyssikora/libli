@@ -21,10 +21,10 @@
       "body": "<p>\n            Wpisz samą liczbę, bez znaku procentu.\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"more_less_guess\">\n<div>\n<span>\n<input class=\"more_less_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</div>\n\n\n\n</div>",
-      "reason": "interactive_widget (Group B): more_less_input"
+      "type": "guess_number",
+      "stem": "\n￿0￿\n",
+      "target": "100",
+      "success_message": "Tak, TeraSoft sprzedała o \\(100\\%\\) niż OpenArch."
     },
     {
       "type": "text",
@@ -43,10 +43,10 @@
       "body": "<p>\n            Wpisz samą liczbę, bez znaku procentu.\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"more_less_guess\">\n<div>\n<span>\n<input class=\"more_less_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</div>\n\n\n\n</div>",
-      "reason": "interactive_widget (Group B): more_less_input"
+      "type": "guess_number",
+      "stem": "\n￿0￿\n",
+      "target": "8",
+      "success_message": "Tak, sprzedaż TeraSoft to \\(8\\%\\) rynku tabletów."
     },
     {
       "type": "text",
@@ -66,12 +66,70 @@
       "body": "<p>\n        Gdy porównywane wielkości przedstawiamy jako procenty większej całości (w powyższym przykładzie - rynku tabletów) i porównujemy te procenty odejmując je od siebie, wówczas mówimy o\n        <strong>\n            punktach procentowych\n        </strong>\n        .\n    </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<table class=\"my_table_border\">\n<tr>\n<th>\n                    OpenArch\n                </th>\n<th>\n                    TeraSoft\n                </th>\n</tr>\n<tr>\n<td>\n                    20 tysięcy tabletów\n                </td>\n<td>\n                    40 tysięcy tabletów\n                </td>\n</tr>\n<tr>\n<td colspan=\"2\">\n                    \\(\\longrightarrow\\)\n                    <br/>\n                    o \\(100\\%\\) więcej\n                </td>\n</tr>\n<tr>\n<td>\n                    \\(4\\%\\) rynku\n                </td>\n<td>\n                    \\(8\\%\\) rynku\n                </td>\n</tr>\n<tr>\n<td colspan=\"2\">\n                    \\(\\longrightarrow\\)\n                    <br/>\n                    o \\(4\\) punkty procentowe więcej\n                </td>\n</tr>\n</table>",
-      "reason": "table uses rowspan/colspan"
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "OpenArch",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "TeraSoft",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            }
+          ],
+          [
+            {
+              "html": "20 tysięcy tabletów",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "40 tysięcy tabletów",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\longrightarrow\\)\n                    <br/>\n                    o \\(100\\%\\) więcej",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "\\(4\\%\\) rynku",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(8\\%\\) rynku",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "\\(\\longrightarrow\\)\n                    <br/>\n                    o \\(4\\) punkty procentowe więcej",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ]
+        ]
+      }
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "42d4c51bab401a62e6501c85fe1681fc35b0d87947750de2fff4f074dd0603c6"
+  "fully_mapped": true,
+  "seed_hash": "2d50ba262ea62a5e780093eff87a634ebd910d737c15b6d159f8c5c0319f5dbf"
 }

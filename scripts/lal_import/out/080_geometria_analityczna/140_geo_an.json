@@ -40,7 +40,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -48,27 +48,30 @@
     },
     {
       "type": "text",
-      "body": "\n        Proste\n        <div class=\"centered\">\n            \\(y=a_1x+b_1\\quad\\quad\\) oraz \\(\\quad\\quad y=a_2x+b_2\\)\n        </div>\n        są równoległe jeśli:\n    "
+      "body": "<p>Proste</p>"
     },
     {
       "type": "text",
-      "body": "<ul class=\"nolist\">\n<li>\n<div class=\"one_choice ks_button\">\n                \\(a_1=a_2\\)\n                <span style=\"visibility: hidden;\">\n                    1\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                \\(b_1=b_2\\)\n                <span style=\"visibility: hidden;\">\n                    1\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                \\(a_1\\cdot a_2=-1\\)\n                <span style=\"visibility: hidden;\">\n                    1\n                </span>\n</div>\n<div class=\"one_choice ks_button\">\n                \\(a_1\\cdot a_2=1\\)\n                <span style=\"visibility: hidden;\">\n                    1\n                </span>\n</div>\n</li>\n</ul>"
+      "body": "\n            \\(y=a_1x+b_1\\quad\\quad\\) oraz \\(\\quad\\quad y=a_2x+b_2\\)\n        "
     },
     {
       "type": "text",
-      "body": "\n        potwierdź\n    "
+      "body": "<p>są równoległe jeśli:</p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n            Brawo! To jest poprawna odpowiedź.\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Współczynniki kierunkowe prostych równoległych są równe.\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n        Zastanów się jeszcze.\n    "
+      "type": "choice_grid",
+      "columns": [
+        "\\(a_1=a_2\\) 1",
+        "\\(b_1=b_2\\) 1",
+        "\\(a_1\\cdot a_2=-1\\) 1",
+        "\\(a_1\\cdot a_2=1\\) 1"
+      ],
+      "rows": [
+        {
+          "statement": "\\(a_1=a_2\\) 1 \\(b_1=b_2\\) 1 \\(a_1\\cdot a_2=-1\\) 1 \\(a_1\\cdot a_2=1\\) 1",
+          "correct": 0
+        }
+      ]
     },
     {
       "type": "text",
@@ -160,7 +163,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -171,26 +174,28 @@
       "body": "<ul class=\"list\">\n<li>\n<u>\n                proporcjonalne\n            </u>\n            - współczynniki \\(x\\)-a oraz \\(y\\)-a są proporcjonalne,\n        </li>\n<li>\n<u>\n                pionowe\n            </u>\n            - obie proste są pionowe,\n        </li>\n<li>\n<u>\n                poziome\n            </u>\n            - obie proste są poziome.\n        </li>\n</ul>"
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n<strong>\n                    1.\n                </strong>\n                \\(5x-12=0\\) oraz \\(2x+8=0\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                proporcjonalne\n            </div>\n<div class=\"one_choice ks_button\">\n                pionowe\n            </div>\n<div class=\"one_choice ks_button\">\n                poziome\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n<strong>\n                    2.\n                </strong>\n                \\(6x-9y+14=0\\) oraz \\(-4x+6y+15=0\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                proporcjonalne\n            </div>\n<div class=\"one_choice ks_button\">\n                pionowe\n            </div>\n<div class=\"one_choice ks_button\">\n                poziome\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n<strong>\n                    3.\n                </strong>\n                \\(7y+14=0\\) oraz \\(4y-10=0\\)\n            </div>\n<div class=\"one_choice ks_button\">\n                proporcjonalne\n            </div>\n<div class=\"one_choice ks_button\">\n                pionowe\n            </div>\n<div class=\"one_choice ks_button\">\n                poziome\n            </div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Brawo! Wszystkie odpowiedzi sa poprawne.\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<ol class=\"bold\">\n<li>\n                Są to dwie proste pionowe o równaniach \\(x=\\tfrac{12}{5}\\) i \\(x=-4\\).\n            </li>\n<li>\n                Współczynniki są proporcjonalne \\(\\frac{6}{-9}=\\frac{-4}{6}\\quad\\left(=-\\tfrac{2}{3}\\right)\\).\n            </li>\n<li>\n                Są to dwie proste poziome o równaniach \\(y=-2\\) i \\(y=\\tfrac{5}{2}\\).\n            </li>\n</ol>"
-    },
-    {
-      "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi:\n    "
+      "type": "choice_grid",
+      "columns": [
+        "proporcjonalne",
+        "pionowe",
+        "poziome"
+      ],
+      "rows": [
+        {
+          "statement": "1. \\(5x-12=0\\) oraz \\(2x+8=0\\)",
+          "correct": 1
+        },
+        {
+          "statement": "2. \\(6x-9y+14=0\\) oraz \\(-4x+6y+15=0\\)",
+          "correct": 0
+        },
+        {
+          "statement": "3. \\(7y+14=0\\) oraz \\(4y-10=0\\)",
+          "correct": 2
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "52635c42582ac3806d539a19a5d30e74ebccacbcf190258edb6b2c257e5501c6"
+  "seed_hash": "007d7e2a256edc1f948b09551a0121a0107f8301ade03eaf67d7eff208c7fa94"
 }

@@ -28,11 +28,25 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/tw_cosinusow_zad_1.png",
+      "alt": "trojkat ABC",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "\n<img alt=\"trojkat ABC\" height=\"200\" src=\"static/tw_cosinusow_zad_1.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n            W trójkącie \\(ABC\\) kąt \\(A\\) ma miarę \\(30^{\\circ}\\), a boki \\(b\\) i \\(c\\) są odpowiednio długości \\(4\\) i \\(6\\).\n        </p>\n<p>\n            Znajdź \\(a\\), długość boku \\(BC\\).\n        </p>\n<p>\n</p>\n<small style=\"position: absolute; right: 2px; bottom: 2px;\">\n<i>\n                (Rysunek nie zachowuje skali.)\n            </i>\n</small>\n"
+      "body": "<p>\n            W trójkącie \\(ABC\\) kąt \\(A\\) ma miarę \\(30^{\\circ}\\), a boki \\(b\\) i \\(c\\) są odpowiednio długości \\(4\\) i \\(6\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź \\(a\\), długość boku \\(BC\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<small style=\"position: absolute; right: 2px; bottom: 2px;\">\n<i>\n                (Rysunek nie zachowuje skali.)\n            </i>\n</small>"
     },
     {
       "type": "text",
@@ -48,18 +62,74 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie widzisz geometryczną interpretację twierdzenia Pitagorasa:\n        </p>\n<blockquote>\n            kwadrat zbudowany na boku \\(c\\) ma pole równe sumie pól kwadratów zbudowanych na bokach \\(a\\) i \\(b\\).\n        </blockquote>\n<p>\n            W aplecie możesz przesuwać wierzchołki trójkąta \\(ABC\\). Wówczas kąt \\(C\\) nie będzie już prosty.\n        </p>\n<p>\n            Przy boku \\(c\\) kwadrat o\n            <span style=\"color: green\">\n                zielonych\n            </span>\n            bokach ma pole równe sumie pól kwadratów zbudowanych na bokach \\(a\\) i \\(b\\). Czyli to, co ograniczone na zielono przy boku \\(c\\) jest równe temu, co ograniczone na zielono przy bokach \\(a\\) i \\(b\\).\n        </p>\n<ul class=\"nolist\">\n<li>\n                jeśli kąt \\(C\\) jest\n                <strong>\n                    ostry\n                </strong>\n                , \\(c^2\\) jest trochę\n                <span style=\"color: red;\">\n                    mniejsze\n                </span>\n                od sumy \\(a^2+b^2\\),\n            </li>\n<li>\n                jeśli kąt \\(C\\) jest\n                <strong>\n                    rozwarty\n                </strong>\n                , \\(c^2\\) jest trochę\n                <span style=\"color: blue;\">\n                    większe\n                </span>\n                od sumy \\(a^2+b^2\\).\n            </li>\n</ul>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"900px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/es6ndhvt/width/700/height/900/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"twierdzenie cosinusów\" width=\"700px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n        A najciekawsze jest to, że ta zaznaczona na czerwono lub niebiesko różnica jest dana takim samym wyrażeniem:\n        \\[\n        -2ab\\cos C\n        \\]\n        <ul class=\"nolist\">\n<li>\n                gdy kąt \\(C\\) jest ostry, \\(\\color{red}{-2ab\\cos C\\lt 0}\\) (bo cosinus kątów ostrych jest dodatni), a \\(c^2\\lt a^2+b^2\\),\n            </li>\n<li>\n                gdy kąt \\(C\\) jest rozwarty, \\(\\color{blue}{-2ab\\cos C\\gt 0}\\) (bo cosinus kątów rozwartych jest ujemny), a \\(c^2\\gt a^2+b^2\\),\n            </li>\n</ul>\n"
+      "body": "<p>\n            W poniższym aplecie widzisz geometryczną interpretację twierdzenia Pitagorasa:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n            kwadrat zbudowany na boku \\(c\\) ma pole równe sumie pól kwadratów zbudowanych na bokach \\(a\\) i \\(b\\).\n        </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W aplecie możesz przesuwać wierzchołki trójkąta \\(ABC\\). Wówczas kąt \\(C\\) nie będzie już prosty.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przy boku \\(c\\) kwadrat o\n            <span style=\"color: green\">\n                zielonych\n            </span>\n            bokach ma pole równe sumie pól kwadratów zbudowanych na bokach \\(a\\) i \\(b\\). Czyli to, co ograniczone na zielono przy boku \\(c\\) jest równe temu, co ograniczone na zielono przy bokach \\(a\\) i \\(b\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                jeśli kąt \\(C\\) jest\n                <strong>\n                    ostry\n                </strong>\n                , \\(c^2\\) jest trochę\n                <span style=\"color: red;\">\n                    mniejsze\n                </span>\n                od sumy \\(a^2+b^2\\),\n            </li>\n<li>\n                jeśli kąt \\(C\\) jest\n                <strong>\n                    rozwarty\n                </strong>\n                , \\(c^2\\) jest trochę\n                <span style=\"color: blue;\">\n                    większe\n                </span>\n                od sumy \\(a^2+b^2\\).\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/es6ndhvt/width/700/height/900/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>A najciekawsze jest to, że ta zaznaczona na czerwono lub niebiesko różnica jest dana takim samym wyrażeniem:\n        \\[\n        -2ab\\cos C\n        \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                gdy kąt \\(C\\) jest ostry, \\(\\color{red}{-2ab\\cos C\\lt 0}\\) (bo cosinus kątów ostrych jest dodatni), a \\(c^2\\lt a^2+b^2\\),\n            </li>\n<li>\n                gdy kąt \\(C\\) jest rozwarty, \\(\\color{blue}{-2ab\\cos C\\gt 0}\\) (bo cosinus kątów rozwartych jest ujemny), a \\(c^2\\gt a^2+b^2\\),\n            </li>\n</ul>"
     },
     {
       "type": "spoiler",
       "label": "Twierdzenie cosinusów",
-      "body": "\n\n<div class=\"important\" style=\"min-height: 215px;\">\n<img alt=\"trojkat ABC\" height=\"200\" src=\"static/trojkat_ABC.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n<strong>\n                    Twierdzenie cosinusów\n                </strong>\n</p>\n<p>\n                Jeśli \\(a\\), \\(b\\), \\(c\\) to długości boków trójkąta, a \\(A\\), \\(B\\) i \\(C\\) to miary kątów przeciwległych do tych boków, to prawdziwe są następujące równania:\n            </p>\n<ul class=\"nolist\">\n<li>\n                    \\(a^2=b^2+c^2-2bc\\cos A\\)\n                </li>\n<li>\n                    \\(b^2=a^2+c^2-2ac\\cos B\\)\n                </li>\n<li>\n                    \\(c^2=a^2+b^2-2ab\\cos C\\)\n                </li>\n</ul>\n</div>\n        Przyjrzyj się, jaka jest struktura tych równań.\n        <p>\n            Bok, którego kwadrat jest po lewej stronie równania, po prawej już się nie pojawia, za to po prawej jest cosinus kąta przeciwległego temu bokowi.\n        </p>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/trojkat_ABC.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                    Twierdzenie cosinusów\n                </strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Jeśli \\(a\\), \\(b\\), \\(c\\) to długości boków trójkąta, a \\(A\\), \\(B\\) i \\(C\\) to miary kątów przeciwległych do tych boków, to prawdziwe są następujące równania:\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                    \\(a^2=b^2+c^2-2bc\\cos A\\)\n                </li>\n<li>\n                    \\(b^2=a^2+c^2-2ac\\cos B\\)\n                </li>\n<li>\n                    \\(c^2=a^2+b^2-2ab\\cos C\\)\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Przyjrzyj się, jaka jest struktura tych równań.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Bok, którego kwadrat jest po lewej stronie równania, po prawej już się nie pojawia, za to po prawej jest cosinus kąta przeciwległego temu bokowi.\n        </p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "aaa1135dd0ef0992f0b1cdedb4f480842cc3452c4d5d8634ac90d88431c5929c"
+  "seed_hash": "f3397a4645945233dbae442339d2127edaa764f21444594bcc0c6ca4183c69eb"
 }

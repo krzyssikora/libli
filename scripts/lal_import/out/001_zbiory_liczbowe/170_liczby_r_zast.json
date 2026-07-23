@@ -17,65 +17,46 @@
       "body": "<p>\n    Regułę ilustrują poniższe diagramy.\n</p>"
     },
     {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
-            {
-              "html": "<img alt=\"przybliżanie\" src=\"static/przyblizanie_1.png\" width=\"200\"/>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<img alt=\"przybliżanie\" src=\"static/przyblizanie_2.png\" width=\"200\"/>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<img alt=\"przybliżanie\" src=\"static/przyblizanie_3.png\" width=\"200\"/>",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "np. \\(0,007735... \\approx 0,0077\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "np. \\(1,492 \\approx 1,5\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "np. \\(299,71 \\approx 300\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "do \\(0,00001\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "do \\(0,1\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "do \\(1\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ]
-        ]
-      }
+      "type": "image",
+      "media_src": "static/przyblizanie_1.png",
+      "alt": "przybliżanie",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/przyblizanie_2.png",
+      "alt": "przybliżanie",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/przyblizanie_3.png",
+      "alt": "przybliżanie",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>np. \\(0,007735... \\approx 0,0077\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>np. \\(1,492 \\approx 1,5\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>np. \\(299,71 \\approx 300\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>do \\(0,00001\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>do \\(0,1\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>do \\(1\\)</p>"
     },
     {
       "type": "text",
@@ -167,5 +148,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "16e925dbc3336a181936307c2d05928191ed215557e6a858a0ddbb9ef318393a"
+  "seed_hash": "de376eda617a351493e715c8d0e81bd76b11904b5c36929d23793dec0b65ea43"
 }

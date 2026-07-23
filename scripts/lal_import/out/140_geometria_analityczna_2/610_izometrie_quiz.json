@@ -55,16 +55,12 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>Środkiem obrazu okręgu \\((x+2)^2+(y-4)^2=50\\) w symetrii względem osi \\(OX\\) jest okrąg o środku w punkcie \\((a, b)\\), gdzie:</p><p>\\(a=\\)=-2</p><p>\\(b=\\)=-4</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>Środkiem obrazu okręgu \\((x+2)^2+(y-4)^2=50\\) w symetrii względem osi \\(OX\\) jest okrąg o środku w punkcie \\((a, b)\\), gdzie:</p><p>\\(a=\\)=-2</p><p>\\(b=\\)=-4</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>Obrazem prostej \\(y=3x-1\\) w symetrii w osi \\(OY\\) jest prosta o równaniu \\(y=ax+b\\), gdzie:</p><p>\\(a=\\)=-3</p><p>\\(b=\\)=-1</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>Obrazem prostej \\(y=3x-1\\) w symetrii w osi \\(OY\\) jest prosta o równaniu \\(y=ax+b\\), gdzie:</p><p>\\(a=\\)=-3</p><p>\\(b=\\)=-1</p>"
     },
     {
       "type": "numeric",
@@ -73,6 +69,6 @@
       "tolerance": "0"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "ff855a4810dd851d7c971e08b3b50ae539fddda249bc22c28a715dcd7a6a0485"
+  "fully_mapped": true,
+  "seed_hash": "3774fe59a855bc75aabf08926b77b258e6706e441f4bd5b0f90f113954a79e99"
 }

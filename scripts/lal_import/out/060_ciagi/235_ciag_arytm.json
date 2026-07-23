@@ -2,82 +2,129 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Określ monotoniczność poniższych ciągów arytmetycznych.\n    "
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    \\(2,\\, 5,\\, 8,\\, 11,\\, 14,\\, 17\\)\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n</li>\n</ul>"
+      "type": "choice_grid",
+      "columns": [
+        "rosnący",
+        "stały",
+        "malejący"
+      ],
+      "rows": [
+        {
+          "statement": "\\(2,\\, 5,\\, 8,\\, 11,\\, 14,\\, 17\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(12,\\, 17,\\, 22,\\, 27,\\, 32,\\, 37\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(11,\\, 11,\\, 11,\\, 11,\\, 11,\\, 11\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(92,\\, 88,\\, 84,\\, 80,\\, 76,\\, 72\\)",
+          "correct": 2
+        },
+        {
+          "statement": "\\(19,\\, 17,\\, 15,\\, 13,\\, 11,\\, 9\\)",
+          "correct": 2
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    \\(12,\\, 17,\\, 22,\\, 27,\\, 32,\\, 37\\)\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    \\(11,\\, 11,\\, 11,\\, 11,\\, 11,\\, 11\\)\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    \\(92,\\, 88,\\, 84,\\, 80,\\, 76,\\, 72\\)\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"180px\">\n                    \\(19,\\, 17,\\, 15,\\, 13,\\, 11,\\, 9\\)\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "potwierdź "
-    },
-    {
-      "type": "text",
-      "body": "\n            Brawo! Wszystkie odpowiedzi sa poprawne.\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            Zastanów się jeszcze. Poprawnych odpowiedzi: \n        "
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Jaki jest związek różnicy ciągu arytmetycznego, \\(r\\), z jego monotonicznością?\n    "
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"150px\">\n                    jeśli \\(r\\gt 0\\) ciąg jest\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"150px\">\n                    jeśli \\(r= 0\\) ciąg jest\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li style=\"white-space: nowrap;\">\n<div class=\"statement\" data-width=\"150px\">\n                    jeśli \\(r\\lt 0\\) ciąg jest\n                </div>\n<div class=\"one_choice ks_button\">rosnący</div>\n<div class=\"one_choice ks_button\">stały</div>\n<div class=\"one_choice ks_button\">malejący</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "potwierdź "
-    },
-    {
-      "type": "text",
-      "body": "\n            Brawo! Wszystkie odpowiedzi sa poprawne.\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            Zastanów się jeszcze. Poprawnych odpowiedzi: \n        "
+      "type": "choice_grid",
+      "columns": [
+        "rosnący",
+        "stały",
+        "malejący"
+      ],
+      "rows": [
+        {
+          "statement": "jeśli \\(r\\gt 0\\) ciąg jest",
+          "correct": 0
+        },
+        {
+          "statement": "jeśli \\(r= 0\\) ciąg jest",
+          "correct": 1
+        },
+        {
+          "statement": "jeśli \\(r\\lt 0\\) ciąg jest",
+          "correct": 2
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "a jeśli nie masz pewności, zerknij tu",
-      "body": "\n\n<div class=\"important\">\n        Ciąg arytmetyczny \\((a_n)\\) o różnicy \\(r\\) jest:\n        <div class=\"table_wrapper\">\n<table class=\"my_table_noborder left\">\n<tr>\n<td>rosnący</td>\n<td>jeśli \\(r\\gt 0\\)</td>\n</tr>\n<tr>\n<td>stały</td>\n<td>jeśli \\(r= 0\\)</td>\n</tr>\n<tr>\n<td>malejący</td>\n<td>jeśli \\(r\\lt 0\\)</td>\n</tr>\n</table>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Ciąg arytmetyczny \\((a_n)\\) o różnicy \\(r\\) jest:</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "rosnący",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "jeśli \\(r\\gt 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "stały",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "jeśli \\(r= 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "malejący",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "jeśli \\(r\\lt 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "14a6dd40e00a1bbf560b3b63fbafbe47e2761cb874a48615b9d70923bc575f19"
+  "seed_hash": "18f7df82e3bd04eace30b8460e3da0b2dae54bc7bee7df44085609ba9cab89ee"
 }

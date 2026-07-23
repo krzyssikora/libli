@@ -2,83 +2,137 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Pierwszy wyraz ciągu geometrycznego \\((a_n)\\) to \\(540\\), a iloraz tego ciągu to \\(\\frac{1}{3}\\).\n        <p>\n            Znajdź sumę dziesięciu pierwszych wyrazów tego ciągu.\n        </p>\n"
+      "body": "<p>Pierwszy wyraz ciągu geometrycznego \\((a_n)\\) to \\(540\\), a iloraz tego ciągu to \\(\\frac{1}{3}\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź sumę dziesięciu pierwszych wyrazów tego ciągu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(S_{10}=a_1\\cdot \\frac{1-q^{10}}{1-q}\\quad\\Rightarrow\\quad S_{10}=\\frac{590480}{729}=809\\tfrac{719}{729}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(S_{10}=a_1\\cdot \\frac{1-q^{10}}{1-q}\\quad\\Rightarrow\\quad S_{10}=\\frac{590480}{729}=809\\tfrac{719}{729}\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Pierwszy wyraz ciągu geometrycznego \\((a_n)\\) to \\(2\\), a iloraz tego ciągu to \\(-2\\).\n        <p>\n            Znajdź sumę trzynastu pierwszych wyrazów tego ciągu.\n        </p>\n"
+      "body": "<p>Pierwszy wyraz ciągu geometrycznego \\((a_n)\\) to \\(2\\), a iloraz tego ciągu to \\(-2\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź sumę trzynastu pierwszych wyrazów tego ciągu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(S_{13}=a_1\\cdot \\frac{1-q^{13}}{1-q}\\quad\\Rightarrow\\quad S_{13}=5462\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(S_{13}=a_1\\cdot \\frac{1-q^{13}}{1-q}\\quad\\Rightarrow\\quad S_{13}=5462\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Suma pierwszych jedenastu wyrazów ciągu geometrycznego \\((a_n)\\) to \\(88\\,574\\), a iloraz tego ciągu to \\(-3\\).\n        <p>\n            Znajdź pierwszy wyraz tego ciągu.\n        </p>\n"
+      "body": "<p>Suma pierwszych jedenastu wyrazów ciągu geometrycznego \\((a_n)\\) to \\(88\\,574\\), a iloraz tego ciągu to \\(-3\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź pierwszy wyraz tego ciągu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(S_{11}=a_1\\cdot \\frac{1-q^{11}}{1-q}\\quad\\Rightarrow\\quad a_1=2\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(S_{11}=a_1\\cdot \\frac{1-q^{11}}{1-q}\\quad\\Rightarrow\\quad a_1=2\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Suma pierwszych siedmiu wyrazów ciągu geometrycznego \\((a_n)\\) to \\(\\frac{2059}{9}\\), a iloraz tego ciągu to \\(\\frac{2}{3}\\).\n        <p>\n            Znajdź pierwszy wyraz tego ciągu.\n        </p>\n"
+      "body": "<p>Suma pierwszych siedmiu wyrazów ciągu geometrycznego \\((a_n)\\) to \\(\\frac{2059}{9}\\), a iloraz tego ciągu to \\(\\frac{2}{3}\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź pierwszy wyraz tego ciągu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(S_7=a_1\\cdot \\frac{1-q^7}{1-q}\\quad\\Rightarrow\\quad a_1=81\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(S_7=a_1\\cdot \\frac{1-q^7}{1-q}\\quad\\Rightarrow\\quad a_1=81\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Pierwszy wyraz ciągu geometrycznego \\((a_n)\\) to \\(3\\), a suma pierwszych dziewięciu wyrazów tego ciągu to \\(1533\\).\n        <p>\n            Znajdź iloraz tego ciągu.\n        </p>\n"
+      "body": "<p>Pierwszy wyraz ciągu geometrycznego \\((a_n)\\) to \\(3\\), a suma pierwszych dziewięciu wyrazów tego ciągu to \\(1533\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź iloraz tego ciągu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(S_9=a_1\\cdot \\frac{1-q^9}{1-q}\\quad\\Rightarrow\\quad q=2\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(S_9=a_1\\cdot \\frac{1-q^9}{1-q}\\quad\\Rightarrow\\quad q=2\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Pierwszy wyraz ciągu geometrycznego \\((a_n)\\) to \\(192\\), a suma pierwszych siedmiu wyrazów tego ciągu to \\(129\\).\n        <p>\n            Znajdź iloraz tego ciągu.\n        </p>\n"
+      "body": "<p>Pierwszy wyraz ciągu geometrycznego \\((a_n)\\) to \\(192\\), a suma pierwszych siedmiu wyrazów tego ciągu to \\(129\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź iloraz tego ciągu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(S_7=a_1\\cdot \\frac{1-q^7}{1-q}\\quad\\Rightarrow\\quad q=-\\frac{1}{2}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(S_7=a_1\\cdot \\frac{1-q^7}{1-q}\\quad\\Rightarrow\\quad q=-\\frac{1}{2}\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "ebd289127f04432f8b3700b97439f6bb8307c0b0a2cf91b666c3b4b1322563a9"
+  "seed_hash": "c79f1dc57bdeac9304d00bf4ad1111b48407fea888da24539a1c2a0f867007ee"
 }

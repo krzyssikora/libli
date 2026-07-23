@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -10,7 +10,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -18,7 +18,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -26,7 +26,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -34,5 +34,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "00e09eb75fc1b7108d153ff50115edea8ae4b6eeeb9e1d009682fcc966826f83"
+  "seed_hash": "bc86e38ebf83c7dc2a15e1180ed8b1b68a5dd1d3fae4aafbcc8ba4f6931c3cc0"
 }

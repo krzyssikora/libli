@@ -5,8 +5,16 @@
       "body": "<h3>\n    Trójkąt Pascala\n</h3>"
     },
     {
-      "type": "text",
-      "body": "\n<img src=\"static/trojkat_pascala_4.png\" style=\"height: 100%;\"/>\n<img src=\"static/trojkat_pascala_5.png\" style=\"height: 100%;\"/>\n"
+      "type": "image",
+      "media_src": "static/trojkat_pascala_4.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/trojkat_pascala_5.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -18,17 +26,28 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Uzupełnij:\n        </p>\n<ol class=\"bold\">\n<li>\n                \\(\\binom{14}{0}=\\) <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n                \\(\\binom{27}{1}=\\) <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n                jeśli \\(\\binom{16}{4}=1820\\), to \\(\\binom{16}{12}=\\) <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n</ol>\n"
+      "body": "<p>\n            Uzupełnij:\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n        Znakomicie!\n    "
+      "type": "fillblank",
+      "stem": "\n<li>\n                \\(\\binom{14}{0}=\\) ￿0￿\n</li>\n<li>\n                \\(\\binom{27}{1}=\\) ￿1￿\n</li>\n<li>\n                jeśli \\(\\binom{16}{4}=1820\\), to \\(\\binom{16}{12}=\\) ￿2￿\n</li>\n",
+      "blanks": [
+        [
+          "1"
+        ],
+        [
+          "27"
+        ],
+        [
+          "1820"
+        ]
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "58a3aaa71d38a658a6f4603a6b36ba5c97db6ff873e2d82571ad32b9918c48ec"
+  "seed_hash": "93cb57f4f73a9952a9e7fc9021dc648709ce7f1cbc405e4ef09845f54eeb9997"
 }

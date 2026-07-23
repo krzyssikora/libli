@@ -2,29 +2,50 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Skróć ułamek\n        <div class=\"table_wrapper\">\\[\n        \\frac{6x^3-19x^2-7x}{3x^2-5x-2}\n        \\]</div>\n<p>\n            Obejrzyj nagranie ze szkicem rozwiązania, lub spróbuj całość rozwiązać samodzielnie i sprawdź wynik.\n        </p>\n"
+      "body": "<p>Skróć ułamek</p>"
     },
     {
       "type": "text",
-      "body": "<ul>\n<li><a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a></li>\n<li><a href=\"#tabcontent-1-2\" id=\"tab-1-2\">wynik</a></li>\n</ul>"
-    },
-    {
-      "type": "video",
-      "media_src": "static/ulamek_alg_skracanie.mp4"
+      "body": "\\[\n        \\frac{6x^3-19x^2-7x}{3x^2-5x-2}\n        \\]"
     },
     {
       "type": "text",
-      "body": "<p>Skrócony ułamek ma postać</p>"
+      "body": "<p>\n            Obejrzyj nagranie ze szkicem rozwiązania, lub spróbuj całość rozwiązać samodzielnie i sprawdź wynik.\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\\[\n            \\frac{x(2x-7)}{x-2}\n            \\]"
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/ulamek_alg_skracanie.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "wynik",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>Skrócony ułamek ma postać</p>"
+            },
+            {
+              "type": "text",
+              "body": "\\[\n            \\frac{x(2x-7)}{x-2}\n            \\]"
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "9c297746d29cb1d21a350b9b1b3cd034220a6d5cb217f9a30755262634490a03"
+  "fully_mapped": true,
+  "seed_hash": "2f8f1b5ddfd2cb071aca70092e9b6c564b6a909383ac5586bc06c13880fe5e8f"
 }

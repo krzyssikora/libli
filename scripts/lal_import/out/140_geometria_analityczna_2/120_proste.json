@@ -6,9 +6,161 @@
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Równanie kierunkowe prostej to równanie postaci\n        </p>\n        \\[\n        y=ax+b\n        \\]\n        <figure>\n<img src=\"static/geometria_analityczna_2_zadanie_240_1.png\" style=\"max-height: 250px;\"/>\n</figure>\n<div class=\"steps\">\n<p>\n                Przypomnijmy sobie, jaki wpływ na kierunek i położenie prostej mają współczynniki \\(\\color{red}{a}\\) i \\(\\color{green}{b}\\) tego równania\n            </p>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Współczynnik \\(\\color{red}{a}\\) odpowiada za kierunek prostej, a współczynnik \\(\\color{green}{b}\\) za jej położenie.\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_240_2.png\" style=\"max-height: 250px;\"/>\n</figure>\n<p>\n                    Omówmy je po kolei, zaczynając od współczynnika \\(\\color{green}{b}\\).\n                </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<h3>\\(\\Large{b}\\) - wyraz wolny (przesunięcie)</h3>\n<p>\n                    Współczynnik \\(\\color{green}{b}\\) mówi, o ile jednostek prosta jest przesunięta w pionie od punktu \\((0,0)\\) - początku układu współrzędnych.\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_240_3.png\" style=\"max-height: 250px;\"/>\n</figure>\n<ul class=\"nolist\">\n<li>Gdy \\(\\color{green}{b}\\gt 0\\), prosta jest przesunięta w górę.</li>\n<li>Gdy \\(\\color{green}{b}\\lt 0\\), prosta jest przesunięta w dół.</li>\n<li>Gdy \\(\\color{green}{b}=0\\), prosta przechodzi przez punkt \\((0,0)\\).</li>\n</ul>\n<p>\n                    Innymi słowy, prosta przechodzi przez punkt \\(\\color{green}{(0,b)}\\) na <span title=\"Podstaw x=0 do równania i sprawdź.\"><u>osi oy</u></span>.\n                </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<h3>\\(\\Large{a}\\) - współczynnik kierunkowy</h3>\n<p>\n                    Współczynnik \\(\\color{red}{a}\\) mówi o kierunku w ten sposób, że jeśli dorysujemy do dowolnego odcinka na prostej trójkąt prostokątny o jednej przyprostokątnej pionowej (skok) a drugiej poziomej (krok) to\n                </p>\n                \\[\n                a=\\frac{\\text{skok}}{\\text{krok}}\n                \\]\n                <figure>\n<img src=\"static/geometria_analityczna_2_zadanie_240_4.png\" style=\"max-height: 250px;\"/>\n</figure>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Przyjrzyjmy się bliżej kątowi odchylenia prostej od poziomu, oznaczonemu niżej przez \\(\\color{red}{\\alpha}\\)\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_240_5.png\" style=\"max-height: 250px;\"/>\n</figure>\n<p>\n                    Czy widzisz, czym jest stosunek długości \\(\\frac{\\text{skok}}{\\text{krok}}\\) dla kąta \\(\\alpha\\)?\n                </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Przyjrzyj się bliżej.\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_240_6.png\" style=\"max-height: 250px;\"/>\n</figure>\n<p>\n                    Ten stosunek, czyli wartość współczynnika \\(a\\) to <strong>tangens</strong> kąta \\(\\alpha\\).\n                </p>\n                \\[\n                a=\\text{tg}\\,\\alpha\n                \\]\n            </div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<div class=\"important\">\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_240_7.png\" style=\"max-height: 300px;\"/>\n</figure>\n<ul class=\"nolist\">\n<li>\\(\\color{red}{a}\\) - współczynnik kierunkowy, \\(a=\\text{tg}\\,\\alpha\\)</li>\n<li>\\(\\color{green}{b}\\) - wyraz wolny (przesunięcie), wskazuje na punkt na osi oy: \\((0,b)\\)</li>\n</ul>\n<hr/>\n<p>\n<strong>Uwaga</strong>!\n                    </p>\n<p>\n                        Kąt \\(\\alpha\\) możemy narysować przy osi \\(OX\\). \n                    </p>\n<ul class=\"nolist\">\n<li>\n                            Ma wówczas wierzchołek w punkcie przecięcia prostej z osią \\(OX\\). \n                        </li>\n<li>\n                            Jednym z jego ramion jest część osi \\(OX\\) w kierunku większych \\(x\\)-ów. \n                        </li>\n<li>\n                            Jest mierzony w kierunku <strong>przeciwnym do ruchu wskazówek zegara</strong>.\n                        </li>\n</ul>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_240_8.png\" style=\"max-height: 200px;\"/>\n</figure>\n</div>\n</div>\n</div>\n"
+      "body": "<p>\n            Równanie kierunkowe prostej to równanie postaci\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        y=ax+b\n        "
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_zadanie_240_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Przypomnijmy sobie, jaki wpływ na kierunek i położenie prostej mają współczynniki \\(\\color{red}{a}\\) i \\(\\color{green}{b}\\) tego równania\n            </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Współczynnik \\(\\color{red}{a}\\) odpowiada za kierunek prostej, a współczynnik \\(\\color{green}{b}\\) za jej położenie.\n                </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_zadanie_240_2.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Omówmy je po kolei, zaczynając od współczynnika \\(\\color{green}{b}\\).\n                </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\\(\\Large{b}\\) - wyraz wolny (przesunięcie)</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Współczynnik \\(\\color{green}{b}\\) mówi, o ile jednostek prosta jest przesunięta w pionie od punktu \\((0,0)\\) - początku układu współrzędnych.\n                </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_zadanie_240_3.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>Gdy \\(\\color{green}{b}\\gt 0\\), prosta jest przesunięta w górę.</li>\n<li>Gdy \\(\\color{green}{b}\\lt 0\\), prosta jest przesunięta w dół.</li>\n<li>Gdy \\(\\color{green}{b}=0\\), prosta przechodzi przez punkt \\((0,0)\\).</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Innymi słowy, prosta przechodzi przez punkt \\(\\color{green}{(0,b)}\\) na <span title=\"Podstaw x=0 do równania i sprawdź.\"><u>osi oy</u></span>.\n                </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<h3>\\(\\Large{a}\\) - współczynnik kierunkowy</h3>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Współczynnik \\(\\color{red}{a}\\) mówi o kierunku w ten sposób, że jeśli dorysujemy do dowolnego odcinka na prostej trójkąt prostokątny o jednej przyprostokątnej pionowej (skok) a drugiej poziomej (krok) to\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                a=\\frac{\\text{skok}}{\\text{krok}}\n                "
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_zadanie_240_4.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Przyjrzyjmy się bliżej kątowi odchylenia prostej od poziomu, oznaczonemu niżej przez \\(\\color{red}{\\alpha}\\)\n                </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_zadanie_240_5.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Czy widzisz, czym jest stosunek długości \\(\\frac{\\text{skok}}{\\text{krok}}\\) dla kąta \\(\\alpha\\)?\n                </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Przyjrzyj się bliżej.\n                </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_zadanie_240_6.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                    Ten stosunek, czyli wartość współczynnika \\(a\\) to <strong>tangens</strong> kąta \\(\\alpha\\).\n                </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n                a=\\text{tg}\\,\\alpha\n                "
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_zadanie_240_7.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\\(\\color{red}{a}\\) - współczynnik kierunkowy, \\(a=\\text{tg}\\,\\alpha\\)</li>\n<li>\\(\\color{green}{b}\\) - wyraz wolny (przesunięcie), wskazuje na punkt na osi oy: \\((0,b)\\)</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<strong>Uwaga</strong>!\n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                        Kąt \\(\\alpha\\) możemy narysować przy osi \\(OX\\). \n                    </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                            Ma wówczas wierzchołek w punkcie przecięcia prostej z osią \\(OX\\). \n                        </li>\n<li>\n                            Jednym z jego ramion jest część osi \\(OX\\) w kierunku większych \\(x\\)-ów. \n                        </li>\n<li>\n                            Jest mierzony w kierunku <strong>przeciwnym do ruchu wskazówek zegara</strong>.\n                        </li>\n</ul>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_zadanie_240_8.png",
+      "alt": "",
+      "figcaption": ""
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "8f6d574c54c5efb14d0f23c6a8965a395526f818d67c710032d8d7f747ffb6d9"
+  "seed_hash": "aec21f99c879cd63b06c5a2116e05a730a981e486d4edf13bc758c248938f591"
 }

@@ -18,187 +18,77 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dla jakich kątów \\(\\alpha\\), gdzie \\(0^{\\circ}\\le\\alpha\\lt 360^{\\circ}\\) nie istnieje \\(\\text{tg }\\alpha\\)?\n        </p>\n<p>\n            A dla jakich \\(\\text{ctg }\\alpha\\)?\n        </p>\n"
+      "body": "<p>\n            Dla jakich kątów \\(\\alpha\\), gdzie \\(0^{\\circ}\\le\\alpha\\lt 360^{\\circ}\\) nie istnieje \\(\\text{tg }\\alpha\\)?\n        </p>"
     },
     {
       "type": "text",
-      "body": "<p>Jeśli kąt \\(\\alpha\\) jest wyznaczony przez punkt \\((x,y)\\), to</p>"
+      "body": "<p>\n            A dla jakich \\(\\text{ctg }\\alpha\\)?\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
+      "type": "switch_gate",
+      "stem": "\n                Jeśli kąt \\(\\alpha\\) jest wyznaczony przez punkt \\((x,y)\\), to\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\text{tg }\\alpha=\\frac{y}{x}\\)",
+        "\\(\\text{tg }\\alpha=\\frac{x}{y}\\)",
+        "\\(\\text{tg }\\alpha=y\\)",
+        "\\(\\text{tg }\\alpha=x\\)"
+      ],
+      "answer": 0
     },
     {
-      "type": "text",
-      "body": "\n                    \\(\\text{tg }\\alpha=\\frac{y}{x}\\)\n                "
+      "type": "switch_gate",
+      "stem": "\n                Oznacza to, że \\(\\text{tg }\\alpha\\) nie istnieje dla kątów wyznaczonych przez punkty \\((x,y)\\) takie, że\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(x=0\\)",
+        "\\(y=0\\)",
+        "\\(x=0\\) lub \\(y=0\\)"
+      ],
+      "answer": 0
     },
     {
-      "type": "text",
-      "body": "\n                    \\(\\text{tg }\\alpha=\\frac{x}{y}\\)\n                "
+      "type": "switch_gate",
+      "stem": "\n                Tak więc \\(\\text{tg }\\alpha\\) nie istnieje dla kątów \\(\\alpha\\) równych\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(0^{\\circ}\\) i \\(180^{\\circ}\\)",
+        "\\(90^{\\circ}\\) i \\(270^{\\circ}\\)",
+        "\\(0^{\\circ}\\), \\(90^{\\circ}\\), \\(180^{\\circ}\\) i \\(270^{\\circ}\\)"
+      ],
+      "answer": 1
     },
     {
-      "type": "text",
-      "body": "\n                    \\(\\text{tg }\\alpha=y\\)\n                "
+      "type": "switch_gate",
+      "stem": "\n                Cotangens jest odwrotnością tangensa, więc\n                \n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(\\text{ctg }\\alpha=\\frac{y}{x}\\)",
+        "\\(\\text{ctg }\\alpha=\\frac{x}{y}\\)",
+        "\\(\\text{ctg }\\alpha=y\\)",
+        "\\(\\text{ctg }\\alpha=x\\)"
+      ],
+      "answer": 1
     },
     {
-      "type": "text",
-      "body": "\n                    \\(\\text{tg }\\alpha=x\\)\n                "
+      "type": "switch_gate",
+      "stem": "\n                Oznacza to, że \\(\\text{ctg }\\alpha\\) nie istnieje dla kątów wyznaczonych przez punkty \\((x,y)\\) takie, że\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(x=0\\)",
+        "\\(y=0\\)",
+        "\\(x=0\\) lub \\(y=0\\)"
+      ],
+      "answer": 1
     },
     {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Oznacza to, że \\(\\text{tg }\\alpha\\) nie istnieje dla kątów wyznaczonych przez punkty \\((x,y)\\) takie, że</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x=0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(y=0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x=0\\) lub \\(y=0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Tak więc \\(\\text{tg }\\alpha\\) nie istnieje dla kątów \\(\\alpha\\) równych</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(0^{\\circ}\\) i \\(180^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(90^{\\circ}\\) i \\(270^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(0^{\\circ}\\), \\(90^{\\circ}\\), \\(180^{\\circ}\\) i \\(270^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Cotangens jest odwrotnością tangensa, więc</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\text{ctg }\\alpha=\\frac{y}{x}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\text{ctg }\\alpha=\\frac{x}{y}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\text{ctg }\\alpha=y\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(\\text{ctg }\\alpha=x\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Oznacza to, że \\(\\text{ctg }\\alpha\\) nie istnieje dla kątów wyznaczonych przez punkty \\((x,y)\\) takie, że</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x=0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(y=0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x=0\\) lub \\(y=0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>Tak więc \\(\\text{ctg }\\alpha\\) nie istnieje dla kątów \\(\\alpha\\) równych</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(0^{\\circ}\\) i \\(180^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(90^{\\circ}\\) i \\(270^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(0^{\\circ}\\), \\(90^{\\circ}\\), \\(180^{\\circ}\\) i \\(270^{\\circ}\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Tak więc \\(\\text{ctg }\\alpha\\) nie istnieje dla kątów \\(\\alpha\\) równych\n                \n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(0^{\\circ}\\) i \\(180^{\\circ}\\)",
+        "\\(90^{\\circ}\\) i \\(270^{\\circ}\\)",
+        "\\(0^{\\circ}\\), \\(90^{\\circ}\\), \\(180^{\\circ}\\) i \\(270^{\\circ}\\)"
+      ],
+      "answer": 0
     },
     {
       "type": "text",
@@ -210,5 +100,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "f618c4a81bf7134f04524675af1a790f58cf0e201a123df82cf718c4528eecb8"
+  "seed_hash": "e2d44aa211fceecdead20f4abddca054637218fe14ea3a842ea9bd0c264215b9"
 }

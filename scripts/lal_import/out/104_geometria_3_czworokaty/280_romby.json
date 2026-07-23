@@ -108,7 +108,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -137,11 +137,24 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie możesz przesuwać zaznaczone na czerwono wierzchołki rombu, żeby zmienić jego położenie, kształt i wielkość.\n        </p>\n<p>\n            W aplecie widzisz okrąg wpisany między poroste zawierające dwa równoległe boki rombu. \n        </p>\n<p>\n            Przesuń okrąg tak, by był wpisany w romb. Zwróć uwagę, że średnica okręgu jest równa odległości między prostymi - czyli wysokości rombu.\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"378px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/j4qjrpfr/width/675/height/378/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"Romb opisany na okręgu\" width=\"675px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać zaznaczone na czerwono wierzchołki rombu, żeby zmienić jego położenie, kształt i wielkość.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W aplecie widzisz okrąg wpisany między poroste zawierające dwa równoległe boki rombu. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuń okrąg tak, by był wpisany w romb. Zwróć uwagę, że średnica okręgu jest równa odległości między prostymi - czyli wysokości rombu.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/j4qjrpfr/width/675/height/378/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
     },
     {
       "type": "text",
@@ -149,7 +162,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -178,7 +191,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -199,5 +212,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "92562c8b2bc054dbf91ed524da5ac79200a5a8ce7c45b83fad2df131ede4ebb9"
+  "seed_hash": "4bffe2a8cf1f2ec9a0b290dc55c66e54cc45a28b7a5ddddd20b8335bb4861991"
 }

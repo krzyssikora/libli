@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -11,11 +11,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(\\sqrt{13}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\sqrt{13}\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -24,11 +29,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(\\frac{3}{2}\\sqrt{34}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{3}{2}\\sqrt{34}\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -37,11 +47,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(1,5\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(1,5\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -50,11 +65,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(x+7y-86=0\\) oraz \\(x+7y+54=0\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x+7y-86=0\\) oraz \\(x+7y+54=0\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -63,35 +83,66 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(8x+15y-294=0\\) oraz \\(8x+15y+284=0\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(8x+15y-294=0\\) oraz \\(8x+15y+284=0\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Boki rombu zawierają się w prostych\n        </p>\n        \\[\n        4x+7y+1=0\\quad\\text{i}\\quad 4x+7y+131=0\n        \\]\n        <p>\n            Oblicz wysokość rombu.\n        </p>\n"
+      "body": "<p>\n            Boki rombu zawierają się w prostych\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        4x+7y+1=0\\quad\\text{i}\\quad 4x+7y+131=0\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz wysokość rombu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(2\\sqrt{65}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(2\\sqrt{65}\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Boki prostokąta o długości \\(3\\sqrt{17}\\) zawierają się w prostych\n        </p>\n        \\[\n        9x+2y+1=0\\quad\\text{i}\\quad 9x+2y-84=0\n        \\]\n        <p>\n            Znajdź pole prostokąta.\n        </p>\n"
+      "body": "<p>\n            Boki prostokąta o długości \\(3\\sqrt{17}\\) zawierają się w prostych\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        9x+2y+1=0\\quad\\text{i}\\quad 9x+2y-84=0\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź pole prostokąta.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(51\\sqrt{5}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(51\\sqrt{5}\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "2de5465389f1a6274327404ce106945d3ea0d808412f75313f3ecb20944d0ff4"
+  "seed_hash": "58f2cdbcf74855adf721bea542073baa060b4e857d33cd6ab49284896843e9cb"
 }

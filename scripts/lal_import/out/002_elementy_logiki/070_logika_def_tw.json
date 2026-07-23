@@ -54,29 +54,38 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Wskaż, czy dana wypowiedź to definicja, czy twierdznie.\n    "
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                Liczba całkowita nazywana jest parzystą jeśli dzieli się przez 2.\n            </div>\n<div class=\"one_choice ks_button\">\n                definicja\n            </div>\n<div class=\"one_choice ks_button\">\n                twierdzenie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                Przekątne rombu przecinają się pod kątem prostym.\n            </div>\n<div class=\"one_choice ks_button\">\n                definicja\n            </div>\n<div class=\"one_choice ks_button\">\n                twierdzenie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                Kwadrat liczby parzystej jest podzielny przez 4.\n            </div>\n<div class=\"one_choice ks_button\">\n                definicja\n            </div>\n<div class=\"one_choice ks_button\">\n                twierdzenie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"500px\">\n                Liczba pierwsza to taka liczba naturalna, która ma dokładnie 2 dzielniki.\n            </div>\n<div class=\"one_choice ks_button\">\n                definicja\n            </div>\n<div class=\"one_choice ks_button\">\n                twierdzenie\n            </div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi:\n    "
+      "type": "choice_grid",
+      "columns": [
+        "definicja",
+        "twierdzenie"
+      ],
+      "rows": [
+        {
+          "statement": "Liczba całkowita nazywana jest parzystą jeśli dzieli się przez 2.",
+          "correct": 0
+        },
+        {
+          "statement": "Przekątne rombu przecinają się pod kątem prostym.",
+          "correct": 1
+        },
+        {
+          "statement": "Kwadrat liczby parzystej jest podzielny przez 4.",
+          "correct": 1
+        },
+        {
+          "statement": "Liczba pierwsza to taka liczba naturalna, która ma dokładnie 2 dzielniki.",
+          "correct": 0
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "9d1354dca661721b911eaeb1d69b67569f799ab38f3d320c4324544b6d519226"
+  "seed_hash": "324ddaa7140f35861291ba621026e289d375ec9eebdbbf63fb92e0e741479226"
 }

@@ -2,113 +2,221 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Bok rombu ma długość \\(12\\), a wysokość \\(6\\).\n        </p>\n<p>\n            Znajdź miarę wewnętrznego kąta ostrego rombu.\n        </p>\n"
+      "body": "<p>\n            Bok rombu ma długość \\(12\\), a wysokość \\(6\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź miarę wewnętrznego kąta ostrego rombu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "metoda",
-      "body": "\n\n<ol class=\"bold\">\n<li>Oblicz pole rombu, \\(P\\).</li>\n<li>\n                Skorzystaj\n                <ol>\n<li>\n                        albo ze wzoru \\(P=a^2\\sin\\alpha\\), gdzie \\(a\\) to długość boku, a \\(\\alpha\\) to miara kąta wewnętrznego, \n                    </li>\n<li>\n                        albo z trygonometrii w trójkącie prostokątnym, w którym dwa boki to bok i wysokość rombu,\n                    </li>\n</ol> \n                by znaleźć \\(\\alpha\\).\n            </li>\n</ol>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>Oblicz pole rombu, \\(P\\).</li>\n<li>\n                Skorzystaj\n                <ol>\n<li>\n                        albo ze wzoru \\(P=a^2\\sin\\alpha\\), gdzie \\(a\\) to długość boku, a \\(\\alpha\\) to miara kąta wewnętrznego, \n                    </li>\n<li>\n                        albo z trygonometrii w trójkącie prostokątnym, w którym dwa boki to bok i wysokość rombu,\n                    </li>\n</ol> \n                by znaleźć \\(\\alpha\\).\n            </li>\n</ol>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(30^{\\circ}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(30^{\\circ}\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Bok rombu ma długość \\(20\\), a wysokość \\(10\\sqrt{2}\\).\n        </p>\n<p>\n            Znajdź miarę wewnętrznego kąta ostrego rombu.\n        </p>\n"
+      "body": "<p>\n            Bok rombu ma długość \\(20\\), a wysokość \\(10\\sqrt{2}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź miarę wewnętrznego kąta ostrego rombu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "metoda",
-      "body": "\n\n<ol class=\"bold\">\n<li>Oblicz pole rombu, \\(P\\).</li>\n<li>\n                Skorzystaj\n                <ol>\n<li>\n                        albo ze wzoru \\(P=a^2\\sin\\alpha\\), gdzie \\(a\\) to długość boku, a \\(\\alpha\\) to miara kąta wewnętrznego, \n                    </li>\n<li>\n                        albo z trygonometrii w trójkącie prostokątnym, w którym dwa boki to bok i wysokość rombu,\n                    </li>\n</ol> \n                by znaleźć \\(\\alpha\\).\n            </li>\n</ol>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>Oblicz pole rombu, \\(P\\).</li>\n<li>\n                Skorzystaj\n                <ol>\n<li>\n                        albo ze wzoru \\(P=a^2\\sin\\alpha\\), gdzie \\(a\\) to długość boku, a \\(\\alpha\\) to miara kąta wewnętrznego, \n                    </li>\n<li>\n                        albo z trygonometrii w trójkącie prostokątnym, w którym dwa boki to bok i wysokość rombu,\n                    </li>\n</ol> \n                by znaleźć \\(\\alpha\\).\n            </li>\n</ol>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(45^{\\circ}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(45^{\\circ}\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Bok rombu jest długości \\(8\\), a wewnętrzny kąt ostry rombu ma miarę \\(45^{\\circ}\\). \n        </p>\n<p>\n            Oblicz wysokość rombu.\n        </p>\n"
+      "body": "<p>\n            Bok rombu jest długości \\(8\\), a wewnętrzny kąt ostry rombu ma miarę \\(45^{\\circ}\\). \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz wysokość rombu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "metoda",
-      "body": "\n\n<p>\n<strong>Albo</strong>\n</p>\n<p>\n            oblicz pole rombu, a potem wysokość, wiedząc, że pole jest iloczynem boku i wysokości,\n        </p>\n<p>\n<strong>albo</strong>\n</p>\n<p>\n            skorzystaj w trygonometrii w trójkącie prostokątnym o kącie ostrym \\(45^{\\circ}\\), w którym przeciwprostokątna to bok rombu, a jedna z przyprostokątnych to jego wysokość.\n        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Albo</strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            oblicz pole rombu, a potem wysokość, wiedząc, że pole jest iloczynem boku i wysokości,\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>albo</strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            skorzystaj w trygonometrii w trójkącie prostokątnym o kącie ostrym \\(45^{\\circ}\\), w którym przeciwprostokątna to bok rombu, a jedna z przyprostokątnych to jego wysokość.\n        </p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(4\\sqrt{2}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(4\\sqrt{2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Bok rombu jest długości \\(12\\), a wewnętrzny kąt ostry rombu ma miarę \\(60^{\\circ}\\). \n        </p>\n<p>\n            Oblicz wysokość rombu.\n        </p>\n"
+      "body": "<p>\n            Bok rombu jest długości \\(12\\), a wewnętrzny kąt ostry rombu ma miarę \\(60^{\\circ}\\). \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz wysokość rombu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "metoda",
-      "body": "\n\n<p>\n<strong>Albo</strong>\n</p>\n<p>\n            oblicz pole rombu, a potem wysokość, wiedząc, że pole jest iloczynem boku i wysokości,\n        </p>\n<p>\n<strong>albo</strong>\n</p>\n<p>\n            skorzystaj w trygonometrii w trójkącie prostokątnym o kącie ostrym \\(60^{\\circ}\\), w którym przeciwprostokątna to bok rombu, a jedna z przyprostokątnych to jego wysokość.\n        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Albo</strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            oblicz pole rombu, a potem wysokość, wiedząc, że pole jest iloczynem boku i wysokości,\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>albo</strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            skorzystaj w trygonometrii w trójkącie prostokątnym o kącie ostrym \\(60^{\\circ}\\), w którym przeciwprostokątna to bok rombu, a jedna z przyprostokątnych to jego wysokość.\n        </p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(6\\sqrt{3}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(6\\sqrt{3}\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Bok rombu ma długość \\(13\\), a jedna z przekątnych \\(10\\).\n        </p>\n<p>\n            Znajdź długość drugiej przekątnej rombu.\n        </p>\n"
+      "body": "<p>\n            Bok rombu ma długość \\(13\\), a jedna z przekątnych \\(10\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długość drugiej przekątnej rombu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "metoda",
-      "body": "\n\n        Narysuj romb z dwiema prostopadłymi przekątnymi i skorzystaj z twierdzenia Pitagorasa w jednym z czterech trójkątów prostokątnych, powstałych z podziału rombu przekątnymi. W tych trójkątach przeciwprostokątna to bok rombu, a przyprostokątne to połowy przekątnych.\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Narysuj romb z dwiema prostopadłymi przekątnymi i skorzystaj z twierdzenia Pitagorasa w jednym z czterech trójkątów prostokątnych, powstałych z podziału rombu przekątnymi. W tych trójkątach przeciwprostokątna to bok rombu, a przyprostokątne to połowy przekątnych.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(24\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(24\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Wewnętrzny kąt rozwarty w rombie ma miarę \\(120^{\\circ}\\), a dłuższa przekątna ma długość \\(18\\).\n        </p>\n<p>\n            Oblicz obwód i pole rombu.\n        </p>\n"
+      "body": "<p>\n            Wewnętrzny kąt rozwarty w rombie ma miarę \\(120^{\\circ}\\), a dłuższa przekątna ma długość \\(18\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz obwód i pole rombu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "metoda",
-      "body": "\n\n<ol class=\"bold\">\n<li>\n                Dłuższa przekątna jest przeciwległa kątowi \\(120^{\\circ}\\).\n            </li>\n<li>\n                Przekątne dzielą romb na cztery przystające trójkąty prostokątne o kątach ostrych \\(30^{\\circ}\\) i \\(60^{\\circ}\\), w których dłuższa przyprostokątna ma długość \\(9\\) - połowy dłuższej przekątnej.\n            </li>\n<li>\n                Z takiego trójkąta (z użyciem trygonometrii lub stosunków boków w trójkącie tego typu) oblicz długość drugiej przyprostokątnej (czyli połowy drugiej przekątnej) oraz przeciwprostokątnej (czyli boku rombu).\n            </li>\n<li>\n                Mając daną długość boku, oblicz obwód.\n            </li>\n<li>\n                Mając dane długości obu przekątnych, oblicz pole.\n            </li>\n</ol>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                Dłuższa przekątna jest przeciwległa kątowi \\(120^{\\circ}\\).\n            </li>\n<li>\n                Przekątne dzielą romb na cztery przystające trójkąty prostokątne o kątach ostrych \\(30^{\\circ}\\) i \\(60^{\\circ}\\), w których dłuższa przyprostokątna ma długość \\(9\\) - połowy dłuższej przekątnej.\n            </li>\n<li>\n                Z takiego trójkąta (z użyciem trygonometrii lub stosunków boków w trójkącie tego typu) oblicz długość drugiej przyprostokątnej (czyli połowy drugiej przekątnej) oraz przeciwprostokątnej (czyli boku rombu).\n            </li>\n<li>\n                Mając daną długość boku, oblicz obwód.\n            </li>\n<li>\n                Mając dane długości obu przekątnych, oblicz pole.\n            </li>\n</ol>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        obwód \\(=24\\sqrt{3}\\), pole = \\(54\\sqrt{3}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>obwód \\(=24\\sqrt{3}\\), pole = \\(54\\sqrt{3}\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "54103786d080d1f1cd7d0903129f5aa52433589b16fe480885e93fdacdacef78"
+  "seed_hash": "d8d64e74d1325b382d0dee77b75905e140b9cf9031a4626fdfa80f73dcd8f00b"
 }

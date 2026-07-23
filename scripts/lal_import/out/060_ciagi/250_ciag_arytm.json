@@ -14,15 +14,15 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
       "body": "<p>Znajdziemy \\(S_{31}\\), sumę 31 pierwszych wyrazów ciągu \\((a_n)\\) takiego, że:\n        \\[\n        \\begin{cases}\n        a_1=60\\\\\n        r=2\n        \\end{cases}\n        \\]</p>"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -33,8 +33,8 @@
       "body": "<p>\n                    Najpierw wypiszmy liczby, które mamy zsumować. No, może nie wszystkie, bo jest ich aż 31, ale kilka pierwszych i kilka ostatnich.\n                </p>"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "table",
@@ -114,8 +114,8 @@
       }
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -266,8 +266,8 @@
       }
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -489,16 +489,16 @@
       "body": "<p>\n                    Wyszło nam coś bardzo ciekawego!\n                </p>"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
       "body": "<ol class=\"bold\">\n<li>\n<strong>Po pierwsze</strong>. \n                        Wszystkie sumy są identyczne - równe \\(180\\). Zastanów się: to wynika z tego, że w pierwszym rzędzie każda kolejna liczba jest większa o \\(r\\), a w drugim każda kolejna liczba jes mniejsza o \\(r\\). Tak jest skonstruowany ciąg arytmetyczny.\n                        <figure>\n<video autoplay=\"\" loop=\"\" muted=\"\" width=\"100%\">\n<source src=\"static/arytmetyczny_2.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</li>\n<li>\n<strong>Po drugie</strong>. \n                        Tych <u>sto-osiemdziesiątek</u> jest 31. Tyle jest wyrazów w jednym rzędzie, tyle też jest sumowanych par.\n                    </li>\n<li>\n<strong>Po trzecie</strong>. \n                        Te 31 sto-osiemdziesiątek to dwie szukane sumy \\(S_{31}\\):\n                    </li>\n</ol>"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "table",
@@ -727,8 +727,8 @@
       }
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -748,5 +748,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "54e8ab001bc17cc4e3492e4cf0dad9718fc5160c93332adb4603ac7a07f25889"
+  "seed_hash": "1f62a95ec7b66b8da353f01da9abd79aa898ca072072c6ddf90dace78673da3e"
 }

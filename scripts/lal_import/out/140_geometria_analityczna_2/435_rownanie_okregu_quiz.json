@@ -28,10 +28,8 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>Środek okręgu o równaniu \\((x+2)^2+(y-5)^2=12\\) to punkt \\((x,y)\\), taki, że</p><p>\\(x=\\)=-2</p><p>\\(y=\\)=5</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>Środek okręgu o równaniu \\((x+2)^2+(y-5)^2=12\\) to punkt \\((x,y)\\), taki, że</p><p>\\(x=\\)=-2</p><p>\\(y=\\)=5</p>"
     },
     {
       "type": "choice",
@@ -61,12 +59,10 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>Środek okręgu o równaniu \\(x^2-2x+y^2+6y-12=0\\) to punkt \\((x,y)\\), taki, że</p><p>\\(x=\\)=1</p><p>\\(y=\\)=-3</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>Środek okręgu o równaniu \\(x^2-2x+y^2+6y-12=0\\) to punkt \\((x,y)\\), taki, że</p><p>\\(x=\\)=1</p><p>\\(y=\\)=-3</p>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "d48c90170c79c990891969e00f33e83b934c95b0c9efafef873cf869bfe908f6"
+  "fully_mapped": true,
+  "seed_hash": "02fac8f21f207b3a4e1e569aac690064c38f81ebeb9d67f0625956ba11ceb483"
 }

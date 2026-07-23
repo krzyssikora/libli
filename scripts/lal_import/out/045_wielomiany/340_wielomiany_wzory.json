@@ -109,7 +109,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -122,7 +122,12 @@
     {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n\n        \\[\n        \\begin{align*}\n        (2ab-3b^2)^3&amp;=(\\color{red}{2ab}-\\color{darkcyan}{3b^2})^3=\\\\\n        &amp;=\\begin{bmatrix}\n        \\text{na podstawie wzoru:}\\\\\n        (\\color{red}{a}-\\color{darkcyan}{b})^3=\\color{red}{a}^3-3\\color{red}{a}^2\\color{darkcyan}{b}+3\\color{red}{a}\\color{darkcyan}{b}^2-\\color{darkcyan}{b}^3\\\\\n        \\text{przy czym wstawiamy:}\\\\\n        \\text{zamiast }\\color{red}{a}\\longrightarrow\\color{red}{2ab}\\\\\n        \\text{zamiast }\\color{darkcyan}{b}\\longrightarrow\\color{darkcyan}{3b^2}\\\\\n        \\end{bmatrix}=\\\\\n        &amp;=(\\color{red}{2ab})^3-3\\cdot(\\color{red}{2ab})^2\\cdot\\color{darkcyan}{3b^2}+3\\cdot\\color{red}{2ab}\\cdot(\\color{darkcyan}{3b^2})^2-(\\color{darkcyan}{3b^2})^3=\\\\\n        &amp;=4a^3b^3-3\\cdot 4a^2b^2\\cdot 3b^2+3\\cdot 2ab\\cdot 9b^4-27b^6=\\\\\n        &amp;=4a^3b^3-36a^2b^4+54ab^5-27b^6\n        \\end{align*}\n        \\]\n    "
+      "elements": [
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align*}\n        (2ab-3b^2)^3&=(\\color{red}{2ab}-\\color{darkcyan}{3b^2})^3=\\\\\n        &=\\begin{bmatrix}\n        \\text{na podstawie wzoru:}\\\\\n        (\\color{red}{a}-\\color{darkcyan}{b})^3=\\color{red}{a}^3-3\\color{red}{a}^2\\color{darkcyan}{b}+3\\color{red}{a}\\color{darkcyan}{b}^2-\\color{darkcyan}{b}^3\\\\\n        \\text{przy czym wstawiamy:}\\\\\n        \\text{zamiast }\\color{red}{a}\\longrightarrow\\color{red}{2ab}\\\\\n        \\text{zamiast }\\color{darkcyan}{b}\\longrightarrow\\color{darkcyan}{3b^2}\\\\\n        \\end{bmatrix}=\\\\\n        &=(\\color{red}{2ab})^3-3\\cdot(\\color{red}{2ab})^2\\cdot\\color{darkcyan}{3b^2}+3\\cdot\\color{red}{2ab}\\cdot(\\color{darkcyan}{3b^2})^2-(\\color{darkcyan}{3b^2})^3=\\\\\n        &=4a^3b^3-3\\cdot 4a^2b^2\\cdot 3b^2+3\\cdot 2ab\\cdot 9b^4-27b^6=\\\\\n        &=4a^3b^3-36a^2b^4+54ab^5-27b^6\n        \\end{align*}\n        "
+        }
+      ]
     },
     {
       "type": "text",
@@ -130,7 +135,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -142,5 +147,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "1d7fdac0bfc54286c2c7587894359b7937e6325a22b8765c330868c4d324b39b"
+  "seed_hash": "cb36c5b4e608f816f67653bcd349c9df5962122ba231e0cbf254924a31db8907"
 }

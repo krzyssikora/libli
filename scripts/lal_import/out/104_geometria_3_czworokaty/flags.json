@@ -6,75 +6,15 @@
     "raw_excerpt": "_start.html"
   },
   {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a>",
-    "unit_json": "050_wstep.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a>",
-    "unit_json": "050_wstep.json"
-  },
-  {
-    "kind": "table_span",
-    "reason": "table uses rowspan/colspan",
-    "raw_excerpt": "<table class=\"my_table_TC\">\n<tr>\n<th>\\(a\\)</th>\n<th>\\(b\\)</th>\n<th>\\(h\\)</th>\n<th>\\(P\\)</th>\n</tr>\n<tr>\n<td>\\(6\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<td colspan=\"4\" style=\"text-align: left;\">\n<details>\n<summary><small>r",
-    "unit_json": "190_trapezy.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a>",
-    "unit_json": "290_romby.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a>",
-    "unit_json": "290_romby.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-2-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-2-1\" id=\"tab-2-1\">nagranie</a>",
-    "unit_json": "290_romby.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-2-2",
-    "raw_excerpt": "<a href=\"#tabcontent-2-2\" id=\"tab-2-2\">krok po kroku</a>",
-    "unit_json": "290_romby.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a>",
-    "unit_json": "310_romby.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a>",
-    "unit_json": "310_romby.json"
+    "kind": "unmapped_pattern",
+    "reason": "interactive_widget (Group B): binary_choice",
+    "raw_excerpt": "<div class=\"centered\">\n<ol class=\"bold\">\n<li>\n<div class=\"ks_binary_choices\" data-binary-choices-id=\"1\">\n<p><strong>Czy czworokąt ma parę boków równoległych?</strong></p>\n<div class=\"white_grey_button ks_button\" data-binary-choose=\"1.1\">TAK</div>\n<div class=\"white_grey_button ks_button\" data-binary-",
+    "unit_json": "030_wstep.json"
   },
   {
     "kind": "relative_href",
     "reason": "relative/local <a href> dropped by nh3: /jump_to_id/b96e07ed702f4bd589f2e37fe20b4934",
     "raw_excerpt": "<a href=\"/jump_to_id/b96e07ed702f4bd589f2e37fe20b4934\">tutaj</a>",
     "unit_json": "420_okregi.json"
-  },
-  {
-    "kind": "table_span",
-    "reason": "table uses rowspan/colspan",
-    "raw_excerpt": "<table class=\"my_table_noborder\">\n<tr>\n<td>\\(10\\cdot\\frac{3}{2}=15\\)</td>\n<td>\\(\\quad\\quad\\quad\\)</td>\n<td>\\(15\\cdot 2=30\\)</td>\n</tr>\n<tr>\n<td colspan=\"3\">\n                        \\(10\\cdot \\left(\\frac{3}{2}\\cdot 2\\right)=10\\cdot 3=30\\)\n                    </td>\n</tr>\n</table>",
-    "unit_json": "560_podobne.json"
-  },
-  {
-    "kind": "table_span",
-    "reason": "table uses rowspan/colspan",
-    "raw_excerpt": "<table class=\"my_table_noborder\">\n<tr>\n<td>\\(1\\,\\text{cm}=10\\,\\text{mm}\\)</td>\n<td></td>\n<td>\\(1\\,\\text{dm}=10\\,\\text{cm}\\)</td>\n<td></td>\n<td>\\(1\\,\\text{m}=10\\,\\text{dm}\\)</td>\n</tr>\n<tr>\n<td></td>\n<td colspan=\"3\">\\(1\\,\\text{km}=1000\\,\\text{m}\\)</td>\n<td></td>\n</tr>\n<tr>\n<td>i odwrotnie:</td>\n<td c",
-    "unit_json": "640_podobne.json"
   }
 ]

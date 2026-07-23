@@ -69,33 +69,108 @@
       "body": "<p>\n            Gdy odpowiesz, sprawdź moje odpowiedzi.\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"czy to funkcja? 1\" src=\"static/funkcja_def_1_1.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/funkcja_def_1_1.png",
+      "alt": "czy to funkcja? 1",
+      "figcaption": ""
     },
     {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n<div>\n<img alt=\"czy to funkcja? 2 - odpowiedź\" src=\"static/funkcja_def_2_2.png\" width=\"600\"/>\n</div>\n<p>\n<strong>\n<span style=\"color: red;\">\n                    Nie\n                </span>\n                , to nie jest funkcja.\n            </strong>\n</p>\n<p>\n            Zwróć uwagę, że nie wszystkie elementy przeciwdziedziny muszą być przyporządkowane jakimś argumentom (punkt zaznaczony zielonym okręgiem). To nie jest problem.\n        </p>\n<p>\n            Problemem jest, że istnieje argument (punkt zaznaczony czerwonym okręgiem), który nie ma przyporządkowanej żadnej wartości.\n        </p>\n<p>\n<strong>\n                Nie jest\n            </strong>\n            spełniony warunek, że\n            <strong>\n                każdy\n            </strong>\n            argument ma przyporządkowaną dokładnie jedną wartość.\n        </p>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/funkcja_def_2_2.png",
+          "alt": "czy to funkcja? 2 - odpowiedź",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n<span style=\"color: red;\">\n                    Nie\n                </span>\n                , to nie jest funkcja.\n            </strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zwróć uwagę, że nie wszystkie elementy przeciwdziedziny muszą być przyporządkowane jakimś argumentom (punkt zaznaczony zielonym okręgiem). To nie jest problem.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Problemem jest, że istnieje argument (punkt zaznaczony czerwonym okręgiem), który nie ma przyporządkowanej żadnej wartości.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                Nie jest\n            </strong>\n            spełniony warunek, że\n            <strong>\n                każdy\n            </strong>\n            argument ma przyporządkowaną dokładnie jedną wartość.\n        </p>"
+        }
+      ]
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"czy to funkcja? 2\" src=\"static/funkcja_def_2_1.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/funkcja_def_2_1.png",
+      "alt": "czy to funkcja? 2",
+      "figcaption": ""
     },
     {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n<div>\n<img alt=\"czy to funkcja? 3 - odpowiedź\" src=\"static/funkcja_def_3_2.png\" width=\"600\"/>\n</div>\n<p>\n<strong>\n<span style=\"color: red;\">\n                    Nie\n                </span>\n                , to nie jest funkcja.\n            </strong>\n</p>\n<p>\n            Zwróć uwagę, że dwóm argumentom może byc przyporządkowana ta sama wartość (punkt zaznaczony ciemnozielonym okręgiem). To nie jest problem.\n        </p>\n<p>\n            Problemem jest, że istnieje argument (punkt zaznaczony czerwonym okręgiem), któremu przyporządkowane są dwie wartości.\n        </p>\n<p>\n<strong>\n                Nie jest\n            </strong>\n            spełniony warunek, że każdy argument ma przyporządkowaną\n            <strong>\n                dokładnie jedną\n            </strong>\n            wartość.\n        </p>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/funkcja_def_3_2.png",
+          "alt": "czy to funkcja? 3 - odpowiedź",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n<span style=\"color: red;\">\n                    Nie\n                </span>\n                , to nie jest funkcja.\n            </strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zwróć uwagę, że dwóm argumentom może byc przyporządkowana ta sama wartość (punkt zaznaczony ciemnozielonym okręgiem). To nie jest problem.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Problemem jest, że istnieje argument (punkt zaznaczony czerwonym okręgiem), któremu przyporządkowane są dwie wartości.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                Nie jest\n            </strong>\n            spełniony warunek, że każdy argument ma przyporządkowaną\n            <strong>\n                dokładnie jedną\n            </strong>\n            wartość.\n        </p>"
+        }
+      ]
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"czy to funkcja? 3\" src=\"static/funkcja_def_3_1.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/funkcja_def_3_1.png",
+      "alt": "czy to funkcja? 3",
+      "figcaption": ""
     },
     {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n<div>\n<img alt=\"czy to funkcja? 1 - odpowiedź\" src=\"static/funkcja_def_1_2.png\" width=\"600\"/>\n</div>\n<p>\n<strong>\n<span style=\"color: green;\">\n                    Tak\n                </span>\n                , to jest funkcja.\n            </strong>\n</p>\n<p>\n            Zwróć uwagę, że dwóm argumentom może byc przyporządkowana ta sama wartość (punkt zaznaczony ciemnozielonym okręgiem).\n        </p>\n<p>\n            Zwróć też uwagę, że nie wszystkie elementy przeciwdziedziny muszą być przyporządkowane jakimś argumentom (punkt zaznaczony jasnozielonym okręgiem).\n        </p>\n<p>\n            Spełniony jest warunek, że\n            <strong>\n                każdy\n            </strong>\n            argument ma przyporządkowaną\n            <strong>\n                dokładnie jedną\n            </strong>\n            wartość.\n        </p>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/funkcja_def_1_2.png",
+          "alt": "czy to funkcja? 1 - odpowiedź",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n<span style=\"color: green;\">\n                    Tak\n                </span>\n                , to jest funkcja.\n            </strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zwróć uwagę, że dwóm argumentom może byc przyporządkowana ta sama wartość (punkt zaznaczony ciemnozielonym okręgiem).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zwróć też uwagę, że nie wszystkie elementy przeciwdziedziny muszą być przyporządkowane jakimś argumentom (punkt zaznaczony jasnozielonym okręgiem).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Spełniony jest warunek, że\n            <strong>\n                każdy\n            </strong>\n            argument ma przyporządkowaną\n            <strong>\n                dokładnie jedną\n            </strong>\n            wartość.\n        </p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "7be331ba8ccd450c35ff2ebcf7d029a7621de594c1e8cdc2c5ddcdbe7bfa7a48"
+  "seed_hash": "6fc983c52931074fb70bf3879a8541aef84a3652f02a6b7f0c382f6ecd694fae"
 }

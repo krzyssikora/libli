@@ -17,8 +17,10 @@
       "body": "<p>\n    Na poniższym rysunku zaznaczono odległości kilku liczb od zera.\n</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"odległość od zera\" src=\"static/wartosc_bezwzgledna.png\"/>\n"
+      "type": "image",
+      "media_src": "static/wartosc_bezwzgledna.png",
+      "alt": "odległość od zera",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -42,5 +44,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "a6a2bc35e01af9a9c34d08d8839a92762de5719358262b45db203d3ff5899e2c"
+  "seed_hash": "7bfab90ed6403d74c2c2bf986cacbf43bbb24c9f5f3a6cc3251dd20e745bf539"
 }

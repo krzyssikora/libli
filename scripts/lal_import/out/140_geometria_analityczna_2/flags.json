@@ -1,15 +1,9 @@
 [
   {
     "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">sposób 1</a>",
-    "unit_json": "040_wektory.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">sposób 2</a>",
-    "unit_json": "040_wektory.json"
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/676a5dda58f64946a6a4747c68ad5157",
+    "raw_excerpt": "<a href=\"/jump_to_id/676a5dda58f64946a6a4747c68ad5157\">tutaj</a>",
+    "unit_json": "060_wektory.json"
   },
   {
     "kind": "relative_href",
@@ -61,15 +55,87 @@
   },
   {
     "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a>",
-    "unit_json": "080_wektory.json"
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/676a5dda58f64946a6a4747c68ad5157",
+    "raw_excerpt": "<a href=\"/jump_to_id/676a5dda58f64946a6a4747c68ad5157\">Tu</a>",
+    "unit_json": "070_wektory.json"
   },
   {
     "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a>",
-    "unit_json": "080_wektory.json"
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/676a5dda58f64946a6a4747c68ad5157",
+    "raw_excerpt": "<a href=\"/jump_to_id/676a5dda58f64946a6a4747c68ad5157\">Tu</a>",
+    "unit_json": "070_wektory.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2",
+    "raw_excerpt": "<a href=\"/jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2\">Tu</a>",
+    "unit_json": "070_wektory.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2",
+    "raw_excerpt": "<a href=\"/jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2\">Tu</a>",
+    "unit_json": "070_wektory.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2",
+    "raw_excerpt": "<a href=\"/jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2\">Tu</a>",
+    "unit_json": "070_wektory.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2",
+    "raw_excerpt": "<a href=\"/jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2\">Tu</a>",
+    "unit_json": "070_wektory.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/e10cfe6d55194428bf2ba0c84677c339",
+    "raw_excerpt": "<a href=\"/jump_to_id/e10cfe6d55194428bf2ba0c84677c339\">rozdziale o układach równań</a>",
+    "unit_json": "070_wektory.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/e10cfe6d55194428bf2ba0c84677c339",
+    "raw_excerpt": "<a href=\"/jump_to_id/e10cfe6d55194428bf2ba0c84677c339\">rozdziale o układach równań</a>",
+    "unit_json": "070_wektory.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2",
+    "raw_excerpt": "<a href=\"/jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2\">Tu</a>",
+    "unit_json": "070_wektory.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2",
+    "raw_excerpt": "<a href=\"/jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2\">Tu</a>",
+    "unit_json": "070_wektory.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/676a5dda58f64946a6a4747c68ad5157",
+    "raw_excerpt": "<a href=\"/jump_to_id/676a5dda58f64946a6a4747c68ad5157\">Tu</a>",
+    "unit_json": "070_wektory.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/676a5dda58f64946a6a4747c68ad5157",
+    "raw_excerpt": "<a href=\"/jump_to_id/676a5dda58f64946a6a4747c68ad5157\">Tu</a>",
+    "unit_json": "070_wektory.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/cd78033f1582432caedd8a9dbeeb4b54",
+    "raw_excerpt": "<a href=\"/jump_to_id/cd78033f1582432caedd8a9dbeeb4b54\">Tu</a>",
+    "unit_json": "070_wektory.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/cd78033f1582432caedd8a9dbeeb4b54",
+    "raw_excerpt": "<a href=\"/jump_to_id/cd78033f1582432caedd8a9dbeeb4b54\">Tu</a>",
+    "unit_json": "070_wektory.json"
   },
   {
     "kind": "relative_href",
@@ -79,18 +145,6 @@
   },
   {
     "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a>",
-    "unit_json": "140_proste.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a>",
-    "unit_json": "140_proste.json"
-  },
-  {
-    "kind": "relative_href",
     "reason": "relative/local <a href> dropped by nh3: /jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2",
     "raw_excerpt": "<a href=\"/jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2\">tutaj</a>",
     "unit_json": "185_proste.json"
@@ -100,18 +154,6 @@
     "reason": "relative/local <a href> dropped by nh3: /jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2",
     "raw_excerpt": "<a href=\"/jump_to_id/ff5d39c0ea4a4e54a55b4cec48c980c2\">tutaj</a>",
     "unit_json": "185_proste.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a>",
-    "unit_json": "270_odleglosci.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a>",
-    "unit_json": "270_odleglosci.json"
   },
   {
     "kind": "relative_href",
@@ -121,69 +163,21 @@
   },
   {
     "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #",
-    "raw_excerpt": "<a href=\"#\">tutaj</a>",
-    "unit_json": "340_pole_wielokatow.json"
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/1a55970974e24c60a34789b4b51c70bb",
+    "raw_excerpt": "<a href=\"/jump_to_id/1a55970974e24c60a34789b4b51c70bb\">tutaj</a>",
+    "unit_json": "360_pole_wielokatow.json"
   },
   {
     "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #",
-    "raw_excerpt": "<a href=\"#\">tutaj</a>",
-    "unit_json": "340_pole_wielokatow.json"
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/26aaae708ac34d74a461ea6f1a663322",
+    "raw_excerpt": "<a href=\"/jump_to_id/26aaae708ac34d74a461ea6f1a663322\">tutaj</a>",
+    "unit_json": "360_pole_wielokatow.json"
   },
   {
     "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #",
-    "raw_excerpt": "<a href=\"#\">tutaj</a>",
-    "unit_json": "350_pole_wielokatow.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #",
-    "raw_excerpt": "<a href=\"#\">tutaj</a>",
-    "unit_json": "350_pole_wielokatow.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #",
-    "raw_excerpt": "<a href=\"#\">tutaj</a>",
-    "unit_json": "350_pole_wielokatow.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #",
-    "raw_excerpt": "<a href=\"#\">tutaj</a>",
-    "unit_json": "350_pole_wielokatow.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #",
-    "raw_excerpt": "<a href=\"#\">tutaj</a>",
-    "unit_json": "350_pole_wielokatow.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #",
-    "raw_excerpt": "<a href=\"#\">tutaj</a>",
-    "unit_json": "350_pole_wielokatow.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #",
-    "raw_excerpt": "<a href=\"#\">tutaj</a>",
-    "unit_json": "350_pole_wielokatow.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #",
-    "raw_excerpt": "<a href=\"#\">tutaj</a>",
-    "unit_json": "350_pole_wielokatow.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #",
-    "raw_excerpt": "<a href=\"#\">tutaj</a>",
-    "unit_json": "350_pole_wielokatow.json"
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/1a55970974e24c60a34789b4b51c70bb",
+    "raw_excerpt": "<a href=\"/jump_to_id/1a55970974e24c60a34789b4b51c70bb\">tutaj</a>",
+    "unit_json": "360_pole_wielokatow.json"
   },
   {
     "kind": "relative_href",
@@ -216,10 +210,40 @@
     "unit_json": "360_pole_wielokatow.json"
   },
   {
-    "kind": "table_span",
-    "reason": "table uses rowspan/colspan",
-    "raw_excerpt": "<table class=\"my_table_noborder narrow_table\">\n<tr>\n<td style=\"text-align: left;\">\\(\\color{blue}{A=(1,5)}\\):</td>\n<td></td>\n<td>\\((\\)</td>\n<td>\\(\\color{blue}{1}\\)</td>\n<td>\\(-\\)</td>\n<td>\\(\\color{red}{(-3)}\\)</td>\n<td>\\()^2+(\\)</td>\n<td>\\(\\color{blue}{5}\\)</td>\n<td>\\(-\\)</td>\n<td>\\(\\color{red}{2}\\)<",
-    "unit_json": "400_rownanie_okregu.json"
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/b3c27d9a7a754655b04f52cf59cc3ac2",
+    "raw_excerpt": "<a href=\"/jump_to_id/b3c27d9a7a754655b04f52cf59cc3ac2\">tutaj</a>",
+    "unit_json": "360_pole_wielokatow.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/1a55970974e24c60a34789b4b51c70bb",
+    "raw_excerpt": "<a href=\"/jump_to_id/1a55970974e24c60a34789b4b51c70bb\">tutaj</a>",
+    "unit_json": "360_pole_wielokatow.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/1a55970974e24c60a34789b4b51c70bb",
+    "raw_excerpt": "<a href=\"/jump_to_id/1a55970974e24c60a34789b4b51c70bb\">tutaj</a>",
+    "unit_json": "360_pole_wielokatow.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/b3c27d9a7a754655b04f52cf59cc3ac2",
+    "raw_excerpt": "<a href=\"/jump_to_id/b3c27d9a7a754655b04f52cf59cc3ac2\">tutaj</a>",
+    "unit_json": "360_pole_wielokatow.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/b3c27d9a7a754655b04f52cf59cc3ac2",
+    "raw_excerpt": "<a href=\"/jump_to_id/b3c27d9a7a754655b04f52cf59cc3ac2\">tutaj</a>",
+    "unit_json": "360_pole_wielokatow.json"
+  },
+  {
+    "kind": "relative_href",
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/b3c27d9a7a754655b04f52cf59cc3ac2",
+    "raw_excerpt": "<a href=\"/jump_to_id/b3c27d9a7a754655b04f52cf59cc3ac2\">tutaj</a>",
+    "unit_json": "360_pole_wielokatow.json"
   },
   {
     "kind": "relative_href",
@@ -228,57 +252,15 @@
     "unit_json": "410_rownanie_okregu.json"
   },
   {
-    "kind": "stem_without_answer",
-    "reason": "stem had no answer DSL",
-    "raw_excerpt": "<p>Środek okręgu o równaniu \\((x+2)^2+(y-5)^2=12\\) to punkt \\((x,y)\\), taki, że</p><p>\\(x=\\)=-2</p><p>\\(y=\\)=5</p>",
-    "unit_json": "435_rownanie_okregu_quiz.json"
-  },
-  {
-    "kind": "stem_without_answer",
-    "reason": "stem had no answer DSL",
-    "raw_excerpt": "<p>Środek okręgu o równaniu \\(x^2-2x+y^2+6y-12=0\\) to punkt \\((x,y)\\), taki, że</p><p>\\(x=\\)=1</p><p>\\(y=\\)=-3</p>",
-    "unit_json": "435_rownanie_okregu_quiz.json"
-  },
-  {
     "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\"><strong>1</strong></a>",
-    "unit_json": "450_okregi_i_proste.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\"><strong>2</strong></a>",
-    "unit_json": "450_okregi_i_proste.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-3",
-    "raw_excerpt": "<a href=\"#tabcontent-1-3\" id=\"tab-1-3\"><strong>3</strong></a>",
-    "unit_json": "450_okregi_i_proste.json"
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/14ebbce139bc447eaf7213da54a53092",
+    "raw_excerpt": "<a href=\"/jump_to_id/14ebbce139bc447eaf7213da54a53092\">tutaj</a>",
+    "unit_json": "410_rownanie_okregu.json"
   },
   {
     "kind": "relative_href",
     "reason": "relative/local <a href> dropped by nh3: /jump_to_id/ea88ce739d8e4350afab6fa63688c75d",
     "raw_excerpt": "<a href=\"/jump_to_id/ea88ce739d8e4350afab6fa63688c75d\">tutaj</a>",
-    "unit_json": "460_okregi_i_proste.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\"><strong>1</strong></a>",
-    "unit_json": "460_okregi_i_proste.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\"><strong>2</strong></a>",
-    "unit_json": "460_okregi_i_proste.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-3",
-    "raw_excerpt": "<a href=\"#tabcontent-1-3\" id=\"tab-1-3\"><strong>3</strong></a>",
     "unit_json": "460_okregi_i_proste.json"
   },
   {
@@ -289,51 +271,15 @@
   },
   {
     "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a>",
-    "unit_json": "480_okregi_i_proste.json"
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/1a55970974e24c60a34789b4b51c70bb",
+    "raw_excerpt": "<a href=\"/jump_to_id/1a55970974e24c60a34789b4b51c70bb\">tutaj</a>",
+    "unit_json": "670_podsumowanie.json"
   },
   {
     "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a>",
-    "unit_json": "480_okregi_i_proste.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-2-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-2-1\" id=\"tab-2-1\">1 (N)</a>",
-    "unit_json": "490_okregi_i_proste.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-2-2",
-    "raw_excerpt": "<a href=\"#tabcontent-2-2\" id=\"tab-2-2\">2 (N)</a>",
-    "unit_json": "490_okregi_i_proste.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-2-3",
-    "raw_excerpt": "<a href=\"#tabcontent-2-3\" id=\"tab-2-3\">1 (O)</a>",
-    "unit_json": "490_okregi_i_proste.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-2-4",
-    "raw_excerpt": "<a href=\"#tabcontent-2-4\" id=\"tab-2-4\">2 (O)</a>",
-    "unit_json": "490_okregi_i_proste.json"
-  },
-  {
-    "kind": "stem_without_answer",
-    "reason": "stem had no answer DSL",
-    "raw_excerpt": "<p>Środkiem obrazu okręgu \\((x+2)^2+(y-4)^2=50\\) w symetrii względem osi \\(OX\\) jest okrąg o środku w punkcie \\((a, b)\\), gdzie:</p><p>\\(a=\\)=-2</p><p>\\(b=\\)=-4</p>",
-    "unit_json": "610_izometrie_quiz.json"
-  },
-  {
-    "kind": "stem_without_answer",
-    "reason": "stem had no answer DSL",
-    "raw_excerpt": "<p>Obrazem prostej \\(y=3x-1\\) w symetrii w osi \\(OY\\) jest prosta o równaniu \\(y=ax+b\\), gdzie:</p><p>\\(a=\\)=-3</p><p>\\(b=\\)=-1</p>",
-    "unit_json": "610_izometrie_quiz.json"
+    "reason": "relative/local <a href> dropped by nh3: /jump_to_id/1a55970974e24c60a34789b4b51c70bb",
+    "raw_excerpt": "<a href=\"/jump_to_id/1a55970974e24c60a34789b4b51c70bb\">tutaj</a>",
+    "unit_json": "670_podsumowanie.json"
   },
   {
     "kind": "relative_href",

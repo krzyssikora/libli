@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -11,11 +11,36 @@
     {
       "type": "spoiler",
       "label": "sprawdź",
-      "body": "\n\n            Oznaczmy te osoby przez <strong style=\"color: gray\">A</strong> i <strong style=\"color: blue\">B</strong>. \n            Możemy ustawić je w rzędzie na dwa sposoby:\n            <ol class=\"bold\">\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong>\n</li>\n</ol>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Oznaczmy te osoby przez</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong style=\"color: gray\">A</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>i</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong style=\"color: blue\">B</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>. \n            Możemy ustawić je w rzędzie na dwa sposoby:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong>\n</li>\n</ol>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -24,11 +49,44 @@
     {
       "type": "spoiler",
       "label": "sprawdź",
-      "body": "\n\n            Oznaczmy te osoby przez <strong style=\"color: gray\">A</strong>, <strong style=\"color: blue\">B</strong> i <strong style=\"color: green\">C</strong>. \n            Możemy ustawić je w rzędzie na sześć sposobów:\n            <ol class=\"bold\">\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong>\n</li>\n</ol>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Oznaczmy te osoby przez</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong style=\"color: gray\">A</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>,</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong style=\"color: blue\">B</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>i</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong style=\"color: green\">C</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>. \n            Możemy ustawić je w rzędzie na sześć sposobów:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong>\n</li>\n</ol>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -37,7 +95,48 @@
     {
       "type": "spoiler",
       "label": "sprawdź",
-      "body": "\n\n            Oznaczmy te osoby przez <strong style=\"color: gray\">A</strong>, <strong style=\"color: blue\">B</strong>, <strong style=\"color: green\">C</strong> i <strong class=\"yellow_on_gray\">D</strong>. \n            Możemy ustawić je w rzędzie na dwadzieścia cztery sposoby:\n            <ol class=\"bold\">\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong>\n</li>\n</ol>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Oznaczmy te osoby przez</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong style=\"color: gray\">A</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>,</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong style=\"color: blue\">B</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>,</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong style=\"color: green\">C</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>i</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong class=\"yellow_on_gray\">D</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>. \n            Możemy ustawić je w rzędzie na dwadzieścia cztery sposoby:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong class=\"yellow_on_gray\">D</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong style=\"color: green\">C</strong> <strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: green\">C</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: gray\">A</strong> <strong style=\"color: blue\">B</strong>\n</li>\n<li>\n<strong class=\"yellow_on_gray\">D</strong> <strong style=\"color: green\">C</strong> <strong style=\"color: blue\">B</strong> <strong style=\"color: gray\">A</strong>\n</li>\n</ol>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -120,10 +219,6 @@
     {
       "type": "text",
       "body": "<p>\n    Czy te liczby coś Ci przypominają?\n</p>"
-    },
-    {
-      "type": "text",
-      "body": ""
     },
     {
       "type": "table",
@@ -230,7 +325,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -242,5 +337,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "174c79dde1079f1e81181aa6cf5ec8de77090f5a51af9d507c17a647abeda5de"
+  "seed_hash": "ff264196465a62be5a4cb1dc2cc8e9861bf071053616e10e30ad039da7dba7f0"
 }

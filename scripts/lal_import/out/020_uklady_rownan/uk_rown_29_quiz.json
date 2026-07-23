@@ -1,10 +1,8 @@
 {
   "elements": [
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>Rozpatrzmy następujący układ równań</p><p>\\[</p><p>\\begin{cases}</p><p>4x-3y=-17\\\\</p><p>6x+5y=3</p><p>\\end{cases}</p><p>\\]</p><p>Rozwiążemy ten układ metodą przeciwnych współczynników, eliminując zmienną \\(x\\).</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>Rozpatrzmy następujący układ równań</p><p>\\[\n\\begin{cases}\n4x-3y=-17\\\\\n6x+5y=3\n\\end{cases}\n\\]</p><p>Rozwiążemy ten układ metodą przeciwnych współczynników, eliminując zmienną \\(x\\).</p>"
     },
     {
       "type": "choice",
@@ -88,10 +86,8 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>Rozpatrzmy następujący układ równań</p><p>\\[</p><p>\\begin{cases}</p><p>3x+8y=50\\\\</p><p>-7x+6y=19</p><p>\\end{cases}</p><p>\\]</p><p>Rozwiążemy ten układ metodą przeciwnych współczynników, eliminując zmienną \\(y\\).</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>Rozpatrzmy następujący układ równań</p><p>\\[\n\\begin{cases}\n3x+8y=50\\\\\n-7x+6y=19\n\\end{cases}\n\\]</p><p>Rozwiążemy ten układ metodą przeciwnych współczynników, eliminując zmienną \\(y\\).</p>"
     },
     {
       "type": "choice",
@@ -175,6 +171,6 @@
       ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "4b47b4b0d9fdbcb701ad8ac187619892afbd69fa7667e021f4a43f27468f2b96"
+  "fully_mapped": true,
+  "seed_hash": "de1d77c702d96f4a9155992b0ad25d9afe54a343df942d1afe15855ee33c137d"
 }

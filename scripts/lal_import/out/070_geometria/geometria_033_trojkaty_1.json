@@ -14,53 +14,36 @@
     },
     {
       "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
-      "type": "text",
       "body": "\n    Zauważ, że by przekonać się, czy trzy odcinki mogą stworzyć trójkąt, wystarczy sprawdzić, czy najdłuższy z nich jest krótszy od sumy pozostałych. Czy widzisz dlaczego?\n"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Wskaż, które liczby mogą być długościami boków trójkąta.\n        </p>\n"
+      "body": "<p>\n            Wskaż, które liczby mogą być długościami boków trójkąta.\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "text",
-      "body": "\n            14, 11, 13\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            15, 14, 2\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            23, 12, 9\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            23, 23, 45\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawne odpowiedzi zaznaczone są na zielono.\n    "
+      "type": "multi_grid",
+      "columns": [
+        "14, 11, 13",
+        "15, 14, 2",
+        "23, 12, 9",
+        "23, 23, 45"
+      ],
+      "rows": [
+        {
+          "statement": "",
+          "correct": [
+            0,
+            1,
+            3
+          ]
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "c5f73ff544268dac67794f41bb2e286feb4d3506fc48c42806a3a1cfab3079c9"
+  "seed_hash": "a5eaabfeaf9724c3faa85069c9576875bb6e2b6b414ff1f825aa95c535afc9b3"
 }

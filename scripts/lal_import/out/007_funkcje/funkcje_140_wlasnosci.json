@@ -9,8 +9,22 @@
       "body": "<p>\n            Spójrz na trzy wykresy funkcji poniżej.\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"funkcja monotoniczna\" src=\"static/monotonicznosc_0.png\" width=\"250\"/>\n<img alt=\"funkcja monotoniczna\" src=\"static/monotonicznosc_1.png\" width=\"250\"/>\n<img alt=\"funkcja monotoniczna\" src=\"static/monotonicznosc_2.png\" width=\"250\"/>\n"
+      "type": "image",
+      "media_src": "static/monotonicznosc_0.png",
+      "alt": "funkcja monotoniczna",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/monotonicznosc_1.png",
+      "alt": "funkcja monotoniczna",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/monotonicznosc_2.png",
+      "alt": "funkcja monotoniczna",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -75,8 +89,10 @@
       "body": "<p>\n            Funkcja, której wykres widzimy poniżej, opisuje zużycie energii elektrycznej w pewnym domu na przestrzeni roku.\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"funkcja fragmentami monotoniczna\" src=\"static/monotonicznosc_elektrycznosc.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/monotonicznosc_elektrycznosc.png",
+      "alt": "funkcja fragmentami monotoniczna",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -84,5 +100,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "67904a4a2f9947618fed381fc9a8960228ad6c26b50a17aad6b1414c3cf34994"
+  "seed_hash": "724e1606b9fe7f68ac3715ebfdd4427f2d081cb67a9ad501ef1cbc47aeda3eff"
 }

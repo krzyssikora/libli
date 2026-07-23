@@ -82,7 +82,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -101,11 +101,20 @@
     {
       "type": "spoiler",
       "label": "dlaczego?",
-      "body": "\n\n<ol class=\"bold\">\n<li>\n                Kolejne kąty wewnętrzne są równe. \n            </li>\n<li>\n                Odpowiednie boki są proporcjonalne, bo:\n                \\[\n                \\begin{align}\n                \\color{red}{\\frac{6}{4}}&amp;=1,5\\\\\n                \\color{green}{\\frac{3}{2}}&amp;=1,5\\\\\n                \\color{orange}{\\frac{3,75}{2,5}}&amp;=1,5\\\\\n                \\color{blue}{\\frac{7,5}{5}}&amp;=1,5\n                \\end{align}\n                \\]\n            </li>\n</ol>\n<p>\n            Oznacza to, że czworokąt z prawej jest podobny o czworokąta z lewej w skali \\(1,5\\).\n        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                Kolejne kąty wewnętrzne są równe. \n            </li>\n<li>\n                Odpowiednie boki są proporcjonalne, bo:\n                \\[\n                \\begin{align}\n                \\color{red}{\\frac{6}{4}}&amp;=1,5\\\\\n                \\color{green}{\\frac{3}{2}}&amp;=1,5\\\\\n                \\color{orange}{\\frac{3,75}{2,5}}&amp;=1,5\\\\\n                \\color{blue}{\\frac{7,5}{5}}&amp;=1,5\n                \\end{align}\n                \\]\n            </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Oznacza to, że czworokąt z prawej jest podobny o czworokąta z lewej w skali \\(1,5\\).\n        </p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -124,11 +133,40 @@
     {
       "type": "spoiler",
       "label": "dlaczego?",
-      "body": "\n\n<p>\n            Co prawda kolejne kąty wewnętrzne są równe, jednak odpowiednie boki nie są proporcjonalne.\n        </p>\n<p>\n            Odpowiednie boki, czyli będące ramionami takich samych kątów, czyli:\n        </p>\n<ul class=\"nolist\">\n<li>\n                ramiona kąta <span style=\"color: red;\">czerwonego</span> i <span style=\"color: green;\">zielonego</span>:\n                <table class=\"my_table_TL\">\n<tr>\n<td>po lewej</td>\n<td>po prawej</td>\n</tr>\n<tr>\n<td>\\(\\color{red}{4}\\)</td>\n<td>\\(\\color{red}{6}\\)</td>\n</tr>\n</table>\n</li>\n<li>\n                ramiona kąta <span style=\"color: blue;\">niebieskiego</span> i <span style=\"color: red;\">czerwonego</span>:\n                <table class=\"my_table_TL\">\n<tr>\n<td>po lewej</td>\n<td>po prawej</td>\n</tr>\n<tr>\n<td>\\(\\color{blue}{3}\\)</td>\n<td>\\(\\color{blue}{4}\\)</td>\n</tr>\n</table>\n</li>\n</ul>\n<p>\n            Te dwie pary boków nie są proporcjonalne, bo\n        </p>\n        \\[\n        \\begin{align}\n        \\color{red}{\\frac{6}{4}}&amp;=\\frac{3}{2}=\\frac{9}{6}\\\\\n        \\color{blue}{\\frac{4}{3}}&amp;=\\frac{8}{6}\\ne\\frac{9}{6}\n        \\end{align}\n        \\]\n        <p>\n            Oznacza to, że czworokąty nie są podobne.\n        </p>\n<p>\n            Zauważ, że nie musimy porównywać, ani nawet znać wszystkich boków. Dla wykazania, że czworokąty nie są podobne wystarczy pokazać, że dwie pary odpowiednich boków nie są proporcjonalne.\n        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Co prawda kolejne kąty wewnętrzne są równe, jednak odpowiednie boki nie są proporcjonalne.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Odpowiednie boki, czyli będące ramionami takich samych kątów, czyli:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                ramiona kąta <span style=\"color: red;\">czerwonego</span> i <span style=\"color: green;\">zielonego</span>:\n                <table class=\"my_table_TL\">\n<tr>\n<td>po lewej</td>\n<td>po prawej</td>\n</tr>\n<tr>\n<td>\\(\\color{red}{4}\\)</td>\n<td>\\(\\color{red}{6}\\)</td>\n</tr>\n</table>\n</li>\n<li>\n                ramiona kąta <span style=\"color: blue;\">niebieskiego</span> i <span style=\"color: red;\">czerwonego</span>:\n                <table class=\"my_table_TL\">\n<tr>\n<td>po lewej</td>\n<td>po prawej</td>\n</tr>\n<tr>\n<td>\\(\\color{blue}{3}\\)</td>\n<td>\\(\\color{blue}{4}\\)</td>\n</tr>\n</table>\n</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Te dwie pary boków nie są proporcjonalne, bo\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align}\n        \\color{red}{\\frac{6}{4}}&=\\frac{3}{2}=\\frac{9}{6}\\\\\n        \\color{blue}{\\frac{4}{3}}&=\\frac{8}{6}\\ne\\frac{9}{6}\n        \\end{align}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Oznacza to, że czworokąty nie są podobne.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zauważ, że nie musimy porównywać, ani nawet znać wszystkich boków. Dla wykazania, że czworokąty nie są podobne wystarczy pokazać, że dwie pary odpowiednich boków nie są proporcjonalne.\n        </p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -147,9 +185,26 @@
     {
       "type": "spoiler",
       "label": "dlaczego?",
-      "body": "\n\n<p>\n            Tym razem kolejne boki są proporcjonalne:\n        </p>\n        \\[\n        \\begin{align}\n        \\color{red}{\\frac{10}{5}}&amp;=2\\\\\n        \\color{orange}{\\frac{8}{4}}&amp;=2\\\\\n        \\color{green}{\\frac{6}{3}}&amp;=2\\\\\n        \\color{blue}{\\frac{6}{3}}&amp;=2\n        \\end{align}\n        \\]\n        <p>\n            Co z tego, skoro kąty wewnętrzne są różne? Ich miary są nieistotne, wystarczy dostrzec, że czworokąt po lewej jest wypukły (wszystkie kąty poniżej \\(180^{\\circ}\\)), a ten po prawej wklęsły (ma kąt powyżej \\(180^{\\circ}\\)).\n        </p>\n<p>\n            Oznacza to, że czworokąty nie są podobne.\n        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Tym razem kolejne boki są proporcjonalne:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align}\n        \\color{red}{\\frac{10}{5}}&=2\\\\\n        \\color{orange}{\\frac{8}{4}}&=2\\\\\n        \\color{green}{\\frac{6}{3}}&=2\\\\\n        \\color{blue}{\\frac{6}{3}}&=2\n        \\end{align}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Co z tego, skoro kąty wewnętrzne są różne? Ich miary są nieistotne, wystarczy dostrzec, że czworokąt po lewej jest wypukły (wszystkie kąty poniżej \\(180^{\\circ}\\)), a ten po prawej wklęsły (ma kąt powyżej \\(180^{\\circ}\\)).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Oznacza to, że czworokąty nie są podobne.\n        </p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "8ec5669cefe31c2340d74709007a436aa5525640df0861dae6189212f56b4d8e"
+  "seed_hash": "6e83cdb5eaaf5f4caf5cfa61c3988a884d89c602a04e86e7658665762f2bb717"
 }

@@ -24,18 +24,184 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Znajdź równanie stycznej do okręgu \\((x-5)^2+(y+2)^2=25\\) w punkcie \\((2,-6)\\).\n    "
     },
     {
-      "type": "spoiler",
-      "label": "rozwiązanie",
-      "body": "\n\n<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li><a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a></li>\n<li><a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a></li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-1-1\">\n<p>\n<strong>analiza zadania i sposób rozwiązania</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometria_analityczna_2_zadanie_1170_1.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<strong>nachylenie promienia</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometria_analityczna_2_zadanie_1170_2.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<strong>nachylenie stycznej</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometria_analityczna_2_zadanie_1170_3.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<strong>równanie stycznej</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometria_analityczna_2_zadanie_1170_4.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-1-2\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                            Środek okręgu to punkt \n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((-5,2)\\)</div>\n<div class=\"switch_value\">\\((5,-2)\\)</div>\n<div class=\"switch_value\">\\((2,-6)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                            Zacznijmy od współczynnika kierunkowego prostej przechodzącej przez punkty \\((2,-6)\\) oraz środek okręgu \\((5,-2)\\).\n                        </p>\n<details>\n<summary>pamiętasz, jak to zrobić?</summary>\n<div class=\"important\">\n<p>\n                                    Nachylenie prostej przechodzącej przez punkty\n                                </p>\n<div class=\"table_wrapper\">\n                                    \\[\n                                    A=(x_A, y_A)\\quad\\text{oraz}\\quad B=(x_B, y_B)\n                                    \\]    \n                                </div>\n<p>\n                                    dane jest wyrażeniem\n                                </p>\n<div class=\"table_wrapper\">\n                                    \\[\n                                    \\left(\\frac{\\text{skok}}{\\text{krok}}\\right)\\quad =\\frac{y_B-y_A}{x_B-x_A}\n                                    \\]\n                                </div>\n<figure>\n<img src=\"static/funkcja_liniowa_nachylenie_prostej_przez_2_punkty.png\" style=\"max-height: 300px;\"/>\n</figure>\n<!-- ADD INTERNAL LINK -->\n</div>\n</details>\n<div class=\"switch_line\">\n                            Nachylenie tej prostej jest równe \n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{4}{3}\\)</div>\n<div class=\"switch_value\">\\(\\frac{3}{4}\\)</div>\n<div class=\"switch_value\">\\(-\\frac{8}{7}\\)</div>\n<div class=\"switch_value\">\\(-\\frac{7}{8}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                            Styczna do okręgu w punkcie \\((2,-6)\\) jest <strong>prostopadła</strong> do promienia łączącego środek okręgu z tym punktem.\n                        </p>\n<div class=\"switch_line\">\n                            Dlatego współczynnik kierunkowy stycznej jest równy\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{4}{3}\\)</div>\n<div class=\"switch_value\">\\(-\\frac{3}{4}\\)</div>\n<div class=\"switch_value\">\\(-\\frac{4}{3}\\)</div>\n<div class=\"switch_value\">\\(\\frac{3}{4}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                            Tak więc równanie stycznej jest postaci\n                        </p>\n                        \\[\n                        y=-\\frac{3}{4}x+b\n                        \\]\n                        <div class=\"switch_line\">\n                            Styczna przechodzi przez punkt \\((2,-6)\\), więc \n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(-6=-\\frac{3}{4}\\cdot 2+b\\)</div>\n<div class=\"switch_value\">\\(2=-\\frac{3}{4}\\cdot (-6)+b\\)</div>\n<div class=\"switch_value\">\\(b=-6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                            Z równania\n                        </p>\n<div class=\"table_wrapper\">\n                            \\[\n                            \\begin{align}\n                            -6&amp;=-\\frac{3}{4}\\cdot 2+b\\\\\n                            b&amp;=-6+\\frac{3}{4}\\cdot 2\n                            \\end{align}\n                            \\]\n                        </div>\n<div class=\"switch_line\">\n                            wyliczamy, że \n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(b=-4\\tfrac{3}{2}\\)</div>\n<div class=\"switch_value\">\\(b=-9\\tfrac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(b=-7\\tfrac{1}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                            Równanie stycznej do okręgu \\((x-5)^2+(y+2)^2=25\\) w punkcie \\((2,-6)\\) to\n                        </p>\n                        \\[\n                        y=-\\frac{3}{4}x-4\\tfrac{1}{2}\n                        \\]\n                        <figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1170.png\" style=\"max-height: 250px;\"/>\n</figure>\n</div>\n</div>\n</div>\n</div>\n"
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n<strong>analiza zadania i sposób rozwiązania</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_1170_1.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>nachylenie promienia</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_1170_2.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>nachylenie stycznej</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_1170_3.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>równanie stycznej</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_1170_4.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Środek okręgu to punkt \n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\((-5,2)\\)",
+                "\\((5,-2)\\)",
+                "\\((2,-6)\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Zacznijmy od współczynnika kierunkowego prostej przechodzącej przez punkty \\((2,-6)\\) oraz środek okręgu \\((5,-2)\\).\n                        </p>"
+            },
+            {
+              "type": "spoiler",
+              "label": "pamiętasz, jak to zrobić?",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "<p>\n                                    Nachylenie prostej przechodzącej przez punkty\n                                </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "\n                                    \\[\n                                    A=(x_A, y_A)\\quad\\text{oraz}\\quad B=(x_B, y_B)\n                                    \\]    \n                                "
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                                    dane jest wyrażeniem\n                                </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "\n                                    \\[\n                                    \\left(\\frac{\\text{skok}}{\\text{krok}}\\right)\\quad =\\frac{y_B-y_A}{x_B-x_A}\n                                    \\]\n                                "
+                },
+                {
+                  "type": "image",
+                  "media_src": "static/funkcja_liniowa_nachylenie_prostej_przez_2_punkty.png",
+                  "alt": "",
+                  "figcaption": ""
+                }
+              ]
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Nachylenie tej prostej jest równe \n                            \n\n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(\\frac{4}{3}\\)",
+                "\\(\\frac{3}{4}\\)",
+                "\\(-\\frac{8}{7}\\)",
+                "\\(-\\frac{7}{8}\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Styczna do okręgu w punkcie \\((2,-6)\\) jest <strong>prostopadła</strong> do promienia łączącego środek okręgu z tym punktem.\n                        </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Dlatego współczynnik kierunkowy stycznej jest równy\n                            \n\n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(\\frac{4}{3}\\)",
+                "\\(-\\frac{3}{4}\\)",
+                "\\(-\\frac{4}{3}\\)",
+                "\\(\\frac{3}{4}\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Tak więc równanie stycznej jest postaci\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        y=-\\frac{3}{4}x+b\n                        "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Styczna przechodzi przez punkt \\((2,-6)\\), więc \n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(-6=-\\frac{3}{4}\\cdot 2+b\\)",
+                "\\(2=-\\frac{3}{4}\\cdot (-6)+b\\)",
+                "\\(b=-6\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Z równania\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                            \\[\n                            \\begin{align}\n                            -6&amp;=-\\frac{3}{4}\\cdot 2+b\\\\\n                            b&amp;=-6+\\frac{3}{4}\\cdot 2\n                            \\end{align}\n                            \\]\n                        "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            wyliczamy, że \n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(b=-4\\tfrac{3}{2}\\)",
+                "\\(b=-9\\tfrac{1}{2}\\)",
+                "\\(b=-7\\tfrac{1}{2}\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Równanie stycznej do okręgu \\((x-5)^2+(y+2)^2=25\\) w punkcie \\((2,-6)\\) to\n                        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                        y=-\\frac{3}{4}x-4\\tfrac{1}{2}\n                        "
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometria_analityczna_2_zadanie_1170.png",
+              "alt": "",
+              "figcaption": ""
+            }
+          ]
+        }
+      ]
     }
   ],
   "fully_mapped": false,
-  "seed_hash": "bfaf36798e5056dfb4a2455eb0f4e8a1505d7c9107845c210feb6c65c4597d43"
+  "seed_hash": "fabdcabcb166b57072a20f7bf88e4077dfda3eb1e858e4fc2e7ec26ef8e68eca"
 }

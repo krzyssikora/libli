@@ -54,7 +54,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -71,29 +71,70 @@
     {
       "type": "spoiler",
       "label": "przeczytaj",
-      "body": "\n\n<p>\n<strong>\n                Jeśli\n            </strong>\n            wielomian \\(W(x)\\) ma pierwiastek\n            <u>\n                całkowity\n            </u>\n            , to jest on dzielnikiem wyrazu wolnego, czyli liczby \\(-60\\).\n        </p>\n<p>\n            Liczba \\(60\\) ma sporo dzielników, więc żeby żadnego nie przeoczyć, najlepiej wypisywać je parami: pierwszy od najmiejszego do największego, a drugi taki, by iloczyn był równy \\(60\\):\n        </p>\n        \\[\n        \\begin{align*}\n        1\\cdot 60&amp;=60\\\\\n        2\\cdot 30&amp;=60\\\\\n        3\\cdot 20&amp;=60\\\\\n        4\\cdot 15&amp;=60\\\\\n        5\\cdot 12&amp;=60\\\\\n        6\\cdot 10&amp;=60\n        \\end{align*}\n        \\]\n        <p>\n            I tyle, czyli znaleźliśmy dzielniki: \\(1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60\\).\n        </p>\n<p>\n            Ale powinniśmy wziąć też pod uwagę dzielniki ujeme. I dlatego mamy aż \\(24\\) liczby całkowite, które mogą być pierwiastkami wielomianu \\(W(x)\\):\n        </p>\n        \\[\n        \\pm 1, \\pm 2, \\pm 3, \\pm 4, \\pm 5, \\pm 6, \\pm 10, \\pm 12, \\pm 15, \\pm 20, \\pm 30, \\pm 60\n        \\]\n        <p>\n            Oczywiście tylko niektóre z nich będą pierwiastkami wielomianu \\(W(x)\\).\n        </p>\n<p>\n            Jednak już teraz wiemy, że\n            <strong>\n                żadna inna liczba całkowita\n            </strong>\n            nie może być pierwiastkiem tego wielomianu.\n        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                Jeśli\n            </strong>\n            wielomian \\(W(x)\\) ma pierwiastek\n            <u>\n                całkowity\n            </u>\n            , to jest on dzielnikiem wyrazu wolnego, czyli liczby \\(-60\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Liczba \\(60\\) ma sporo dzielników, więc żeby żadnego nie przeoczyć, najlepiej wypisywać je parami: pierwszy od najmiejszego do największego, a drugi taki, by iloczyn był równy \\(60\\):\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align*}\n        1\\cdot 60&=60\\\\\n        2\\cdot 30&=60\\\\\n        3\\cdot 20&=60\\\\\n        4\\cdot 15&=60\\\\\n        5\\cdot 12&=60\\\\\n        6\\cdot 10&=60\n        \\end{align*}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            I tyle, czyli znaleźliśmy dzielniki: \\(1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30, 60\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Ale powinniśmy wziąć też pod uwagę dzielniki ujeme. I dlatego mamy aż \\(24\\) liczby całkowite, które mogą być pierwiastkami wielomianu \\(W(x)\\):\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\pm 1, \\pm 2, \\pm 3, \\pm 4, \\pm 5, \\pm 6, \\pm 10, \\pm 12, \\pm 15, \\pm 20, \\pm 30, \\pm 60\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Oczywiście tylko niektóre z nich będą pierwiastkami wielomianu \\(W(x)\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Jednak już teraz wiemy, że\n            <strong>\n                żadna inna liczba całkowita\n            </strong>\n            nie może być pierwiastkiem tego wielomianu.\n        </p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dany jest wielomian\n        </p>\n        \\[\n        W(x)=2x^3+Bx^2-11x+6\n        \\]\n        gdzie \\(B\\) jest pewną liczbą całkowitą.\n        <p>\n            Wskaż w kolejności rosnącej (tj. od najmniejszej do największej) wszystkie liczby całkowite, które mogą być pierwiastkami tego wielomianu.\n        </p>\n"
+      "body": "<p>\n            Dany jest wielomian\n        </p>"
     },
     {
       "type": "text",
-      "body": "<p>\n        Są to: \\(1\\),\n        <input class=\"table_input\" placeholder=\"??\" type=\"text\"/>\n        ,\n        <input class=\"table_input\" placeholder=\"??\" type=\"text\"/>\n        oraz \\(6\\).\n    </p>"
+      "body": "<p>\\[\n        W(x)=2x^3+Bx^2-11x+6\n        \\]\n        gdzie \\(B\\) jest pewną liczbą całkowitą.</p>"
     },
     {
       "type": "text",
-      "body": "<p>Świetnie!</p>"
+      "body": "<p>\n            Wskaż w kolejności rosnącej (tj. od najmniejszej do największej) wszystkie liczby całkowite, które mogą być pierwiastkami tego wielomianu.\n        </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n            Potencjalnymi całkowitymi pierwiastkami są oczywiście także liczby przeciwne do powyższych, czyli \\(-1\\), \\(-2\\), \\(-3\\) i \\(-6\\).\n        </p>"
+      "type": "fillblank",
+      "stem": "\n        Są to: \\(1\\),\n        ￿0￿\n        ,\n        ￿1￿\n        oraz \\(6\\).\n    ",
+      "blanks": [
+        [
+          "2"
+        ],
+        [
+          "3"
+        ]
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "b83ecf5988a771ada381459717f5a4c194a19c8177c541d82a5f09180918dc8a"
+  "seed_hash": "7b1596052adda362efd55608e8d4a2e5d941818e3ef571da6f8915fb2d0749a7"
 }

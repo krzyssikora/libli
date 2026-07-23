@@ -20,7 +20,7 @@
     },
     {
       "type": "choice",
-      "stem": "<p>Ciąg \\((b_n)\\) jest zdefiniowany wzorem ogólnym</p><p>\\[</p><p>d_n=n^2-7n+10\\quad\\text{dla }n=1, 2, 3, \\dots</p><p>\\]</p><p>Ujemne wyrazy tego ciągu to</p>",
+      "stem": "<p>Ciąg \\((b_n)\\) jest zdefiniowany wzorem ogólnym</p><p>\\[\nd_n=n^2-7n+10\\quad\\text{dla }n=1, 2, 3, \\dots\n\\]</p><p>Ujemne wyrazy tego ciągu to</p>",
       "multiple": false,
       "choices": [
         {
@@ -85,7 +85,7 @@
     },
     {
       "type": "choice",
-      "stem": "<p>Ciąg \\((g_n)\\) jest zdefiniowany wzorem ogólnym</p><p>\\[</p><p>g_n=2n-n^2\\quad\\text{dla }n=1, 2, 3, \\dots</p><p>\\]</p><p>Wówczas</p>",
+      "stem": "<p>Ciąg \\((g_n)\\) jest zdefiniowany wzorem ogólnym</p><p>\\[\ng_n=2n-n^2\\quad\\text{dla }n=1, 2, 3, \\dots\n\\]</p><p>Wówczas</p>",
       "multiple": false,
       "choices": [
         {
@@ -112,5 +112,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "a76d6fbaa4b3f5888c403fecd95ae7c796dd6293f603716be4aa0157b17f08e3"
+  "seed_hash": "a5ffcb9e226c3b52c212291ebf82ab95cc78195b94baf7a970b9c9e913ff3b1f"
 }

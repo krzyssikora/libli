@@ -74,29 +74,39 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Przeczytaj następujące zdanie i powiedz, czy jest prawdziwe.\n        </p>\n<p>\n            Następnie sprawdź swoją odpowiedź.\n        </p>\n        \\[\n        ((x\\gt 5)\\wedge(x = 5))\\Leftrightarrow (x\\ge 5)\n        \\]\n    "
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n<p>\n            Przeczytane zdanie powinno brzmieć mniej-więcej tak:\n        </p>\n<blockquote class=\"centered\">\n            Liczba jest większa od 5 lub równa 5 wtedy i tylko wtedy, gdy jest większa lub równa 5.\n        </blockquote>\n<p>\n            Gdy je przeczytać, łatwo stwierdzić, że jest prawdziwe, bo relacja \"bycia większą lub równą\" (liczbą) jest równoważna byciu większą lub byciu równą.\n        </p>\n</div>",
-      "reason": "unmapped <div> in lesson body"
+      "body": "<p>\n            Przeczytaj następujące zdanie i powiedz, czy jest prawdziwe.\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n"
+      "body": "<p>\n            Następnie sprawdź swoją odpowiedź.\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n        Rozwiązanie - zobacz\n    </div>",
-      "reason": "show_solution button without solution"
+      "type": "math",
+      "latex": "\n        ((x\\gt 5)\\wedge(x = 5))\\Leftrightarrow (x\\ge 5)\n        "
+    },
+    {
+      "type": "spoiler",
+      "label": "Rozwiązanie - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Przeczytane zdanie powinno brzmieć mniej-więcej tak:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote class=\"centered\">\n            Liczba jest większa od 5 lub równa 5 wtedy i tylko wtedy, gdy jest większa lub równa 5.\n        </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Gdy je przeczytać, łatwo stwierdzić, że jest prawdziwe, bo relacja \"bycia większą lub równą\" (liczbą) jest równoważna byciu większą lub byciu równą.\n        </p>"
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "6386f45da904674cd2f6665738ddff46e166d872c38b2ee53f398ab331855613"
+  "fully_mapped": true,
+  "seed_hash": "40851e38ad64e3e80e5cbac665a1197874f02434a3dd0a6e56fb4f8eaa4de0a2"
 }

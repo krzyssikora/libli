@@ -22,16 +22,83 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Wyznacz wzór ogólny na \\(a_n\\) - wyraz ciągu arytmetycznego przyjmując, że\n        <ul>\n<li>\n                pierwszy wyraz ciągu to \\(a_1\\)\n            </li>\n<li>\n                a różnica ciągu to \\(r\\).\n            </li>\n</ul>\n"
+      "body": "<p>Wyznacz wzór ogólny na \\(a_n\\) - wyraz ciągu arytmetycznego przyjmując, że</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                pierwszy wyraz ciągu to \\(a_1\\)\n            </li>\n<li>\n                a różnica ciągu to \\(r\\).\n            </li>\n</ul>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<blockquote>\n                    \"Każdy wyraz ciągu arytmetycznego tworzymy przez dodanie różnicy \\(r\\) do poprzedniego wyrazu...\"\n                </blockquote>\n<div class=\"switch_line\">\n                    więc skoro pierwszy wyraz to \\(a_1\\), to drugi wyraz\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_2=a_1-r\\)</div>\n<div class=\"switch_value\">\\(a_2=a_1+r\\)</div>\n<div class=\"switch_value\">\\(a_2=a_1\\cdot r\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Dalej trzeci wyraz: \\(a_3=a_2+r\\), a podstawiając do tego otrzymane poprzednio \\(a_2=a_1+r\\) otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_3=a_1+2r\\)</div>\n<div class=\"switch_value\">\\(a_3=a_2-r\\)</div>\n<div class=\"switch_value\">\\(a_3=a_1+3r\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Teraz czwarty wyraz: \\(a_4=a_3+r\\), a podstawiając do tego otrzymane poprzednio \\(a_3=a_1+2r\\) otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_4=a_1+4r\\)</div>\n<div class=\"switch_value\">\\(a_4=a_1+3r\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                W ten sposób otrzymujemy:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    a_{\\color{red}{2}}&amp;=a_1+\\color{red}{1}r\\\\\n                    a_{\\color{red}{3}}&amp;=a_1+\\color{red}{2}r\\\\\n                    a_{\\color{red}{4}}&amp;=a_1+\\color{red}{3}r\\\\\n                    a_{\\color{red}{5}}&amp;=a_1+\\color{red}{4}r\\\\\n                    a_{\\color{red}{6}}&amp;=a_1+\\color{red}{5}r\\\\\n                    \\end{align}\n                    \\]\n                    itd.\n                </div>\n                Czyli:\n                <div class=\"centered\">\n                    licząc wyraz o pewnym numerze \\({\\color{red}{n}}\\), do pierwszego wyrazu dodajemy <u style=\"color: red\">o jedną mniej</u> różnicę \\(r\\).\n                </div>\n<div class=\"switch_line\">\n                    I dlatego wzór na \\(n\\)-ty wyraz to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_n=a_1+nr\\)</div>\n<div class=\"switch_value\">\\(a_n=a_1+(n-1)r\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Wzór ogólny na \\(n\\)-ty wyraz ciągu arytmetycznego to\n                \\[\n                a_n=a_1+(n-1)r\n                \\]\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Każdy wyraz ciągu arytmetycznego tworzymy przez dodanie różnicy \\(r\\) do poprzedniego wyrazu...\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    więc skoro pierwszy wyraz to \\(a_1\\), to drugi wyraz\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_2=a_1-r\\)",
+            "\\(a_2=a_1+r\\)",
+            "\\(a_2=a_1\\cdot r\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dalej trzeci wyraz: \\(a_3=a_2+r\\), a podstawiając do tego otrzymane poprzednio \\(a_2=a_1+r\\) otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_3=a_1+2r\\)",
+            "\\(a_3=a_2-r\\)",
+            "\\(a_3=a_1+3r\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Teraz czwarty wyraz: \\(a_4=a_3+r\\), a podstawiając do tego otrzymane poprzednio \\(a_3=a_1+2r\\) otrzymujemy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_4=a_1+4r\\)",
+            "\\(a_4=a_1+3r\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>W ten sposób otrzymujemy:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    a_{\\color{red}{2}}&amp;=a_1+\\color{red}{1}r\\\\\n                    a_{\\color{red}{3}}&amp;=a_1+\\color{red}{2}r\\\\\n                    a_{\\color{red}{4}}&amp;=a_1+\\color{red}{3}r\\\\\n                    a_{\\color{red}{5}}&amp;=a_1+\\color{red}{4}r\\\\\n                    a_{\\color{red}{6}}&amp;=a_1+\\color{red}{5}r\\\\\n                    \\end{align}\n                    \\]\n                    itd.\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>Czyli:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    licząc wyraz o pewnym numerze \\({\\color{red}{n}}\\), do pierwszego wyrazu dodajemy <u style=\"color: red\">o jedną mniej</u> różnicę \\(r\\).\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego wzór na \\(n\\)-ty wyraz to\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_n=a_1+nr\\)",
+            "\\(a_n=a_1+(n-1)r\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Wzór ogólny na \\(n\\)-ty wyraz ciągu arytmetycznego to\n                \\[\n                a_n=a_1+(n-1)r\n                \\]</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -43,57 +110,288 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Pierwszy wyraz ciągu arytmetycznego to \\(3\\), a różnica tego ciągu jest równa \\(2\\).\n        <p>\n            Znajdź <u>setny</u> wyraz tego ciągu.\n        </p>\n"
+      "body": "<p>Pierwszy wyraz ciągu arytmetycznego to \\(3\\), a różnica tego ciągu jest równa \\(2\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź <u>setny</u> wyraz tego ciągu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Dany jest pierwszy wyraz, \\(a_1=3\\), oraz różnica \\(r=2\\). \n                <div class=\"switch_line\">\n                    Chcemy obliczyć\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_{100}\\)</div>\n<div class=\"switch_value\">\\(100a_1\\)</div>\n<div class=\"switch_value\">\\(a_1+100\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Skorzystamy, oczywiście, ze wzoru\n                \\[\n                a_n=a_1+(n-1)r\n                \\]\n                <div class=\"switch_line\">\n                    Do wzoru podstawimy \\(a_1=3\\), \\(r=2\\) oraz \\(n=100\\). Otrzymamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_{100}=3+100\\cdot 2\\)</div>\n<div class=\"switch_value\">\\(a_{100}=3+99\\cdot 2\\)</div>\n<div class=\"switch_value\">\\(a_{100}=2+99\\cdot 3\\)</div>\n<div class=\"switch_value\">\\(a_{100}=2+100\\cdot 3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I dlatego\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_{100}=200\\)</div>\n<div class=\"switch_value\">\\(a_{100}=201\\)</div>\n<div class=\"switch_value\">\\(a_{100}=202\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Setny wyraz ciągu ma wartość\n                \\[\n                a_{100}=201\n                \\]\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Dany jest pierwszy wyraz, \\(a_1=3\\), oraz różnica \\(r=2\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Chcemy obliczyć\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_{100}\\)",
+            "\\(100a_1\\)",
+            "\\(a_1+100\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Skorzystamy, oczywiście, ze wzoru\n                \\[\n                a_n=a_1+(n-1)r\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Do wzoru podstawimy \\(a_1=3\\), \\(r=2\\) oraz \\(n=100\\). Otrzymamy\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_{100}=3+100\\cdot 2\\)",
+            "\\(a_{100}=3+99\\cdot 2\\)",
+            "\\(a_{100}=2+99\\cdot 3\\)",
+            "\\(a_{100}=2+100\\cdot 3\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_{100}=200\\)",
+            "\\(a_{100}=201\\)",
+            "\\(a_{100}=202\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Setny wyraz ciągu ma wartość\n                \\[\n                a_{100}=201\n                \\]</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Czterdziesty wyraz ciągu arytmetycznego to \\(159\\), a różnica tego ciągu jest równa \\(4\\).\n        <p>\n            Znajdź <u>pierwszy</u> wyraz tego ciągu.\n        </p>\n"
+      "body": "<p>Czterdziesty wyraz ciągu arytmetycznego to \\(159\\), a różnica tego ciągu jest równa \\(4\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź <u>pierwszy</u> wyraz tego ciągu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Dany jest czterdziesty wyraz, \\(a_{40}=159\\), oraz różnica \\(r=4\\). \n                <p>\n                    Chcemy znaleźć pierwszy wyraz, czyli \\(a_1\\).\n                </p>\n                Skorzystamy ze wzoru\n                \\[\n                a_n=a_1+(n-1)r\n                \\]\n                <div class=\"switch_line\">\n                    dla\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(r=4\\) i \\(n=40\\)</div>\n<div class=\"switch_value\">\\(r=4\\) i \\(n=159\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Podstawiając do wzoru\n                \\[\n                a_n=a_1+(n-1)r\n                \\]\n                <div class=\"switch_line\">\n                    \\(n=40\\), \\(r=4\\) oraz \\(a_n=a_{40}=159\\) dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(159=a_1+40\\cdot 4\\)</div>\n<div class=\"switch_value\">\\(159=a_1+39\\cdot 4\\)</div>\n<div class=\"switch_value\">\\(40=a_1+39\\cdot 4\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Rozwiązując równanie\n                \\[\n                \\begin{align}\n                159&amp;=a_1+39\\cdot 4\\\\\n                a_1&amp;=159-39\\cdot 4\\\\\n                \\end{align}\n                \\]\n                <div class=\"switch_line\">\n                    otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_1=3\\)</div>\n<div class=\"switch_value\">\\(a_1=4\\)</div>\n<div class=\"switch_value\">\\(a_1=5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Pierwszy wyraz ciągu to\n                \\[\n                a_1=3\n                \\]\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Dany jest czterdziesty wyraz, \\(a_{40}=159\\), oraz różnica \\(r=4\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Chcemy znaleźć pierwszy wyraz, czyli \\(a_1\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Skorzystamy ze wzoru\n                \\[\n                a_n=a_1+(n-1)r\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    dla\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(r=4\\) i \\(n=40\\)",
+            "\\(r=4\\) i \\(n=159\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawiając do wzoru\n                \\[\n                a_n=a_1+(n-1)r\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(n=40\\), \\(r=4\\) oraz \\(a_n=a_{40}=159\\) dostajemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(159=a_1+40\\cdot 4\\)",
+            "\\(159=a_1+39\\cdot 4\\)",
+            "\\(40=a_1+39\\cdot 4\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Rozwiązując równanie\n                \\[\n                \\begin{align}\n                159&=a_1+39\\cdot 4\\\\\n                a_1&=159-39\\cdot 4\\\\\n                \\end{align}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_1=3\\)",
+            "\\(a_1=4\\)",
+            "\\(a_1=5\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Pierwszy wyraz ciągu to\n                \\[\n                a_1=3\n                \\]</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Pierwszy wyraz ciągu arytmetycznego to \\(7\\), a dwudziesty piąty wyraz tego ciągu jest równy \\(43\\).\n        <p>\n            Znajdź <u>różnicę</u> tego ciągu.\n        </p>\n"
+      "body": "<p>Pierwszy wyraz ciągu arytmetycznego to \\(7\\), a dwudziesty piąty wyraz tego ciągu jest równy \\(43\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź <u>różnicę</u> tego ciągu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Dany jest pierwszy wyraz, \\(a_1=7\\), oraz dwudziesty piąty \\(a_{25}=43\\). \n                <p>\n                    Chcemy znaleźć różnicę, czyli \\(r\\).\n                </p>\n                Ponownie skorzystamy ze wzoru\n                \\[\n                a_n=a_1+(n-1)r\n                \\]\n                <div class=\"switch_line\">\n                    tym razem dla\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_1=7\\), \\(n=43\\) i \\(a_n=a_{43}=25\\)</div>\n<div class=\"switch_value\">\\(a_1=7\\), \\(n=25\\) i \\(a_n=a_{25}=43\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Podstawiając do wzoru\n                \\[\n                a_n=a_1+(n-1)r\n                \\]\n                <div class=\"switch_line\">\n                    \\(a_1=7\\), \\(n=25\\) i \\(a_n=a_{25}=43\\) dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(43=7+42r\\)</div>\n<div class=\"switch_value\">\\(43=7+24r\\)</div>\n<div class=\"switch_value\">\\(25=7+42r\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Rozwiązując równanie\n                \\[\n                \\begin{align}\n                43&amp;=7+24r\\\\\n                24r&amp;=43-7\\\\\n                24r&amp;=36\\\\\n                \\end{align}\n                \\]\n                <div class=\"switch_line\">\n                    otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(r=12\\)</div>\n<div class=\"switch_value\">\\(r=\\tfrac{2}{3}\\)</div>\n<div class=\"switch_value\">\\(r=1,5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Różnica ciągu to\n                \\[\n                r=1\\tfrac{1}{2}\n                \\]\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Dany jest pierwszy wyraz, \\(a_1=7\\), oraz dwudziesty piąty \\(a_{25}=43\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Chcemy znaleźć różnicę, czyli \\(r\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Ponownie skorzystamy ze wzoru\n                \\[\n                a_n=a_1+(n-1)r\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    tym razem dla\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_1=7\\), \\(n=43\\) i \\(a_n=a_{43}=25\\)",
+            "\\(a_1=7\\), \\(n=25\\) i \\(a_n=a_{25}=43\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawiając do wzoru\n                \\[\n                a_n=a_1+(n-1)r\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(a_1=7\\), \\(n=25\\) i \\(a_n=a_{25}=43\\) dostajemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(43=7+42r\\)",
+            "\\(43=7+24r\\)",
+            "\\(25=7+42r\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Rozwiązując równanie\n                \\[\n                \\begin{align}\n                43&=7+24r\\\\\n                24r&=43-7\\\\\n                24r&=36\\\\\n                \\end{align}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(r=12\\)",
+            "\\(r=\\tfrac{2}{3}\\)",
+            "\\(r=1,5\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Różnica ciągu to\n                \\[\n                r=1\\tfrac{1}{2}\n                \\]</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Pierwszy wyraz ciągu arytmetycznego to \\(28\\), a różnica tego ciągu jest równa \\(-3\\).\n        <p>\n            Który wyraz ma wartość \\(-20\\)?\n        </p>\n"
+      "body": "<p>Pierwszy wyraz ciągu arytmetycznego to \\(28\\), a różnica tego ciągu jest równa \\(-3\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Który wyraz ma wartość \\(-20\\)?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Dany jest pierwszy wyraz, \\(a_1=28\\), oraz różnica \\(r=-3\\). \n                <p>\n                    Znamy też wartość pewnego wyrazu, powiedzmy, że \n                    \\(n\\)-tego:\n                </p>\n                \\[\n                a_n=-20\n                \\]\n                <p>\n                    Nie znamy indeksu tego wyrazu, \\(n\\).\n                </p>\n                Ponownie skorzystamy ze wzoru\n                \\[\n                a_n=a_1+(n-1)r\n                \\]\n                <div class=\"switch_line\">\n                    tym razem dla\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_1=28\\), \\(r=-3\\) i \\(a_{20}=-20\\)</div>\n<div class=\"switch_value\">\\(a_1=28\\), \\(r=-3\\) i \\(a_n=-20\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Podstawiając do wzoru\n                \\[\n                a_n=a_1+(n-1)r\n                \\]\n                <div class=\"switch_line\">\n                    \\(a_1=28\\), \\(r=-3\\) i \\(a_n=-20\\) dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(-20=28+(n-1)\\cdot(-3)\\)</div>\n<div class=\"switch_value\">\\(-20=28+(n-1)\\cdot 3\\)</div>\n<div class=\"switch_value\">\\(-20=28+n\\cdot 3\\)</div>\n<div class=\"switch_value\">\\(-20=28+n\\cdot (-3)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Rozwiązując równanie\n                \\[\n                -20=28+(n-1)\\cdot(-3)\\\\\n                \\]\n                <div class=\"switch_line\">\n                    otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(n=16\\)</div>\n<div class=\"switch_value\">\\(n=17\\)</div>\n<div class=\"switch_value\">\\(n=18\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Wyraz siedemnasty ma wartość \\(-20\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Dany jest pierwszy wyraz, \\(a_1=28\\), oraz różnica \\(r=-3\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Znamy też wartość pewnego wyrazu, powiedzmy, że \n                    \\(n\\)-tego:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                a_n=-20\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Nie znamy indeksu tego wyrazu, \\(n\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Ponownie skorzystamy ze wzoru\n                \\[\n                a_n=a_1+(n-1)r\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    tym razem dla\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_1=28\\), \\(r=-3\\) i \\(a_{20}=-20\\)",
+            "\\(a_1=28\\), \\(r=-3\\) i \\(a_n=-20\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawiając do wzoru\n                \\[\n                a_n=a_1+(n-1)r\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(a_1=28\\), \\(r=-3\\) i \\(a_n=-20\\) dostajemy\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(-20=28+(n-1)\\cdot(-3)\\)",
+            "\\(-20=28+(n-1)\\cdot 3\\)",
+            "\\(-20=28+n\\cdot 3\\)",
+            "\\(-20=28+n\\cdot (-3)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Rozwiązując równanie\n                \\[\n                -20=28+(n-1)\\cdot(-3)\\\\\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(n=16\\)",
+            "\\(n=17\\)",
+            "\\(n=18\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Wyraz siedemnasty ma wartość \\(-20\\).</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "04f367eb25d87976158c72e0d44279cb2b1faa57c721a2f47217e3a3cdc5dd38"
+  "seed_hash": "68f8acec14afcf62b8d43b256f548ed7eae383d61383bd8f4a6c13db41b3d0e3"
 }

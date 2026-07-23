@@ -3,7 +3,26 @@
     {
       "type": "spoiler",
       "label": "Przypomnijmy, czym jest podobieństwo czworokątów:",
-      "body": "\n\n<div class=\"important\">\n<p>\n            Czworokąty \\(A_1B_1C_1D_1\\) i \\(A_2B_2C_2D_2\\) są <strong>podobne</strong> (\\(A_1B_1C_1D_1\\sim A_2B_2C_2D_2\\)) jeśli\n        </p>\n<ul class=\"nolist\">\n<li>\n                równe są kolejne kąty wewnętrzne:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\color{red}{A_1}=\\color{red}{A_2},\\quad \\color{green}{B_1}=\\color{green}{B_2},\\quad \\color{orange}{C_1}=\\color{orange}{C_2},\\quad \\color{blue}{D_1}=\\color{blue}{D_2}\n                    \\]\n                </div>\n</li>\n<li>\n                odpowiednie boki są proporcjonalne:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\color{red}{\\frac{A_2B_2}{A_1B_1}}=\\color{green}{\\frac{B_2C_2}{B_1C_1}}=\\color{orange}{\\frac{C_2D_2}{C_1D_1}}=\\color{blue}{\\frac{D_2A_2}{D_1A_1}}\n                    \\]\n                </div>\n</li>\n</ul>\n<figure>\n<img src=\"static/czworokaty_podobne_def_1.png\" style=\"max-height: 250px;\"/>\n</figure>\n<p>\n            Wartość każdego ułamka z powyższych to <strong>skala podobieństwa</strong> czworokąta \\(A_2B_2C_2D_2\\) do \\(A_1B_1C_1D_1\\).\n        </p>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Czworokąty \\(A_1B_1C_1D_1\\) i \\(A_2B_2C_2D_2\\) są <strong>podobne</strong> (\\(A_1B_1C_1D_1\\sim A_2B_2C_2D_2\\)) jeśli\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                równe są kolejne kąty wewnętrzne:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\color{red}{A_1}=\\color{red}{A_2},\\quad \\color{green}{B_1}=\\color{green}{B_2},\\quad \\color{orange}{C_1}=\\color{orange}{C_2},\\quad \\color{blue}{D_1}=\\color{blue}{D_2}\n                    \\]\n                </div>\n</li>\n<li>\n                odpowiednie boki są proporcjonalne:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\color{red}{\\frac{A_2B_2}{A_1B_1}}=\\color{green}{\\frac{B_2C_2}{B_1C_1}}=\\color{orange}{\\frac{C_2D_2}{C_1D_1}}=\\color{blue}{\\frac{D_2A_2}{D_1A_1}}\n                    \\]\n                </div>\n</li>\n</ul>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/czworokaty_podobne_def_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Wartość każdego ułamka z powyższych to <strong>skala podobieństwa</strong> czworokąta \\(A_2B_2C_2D_2\\) do \\(A_1B_1C_1D_1\\).\n        </p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -27,7 +46,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "image",
@@ -119,21 +138,30 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Uzupełnij zdania.\n    "
     },
     {
-      "type": "text",
-      "body": "<ol class=\"bold\">\n<li>\n            Jeśli wielokąt \\(W_2\\) jest podobny do wielokąta \\(W_1\\) w skali \\(4\\), to wielokąt \\(W_1\\) jest podobny do wielokąta \\(W_2\\) w skali <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>.\n        </li>\n<li>\n            Jeśli wielokąt \\(W_2\\) jest podobny do wielokąta \\(W_1\\) w skali \\(\\frac{4}{3}\\), to wielokąt \\(W_1\\) jest podobny do wielokąta \\(W_2\\) w skali <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>.\n        </li>\n<li>\n            Wielokąt \\(W_1\\) jest podobny do wielokąta \\(W_2\\) w skali \\(2\\).<br/>\n            Pewna długość w wielokącie \\(W_1\\) jest równa \\(6\\). Wówczas odpowiadająca jej długość w wielokącie \\(W_2\\) jest równa <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>.\n        </li>\n</ol>"
-    },
-    {
-      "type": "text",
-      "body": "\n    Świetnie!\n"
+      "type": "fillblank",
+      "stem": "\n<li>\n            Jeśli wielokąt \\(W_2\\) jest podobny do wielokąta \\(W_1\\) w skali \\(4\\), to wielokąt \\(W_1\\) jest podobny do wielokąta \\(W_2\\) w skali ￿0￿.\n        </li>\n<li>\n            Jeśli wielokąt \\(W_2\\) jest podobny do wielokąta \\(W_1\\) w skali \\(\\frac{4}{3}\\), to wielokąt \\(W_1\\) jest podobny do wielokąta \\(W_2\\) w skali ￿1￿.\n        </li>\n<li>\n            Wielokąt \\(W_1\\) jest podobny do wielokąta \\(W_2\\) w skali \\(2\\).<br/>\n            Pewna długość w wielokącie \\(W_1\\) jest równa \\(6\\). Wówczas odpowiadająca jej długość w wielokącie \\(W_2\\) jest równa ￿2￿.\n        </li>\n",
+      "blanks": [
+        [
+          ".25",
+          ",25"
+        ],
+        [
+          ".75",
+          ",75"
+        ],
+        [
+          "3"
+        ]
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "7812119eee26e0c28c8ab9328e881d80e086379a37a9c7aab37081903be3d300"
+  "seed_hash": "8d8a64b1f3a8f7ca676a78fad1d34a6e0cb6180a5b37680a6a5671e8c794922b"
 }

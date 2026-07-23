@@ -38,7 +38,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -47,27 +47,196 @@
     {
       "type": "spoiler",
       "label": "dlaczego?",
-      "body": "\n\n            Sprawdźmy, jaka jest różnica między kolejnymi wyrazami.\n            <div class=\"table_wrapper\">\n<table class=\"my_table_CL\">\n<tr>\n<td>\\(a_2-a_1=\\)</td>\n<td>\\(=7-3=\\)</td>\n<td>\\(=4\\)</td>\n</tr>\n<tr>\n<td>\\(a_3-a_2=\\)</td>\n<td>\\(=11-7=\\)</td>\n<td>\\(=4\\)</td>\n</tr>\n<tr>\n<td>\\(a_4-a_3=\\)</td>\n<td>\\(=15-11=\\)</td>\n<td>\\(=4\\)</td>\n</tr>\n<tr>\n<td>\\(a_5-a_4=\\)</td>\n<td>\\(=19-15=\\)</td>\n<td>\\(=4\\)</td>\n</tr>\n</table>\n</div>\n            Różnica między wszystkimi parami kolejnych wyrazów jest stała, więc ciąg \\((a_n)\\) jest arytmetyczny o różnicy \\(r=4\\).\n        "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Sprawdźmy, jaka jest różnica między kolejnymi wyrazami.</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(a_2-a_1=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=7-3=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(a_3-a_2=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=11-7=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(a_4-a_3=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=15-11=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(a_5-a_4=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=19-15=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Różnica między wszystkimi parami kolejnych wyrazów jest stała, więc ciąg \\((a_n)\\) jest arytmetyczny o różnicy \\(r=4\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Wskaż różnicę każdego z ciągów arytmetycznych o podanych niżej wyrazach.\n    "
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<table class=\"my_table_CL\">\n<tr>\n<th>(1)</th>\n<td>\\(1,\\,3,\\,5,\\,7,\\,9,\\,11,\\,13,\\dots\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<td colspan=\"3\">\n<details>\n<summary><small>wskazówka</small></summary>\n                        Weź dowolny wyraz, poza pierwszym, i odejmij poprzedni:\n                        <div>\n                            \\(3-1\\) albo \\(5-3\\) albo \\(7-5\\) albo \\(9-7\\) albo \\(11-9\\) albo \\(13-11\\)\n                        </div>\n</details>\n</td>\n</tr>\n<tr>\n<th>(2)</th>\n<td>\\(2,\\,7,\\,12,\\,17,\\,22,\\,27,\\dots\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<th>(3)</th>\n<td>\\(22,\\,19,\\,16,\\,13,\\,10,\\dots\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<th>(4)</th>\n<td>\\(7;\\,5,5;\\,4;\\,2,5;\\,1,\\dots\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<th>(5)</th>\n<td>\\(\\tfrac{1}{2},\\,\\tfrac{5}{6},\\,\\tfrac{7}{6},\\,\\tfrac{3}{2},\\,\\tfrac{11}{6} ,\\dots\\)</td>\n<td><input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n</table>",
-      "reason": "table uses rowspan/colspan"
-    },
-    {
-      "type": "text",
-      "body": "\n    Znakomicie!\n"
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "(1)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(1,\\,3,\\,5,\\,7,\\,9,\\,11,\\,13,\\dots\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "<details>\n<summary><small>wskazówka</small></summary>\n                        Weź dowolny wyraz, poza pierwszym, i odejmij poprzedni:\n                        <div>\n                            \\(3-1\\) albo \\(5-3\\) albo \\(7-5\\) albo \\(9-7\\) albo \\(11-9\\) albo \\(13-11\\)\n                        </div>\n</details>",
+              "colspan": 3
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "(2)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(2,\\,7,\\,12,\\,17,\\,22,\\,27,\\dots\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "5"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "(3)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(22,\\,19,\\,16,\\,13,\\,10,\\dots\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-3"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "(4)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(7;\\,5,5;\\,4;\\,2,5;\\,1,\\dots\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-1.5|-1,5"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "(5)",
+              "header": true
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\tfrac{1}{2},\\,\\tfrac{5}{6},\\,\\tfrac{7}{6},\\,\\tfrac{3}{2},\\,\\tfrac{11}{6} ,\\dots\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "1/3"
+            }
+          ]
+        ]
+      }
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "1eaa1735fabdd10512c188e6bf9187b01d0073650b63ea48b7e9b134a509a7c8"
+  "fully_mapped": true,
+  "seed_hash": "72ba9362989385e282ac7450f96e3d6c1d163a65c15ef16b8b6414145dae55ff"
 }

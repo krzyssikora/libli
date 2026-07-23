@@ -14,7 +14,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -27,174 +27,130 @@
       "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "<p>Współczynnik \\(a\\):</p>"
+      "type": "switch_grid",
+      "prompt": "",
+      "lines": [
+        {
+          "stem": "\n            Współczynnik \\(a\\):\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(a\\gt 0\\)",
+                "\\(a\\lt 0\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n            Współczynnik \\(c\\):\n            \n\n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(c=-3\\)",
+                "\\(c=5\\)",
+                "\\(c=3\\)"
+              ],
+              "answer": 2
+            }
+          ]
+        },
+        {
+          "stem": "\n            Funkcja jest rosnąca dla\n            \n\n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(x\\in\\langle -1, +\\infty)\\)",
+                "\\(x\\in(-\\infty, -1\\rangle\\)",
+                "\\(x\\in\\mathbb{R}\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n            Funkcja jest malejąca dla\n            \n\n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(x\\in\\langle -1, +\\infty)\\)",
+                "\\(x\\in(-\\infty, -1\\rangle\\)",
+                "\\(x\\in\\mathbb{R}\\)"
+              ],
+              "answer": 0
+            }
+          ]
+        },
+        {
+          "stem": "\n            Funkcja ma 2 miejsca zerowe, więc:\n            \n\n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(\\Delta\\gt 0\\)",
+                "\\(\\Delta= 0\\)",
+                "\\(\\Delta\\lt 0\\)"
+              ],
+              "answer": 0
+            }
+          ]
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n                \\(a\\gt 0\\)\n            "
+      "body": "<p>\n            Nie możemy bezpośrednio ustalić, czy współczynnik \\(b\\gt 0\\) czy \\(b\\lt 0\\).\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n                \\(a\\lt 0\\)\n            "
+      "body": "<p>\n            Znamy jednak wzór na współrzędną \\(x\\)-ową wierzchołka \\(x_W=-\\frac{b}{2a}\\). Znając znak (\"+\" lub \"-\") tej współrzędnej oraz współczynnika \\(a\\), możemy ustalić znak współczynnika \\(b\\).\n        </p>"
     },
     {
-      "type": "text",
-      "body": "<p>Współczynnik \\(c\\):</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(c=-3\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(c=5\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(c=3\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "<p>Funkcja jest rosnąca dla</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(x\\in\\langle -1, +\\infty)\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(x\\in(-\\infty, -1\\rangle\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(x\\in\\mathbb{R}\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "<p>Funkcja jest malejąca dla</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(x\\in\\langle -1, +\\infty)\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(x\\in(-\\infty, -1\\rangle\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(x\\in\\mathbb{R}\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "<p>Funkcja ma 2 miejsca zerowe, więc:</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(\\Delta\\gt 0\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(\\Delta= 0\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(\\Delta\\lt 0\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n            zatwierdź\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            Świetnie!\n        "
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n<p>\n            Nie możemy bezpośrednio ustalić, czy współczynnik \\(b\\gt 0\\) czy \\(b\\lt 0\\).\n        </p>\n<p>\n            Znamy jednak wzór na współrzędną \\(x\\)-ową wierzchołka \\(x_W=-\\frac{b}{2a}\\). Znając znak (\"+\" lub \"-\") tej współrzędnej oraz współczynnika \\(a\\), możemy ustalić znak współczynnika \\(b\\).\n        </p>\n"
-    },
-    {
-      "type": "text",
-      "body": "<p>Jeszcze raz \\(a\\):</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(a\\gt 0\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(a\\lt 0\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "<p>Współrzędna \\(x\\)-owa wierzchołka:</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(x_W\\gt 0\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(x_W\\lt 0\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "<p>I dlatego współczynnik \\(b\\):</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                &gt;&gt; wybierz &gt;&gt;\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(b\\gt 0\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(b\\lt 0\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n            zatwierdź\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            Świetnie!\n        "
+      "type": "switch_grid",
+      "prompt": "",
+      "lines": [
+        {
+          "stem": "\n            Jeszcze raz \\(a\\):\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(a\\gt 0\\)",
+                "\\(a\\lt 0\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n            Współrzędna \\(x\\)-owa wierzchołka:\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(x_W\\gt 0\\)",
+                "\\(x_W\\lt 0\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        },
+        {
+          "stem": "\n            I dlatego współczynnik \\(b\\):\n            \n\n\n￿0￿",
+          "cyclers": [
+            {
+              "options": [
+                "\\(b\\gt 0\\)",
+                "\\(b\\lt 0\\)"
+              ],
+              "answer": 1
+            }
+          ]
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "268420935528c61241bd4d8eb2ed50ad3bf03079acc2893647b25e6fb79173ab"
+  "seed_hash": "d55f125e5a6d657fa8850d7237c13137d5be4462cdc58164fda3ecef55ec0715"
 }

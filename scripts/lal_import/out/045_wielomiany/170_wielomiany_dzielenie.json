@@ -14,7 +14,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -25,726 +25,739 @@
       "body": "<p>\n        Możesz przeczytać o tej metodzie krok po kroku, lub obejrzeć nagranie.\n    </p>"
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    krok po kroku\n                </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    nagranie\n                </a>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Schemat Hornera to metoda bardzo prosta, więc chętnie stosowana. Ma jednak jedno bardzo istotne ograniczenie:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                        może być stosowana tylko do dzielenia przez wielomiany postaci \\((x-\\alpha)\\).\n                    "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        gdzie \\(\\alpha\\) jest dowolną liczbą. Mogą to więc być dzielniki postaci:\n                    </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\n                    (x-2), \\quad (x+4), \\quad (x-2,5), \\quad (x+\\pi)\n                    "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        ale nie \\(\\color{red}{2}x-3\\).\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Skoro\n                        <span style=\"color: red;\">\n                            dwójka\n                        </span>\n                        nam przeszkadza, wyłączmy ją przed nawias:\n                    </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\n                    \\color{red}{2}x-3=\\color{red}{2}\\left(x-\\frac{3}{2}\\right)\n                    "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        i wykonajmy dzielenie przez \\(\\left(x-\\frac{3}{2}\\right)\\), a potem zastanowimy się, co zrobić, by dzielnikiem był dwumian \\((2x-3)\\).\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Schemat Hornera to dzielenie w uproszczony sposób. Zaczynamy je wpisując do tabeli wszystkie współczynniki dzielonego wielomianu:\n                    </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\n                    \\color{red}{2}x^3\\color{red}{-9}x^2+\\color{red}{13}x+\\color{red}{1}\n                    "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        czyli\n                    </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\n                    2, \\quad -9, \\quad 13, \\quad 1\n                    "
-    },
-    {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "krok po kroku",
+          "elements": [
             {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
+              "type": "text",
+              "body": "<p>\n                Schemat Hornera to metoda bardzo prosta, więc chętnie stosowana. Ma jednak jedno bardzo istotne ograniczenie:\n            </p>"
             },
             {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
             },
             {
-              "html": "\\(-9\\)",
-              "halign": "left",
-              "valign": "top"
+              "type": "text",
+              "body": "\n                        może być stosowana tylko do dzielenia przez wielomiany postaci \\((x-\\alpha)\\).\n                    "
             },
             {
-              "html": "\\(13\\)",
-              "halign": "left",
-              "valign": "top"
+              "type": "text",
+              "body": "<p>\n                        gdzie \\(\\alpha\\) jest dowolną liczbą. Mogą to więc być dzielniki postaci:\n                    </p>"
             },
             {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
+              "type": "math",
+              "latex": "\n                    (x-2), \\quad (x+4), \\quad (x-2,5), \\quad (x+\\pi)\n                    "
             },
             {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
+              "type": "text",
+              "body": "<p>\n                        ale nie \\(\\color{red}{2}x-3\\).\n                    </p>"
             },
             {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
             },
             {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
+              "type": "text",
+              "body": "<p>\n                        Skoro\n                        <span style=\"color: red;\">\n                            dwójka\n                        </span>\n                        nam przeszkadza, wyłączmy ją przed nawias:\n                    </p>"
             },
             {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
+              "type": "math",
+              "latex": "\n                    \\color{red}{2}x-3=\\color{red}{2}\\left(x-\\frac{3}{2}\\right)\n                    "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        i wykonajmy dzielenie przez \\(\\left(x-\\frac{3}{2}\\right)\\), a potem zastanowimy się, co zrobić, by dzielnikiem był dwumian \\((2x-3)\\).\n                    </p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Schemat Hornera to dzielenie w uproszczony sposób. Zaczynamy je wpisując do tabeli wszystkie współczynniki dzielonego wielomianu:\n                    </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                    \\color{red}{2}x^3\\color{red}{-9}x^2+\\color{red}{13}x+\\color{red}{1}\n                    "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        czyli\n                    </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                    2, \\quad -9, \\quad 13, \\quad 1\n                    "
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-9\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(13\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(1\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>\n                            Uwaga\n                        </strong>\n                        , gdyby w wielomianie brakowało jakiegoś wyrazu, wówczas wpisujemy w tabeli współczynnik \\(0\\), na przykład dla wielomianu\n                    </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                    5x^3-6x+7=\\color{red}{5}x^3+\\color{red}{0}x^2\\color{red}{-6}x+\\color{red}{7}\n                    \\]\n                    kolejne współczynniki to:\n                    \\[\n                    5, \\quad 0, \\quad -6, \\quad 7\n                    "
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        A wracając do naszego dzielenia, w dolnym wierszu tabeli, w komórce po lewej, wpisujemy \\(\\frac{3}{2}\\), czyli liczbę\n                        <strong>\n                            odjętą od \\(x\\) w dzielniku\n                        </strong>\n                        \\(\\left(x-\\frac{3}{2}\\right)\\).\n                    </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-9\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(13\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(1\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\frac{3}{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        I teraz spisujemy pierwszy współczynnik z góry:\n                    </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-9\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(13\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(1\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\frac{3}{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Od tego momentu robimy w kółko to samo, aż wypełnimy tabelę:\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ol class=\"bold\">\n<li>\n<span class=\"blue_on_green\" style=\"display: inline-block; height: 2em;\">\n                                mnożymy ostatni wynik przez liczbę z lewej \\(\\left(\\frac{3}{2}\\right)\\)\n                            </span>\n                            ,\n                        </li>\n<li>\n<span class=\"red_on_yellow\">\n                                dodajemy kolejną liczbę z góry\n                            </span>\n                            i wpisujemy w kolejną komórkę.\n                        </li>\n</ol>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "\n<span class=\"blue_on_green\" style=\"display: inline-block; height: 2em;\">\n                            \\(\\frac{3}{2}\\)\n                        </span>\n                        \\(\\cdot 2+\\)\n                        <span class=\"red_on_yellow\" style=\"display: inline-block; height: 1.5em;\">\n                            \\((-9)\\)\n                        </span>\n                        \\(=\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(-6\\)\n                        </span>\n"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-9\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(13\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(1\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\frac{3}{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-6\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "\n<span class=\"blue_on_green\" style=\"display: inline-block; height: 2em;\">\n                            \\(\\frac{3}{2}\\)\n                        </span>\n                        \\(\\cdot (-6)+\\)\n                        <span class=\"red_on_yellow\" style=\"display: inline-block; height: 1.5em;\">\n                            \\(13\\)\n                        </span>\n                        \\(=\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(4\\)\n                        </span>\n"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-9\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(13\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(1\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\frac{3}{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-6\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(4\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "\n<span class=\"blue_on_green\" style=\"display: inline-block; height: 2em;\">\n                            \\(\\frac{3}{2}\\)\n                        </span>\n                        \\(\\cdot 4+\\)\n                        <span class=\"red_on_yellow\" style=\"display: inline-block; height: 1.5em;\">\n                            \\(1\\)\n                        </span>\n                        \\(=\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(7\\)\n                        </span>\n"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-9\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(13\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(1\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\frac{3}{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-6\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(4\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(7\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Otrzymaliśmy cztery liczby:\n                    </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-9\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(13\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(1\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(\\frac{3}{2}\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-6\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(4\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(7\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Ale co one oznaczają?\n                    </p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Dzieliliśmy wielomian stopnia \\(3\\): \\(\\rightarrow 2x^3-9x^2+13x+1\\) przez dzielnik stopnia \\(1\\): \\(\\rightarrow \\left(x-\\tfrac{3}{2}\\right)\\), więc wynik będzie stopnia \\(2\\).\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Tak więc otrzymane liczby to współczynniki potęg:\n                    </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "\\(x^2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(x^1\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(x^0\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(?\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(2\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(-6\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(4\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(7\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Czym jest pozostała siódemka? To oczywiście reszta z dzielenia. Możemy zapisać:\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                        \\((2x^3-9x^2+13x+1):\\left(x-\\tfrac{3}{2}\\right)=\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(2\\)\n                        </span>\n                        \\(x^2\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(-6\\)\n                        </span>\n                        \\(x^1+\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(4\\)\n                        </span>\n                        \\(x^0\\) reszty\n                        <span class=\"magenta_on_gray\">\n                            \\(7\\)\n                        </span>\n"
+            },
+            {
+              "type": "text",
+              "body": "<p>czyli</p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                        \\((2x^3-9x^2+13x+1):\\left(x-\\tfrac{3}{2}\\right)=\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(2\\)\n                        </span>\n                        \\(x^2\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(-6\\)\n                        </span>\n                        \\(x+\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(4\\)\n                        </span>\n                        reszty\n                        <span class=\"magenta_on_gray\">\n                            \\(7\\)\n                        </span>\n"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Możemy to też zapisać:\n                    </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                    \\frac{2x^3-9x^2+13x+1}{x-\\tfrac{3}{2}}=2x^2-6x+4+\\frac{7}{x-\\tfrac{3}{2}}\n                    "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Ale jakie byłyby\n                        <strong>\n                            wynik\n                        </strong>\n                        i\n                        <strong>\n                            reszta\n                        </strong>\n                        przy dzieleniu przez \\((2x-3)\\)?\n                    </p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        \\((2x-3)\\) to dwukrotność \\(\\left(x-\\tfrac{3}{2}\\right)\\), więc chcielibyśmy mieć dwukrotnie większe mianowniki ułamków w równaniu powyżej.\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        A w tym celu pomnożymy to równanie przez \\(\\tfrac{1}{2}\\):\n                    </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                    \\begin{align*}\n                    \\frac{2x^3-9x^2+13x+1}{x-\\tfrac{3}{2}}&=2x^2-6x+4+\\frac{7}{x-\\tfrac{3}{2}}\\\\\n                    \\frac{2x^3-9x^2+13x+1}{x-\\tfrac{3}{2}}\\cdot\\color{red}{\\frac{1}{2}}&=(2x^2-6x+4)\\cdot\\color{red}{\\frac{1}{2}}+\\frac{7}{x-\\tfrac{3}{2}}\\cdot\\color{red}{\\frac{1}{2}}\\\\\n                    \\frac{2x^3-9x^2+13x+1}{2x-3}&=(x^2-3x+2)+\\frac{7}{2x-3}\n                    \\end{align*}\n                    "
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Tak więc wynikiem dzielenia jest \\((x^2-3x+2)\\), a reszta to \\(7\\).\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        W porównaniu z wynikami z tabeli widzimy, że współczynniki ilorazu są dwukrotnie niższe, ale reszta jest taka sama.\n                    </p>"
             }
           ]
-        ]
-      }
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<strong>\n                            Uwaga\n                        </strong>\n                        , gdyby w wielomianie brakowało jakiegoś wyrazu, wówczas wpisujemy w tabeli współczynnik \\(0\\), na przykład dla wielomianu\n                    </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\n                    5x^3-6x+7=\\color{red}{5}x^3+\\color{red}{0}x^2\\color{red}{-6}x+\\color{red}{7}\n                    \\]\n                    kolejne współczynniki to:\n                    \\[\n                    5, \\quad 0, \\quad -6, \\quad 7\n                    "
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        A wracając do naszego dzielenia, w dolnym wierszu tabeli, w komórce po lewej, wpisujemy \\(\\frac{3}{2}\\), czyli liczbę\n                        <strong>\n                            odjętą od \\(x\\) w dzielniku\n                        </strong>\n                        \\(\\left(x-\\frac{3}{2}\\right)\\).\n                    </p>"
-    },
-    {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
+        },
+        {
+          "id": "t000001",
+          "label": "nagranie",
+          "elements": [
             {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(-9\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(13\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "\\(\\frac{3}{2}\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
+              "type": "video",
+              "media_src": "static/schemat_hornera.mp4"
             }
           ]
-        ]
-      }
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        I teraz spisujemy pierwszy współczynnik z góry:\n                    </p>"
-    },
-    {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(-9\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(13\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "\\(\\frac{3}{2}\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            }
-          ]
-        ]
-      }
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Od tego momentu robimy w kółko to samo, aż wypełnimy tabelę:\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<ol class=\"bold\">\n<li>\n<span class=\"blue_on_green\" style=\"display: inline-block; height: 2em;\">\n                                mnożymy ostatni wynik przez liczbę z lewej \\(\\left(\\frac{3}{2}\\right)\\)\n                            </span>\n                            ,\n                        </li>\n<li>\n<span class=\"red_on_yellow\">\n                                dodajemy kolejną liczbę z góry\n                            </span>\n                            i wpisujemy w kolejną komórkę.\n                        </li>\n</ol>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n<span class=\"blue_on_green\" style=\"display: inline-block; height: 2em;\">\n                            \\(\\frac{3}{2}\\)\n                        </span>\n                        \\(\\cdot 2+\\)\n                        <span class=\"red_on_yellow\" style=\"display: inline-block; height: 1.5em;\">\n                            \\((-9)\\)\n                        </span>\n                        \\(=\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(-6\\)\n                        </span>\n"
-    },
-    {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(-9\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(13\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "\\(\\frac{3}{2}\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(-6\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            }
-          ]
-        ]
-      }
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n<span class=\"blue_on_green\" style=\"display: inline-block; height: 2em;\">\n                            \\(\\frac{3}{2}\\)\n                        </span>\n                        \\(\\cdot (-6)+\\)\n                        <span class=\"red_on_yellow\" style=\"display: inline-block; height: 1.5em;\">\n                            \\(13\\)\n                        </span>\n                        \\(=\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(4\\)\n                        </span>\n"
-    },
-    {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(-9\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(13\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "\\(\\frac{3}{2}\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(-6\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            }
-          ]
-        ]
-      }
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n<span class=\"blue_on_green\" style=\"display: inline-block; height: 2em;\">\n                            \\(\\frac{3}{2}\\)\n                        </span>\n                        \\(\\cdot 4+\\)\n                        <span class=\"red_on_yellow\" style=\"display: inline-block; height: 1.5em;\">\n                            \\(1\\)\n                        </span>\n                        \\(=\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(7\\)\n                        </span>\n"
-    },
-    {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(-9\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(13\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "\\(\\frac{3}{2}\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(-6\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(7\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ]
-        ]
-      }
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Otrzymaliśmy cztery liczby:\n                    </p>"
-    },
-    {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
-            {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(-9\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(13\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "\\(\\frac{3}{2}\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(-6\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(7\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ]
-        ]
-      }
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Ale co one oznaczają?\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Dzieliliśmy wielomian stopnia \\(3\\): \\(\\rightarrow 2x^3-9x^2+13x+1\\) przez dzielnik stopnia \\(1\\): \\(\\rightarrow \\left(x-\\tfrac{3}{2}\\right)\\), więc wynik będzie stopnia \\(2\\).\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Tak więc otrzymane liczby to współczynniki potęg:\n                    </p>"
-    },
-    {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
-            {
-              "html": "\\(x^2\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(x^1\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(x^0\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(?\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(-6\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(7\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ]
-        ]
-      }
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Czym jest pozostała siódemka? To oczywiście reszta z dzielenia. Możemy zapisać:\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                        \\((2x^3-9x^2+13x+1):\\left(x-\\tfrac{3}{2}\\right)=\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(2\\)\n                        </span>\n                        \\(x^2\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(-6\\)\n                        </span>\n                        \\(x^1+\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(4\\)\n                        </span>\n                        \\(x^0\\) reszty\n                        <span class=\"magenta_on_gray\">\n                            \\(7\\)\n                        </span>\n"
-    },
-    {
-      "type": "text",
-      "body": "<p>czyli</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                        \\((2x^3-9x^2+13x+1):\\left(x-\\tfrac{3}{2}\\right)=\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(2\\)\n                        </span>\n                        \\(x^2\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(-6\\)\n                        </span>\n                        \\(x+\\)\n                        <span class=\"magenta_on_gray\">\n                            \\(4\\)\n                        </span>\n                        reszty\n                        <span class=\"magenta_on_gray\">\n                            \\(7\\)\n                        </span>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Możemy to też zapisać:\n                    </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\n                    \\frac{2x^3-9x^2+13x+1}{x-\\tfrac{3}{2}}=2x^2-6x+4+\\frac{7}{x-\\tfrac{3}{2}}\n                    "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Ale jakie byłyby\n                        <strong>\n                            wynik\n                        </strong>\n                        i\n                        <strong>\n                            reszta\n                        </strong>\n                        przy dzieleniu przez \\((2x-3)\\)?\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        \\((2x-3)\\) to dwukrotność \\(\\left(x-\\tfrac{3}{2}\\right)\\), więc chcielibyśmy mieć dwukrotnie większe mianowniki ułamków w równaniu powyżej.\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        A w tym celu pomnożymy to równanie przez \\(\\tfrac{1}{2}\\):\n                    </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\n                    \\begin{align*}\n                    \\frac{2x^3-9x^2+13x+1}{x-\\tfrac{3}{2}}&=2x^2-6x+4+\\frac{7}{x-\\tfrac{3}{2}}\\\\\n                    \\frac{2x^3-9x^2+13x+1}{x-\\tfrac{3}{2}}\\cdot\\color{red}{\\frac{1}{2}}&=(2x^2-6x+4)\\cdot\\color{red}{\\frac{1}{2}}+\\frac{7}{x-\\tfrac{3}{2}}\\cdot\\color{red}{\\frac{1}{2}}\\\\\n                    \\frac{2x^3-9x^2+13x+1}{2x-3}&=(x^2-3x+2)+\\frac{7}{2x-3}\n                    \\end{align*}\n                    "
-    },
-    {
-      "type": "text",
-      "body": "\n                    pokaż dalej\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Tak więc wynikiem dzielenia jest \\((x^2-3x+2)\\), a reszta to \\(7\\).\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        W porównaniu z wynikami z tabeli widzimy, że współczynniki ilorazu są dwukrotnie niższe, ale reszta jest taka sama.\n                    </p>"
-    },
-    {
-      "type": "video",
-      "media_src": "static/schemat_hornera.mp4"
+        }
+      ]
     },
     {
       "type": "text",
@@ -771,6 +784,6 @@
       "body": "\n    Schematu Hornera\n    <strong>\n        nie\n    </strong>\n    możemy użyć do dzielenia przez wielomiany stopnia wyższego niż \\(1\\).\n"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "6dc0a5a900e0d765e1a80857ddfd3f1c86decadd7e99ea0f376c1eb9e62cf498"
+  "fully_mapped": true,
+  "seed_hash": "a2e9448824441d7d4c00128c0aa06af2a133be985ca192da21fef9a53af47675"
 }

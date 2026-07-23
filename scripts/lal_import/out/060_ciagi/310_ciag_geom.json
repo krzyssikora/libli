@@ -10,14 +10,14 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Pomyśl i wpisz dwa kolejne wyrazy każdego z podanych ciągów.\n    "
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -25,170 +25,138 @@
         "cells": [
           [
             {
-              "html": "\\(1,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(1,\\)"
             },
             {
-              "html": "\\(2,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(2,\\)"
             },
             {
-              "html": "\\(4,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(4,\\)"
             },
             {
-              "html": "\\(8,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(8,\\)"
             },
             {
-              "html": "\\(16,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(16,\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": ""
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": ""
             },
             {
-              "html": "<div class=\"success hidden\" id=\"success_question410\">Świetnie!</div>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "<div class=\"success hidden\" id=\"success_question410\">Świetnie!</div>"
             }
           ],
           [
             {
-              "html": "\\(320,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(320,\\)"
             },
             {
-              "html": "\\(160,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(160,\\)"
             },
             {
-              "html": "\\(80,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(80,\\)"
             },
             {
-              "html": "\\(40,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(40,\\)"
             },
             {
-              "html": "\\(20,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(20,\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": ""
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": ""
             },
             {
-              "html": "<div class=\"success hidden\" id=\"success_question415\">Świetnie!</div>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "<div class=\"success hidden\" id=\"success_question415\">Świetnie!</div>"
             }
           ],
           [
             {
-              "html": "\\(1,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(1,\\)"
             },
             {
-              "html": "\\(-3,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-3,\\)"
             },
             {
-              "html": "\\(9,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(9,\\)"
             },
             {
-              "html": "\\(-27,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-27,\\)"
             },
             {
-              "html": "\\(81,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(81,\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": ""
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": ""
             },
             {
-              "html": "<div class=\"success hidden\" id=\"success_question420\">Świetnie!</div>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "<div class=\"success hidden\" id=\"success_question420\">Świetnie!</div>"
             }
           ],
           [
             {
-              "html": "\\(64,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(64,\\)"
             },
             {
-              "html": "\\(96,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(96,\\)"
             },
             {
-              "html": "\\(144,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(144,\\)"
             },
             {
-              "html": "\\(216,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(216,\\)"
             },
             {
-              "html": "\\(324,\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(324,\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": ""
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": ""
             },
             {
-              "html": "<div class=\"success hidden\" id=\"success_question425\">Świetnie!</div>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "<div class=\"success hidden\" id=\"success_question425\">Świetnie!</div>"
             }
           ]
         ]
@@ -196,7 +164,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -205,7 +173,12 @@
     {
       "type": "spoiler",
       "label": "sprawdź",
-      "body": "\n\n        W każdym z powyższych ciągów każdy wyraz (poza pierwszym) powstaje przez pomnożenie poprzedniego wyrazu przez pewną stałą liczbę.\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>W każdym z powyższych ciągów każdy wyraz (poza pierwszym) powstaje przez pomnożenie poprzedniego wyrazu przez pewną stałą liczbę.</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -213,5 +186,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "bd943c9a1d8883e5b74d02a7fe01ba9469bd082fbfc44dd4a15b7cae1f778894"
+  "seed_hash": "8c849e839ca3e3006bde5069f4a65834ed9966f6883d57530ab786c794dd03f0"
 }

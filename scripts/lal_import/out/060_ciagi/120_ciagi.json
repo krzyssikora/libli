@@ -5,10 +5,142 @@
       "body": "<p>\n    Przypomnijmy i nieznacznie przekształćmy definicje:\n</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<table class=\"my_table_TL\">\n<tr>\n<td>\n                Ciąg \\((a_n)\\) jest...\n            </td>\n<td colspan=\"3\">\n                ... jeśli dla każdego \\(n\\in\\mathbb{N}^{+}\\)\n            </td>\n</tr>\n<tr>\n<th>rosnący</th>\n<td>\n                \\(a_{n+1}\\gt a_n\\)\n            </td>\n<td>lub</td>\n<td>\n                \\(a_{n+1} - a_n\\gt 0\\)\n            </td>\n</tr>\n<tr>\n<th>malejący</th>\n<td>\n                \\(a_{n+1}\\lt a_n\\)\n            </td>\n<td>lub</td>\n<td>\n                \\(a_{n+1} - a_n\\lt 0\\)\n            </td>\n</tr>\n<tr>\n<th>niemalejący</th>\n<td>\n                \\(a_{n+1}\\ge a_n\\)\n            </td>\n<td>lub</td>\n<td>\n                \\(a_{n+1} - a_n\\ge 0\\)\n            </td>\n</tr>\n<tr>\n<th>nierosnący</th>\n<td>\n                \\(a_{n+1}\\le a_n\\)\n            </td>\n<td>lub</td>\n<td>\n                \\(a_{n+1} - a_n\\le 0\\)\n            </td>\n</tr>\n<tr>\n<th>stały</th>\n<td>\n                \\(a_{n+1}= a_n\\)\n            </td>\n<td>lub</td>\n<td>\n                \\(a_{n+1} - a_n = 0\\)\n            </td>\n</tr>\n</table>",
-      "reason": "table uses rowspan/colspan"
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "Ciąg \\((a_n)\\) jest...",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "... jeśli dla każdego \\(n\\in\\mathbb{N}^{+}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 3
+            }
+          ],
+          [
+            {
+              "html": "rosnący",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(a_{n+1}\\gt a_n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "lub",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a_{n+1} - a_n\\gt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "malejący",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(a_{n+1}\\lt a_n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "lub",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a_{n+1} - a_n\\lt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "niemalejący",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(a_{n+1}\\ge a_n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "lub",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a_{n+1} - a_n\\ge 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "nierosnący",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(a_{n+1}\\le a_n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "lub",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a_{n+1} - a_n\\le 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "stały",
+              "halign": "left",
+              "valign": "top",
+              "header": true
+            },
+            {
+              "html": "\\(a_{n+1}= a_n\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "lub",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a_{n+1} - a_n = 0\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "text",
@@ -94,7 +226,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -103,11 +235,65 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Najpierw ustalimy wyrażenie opisujące \\(a_{n+1}\\), czyli we wzorze na \\(a_n\\) zastąpimy \\(n\\) przez \\(n+1\\).\n                <div class=\"switch_line\">\n                    Potem upraszczamy i dostajemy \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4n-1\\)</div>\n<div class=\"switch_value\">\\(4n+7\\)</div>\n<div class=\"switch_value\">\\(4n+4\\)</div>\n<div class=\"switch_value\">czerwieńsze</div>,\n                    <div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Teraz wyliczymy różnicę \\(a_{n+1}-a_n=(4n+7)-(4n+3)\\).\n                <div class=\"switch_line\">\n                    Po uproszczeniu \\(a_{n+1}-a_n=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4\\)</div>\n<div class=\"switch_value\">\\(11\\)</div>\n<div class=\"switch_value\">\\(-4\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Wyliczyliśmy, że \\(a_{n+1}-a_n=4\\gt 0\\), co oznacza, że ciąg \\((a_n)\\) jest \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">rosnący</div>\n<div class=\"switch_value\">niemalejący</div>\n<div class=\"switch_value\">stały</div>\n<div class=\"switch_value\">malejący</div>\n<div class=\"switch_value\">nierosnący</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dla ciągu \\(a_n=4n+3\\) różnica \\(a_{n+1}-a_n=4\\gt 0\\), więc ciąg jest <strong>rosnący</strong>.\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Najpierw ustalimy wyrażenie opisujące \\(a_{n+1}\\), czyli we wzorze na \\(a_n\\) zastąpimy \\(n\\) przez \\(n+1\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Potem upraszczamy i dostajemy \n                    \n\n\n\n￿0￿,\n                    .\n                ",
+          "options": [
+            "\\(4n-1\\)",
+            "\\(4n+7\\)",
+            "\\(4n+4\\)",
+            "czerwieńsze"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz wyliczymy różnicę \\(a_{n+1}-a_n=(4n+7)-(4n+3)\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu \\(a_{n+1}-a_n=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\)",
+            "\\(11\\)",
+            "\\(-4\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wyliczyliśmy, że \\(a_{n+1}-a_n=4\\gt 0\\), co oznacza, że ciąg \\((a_n)\\) jest \n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "rosnący",
+            "niemalejący",
+            "stały",
+            "malejący",
+            "nierosnący"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla ciągu \\(a_n=4n+3\\) różnica \\(a_{n+1}-a_n=4\\gt 0\\), więc ciąg jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>rosnący</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -116,11 +302,87 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Najpierw ustalimy wyrażenie opisujące \\(b_{n+1}\\), czyli we wzorze na \\(b_n\\) zastąpimy \\(n\\) przez \\(n+1\\).\n                <div class=\"switch_line\">\n<div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(b_{n+1}=n^2-10n+16+1\\)</div>\n<div class=\"switch_value\">\\(b_{n+1}=(n+1)^2-10n+16\\)</div>\n<div class=\"switch_value\">\\(b_{n+1}=(n+1)^2-10(n+1)+16\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Uprośćmy wyrażenie \\(b_{n+1}=(n+1)^2-10(n+1)+16=\\)\n                <div class=\"switch_line\">\n                    \\(=n^2+2n+1-10n-10+16=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(n^2+12n+6\\)</div>\n<div class=\"switch_value\">\\(n^2-8n+7\\)</div>\n<div class=\"switch_value\">\\(n^2-8n+6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Teraz wyliczymy różnicę \\(b_{n+1}-b_n=(n^2-8n+7)-(n^2-10n+16)\\).\n                <div class=\"switch_line\">\n                    Po uproszczeniu \\(b_{n+1}-b_n=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2n-9\\)</div>\n<div class=\"switch_value\">\\(-18n+23\\)</div>\n<div class=\"switch_value\">\\(2n+23\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Różnica \\(b_{n+1}-b_n=2n-9\\). Nie możemy powiedzieć, że jest zawsze dodatnia lub zawsze ujemna (lub nieujemna / niedodatnia), bo na przykład\n                <ul class=\"nolist\">\n<li>dla \\(n=3\\) różnica \\(b_{n+1}-b_n=2n-9=b_4-b_3=-3\\lt 0\\)</li>\n<li>dla \\(n=7\\) różnica \\(b_{n+1}-b_n=2n-9=b_8-b_7=5\\gt 0\\)</li>\n</ul>\n<div class=\"switch_line\">\n                    Stąd ciąg \\((b_n)\\) \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">jest rosnący</div>\n<div class=\"switch_value\">jest niemalejący</div>\n<div class=\"switch_value\">jest stały</div>\n<div class=\"switch_value\">jest malejący</div>\n<div class=\"switch_value\">jest nierosnący</div>\n<div class=\"switch_value\">nie jest monotoniczny</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dla ciągu \\(b_n=n^2-10n+16\\) różnica \\(b_{n+1}-b_n\\) nie ma stałego znaku, więc ciąg <strong>nie jest monotoniczny</strong>.\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Najpierw ustalimy wyrażenie opisujące \\(b_{n+1}\\), czyli we wzorze na \\(b_n\\) zastąpimy \\(n\\) przez \\(n+1\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(b_{n+1}=n^2-10n+16+1\\)",
+            "\\(b_{n+1}=(n+1)^2-10n+16\\)",
+            "\\(b_{n+1}=(n+1)^2-10(n+1)+16\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Uprośćmy wyrażenie \\(b_{n+1}=(n+1)^2-10(n+1)+16=\\)</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(=n^2+2n+1-10n-10+16=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(n^2+12n+6\\)",
+            "\\(n^2-8n+7\\)",
+            "\\(n^2-8n+6\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz wyliczymy różnicę \\(b_{n+1}-b_n=(n^2-8n+7)-(n^2-10n+16)\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu \\(b_{n+1}-b_n=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2n-9\\)",
+            "\\(-18n+23\\)",
+            "\\(2n+23\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Różnica \\(b_{n+1}-b_n=2n-9\\). Nie możemy powiedzieć, że jest zawsze dodatnia lub zawsze ujemna (lub nieujemna / niedodatnia), bo na przykład</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>dla \\(n=3\\) różnica \\(b_{n+1}-b_n=2n-9=b_4-b_3=-3\\lt 0\\)</li>\n<li>dla \\(n=7\\) różnica \\(b_{n+1}-b_n=2n-9=b_8-b_7=5\\gt 0\\)</li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd ciąg \\((b_n)\\) \n                    \n\n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "jest rosnący",
+            "jest niemalejący",
+            "jest stały",
+            "jest malejący",
+            "jest nierosnący",
+            "nie jest monotoniczny"
+          ],
+          "answer": 5
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla ciągu \\(b_n=n^2-10n+16\\) różnica \\(b_{n+1}-b_n\\) nie ma stałego znaku, więc ciąg</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>nie jest monotoniczny</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -129,11 +391,96 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Ponownie zaczniemy od wyrażenia opisującego \\(c_{n+1}=-(n+1)^2+3(n+1)-2\\).\n                <div class=\"switch_line\">\n                    Po uproszczeniu:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(c_{n+1}=-n^2+n\\)</div>\n<div class=\"switch_value\">\\(c_{n+1}=-n^2+4n+2\\)</div>\n<div class=\"switch_value\">\\(c_{n+1}=-n^2-4n-6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Teraz wyliczymy różnicę \\(c_{n+1}-c_n=(-n^2+n)-(-n^2+3n-2)\\).\n                <div class=\"switch_line\">\n                    Po uproszczeniu \\(c_{n+1}-c_n=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4n+6\\)</div>\n<div class=\"switch_value\">\\(-2n+2\\)</div>\n<div class=\"switch_value\">\\(-2n+6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Różnica \\(c_{n+1}-c_n=-2n+2\\). Pamiętajmy, że \\(n\\in\\mathbb{N}^{+}\\), czyli \\(n\\ge 1\\).\n                <p>\n                    To oznacza, że \\(-2n\\le -2\\). (Zwróć uwagę na zmianę znaku!)\n                </p>\n<div class=\"switch_line\">\n                    A ponieważ \\(c_{n+1}-c_n=-2n+2\\), więc\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(c_{n+1}-c_n\\gt 0\\)</div>\n<div class=\"switch_value\">\\(c_{n+1}-c_n\\ge 0\\)</div>\n<div class=\"switch_value\">\\(c_{n+1}-c_n=0\\)</div>\n<div class=\"switch_value\">\\(c_{n+1}-c_n\\le 0\\)</div>\n<div class=\"switch_value\">\\(c_{n+1}-c_n\\lt 0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Ustaliliśmy, że \\(c_{n+1}-c_n\\le 0\\), co oznacza, że ciąg \\((c_n)\\) jest \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">rosnący</div>\n<div class=\"switch_value\">niemalejący</div>\n<div class=\"switch_value\">stały</div>\n<div class=\"switch_value\">malejący</div>\n<div class=\"switch_value\">nierosnący</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dla ciągu \\(c_n=-n^2+3n-2\\) różnica \\(c_{n+1}-c_n\\le 0\\), więc ciąg jest nierosnący.\n                <p>\n                    Zwróć uwagę, że\n                </p>\n<ul class=\"nolist\">\n<li>\\(c_1=0\\)</li>\n<li>\\(c_2=0\\)</li>\n<li>\\(c_3=-2\\)</li>\n<li>\\(c_4=-6\\)</li>\n</ul>\n                więc jak widać, poza samym początkiem ciąg byłby malejący. Jednak ze względu na to, że pierwsze dwa wyrazy są równe, jest on <strong>nierosnący</strong>.\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Ponownie zaczniemy od wyrażenia opisującego \\(c_{n+1}=-(n+1)^2+3(n+1)-2\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(c_{n+1}=-n^2+n\\)",
+            "\\(c_{n+1}=-n^2+4n+2\\)",
+            "\\(c_{n+1}=-n^2-4n-6\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz wyliczymy różnicę \\(c_{n+1}-c_n=(-n^2+n)-(-n^2+3n-2)\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu \\(c_{n+1}-c_n=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4n+6\\)",
+            "\\(-2n+2\\)",
+            "\\(-2n+6\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Różnica \\(c_{n+1}-c_n=-2n+2\\). Pamiętajmy, że \\(n\\in\\mathbb{N}^{+}\\), czyli \\(n\\ge 1\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    To oznacza, że \\(-2n\\le -2\\). (Zwróć uwagę na zmianę znaku!)\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A ponieważ \\(c_{n+1}-c_n=-2n+2\\), więc\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(c_{n+1}-c_n\\gt 0\\)",
+            "\\(c_{n+1}-c_n\\ge 0\\)",
+            "\\(c_{n+1}-c_n=0\\)",
+            "\\(c_{n+1}-c_n\\le 0\\)",
+            "\\(c_{n+1}-c_n\\lt 0\\)"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ustaliliśmy, że \\(c_{n+1}-c_n\\le 0\\), co oznacza, że ciąg \\((c_n)\\) jest \n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "rosnący",
+            "niemalejący",
+            "stały",
+            "malejący",
+            "nierosnący"
+          ],
+          "answer": 4
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla ciągu \\(c_n=-n^2+3n-2\\) różnica \\(c_{n+1}-c_n\\le 0\\), więc ciąg jest nierosnący.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zwróć uwagę, że\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\\(c_1=0\\)</li>\n<li>\\(c_2=0\\)</li>\n<li>\\(c_3=-2\\)</li>\n<li>\\(c_4=-6\\)</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>więc jak widać, poza samym początkiem ciąg byłby malejący. Jednak ze względu na to, że pierwsze dwa wyrazy są równe, jest on</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>nierosnący</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -142,11 +489,80 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Ponownie zaczniemy od wyrażenia opisującego \\(d_{n+1}=(n+1)^2+4(n+1)+3\\).\n                <div class=\"switch_line\">\n                    Po uproszczeniu:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(d_{n+1}=n^2+6n+8\\)</div>\n<div class=\"switch_value\">\\(d_{n+1}=n^2+4n+8\\)</div>\n<div class=\"switch_value\">\\(d_{n+1}=n^2+4n+5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Teraz wyliczymy różnicę \\(d_{n+1}-d_n=(n^2+6n+8)-(n^2+4n+3)\\).\n                <div class=\"switch_line\">\n                    Po uproszczeniu \\(d_{n+1}-d_n=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2n+5\\)</div>\n<div class=\"switch_value\">\\(-2n-2\\)</div>\n<div class=\"switch_value\">\\(-2n+11\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Różnica \\(d_{n+1}-d_n=2n+5\\). Pamiętajmy, że \\(n\\in\\mathbb{N}^{+}\\), czyli \\(n\\ge 1\\).\n                <div class=\"switch_line\">\n                    Stąd\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(d_{n+1}-d_n\\gt 0\\)</div>\n<div class=\"switch_value\">\\(d_{n+1}-d_n\\ge 0\\)</div>\n<div class=\"switch_value\">\\(d_{n+1}-d_n=0\\)</div>\n<div class=\"switch_value\">\\(d_{n+1}-d_n\\le 0\\)</div>\n<div class=\"switch_value\">\\(d_{n+1}-d_n\\lt 0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Ustaliliśmy, że \\(d_{n+1}-d_n\\gt 0\\), co oznacza, że ciąg \\((d_n)\\) jest \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">rosnący</div>\n<div class=\"switch_value\">niemalejący</div>\n<div class=\"switch_value\">stały</div>\n<div class=\"switch_value\">malejący</div>\n<div class=\"switch_value\">nierosnący</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dla ciągu \\(d_n=n^2+4n+3\\) różnica \\(d_{n+1}-d_n\\gt 0\\), więc ciąg jest <strong>rosnący</strong>.\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Ponownie zaczniemy od wyrażenia opisującego \\(d_{n+1}=(n+1)^2+4(n+1)+3\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d_{n+1}=n^2+6n+8\\)",
+            "\\(d_{n+1}=n^2+4n+8\\)",
+            "\\(d_{n+1}=n^2+4n+5\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz wyliczymy różnicę \\(d_{n+1}-d_n=(n^2+6n+8)-(n^2+4n+3)\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu \\(d_{n+1}-d_n=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2n+5\\)",
+            "\\(-2n-2\\)",
+            "\\(-2n+11\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Różnica \\(d_{n+1}-d_n=2n+5\\). Pamiętajmy, że \\(n\\in\\mathbb{N}^{+}\\), czyli \\(n\\ge 1\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d_{n+1}-d_n\\gt 0\\)",
+            "\\(d_{n+1}-d_n\\ge 0\\)",
+            "\\(d_{n+1}-d_n=0\\)",
+            "\\(d_{n+1}-d_n\\le 0\\)",
+            "\\(d_{n+1}-d_n\\lt 0\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ustaliliśmy, że \\(d_{n+1}-d_n\\gt 0\\), co oznacza, że ciąg \\((d_n)\\) jest \n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "rosnący",
+            "niemalejący",
+            "stały",
+            "malejący",
+            "nierosnący"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla ciągu \\(d_n=n^2+4n+3\\) różnica \\(d_{n+1}-d_n\\gt 0\\), więc ciąg jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>rosnący</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -155,11 +571,83 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Wyrażenie opisujące \\(e_{n+1}\\) to oczywiście \\(\\frac{1}{n+1}\\).\n                <p>\n                    Możemy przejść do różnicy \\(e_{n+1}-e_n=\\frac{1}{n+1}-\\frac{1}{n}\\). Aby wykonać działanie, potrzebujemy wspólnego mianownika.\n                </p>\n<div class=\"switch_line\">\n                    Wspólnym mianownikiem dla \\((n+1)\\) i \\(n\\) jest\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(n(n+1)\\)</div>\n<div class=\"switch_value\">\\(2n+1\\)</div>\n<div class=\"switch_value\">\\(n^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Po sprowadzeniu do wspólnego mianownika różnica przyjmuje postać \\(e_{n+1}-e_n=\\frac{n}{n(n+1)}-\\frac{n+1}{n(n+1)}\\).\n                <div class=\"switch_line\">\n                    Po uproszczeniu \\(e_{n+1}-e_n=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{1}{n(n+1)}\\)</div>\n<div class=\"switch_value\">\\(-\\frac{1}{n(n+1)}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Różnica \\(e_{n+1}-e_n=-\\frac{1}{n(n+1)}\\). Pamiętajmy, że \\(n\\in\\mathbb{N}^{+}\\), czyli \\(n\\ge 1\\).\n                <div class=\"switch_line\">\n                    Stąd\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(e_{n+1}-e_n\\gt 0\\)</div>\n<div class=\"switch_value\">\\(e_{n+1}-e_n\\ge 0\\)</div>\n<div class=\"switch_value\">\\(e_{n+1}-e_n=0\\)</div>\n<div class=\"switch_value\">\\(e_{n+1}-e_n\\le 0\\)</div>\n<div class=\"switch_value\">\\(e_{n+1}-e_n\\lt 0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Ustaliliśmy, że \\(e_{n+1}-e_n\\lt 0\\), co oznacza, że ciąg \\((e_n)\\) jest \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">rosnący</div>\n<div class=\"switch_value\">niemalejący</div>\n<div class=\"switch_value\">stały</div>\n<div class=\"switch_value\">malejący</div>\n<div class=\"switch_value\">nierosnący</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dla ciągu \\(e_n=\\frac{1}{n}\\) różnica \\(e_{n+1}-e_n\\lt 0\\), więc ciąg jest <strong>malejący</strong>.\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Wyrażenie opisujące \\(e_{n+1}\\) to oczywiście \\(\\frac{1}{n+1}\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Możemy przejść do różnicy \\(e_{n+1}-e_n=\\frac{1}{n+1}-\\frac{1}{n}\\). Aby wykonać działanie, potrzebujemy wspólnego mianownika.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wspólnym mianownikiem dla \\((n+1)\\) i \\(n\\) jest\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(n(n+1)\\)",
+            "\\(2n+1\\)",
+            "\\(n^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Po sprowadzeniu do wspólnego mianownika różnica przyjmuje postać \\(e_{n+1}-e_n=\\frac{n}{n(n+1)}-\\frac{n+1}{n(n+1)}\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu \\(e_{n+1}-e_n=\\)\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{1}{n(n+1)}\\)",
+            "\\(-\\frac{1}{n(n+1)}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Różnica \\(e_{n+1}-e_n=-\\frac{1}{n(n+1)}\\). Pamiętajmy, że \\(n\\in\\mathbb{N}^{+}\\), czyli \\(n\\ge 1\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(e_{n+1}-e_n\\gt 0\\)",
+            "\\(e_{n+1}-e_n\\ge 0\\)",
+            "\\(e_{n+1}-e_n=0\\)",
+            "\\(e_{n+1}-e_n\\le 0\\)",
+            "\\(e_{n+1}-e_n\\lt 0\\)"
+          ],
+          "answer": 4
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ustaliliśmy, że \\(e_{n+1}-e_n\\lt 0\\), co oznacza, że ciąg \\((e_n)\\) jest \n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "rosnący",
+            "niemalejący",
+            "stały",
+            "malejący",
+            "nierosnący"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla ciągu \\(e_n=\\frac{1}{n}\\) różnica \\(e_{n+1}-e_n\\lt 0\\), więc ciąg jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>malejący</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -168,11 +656,74 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Wyrażenie opisujące \\(f_{n+1}\\) to oczywiście \\(3\\cdot 4^{n+1}\\).\n                <p>\n                    Możemy przejść do różnicy \\(f_{n+1}-f_n=3\\cdot 4^{n+1}-3\\cdot 4^n\\).\n                </p>\n                Zauważmy, że\n                \\[\n                4^{n+1}=4^n\\cdot 4^1=4\\cdot 4^n\n                \\]\n                więc\n                \\[\n                f_{n+1}-f_n=3\\cdot 4\\cdot 4^n-3\\cdot 4^n\n                \\]\n                <div class=\"switch_line\">\n                    Wyłączmy \\(3\\cdot 4^n\\) przed nawias:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(f_{n+1}-f_n=3\\cdot 4^n(4-1)\\)</div>\n<div class=\"switch_value\">\\(f_{n+1}-f_n=3\\cdot 4^n(1-4)\\)</div>\n<div class=\"switch_value\">\\(f_{n+1}-f_n=3\\cdot 4^n(4-0)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                To oznacza, że\n                \\[\n                \\begin{align}\n                f_{n+1}-f_n&amp;=3\\cdot 4^n(4-1)=\\\\\n                &amp;=3\\cdot 3\\cdot 4^n=9\\cdot 4^n\n                \\end{align}\n                \\]\n                <div class=\"switch_line\">\n                    Skoro \\(f_{n+1}-f_n=9\\cdot 4^n\\) to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(f_{n+1}-f_n\\gt 0\\)</div>\n<div class=\"switch_value\">\\(f_{n+1}-f_n\\ge 0\\)</div>\n<div class=\"switch_value\">\\(f_{n+1}-f_n=0\\)</div>\n<div class=\"switch_value\">\\(f_{n+1}-f_n\\le 0\\)</div>\n<div class=\"switch_value\">\\(f_{n+1}-f_n\\lt 0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Ustaliliśmy, że \\(f_{n+1}-f_n\\gt 0\\), co oznacza, że ciąg \\((f_n)\\) jest \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">rosnący</div>\n<div class=\"switch_value\">niemalejący</div>\n<div class=\"switch_value\">stały</div>\n<div class=\"switch_value\">malejący</div>\n<div class=\"switch_value\">nierosnący</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dla ciągu \\(f_n=3\\cdot 4^n\\) różnica \\(f_{n+1}-f_n\\gt 0\\), więc ciąg jest <strong>rosnący</strong>.\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Wyrażenie opisujące \\(f_{n+1}\\) to oczywiście \\(3\\cdot 4^{n+1}\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Możemy przejść do różnicy \\(f_{n+1}-f_n=3\\cdot 4^{n+1}-3\\cdot 4^n\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważmy, że\n                \\[\n                4^{n+1}=4^n\\cdot 4^1=4\\cdot 4^n\n                \\]\n                więc\n                \\[\n                f_{n+1}-f_n=3\\cdot 4\\cdot 4^n-3\\cdot 4^n\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wyłączmy \\(3\\cdot 4^n\\) przed nawias:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(f_{n+1}-f_n=3\\cdot 4^n(4-1)\\)",
+            "\\(f_{n+1}-f_n=3\\cdot 4^n(1-4)\\)",
+            "\\(f_{n+1}-f_n=3\\cdot 4^n(4-0)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>To oznacza, że\n                \\[\n                \\begin{align}\n                f_{n+1}-f_n&=3\\cdot 4^n(4-1)=\\\\\n                &=3\\cdot 3\\cdot 4^n=9\\cdot 4^n\n                \\end{align}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro \\(f_{n+1}-f_n=9\\cdot 4^n\\) to\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(f_{n+1}-f_n\\gt 0\\)",
+            "\\(f_{n+1}-f_n\\ge 0\\)",
+            "\\(f_{n+1}-f_n=0\\)",
+            "\\(f_{n+1}-f_n\\le 0\\)",
+            "\\(f_{n+1}-f_n\\lt 0\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ustaliliśmy, że \\(f_{n+1}-f_n\\gt 0\\), co oznacza, że ciąg \\((f_n)\\) jest \n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "rosnący",
+            "niemalejący",
+            "stały",
+            "malejący",
+            "nierosnący"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla ciągu \\(f_n=3\\cdot 4^n\\) różnica \\(f_{n+1}-f_n\\gt 0\\), więc ciąg jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>rosnący</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -181,9 +732,71 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Wyrażenie opisujące \\(g_{n+1}\\) to oczywiście \\(\\frac{5}{3^{n+1}}\\).\n                <p>\n                    Różnica \\(g_{n+1}-g_n=\\frac{5}{3^{n+1}}-\\frac{5}{3^n}\\).\n                </p>\n                Aby odjąć ułamki, musimy sprawadzić je do wspólnego mianownika równego \\(3^{n+1}\\)\n                <div class=\"switch_line\">\n                    W tym celu rozszerzymy \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">pierwszy</div>\n<div class=\"switch_value\">drugi</div> ułamek przez \\(3\\)\n                    <div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Otrzymamy\n                \\[\n                \\begin{align}\n                g_{n+1}-g_n&amp;=\\frac{5}{3^{n+1}}-\\frac{5}{3^n}=\\\\\n                &amp;=\\frac{5}{3^{n+1}}-\\frac{15}{3^{n+1}}=\\\\\n                &amp;=-\\frac{10}{3^{n+1}}\n                \\end{align}\n                \\]\n                <div class=\"switch_line\">\n                    Skoro \\(g_{n+1}-g_n=-\\frac{10}{3^{n+1}}\\) to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(g_{n+1}-g_n\\gt 0\\)</div>\n<div class=\"switch_value\">\\(g_{n+1}-g_n\\ge 0\\)</div>\n<div class=\"switch_value\">\\(g_{n+1}-g_n=0\\)</div>\n<div class=\"switch_value\">\\(g_{n+1}-g_n\\le 0\\)</div>\n<div class=\"switch_value\">\\(g_{n+1}-g_n\\lt 0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Ustaliliśmy, że \\(g_{n+1}-g_n\\lt 0\\), co oznacza, że ciąg \\((g_n)\\) jest \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">rosnący</div>\n<div class=\"switch_value\">niemalejący</div>\n<div class=\"switch_value\">stały</div>\n<div class=\"switch_value\">malejący</div>\n<div class=\"switch_value\">nierosnący</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dla ciągu \\(g_n=\\frac{5}{3^n}\\) różnica \\(g_{n+1}-g_n\\lt 0\\), więc ciąg jest <strong>malejący</strong>.\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Wyrażenie opisujące \\(g_{n+1}\\) to oczywiście \\(\\frac{5}{3^{n+1}}\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Różnica \\(g_{n+1}-g_n=\\frac{5}{3^{n+1}}-\\frac{5}{3^n}\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Aby odjąć ułamki, musimy sprawadzić je do wspólnego mianownika równego \\(3^{n+1}\\)</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W tym celu rozszerzymy \n                    \n\n￿0￿ ułamek przez \\(3\\)\n                    .\n                ",
+          "options": [
+            "pierwszy",
+            "drugi"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Otrzymamy\n                \\[\n                \\begin{align}\n                g_{n+1}-g_n&=\\frac{5}{3^{n+1}}-\\frac{5}{3^n}=\\\\\n                &=\\frac{5}{3^{n+1}}-\\frac{15}{3^{n+1}}=\\\\\n                &=-\\frac{10}{3^{n+1}}\n                \\end{align}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skoro \\(g_{n+1}-g_n=-\\frac{10}{3^{n+1}}\\) to\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(g_{n+1}-g_n\\gt 0\\)",
+            "\\(g_{n+1}-g_n\\ge 0\\)",
+            "\\(g_{n+1}-g_n=0\\)",
+            "\\(g_{n+1}-g_n\\le 0\\)",
+            "\\(g_{n+1}-g_n\\lt 0\\)"
+          ],
+          "answer": 4
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Ustaliliśmy, że \\(g_{n+1}-g_n\\lt 0\\), co oznacza, że ciąg \\((g_n)\\) jest \n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "rosnący",
+            "niemalejący",
+            "stały",
+            "malejący",
+            "nierosnący"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "text",
+          "body": "<p>Dla ciągu \\(g_n=\\frac{5}{3^n}\\) różnica \\(g_{n+1}-g_n\\lt 0\\), więc ciąg jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>malejący</strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "3c6ca2e6fea0ccd51aac4e97dc2e8b33916c50220c210ff83e8fc2fa425fa009"
+  "fully_mapped": true,
+  "seed_hash": "2cfd4d1880572dfd8adedfe837cf26a7b902753fe3ceba9af3b01faaf9115959"
 }

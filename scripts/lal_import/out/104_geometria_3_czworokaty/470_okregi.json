@@ -10,35 +10,149 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie możesz przesuwać czerwone punkty, by zmienić kształt i położenie czworokąta wpisanego w koło.\n        </p>\n<p>\n            Gdy klikniesz \"start\", zobaczysz animację pokazującą własność kątów czworokąta wpisanego w koło.\n        </p>\n<p>\n            🡆 Jakie warunki muszą spełniać miary kątów czworokąta, by można było na nim opisać okrąg?\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"578px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/bq7pyvax/width/575/height/578/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"czworokąt wpisany w koło\" width=\"575px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać czerwone punkty, by zmienić kształt i położenie czworokąta wpisanego w koło.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy klikniesz \"start\", zobaczysz animację pokazującą własność kątów czworokąta wpisanego w koło.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            🡆 Jakie warunki muszą spełniać miary kątów czworokąta, by można było na nim opisać okrąg?\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/bq7pyvax/width/575/height/578/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
     },
     {
       "type": "spoiler",
       "label": "wskazówka",
-      "body": "\n\n        Pomyśl o sumach miar <u>przeciwległych</u> kątów.\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Pomyśl o sumach miar</p>"
+        },
+        {
+          "type": "text",
+          "body": "<u>przeciwległych</u>"
+        },
+        {
+          "type": "text",
+          "body": "<p>kątów.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n<div class=\"important\" style=\"min-height: 270px;\">\n<figure style=\"float:right\">\n<img src=\"static/czworokat_wpisany_w_kolo_katy.png\" style=\"float: right; height: 230px;\"/>\n<figcaption style=\"color: blue;\">\n                    \\(\\color{green}{\\alpha}+\\color{green}{\\gamma}=180^{\\circ}=\\color{red}{\\beta}+\\color{red}{\\delta}\\)\n                </figcaption>\n</figure>\n<p>\n                Na czworokącie można opisać okrąg, gdy sumy przeciwległych kątów czworokąta są sobie równe.\n            </p>\n<p>\n                Taki czworokąt nazywamy wpisanym w koło.\n            </p>\n<hr/>\n<p>\n                Oznacza to też, że każda suma przeciwległych kątów, \\(\\color{green}{\\alpha}+\\color{green}{\\gamma}\\) oraz \\(\\color{red}{\\beta}+\\color{red}{\\delta}\\), jest równa \\(180^{\\circ}\\).\n            </p>\n</div>\n<p>\n            Przyjrzyj się poniższej animacji, która pokazuje, że przeciwległe kąty wewnętrzne w czworokącie wpisanym w koło są dwukrotnie mniejsze od odpowiednich kątów środkowych, a suma tych kątów środkowych to \\(360^{\\circ}\\). \n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"520px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/nkxhq2ze/width/516/height/520/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"czworokąt wpisany w koło - ilustracja\" width=\"516px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/czworokat_wpisany_w_kolo_katy.png",
+          "alt": "",
+          "figcaption": "\\(\\color{green}{\\alpha}+\\color{green}{\\gamma}=180^{\\circ}=\\color{red}{\\beta}+\\color{red}{\\delta}\\)"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Na czworokącie można opisać okrąg, gdy sumy przeciwległych kątów czworokąta są sobie równe.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Taki czworokąt nazywamy wpisanym w koło.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Oznacza to też, że każda suma przeciwległych kątów, \\(\\color{green}{\\alpha}+\\color{green}{\\gamma}\\) oraz \\(\\color{red}{\\beta}+\\color{red}{\\delta}\\), jest równa \\(180^{\\circ}\\).\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Przyjrzyj się poniższej animacji, która pokazuje, że przeciwległe kąty wewnętrzne w czworokącie wpisanym w koło są dwukrotnie mniejsze od odpowiednich kątów środkowych, a suma tych kątów środkowych to \\(360^{\\circ}\\). \n        </p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/nkxhq2ze/width/516/height/520/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Kolejne kąty wewnętrzne czworokąta wpisanego w koło mają miary \\(\\alpha\\), \\(\\beta\\), \\(\\gamma\\) oraz \\(\\delta\\). Uzupełnij brakujące miary (nie wpisuj znaku stopnia).\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TC narrow_table\">\n<tr>\n<td>\\(\\alpha\\)</td>\n<td>\\(\\beta\\)</td>\n<td>\\(\\gamma\\)</td>\n<td>\\(\\delta\\)</td>\n</tr>\n<tr>\n<td>\\(30^{\\circ}\\)</td>\n<td>\\(105^{\\circ}\\)</td>\n<td><input class=\"table_input\" placeholder=\"?\" type=\"text\"/>\\(^{\\circ}\\)</td>\n<td><input class=\"table_input\" placeholder=\"?\" type=\"text\"/>\\(^{\\circ}\\)</td>\n</tr>\n<tr>\n<td><input class=\"table_input\" placeholder=\"?\" type=\"text\"/>\\(^{\\circ}\\)</td>\n<td>\\(123^{\\circ}\\)</td>\n<td>\\(66^{\\circ}\\)</td>\n<td><input class=\"table_input\" placeholder=\"?\" type=\"text\"/>\\(^{\\circ}\\)</td>\n</tr>\n</table>\n</div>\n"
+      "body": "<p>\n            Kolejne kąty wewnętrzne czworokąta wpisanego w koło mają miary \\(\\alpha\\), \\(\\beta\\), \\(\\gamma\\) oraz \\(\\delta\\). Uzupełnij brakujące miary (nie wpisuj znaku stopnia).\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n    Świetnie!\n"
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\alpha\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\beta\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\gamma\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\delta\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(30^{\\circ}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(105^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "150"
+            },
+            {
+              "kind": "answer",
+              "answer": "75"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "114"
+            },
+            {
+              "kind": "static",
+              "html": "\\(123^{\\circ}\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(66^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "57"
+            }
+          ]
+        ]
+      }
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "a866afcc9d091a0744c48c27a3f31b1cb2767b38c1ca249c237ba471388c5219"
+  "seed_hash": "227ff12b73e5687595c92a88ebe49b204f573b211bd30ba861d98e9e39d9936a"
 }

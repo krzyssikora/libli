@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -11,44 +11,84 @@
     {
       "type": "spoiler",
       "label": "(1)",
-      "body": "\n                    \\(-\\frac{4x+8}{3x+2}\\)\n                "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-\\frac{4x+8}{3x+2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(2)",
-      "body": "\n                    \\(-\\frac{2}{3}\\)\n                "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-\\frac{2}{3}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(3)",
-      "body": "\n                    \\(\\frac{2}{3}\\)\n                "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{2}{3}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(4)",
-      "body": "\n                    \\(\\frac{24x^2-22x+4}{5}\\)\n                "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{24x^2-22x+4}{5}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(5)",
-      "body": "\n                    \\(\\frac{6}{6x^2+x-1}\\)\n                "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{6}{6x^2+x-1}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(6)",
-      "body": "\n                    \\(\\frac{-4x+6}{6x+3}\\)\n                "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-4x+6}{6x+3}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(7)",
-      "body": "\n                    \\(\\frac{2x^2+7x+6}{2x^2-7x+6}\\)\n                "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{2x^2+7x+6}{2x^2-7x+6}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(8)",
-      "body": "\n                    \\(\\frac{6x^2-x-1}{6x^2+x-1}\\)\n                "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{6x^2-x-1}{6x^2+x-1}\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "b9f989e558b20d981fbefa6acb17518f34b03e39764ae07dc864d4c5a38f9f77"
+  "seed_hash": "714ad70b4ac7d9ec9c291f4cc25a696a5a98d672c717e0845a35a85fb557eeaa"
 }

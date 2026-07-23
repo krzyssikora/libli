@@ -18,15 +18,11 @@
     },
     {
       "type": "text",
-      "body": "<p></p>"
-    },
-    {
-      "type": "text",
       "body": "\n    Jeśli figury \\(F_1\\) i \\(F_2\\) są do siebie podobne, zapisujemy to\n    \\[\n    F_1\\sim F_2\n    \\]\n"
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "video",
@@ -34,7 +30,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -55,7 +51,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -80,5 +76,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "b557783f4ecd00cfab783a0b12b3c235c5192360b45e0aec5dce151373195865"
+  "seed_hash": "916d405ff238910b7365823b5ae325c834c333e24d5ad0eb99eed1f2cf49638a"
 }

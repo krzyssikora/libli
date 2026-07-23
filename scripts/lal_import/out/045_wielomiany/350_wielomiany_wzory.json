@@ -152,7 +152,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -164,5 +164,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "383661d7308ad9935fe39acaf2525cfd0de04da526c7ff0b86c8c76df3c0b0cc"
+  "seed_hash": "36b6829a57c583c44d5201ade14d1704bccd039217bfb54144ce72e423453fb8"
 }

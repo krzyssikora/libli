@@ -18,18 +18,22 @@
     },
     {
       "type": "text",
-      "body": "<p>\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p>Rysunki przedstawiają trójkąty podobne \\(T_1\\) i \\(T_2\\).</p>"
     },
     {
       "type": "text",
-      "body": "\n        Rysunki przedstawiają trójkąty podobne \\(T_1\\) i \\(T_2\\).\n        <p>\n            Znając pole jednego z nich oraz wskazane na rysunkach długości, znajdź pole drugiego trójkąta.\n        </p>\n<small>\n<em>\n                Rysunki nie zachowują skali.\n            </em>\n</small>\n"
+      "body": "<p>\n            Znając pole jednego z nich oraz wskazane na rysunkach długości, znajdź pole drugiego trójkąta.\n        </p>"
     },
     {
-      "type": "table",
+      "type": "text",
+      "body": "<small>\n<em>\n                Rysunki nie zachowują skali.\n            </em>\n</small>"
+    },
+    {
+      "type": "fill_table",
       "data": {
         "header_row": true,
         "header_col": false,
@@ -37,121 +41,120 @@
         "cells": [
           [
             {
-              "html": "rysunek",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "rysunek"
             },
             {
-              "html": "pole \\(T_1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "pole \\(T_1\\)"
             },
             {
-              "html": "pole \\(T_2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "pole \\(T_2\\)"
             }
           ],
           [
             {
-              "html": "<img alt=\"trójkąty podobne\" src=\"static/pole_podobnych_0_1.png\" width=\"400px\"/>\n<br/>\n<details>\n<summary>\n                            wyjaśnienie\n                        </summary>\n                        Skala podobieństwa to \\(k=\\tfrac{12}{4}=3\\).\n                        <br/>\n                        Stąd pole \\(T_2\\) jest \\(3^2=9\\) razy większe od pola \\(T_1\\).\n                        <br/>\n                        Jeśli dane było pole \\(T_1\\), to pole \\(T_2\\) jest równe\n                        \\[\n                        3\\cdot 9=27\n                        \\]\n                    </details>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "image",
+              "media_src": "static/pole_podobnych_0_1.png",
+              "alt": "trójkąty podobne"
             },
             {
-              "html": "\\(3\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(3\\)"
             },
             {
-              "html": "<div style=\"border: thin solid gray; text-align: center;\">\n                        \\(27\\)\n                    </div>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "<div style=\"border: thin solid gray; text-align: center;\">\n                        \\(27\\)\n                    </div>"
             }
           ],
           [
             {
-              "html": "<img alt=\"trójkąty podobne\" src=\"static/pole_podobnych_0_2.png\" width=\"400px\"/>\n<br/>\n<details>\n<summary>\n                            wyjaśnienie\n                        </summary>\n                        Skala podobieństwa to \\(k=\\tfrac{7}{3}\\).\n                        <br/>\n<small>\n                            (Porównujemy boki przyległe do kątów czerwonego i nieoznaczonego.)\n                        </small>\n<br/>\n                        Stąd pole \\(T_2\\) jest \\(\\left(\\tfrac{7}{3}\\right)^2=\\tfrac{49}{9}\\) razy większe od pola \\(T_1\\).\n                        <br/>\n                        Jeśli dane było pole \\(T_2\\), to pole \\(T_1\\) jest równe\n                        \\[\n                        14:\\tfrac{49}{9}=14\\cdot \\tfrac{9}{49}=\\tfrac{18}{7}\n                        \\]\n                    </details>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<div style=\"border: thin solid gray; text-align: center;\">\n                        \\(18/7\\)\n                    </div>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(14\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "<strong>wyjaśnienie</strong> Skala podobieństwa to \\(k=\\tfrac{12}{4}=3\\).\n                        <br/>\n                        Stąd pole \\(T_2\\) jest \\(3^2=9\\) razy większe od pola \\(T_1\\).\n                        <br/>\n                        Jeśli dane było pole \\(T_1\\), to pole \\(T_2\\) jest równe\n                        \\[\n                        3\\cdot 9=27\n                        \\]",
+              "colspan": 3
             }
           ],
           [
             {
-              "html": "<img alt=\"trójkąty podobne\" src=\"static/pole_podobnych_0_3.png\" width=\"400px\"/>\n<br/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "image",
+              "media_src": "static/pole_podobnych_0_2.png",
+              "alt": "trójkąty podobne"
             },
             {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "<div style=\"border: thin solid gray; text-align: center;\">\n                        \\(18/7\\)\n                    </div>"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(14\\)"
             }
           ],
           [
             {
-              "html": "<img alt=\"trójkąty podobne\" src=\"static/pole_podobnych_0_4.png\" width=\"400px\"/>\n<br/>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(9\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "<strong>wyjaśnienie</strong> Skala podobieństwa to \\(k=\\tfrac{7}{3}\\).\n                        <br/>\n<small>\n                            (Porównujemy boki przyległe do kątów czerwonego i nieoznaczonego.)\n                        </small>\n<br/>\n                        Stąd pole \\(T_2\\) jest \\(\\left(\\tfrac{7}{3}\\right)^2=\\tfrac{49}{9}\\) razy większe od pola \\(T_1\\).\n                        <br/>\n                        Jeśli dane było pole \\(T_2\\), to pole \\(T_1\\) jest równe\n                        \\[\n                        14:\\tfrac{49}{9}=14\\cdot \\tfrac{9}{49}=\\tfrac{18}{7}\n                        \\]",
+              "colspan": 3
             }
           ],
           [
             {
-              "html": "<img alt=\"trójkąty podobne\" src=\"static/pole_podobnych_0_5.png\" width=\"400px\"/>\n<br/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "image",
+              "media_src": "static/pole_podobnych_0_3.png",
+              "alt": "trójkąty podobne"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(4\\)"
             },
             {
-              "html": "\\(12\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "25"
             }
           ],
           [
             {
-              "html": "<img alt=\"trójkąty podobne\" src=\"static/pole_podobnych_0_6.png\" width=\"400px\"/>\n<br/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "image",
+              "media_src": "static/pole_podobnych_0_4.png",
+              "alt": "trójkąty podobne"
             },
             {
-              "html": "\\(16\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "4"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(9\\)"
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/pole_podobnych_0_5.png",
+              "alt": "trójkąty podobne"
+            },
+            {
+              "kind": "answer",
+              "answer": "3"
+            },
+            {
+              "kind": "static",
+              "html": "\\(12\\)"
+            }
+          ],
+          [
+            {
+              "kind": "image",
+              "media_src": "static/pole_podobnych_0_6.png",
+              "alt": "trójkąty podobne"
+            },
+            {
+              "kind": "static",
+              "html": "\\(16\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "25"
             }
           ]
         ]
@@ -159,22 +162,153 @@
     },
     {
       "type": "text",
-      "body": "\n    Świetnie!\n"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p>\n            Trójkąt \\(ABE\\) podzielono odcinkiem \\(CD\\) równoległym do boku \\(AB\\) na mniejszy trójkąt i trapez.\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Trójkąt \\(ABE\\) podzielono odcinkiem \\(CD\\) równoległym do boku \\(AB\\) na mniejszy trójkąt i trapez.\n        </p>\n<p>\n            Dane są długości boków trójkąta: \\(CD=13\\), \\(CE=4\\) i \\(DE=15\\). Dana jest też długość odcinka \\(BC=6\\).\n        </p>\n<div class=\"centered\">\n<img alt=\"pole trapezu\" src=\"static/pole_podobnych_1.png\" width=\"600\"/>\n</div>\n<p>\n            Oblicz pole trapezu \\(ABCD\\).\n        </p>\n"
+      "body": "<p>\n            Dane są długości boków trójkąta: \\(CD=13\\), \\(CE=4\\) i \\(DE=15\\). Dana jest też długość odcinka \\(BC=6\\).\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_podobnych_1.png",
+      "alt": "pole trapezu",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz pole trapezu \\(ABCD\\).\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Gdybyśmy chcieli obliczyć pole trapezu ze standardowego wzoru, musielibyśmy znać obie podstawy (znamy \\(CD\\), potrzebowalibyśmy obliczyć \\(AB\\)), ale przede wszystkim wysokość, której obliczenie nie jest trywialnym zadaniem.\n                <p>\n                    Na szczęście istnieje prostsze rozwiązanie. Wystarczy zauważyć, że pole trapezu jest różnicą pól dwóch trójkątów. Zapiszmy to symbolicznie\n                </p>\n                \\[\n                P_{ABCD}=P_{ABE}-P_{DCE}\n                \\]\n                <div class=\"switch_line\">\n                    Zacznijmy od pola trójkąta \\(DCE\\). ZNamy długości jego boków, więc pole możemy obliczyć z wzoru\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        Archimedesa\n                    </div>\n<div class=\"switch_value\">\n                        Herona\n                    </div>\n<div class=\"switch_value\">\n                        Pitagorasa\n                    </div>\n<div class=\"switch_value\">\n                        Talesa\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<details>\n<summary>\n                        wzór Herona - przypomnienie\n                    </summary>\n<div class=\"important\">\n                        Dany jest trójkąt o bokach \\(a\\), \\(b\\), \\(c\\). Niech \\(p\\) oznacza połowę obwódu trójkąta, tzn.\n                        \\[\n                        p=\\frac{a+b+c}{2}\n                        \\]\n                        Wówczas pole trójkąta \\(P\\) dane jest wzorem\n                        \\[\n                        P=\\sqrt{p(p-a)(p-b)(p-c)}\n                        \\]\n                    </div>\n</details>\n<div class=\"switch_line\">\n                    Dla boków o długościach \\(4\\), \\(13\\) i \\(15\\) połowa obwodu ma wartość \\(p=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(32\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(16\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Podstawmy do wzoru Herona\n                <div class=\"switch_line\">\n                    \\(P=\\sqrt{16(16-4)(16-13)(16-15)}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(24\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(596\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Teraz, gdy już wiemy, że \\(P_{DCE}=24\\), czas obliczyć \\(P_{ABE}\\).\n                <div class=\"switch_line\">\n                    Trójkąty \\(DCE\\) i \\(ABE\\) są podobne na mocy zasady\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        bok-bok-bok\n                    </div>\n<div class=\"switch_value\">\n                        bok-kąt-bok\n                    </div>\n<div class=\"switch_value\">\n                        kąt-kąt-kąt\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Trójkąty \\(DCE\\) i \\(ABE\\) mają trzy pary jednakowych kątów:\n                <ul class=\"nolist\">\n<li>\n                        kąt z wierzchołkiem w punkcie \\(E\\) jest wspólny \\(\\color{blue}{\\angle{CED}=\\angle{BEA}}\\),\n                    </li>\n<li>\n                        kąty \\(\\color{red}{\\angle{CDE}=\\angle{BAE}}\\), bo są odpowiadające,\n                    </li>\n<li>\n                        no a\n                        <span style=\"color: green;\">\n                            trzecie kąty\n                        </span>\n                        są równe z sumy kątów w trójkącie (albo też odpowiadające).\n                    </li>\n</ul>\n<div class=\"centered\">\n<img alt=\"pole trapezu\" src=\"static/pole_podobnych_1_2.png\" width=\"600\"/>\n</div>\n<div class=\"switch_line\">\n                    Większy trójkąt \\(ABE\\) jest podobny do mniejszego trójkąta \\(DCE\\) w skali \\(k=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{10}{4}=\\tfrac{5}{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{6}{4}=\\tfrac{3}{2}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{15}{4}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{15}{10}=\\tfrac{3}{2}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Skorzystajmy z twierdzenia z początku tej strony:\n                \\[\n                P_{ABE}=k^2\\cdot P_{DCE}\n                \\]\n                Oznacza to, że\n                \\[\n                P_{ABE}=\\left(\\tfrac{5}{2}\\right)^2\\cdot 24\n                \\]\n                <div class=\"switch_line\">\n                    Obliczamy, że  \\(P_{ABE}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(150\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(60\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(750\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I na zakończenie obliczamy pole trapezu: \n                    \\(P_{ABCD}=P_{ABE}-P_{DCE}=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(136\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(126\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(174\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Pole trapezu \\(ABCD\\) jest równe \\(126\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Gdybyśmy chcieli obliczyć pole trapezu ze standardowego wzoru, musielibyśmy znać obie podstawy (znamy \\(CD\\), potrzebowalibyśmy obliczyć \\(AB\\)), ale przede wszystkim wysokość, której obliczenie nie jest trywialnym zadaniem.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Na szczęście istnieje prostsze rozwiązanie. Wystarczy zauważyć, że pole trapezu jest różnicą pól dwóch trójkątów. Zapiszmy to symbolicznie\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                P_{ABCD}=P_{ABE}-P_{DCE}\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Zacznijmy od pola trójkąta \\(DCE\\). ZNamy długości jego boków, więc pole możemy obliczyć z wzoru\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "Archimedesa",
+            "Herona",
+            "Pitagorasa",
+            "Talesa"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<h4>wzór Herona - przypomnienie</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        Dany jest trójkąt o bokach \\(a\\), \\(b\\), \\(c\\). Niech \\(p\\) oznacza połowę obwódu trójkąta, tzn.\n                        \\[\n                        p=\\frac{a+b+c}{2}\n                        \\]\n                        Wówczas pole trójkąta \\(P\\) dane jest wzorem\n                        \\[\n                        P=\\sqrt{p(p-a)(p-b)(p-c)}\n                        \\]\n                    "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dla boków o długościach \\(4\\), \\(13\\) i \\(15\\) połowa obwodu ma wartość \\(p=\\)\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(32\\)",
+            "\\(16\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawmy do wzoru Herona</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(P=\\sqrt{16(16-4)(16-13)(16-15)}=\\)\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(24\\)",
+            "\\(596\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz, gdy już wiemy, że \\(P_{DCE}=24\\), czas obliczyć \\(P_{ABE}\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Trójkąty \\(DCE\\) i \\(ABE\\) są podobne na mocy zasady\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "bok-bok-bok",
+            "bok-kąt-bok",
+            "kąt-kąt-kąt"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Trójkąty \\(DCE\\) i \\(ABE\\) mają trzy pary jednakowych kątów:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        kąt z wierzchołkiem w punkcie \\(E\\) jest wspólny \\(\\color{blue}{\\angle{CED}=\\angle{BEA}}\\),\n                    </li>\n<li>\n                        kąty \\(\\color{red}{\\angle{CDE}=\\angle{BAE}}\\), bo są odpowiadające,\n                    </li>\n<li>\n                        no a\n                        <span style=\"color: green;\">\n                            trzecie kąty\n                        </span>\n                        są równe z sumy kątów w trójkącie (albo też odpowiadające).\n                    </li>\n</ul>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/pole_podobnych_1_2.png",
+          "alt": "pole trapezu",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Większy trójkąt \\(ABE\\) jest podobny do mniejszego trójkąta \\(DCE\\) w skali \\(k=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(\\tfrac{10}{4}=\\tfrac{5}{2}\\)",
+            "\\(\\tfrac{6}{4}=\\tfrac{3}{2}\\)",
+            "\\(\\tfrac{15}{4}\\)",
+            "\\(\\tfrac{15}{10}=\\tfrac{3}{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Skorzystajmy z twierdzenia z początku tej strony:\n                \\[\n                P_{ABE}=k^2\\cdot P_{DCE}\n                \\]\n                Oznacza to, że\n                \\[\n                P_{ABE}=\\left(\\tfrac{5}{2}\\right)^2\\cdot 24\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Obliczamy, że  \\(P_{ABE}=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(150\\)",
+            "\\(60\\)",
+            "\\(750\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I na zakończenie obliczamy pole trapezu: \n                    \\(P_{ABCD}=P_{ABE}-P_{DCE}=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(136\\)",
+            "\\(126\\)",
+            "\\(174\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Pole trapezu \\(ABCD\\) jest równe \\(126\\).</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "795604ce1d43e5b48c6c76932acdda0a05902364bf06382b0844f33945d1414d"
+  "seed_hash": "edeba5274b2fe52f34ce061fdfa00dafb19d7f15ee68f08899d90fed583af48c"
 }

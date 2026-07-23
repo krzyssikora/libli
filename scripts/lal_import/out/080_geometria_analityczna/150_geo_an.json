@@ -2,333 +2,190 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Dane są proste o równaniach ogólnych:\n        <ol class=\"bold\">\n<li>\n                \\(2x-3y+4=0\\)\n            </li>\n<li>\n                \\(3x-2y-1=0\\)\n            </li>\n<li>\n                \\(6x+9y-2=0\\)\n            </li>\n<li>\n                \\(2x+3y-5=0\\)\n            </li>\n<li>\n                \\(6x-4y-9=0\\)\n            </li>\n<li>\n                \\(4x-6y+7=0\\)\n            </li>\n</ol>\n        Do których prostych o numerach z powyższej listy równoległe są proste o równaniach zapisanych poniżej?\n    "
+      "body": "<p>Dane są proste o równaniach ogólnych:</p>"
     },
     {
       "type": "text",
-      "body": "\n            \\(12x-8x+11=0\\)\n        "
+      "body": "<ol class=\"bold\">\n<li>\n                \\(2x-3y+4=0\\)\n            </li>\n<li>\n                \\(3x-2y-1=0\\)\n            </li>\n<li>\n                \\(6x+9y-2=0\\)\n            </li>\n<li>\n                \\(2x+3y-5=0\\)\n            </li>\n<li>\n                \\(6x-4y-9=0\\)\n            </li>\n<li>\n                \\(4x-6y+7=0\\)\n            </li>\n</ol>"
     },
     {
       "type": "text",
-      "body": "\n            1\n        "
+      "body": "<p>Do których prostych o numerach z powyższej listy równoległe są proste o równaniach zapisanych poniżej?</p>"
+    },
+    {
+      "type": "multi_grid",
+      "columns": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "do żadnej"
+      ],
+      "rows": [
+        {
+          "statement": "\\(12x-8x+11=0\\)",
+          "correct": [
+            1,
+            4
+          ]
+        },
+        {
+          "statement": "\\(-6x+9y=0\\)",
+          "correct": [
+            0,
+            5
+          ]
+        },
+        {
+          "statement": "\\(15x+10y-1=0\\)",
+          "correct": [
+            6
+          ]
+        },
+        {
+          "statement": "\\(14x+21y+9=0\\)",
+          "correct": [
+            2,
+            3
+          ]
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "\n            2\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            3\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            4\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            5\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            6\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            do żadnej\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(-6x+9y=0\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            1\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            2\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            3\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            4\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            5\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            6\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            do żadnej\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(15x+10y-1=0\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            1\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            2\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            3\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            4\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            5\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            6\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            do żadnej\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(14x+21y+9=0\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            1\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            2\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            3\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            4\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            5\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            6\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            do żadnej\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawne odpowiedzi zaznaczone są na zielono.\n    "
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Znajdź równanie ogólne prostej równoległej do\n        \\[\n        3x-5y+8=0\n        \\]\n        i przechodzącej przez punkt \\((2,-1)\\).\n    "
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    nagranie\n                </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    krok po kroku\n                </a>\n</li>\n</ul>"
-    },
-    {
-      "type": "video",
-      "media_src": "static/proste_ogolne_rownolegle.mp4"
-    },
-    {
-      "type": "text",
-      "body": "<p>Szukamy prostej o równaniu ogólnym, czyli \\(Ax+By+C=0\\), która spełnia dwa warunki:</p>"
-    },
-    {
-      "type": "text",
-      "body": "<ol class=\"bold\">\n<li>\n                            jest równoległa do prostej \\(3x-5y+8=0\\),\n                        </li>\n<li>\n                            przechodzi przez punkt \\((2,-1)\\).\n                        </li>\n</ol>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Zacznijmy od warunku</p>"
-    },
-    {
-      "type": "text",
-      "body": "<strong>\n                        1\n                    </strong>"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                            dalej\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>Prosta \\(Ax+By+C=0\\) jest równoległa do \\(3x-5y+8=0\\), więc współczynniki \\(A\\) i \\(B\\) są proporcjonalne do \\(3\\) i \\(-5\\). Wybierzmy najłatwiejszą stałą proporcjonalności, czyli \\(1\\). Wówczas</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(A=-5\\), a \\(B=3\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(A=3\\), a \\(B=-5\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(A=30\\), a \\(B=-50\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>Tak więc szukana prosta ma równanie\n                                                                                                        \\[\n                                                                                                        3x-5y+C=0\n                                                                                                        \\]\n                                                                                                        Czas użyć warunku</p>"
-    },
-    {
-      "type": "text",
-      "body": "<strong>\n                        2\n                    </strong>"
-    },
-    {
-      "type": "text",
-      "body": "<p>, czyli faktu, że prosta przechodzi przez punkt \\((2,-1)\\).</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Oznacza to, że współrzęne punktu muszą spełniać równanie prostej, czyli</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(3\\cdot 2-5\\cdot (-1)+C=0\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(3\\cdot 2-5\\cdot 1+C=0\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(3\\cdot (-1)2-5\\cdot 2+C=0\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>Rozwiąż równanie \\(3\\cdot 2-5\\cdot (-1)+C=0\\).</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Wynikiem jest</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(C=-1\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(C=11\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(C=-11\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\\(C=-11\\) podstawiamy do równania otrzymanego w części</p>"
-    },
-    {
-      "type": "text",
-      "body": "<strong>\n                        1\n                    </strong>"
-    },
-    {
-      "type": "text",
-      "body": "<p>, czyli do \\(3x-5y+C=0\\).</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Otrzymujemy równanie</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(3x-5y-11=0\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(3x-5y+11=0\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                    Prosta równoległa do \\(3x-5y+8=0\\) i przechodząca przez punkt \\((2,-1)\\) ma równanie \\(3x-5y-11=0\\).\n                "
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/proste_ogolne_rownolegle.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>Szukamy prostej o równaniu ogólnym, czyli \\(Ax+By+C=0\\), która spełnia dwa warunki:</p>"
+            },
+            {
+              "type": "text",
+              "body": "<ol class=\"bold\">\n<li>\n                            jest równoległa do prostej \\(3x-5y+8=0\\),\n                        </li>\n<li>\n                            przechodzi przez punkt \\((2,-1)\\).\n                        </li>\n</ol>"
+            },
+            {
+              "type": "text",
+              "body": "<p>Zacznijmy od warunku</p>"
+            },
+            {
+              "type": "text",
+              "body": "<strong>\n                        1\n                    </strong>"
+            },
+            {
+              "type": "text",
+              "body": "<p>.</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n\n\n￿0￿",
+              "options": [
+                ""
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Prosta \\(Ax+By+C=0\\) jest równoległa do \\(3x-5y+8=0\\), więc współczynniki \\(A\\) i \\(B\\) są proporcjonalne do \\(3\\) i \\(-5\\). Wybierzmy najłatwiejszą stałą proporcjonalności, czyli \\(1\\). Wówczas\n                        \n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(A=-5\\), a \\(B=3\\)",
+                "\\(A=3\\), a \\(B=-5\\)",
+                "\\(A=30\\), a \\(B=-50\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>Tak więc szukana prosta ma równanie\n                                                                                                        \\[\n                                                                                                        3x-5y+C=0\n                                                                                                        \\]\n                                                                                                        Czas użyć warunku</p>"
+            },
+            {
+              "type": "text",
+              "body": "<strong>\n                        2\n                    </strong>"
+            },
+            {
+              "type": "text",
+              "body": "<p>, czyli faktu, że prosta przechodzi przez punkt \\((2,-1)\\).</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Oznacza to, że współrzęne punktu muszą spełniać równanie prostej, czyli\n                        \n\n\n\n\n￿0￿",
+              "options": [
+                "\\(3\\cdot 2-5\\cdot (-1)+C=0\\)",
+                "\\(3\\cdot 2-5\\cdot 1+C=0\\)",
+                "\\(3\\cdot (-1)2-5\\cdot 2+C=0\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>Rozwiąż równanie \\(3\\cdot 2-5\\cdot (-1)+C=0\\).</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Wynikiem jest\n                        \n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(C=-1\\)",
+                "\\(C=11\\)",
+                "\\(C=-11\\)"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "text",
+              "body": "<p>\\(C=-11\\) podstawiamy do równania otrzymanego w części</p>"
+            },
+            {
+              "type": "text",
+              "body": "<strong>\n                        1\n                    </strong>"
+            },
+            {
+              "type": "text",
+              "body": "<p>, czyli do \\(3x-5y+C=0\\).</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Otrzymujemy równanie\n                        \n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(3x-5y-11=0\\)",
+                "\\(3x-5y+11=0\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>Prosta równoległa do \\(3x-5y+8=0\\) i przechodząca przez punkt \\((2,-1)\\) ma równanie \\(3x-5y-11=0\\).</p>"
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "0f284fe0e4f69ba31fecd580b6c404aa74b5d82bbef514da8e4fb27534ca3a2d"
+  "fully_mapped": true,
+  "seed_hash": "9e505ad846ac1849c7905ba9995d591afe53bc64a623ad6ea9610930ec760138"
 }

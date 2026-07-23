@@ -25,62 +25,44 @@
       "body": "<p>\n    Jeśli na wykresie mamy dla jednego \\(x\\)-a\n    <strong>\n        dwa różne\n    </strong>\n    \\(y\\)-i, to nie jest to wykres funkcji.\n</p>"
     },
     {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
-            {
-              "html": "<img alt=\"wykres - nie funkcja\" src=\"static/wykres_1.png\" width=\"350\"/>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<img alt=\"wykres - funkcja\" src=\"static/wykres_2.png\" width=\"350\"/>",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "<img alt=\"wykres - nie funkcja\" src=\"static/wykres_3.png\" width=\"350\"/>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<img alt=\"wykres - funkcja\" src=\"static/wykres_4.png\" width=\"350\"/>",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "Te wykresy nie przedstawiają funkcji.",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "Te wykresy przedstawiają funkcje.",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "Czerwona pionowa linia wskazuje \\(x\\)-a, któremu przyporządkowano kilka \\(y\\)-ów.",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "Żadna pionowa linia nie przecina wykresu więcej niż raz.",
-              "halign": "left",
-              "valign": "top"
-            }
-          ]
-        ]
-      }
+      "type": "image",
+      "media_src": "static/wykres_1.png",
+      "alt": "wykres - nie funkcja",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/wykres_2.png",
+      "alt": "wykres - funkcja",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/wykres_3.png",
+      "alt": "wykres - nie funkcja",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/wykres_4.png",
+      "alt": "wykres - funkcja",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Te wykresy nie przedstawiają funkcji.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Te wykresy przedstawiają funkcje.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Czerwona pionowa linia wskazuje \\(x\\)-a, któremu przyporządkowano kilka \\(y\\)-ów.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Żadna pionowa linia nie przecina wykresu więcej niż raz.</p>"
     },
     {
       "type": "text",
@@ -92,5 +74,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "d41ade58f23cbc064da833b8845c430506fa3d5d9bda173eb210731fa398fc4c"
+  "seed_hash": "85a13cba953ca5a56d431710de406eefeedecb8b5501b7ee7acf5e0fa3b03cde"
 }

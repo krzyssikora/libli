@@ -138,11 +138,32 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie widzisz\n        </p>\n<ul class=\"nolist\">\n<li>\n<span style=\"color: blue\">niebieską</span> prostą,\n            </li>\n<li>\n<span style=\"color: orange\">pomarańczowy</span> punkt\n            </li>\n<li>\n                szary odcinek łączący <span style=\"color: orange\">pomarańczowy</span> punkt z <span style=\"color: blue\">niebieską</span> prostą.\n            </li>\n</ul>\n<p>\n            Przesuń punkt na prostej tak, by zarówno ten punkt jak i szary odcinek stały się <span style=\"color: red\">czerwone</span>.\n        </p>\n<p>\n            Wówczas długość tego odcinka będzie odległością <span style=\"color: orange\">pomarańczowego</span> punktu od <span style=\"color: blue\">niebieskiej</span> prostej.\n        </p>\n<p>\n            Co możesz powiedzieć o tej odległości?\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"423px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/tnrxswpt/width/723/height/423/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"odległość punktu od prostej\" width=\"723px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+      "body": "<p>\n            W poniższym aplecie widzisz\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<span style=\"color: blue\">niebieską</span> prostą,\n            </li>\n<li>\n<span style=\"color: orange\">pomarańczowy</span> punkt\n            </li>\n<li>\n                szary odcinek łączący <span style=\"color: orange\">pomarańczowy</span> punkt z <span style=\"color: blue\">niebieską</span> prostą.\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuń punkt na prostej tak, by zarówno ten punkt jak i szary odcinek stały się <span style=\"color: red\">czerwone</span>.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wówczas długość tego odcinka będzie odległością <span style=\"color: orange\">pomarańczowego</span> punktu od <span style=\"color: blue\">niebieskiej</span> prostej.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Co możesz powiedzieć o tej odległości?\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/tnrxswpt/width/723/height/423/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
     },
     {
       "type": "text",
@@ -164,5 +185,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "cc989b619babf261cffa5a823e00d48b8e63acfca0ed16d6cf47c6e1e49f2a49"
+  "seed_hash": "bdaef6c7dcc156a2093381e724d7a4ca5944831dad912d8da55a8d11362735f6"
 }

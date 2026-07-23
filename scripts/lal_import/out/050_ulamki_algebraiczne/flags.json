@@ -13,108 +13,6 @@
   },
   {
     "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a>",
-    "unit_json": "060_ulamek_algebraiczny.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">wynik</a>",
-    "unit_json": "060_ulamek_algebraiczny.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a>",
-    "unit_json": "070_ulamek_algebraiczny.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">wynik</a>",
-    "unit_json": "070_ulamek_algebraiczny.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagrania</a>",
-    "unit_json": "140_dzialania_na_ulamkach_algebraicznych.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">wskazówki</a>",
-    "unit_json": "140_dzialania_na_ulamkach_algebraicznych.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "unmapped <div> in lesson body",
-    "raw_excerpt": "<div class=\"question_solution hidden\">\n<p>\n            Liczba \\(a\\) może być zupełnie <strong>dowolna</strong>.\n        </p>\n<p>\n            Liczba \\(b\\) musi być różna od \\(0\\).\n        </p>\n</div>",
-    "unit_json": "170_rownania_wymierne.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "show_solution button without solution",
-    "raw_excerpt": "<div class=\"show_solution ks_button\">odpowiedź - zobacz</div>",
-    "unit_json": "170_rownania_wymierne.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "unmapped <div> in lesson body",
-    "raw_excerpt": "<div class=\"question_solution hidden\">\n<p>\n            Liczba \\(a\\) musi być <strong>równa</strong> \\(0\\), \\(\\quad a=0\\).\n        </p>\n<p>\n            Liczba \\(b\\) musi być <strong>różna</strong> od \\(0\\), \\(\\quad b\\ne 0\\).\n        </p>\n</div>",
-    "unit_json": "170_rownania_wymierne.json"
-  },
-  {
-    "kind": "unmapped_pattern",
-    "reason": "show_solution button without solution",
-    "raw_excerpt": "<div class=\"show_solution ks_button\">odpowiedź - zobacz</div>",
-    "unit_json": "170_rownania_wymierne.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a>",
-    "unit_json": "180_rownania_wymierne.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a>",
-    "unit_json": "180_rownania_wymierne.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a>",
-    "unit_json": "240_rownania_wymierne.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">opis</a>",
-    "unit_json": "240_rownania_wymierne.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a>",
-    "unit_json": "250_rownania_wymierne.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">opis</a>",
-    "unit_json": "250_rownania_wymierne.json"
-  },
-  {
-    "kind": "stem_without_answer",
-    "reason": "stem had no answer DSL",
-    "raw_excerpt": "<p>\n    Zadania 3 i 4 dotyczą równania\n</p><p>\\(\\frac{5x+6}{x-5}=\\frac{2x-1}{x+3}\\)</p>",
-    "unit_json": "270_rownania_wymierne_quiz.json"
-  },
-  {
-    "kind": "relative_href",
     "reason": "relative/local <a href> dropped by nh3: /jump_to_id/3072f628746c4dcf9613abeb56b8de3b",
     "raw_excerpt": "<a href=\"/jump_to_id/3072f628746c4dcf9613abeb56b8de3b\">do tego rozdziału</a>",
     "unit_json": "280_funkcja_homograficzna.json"
@@ -133,18 +31,6 @@
   },
   {
     "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-1",
-    "raw_excerpt": "<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n<strong>A</strong>\n</a>",
-    "unit_json": "330_funkcja_homograficzna.json"
-  },
-  {
-    "kind": "relative_href",
-    "reason": "relative/local <a href> dropped by nh3: #tabcontent-1-2",
-    "raw_excerpt": "<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n<strong>B</strong>\n</a>",
-    "unit_json": "330_funkcja_homograficzna.json"
-  },
-  {
-    "kind": "relative_href",
     "reason": "relative/local <a href> dropped by nh3: /jump_to_id/23e2ad54dcb2442d949b536ff4ade63b",
     "raw_excerpt": "<a href=\"/jump_to_id/23e2ad54dcb2442d949b536ff4ade63b\">tutaj</a>",
     "unit_json": "330_funkcja_homograficzna.json"
@@ -154,23 +40,5 @@
     "reason": "relative/local <a href> dropped by nh3: /jump_to_id/1338ba773b124de5abe5b6289a868ee2",
     "raw_excerpt": "<a href=\"/jump_to_id/1338ba773b124de5abe5b6289a868ee2\">tutaj</a>",
     "unit_json": "330_funkcja_homograficzna.json"
-  },
-  {
-    "kind": "quiz_stem_media",
-    "reason": "<figure> cannot live in a sanitized stem",
-    "raw_excerpt": "<figure>\n<img src=\"static/homograficzna_quiz_1.png\"/>\n</figure>",
-    "unit_json": "370_funkcja_homograficzna_quiz.json"
-  },
-  {
-    "kind": "quiz_stem_media",
-    "reason": "<figure> cannot live in a sanitized stem",
-    "raw_excerpt": "<figure>\n<img src=\"static/homograficzna_quiz_2.png\"/>\n</figure>",
-    "unit_json": "370_funkcja_homograficzna_quiz.json"
-  },
-  {
-    "kind": "quiz_stem_media",
-    "reason": "<figure> cannot live in a sanitized stem",
-    "raw_excerpt": "<figure>\n<img src=\"static/homograficzna_quiz_3.png\"/>\n</figure>",
-    "unit_json": "370_funkcja_homograficzna_quiz.json"
   }
 ]

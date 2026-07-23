@@ -14,31 +14,70 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Trójkąt ma boki długości \\(13\\), \\(14\\) i \\(15\\). Promień okręgu wpisanego w ten trójkąt ma długość \\(4\\).\n        <p>\n            Jakie jest pole trójkąta?\n        </p>\n"
+      "body": "<p>Trójkąt ma boki długości \\(13\\), \\(14\\) i \\(15\\). Promień okręgu wpisanego w ten trójkąt ma długość \\(4\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jakie jest pole trójkąta?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n        Połowa obwodu to\n        <span class=\"myequation\">\n            \\(p=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n        .\n        <p>\n            Na mocy wzoru\n        </p>\n        \\[\n        P=pr\n        \\]\n        pole trójkąta jest równe\n        <span class=\"myequation\">\n            \\(P=\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n        .\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Połowa obwodu to</p>"
+        },
+        {
+          "type": "fillblank",
+          "stem": "\n            \\(p=\\)\n            ￿0￿\n",
+          "blanks": [
+            [
+              "21"
+            ]
+          ]
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Na mocy wzoru\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n        P=pr\n        \\]\n        pole trójkąta jest równe</p>"
+        },
+        {
+          "type": "fillblank",
+          "stem": "\n            \\(P=\\)\n            ￿0￿\n",
+          "blanks": [
+            [
+              "84"
+            ]
+          ]
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "\n    Świetnie!\n"
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Mając dane długości boków \\(a\\), \\(b\\), \\(c\\) i pole trójkąta \\(P\\), oblicz połowę długości obwodu trójkąta \\(p\\) i długość promienia okręgu wpisanego w ten trójkąt \\(r\\).\n    "
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -46,162 +85,132 @@
         "cells": [
           [
             {
-              "html": "\\(a\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(a\\)"
             },
             {
-              "html": "\\(b\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(b\\)"
             },
             {
-              "html": "\\(c\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(c\\)"
             },
             {
-              "html": "\\(P\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(P\\)"
             },
             {
-              "html": "\\(p\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(p\\)"
             },
             {
-              "html": "\\(r\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(r\\)"
             }
           ],
           [
             {
-              "html": "\\(9\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(9\\)"
             },
             {
-              "html": "\\(10\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(10\\)"
             },
             {
-              "html": "\\(17\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(17\\)"
             },
             {
-              "html": "\\(36\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(36\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "18"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "2"
             }
           ],
           [
             {
-              "html": "\\(11\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(11\\)"
             },
             {
-              "html": "\\(13\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(13\\)"
             },
             {
-              "html": "\\(20\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(20\\)"
             },
             {
-              "html": "\\(66\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(66\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "22"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "3"
             }
           ],
           [
             {
-              "html": "\\(7\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(7\\)"
             },
             {
-              "html": "\\(15\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(15\\)"
             },
             {
-              "html": "\\(20\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(20\\)"
             },
             {
-              "html": "\\(42\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(42\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "21"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "2"
             }
           ],
           [
             {
-              "html": "\\(4\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(4\\)"
             },
             {
-              "html": "\\(13\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(13\\)"
             },
             {
-              "html": "\\(15\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(15\\)"
             },
             {
-              "html": "\\(24\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(24\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "16"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "1.5|1,5"
             }
           ]
         ]
@@ -209,22 +218,96 @@
     },
     {
       "type": "text",
-      "body": "\n    Doskonale!\n"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n<p>\n            Znajdź długość promienia okręgu wpisanego w trójkąt o bokach długości \\(10\\), \\(13\\), \\(13\\).\n        </p>\n"
+      "body": "<p>\n            Znajdź długość promienia okręgu wpisanego w trójkąt o bokach długości \\(10\\), \\(13\\), \\(13\\).\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Tym razem nie mamy danego pola. Możemy je jednak łatwo policzyć, korzystając z faktu, że dany trójkąt jest\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        prostokątny\n                    </div>\n<div class=\"switch_value\">\n                        równoramienny\n                    </div>\n<div class=\"switch_value\">\n                        równoboczny\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\" style=\"min-height: 320px;\">\n<img alt=\"pole trójkąta\" height=\"300\" src=\"static/pole_trojkata_kbk_zad_11.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n                Dzięki temu, możemy go podzielić wysokością (zaznaczoną na rysunku literą \\(h\\)) na dwa przystające trójkąty prostokątne.\n                <div class=\"switch_line\">\n                    I teraz możęmy obliczyć wysokość z twierdzenia Pitagorasa:\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(h^2+5^2=13^2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(h^2=13^2+5^2\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Otrzymujemy \\(h=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(8\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(144\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(12\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I stąd pole trójkąta \\(P=\\frac{1}{2}\\cdot 10\\cdot 12=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(60\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(30\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(120\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Przyda nam się jeszcze połowa obwodu \\(p=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(15\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(18\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(35\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(36\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                I na zakończenie, mając dane pole równe \\(60\\) i połowę obwodu równą \\(18\\) możemy skorzystać ze wzoru\n                \\[\n                P=pr\n                \\]\n                <div class=\"switch_line\">\n                    aby znaleźć długość promienia okręgu wpisanego \\(r=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(3\\tfrac{1}{3}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(0,3\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Długość promienia okręgu wpisanego \\(r=3\\tfrac{1}{3}\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Tym razem nie mamy danego pola. Możemy je jednak łatwo policzyć, korzystając z faktu, że dany trójkąt jest\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "prostokątny",
+            "równoramienny",
+            "równoboczny"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/pole_trojkata_kbk_zad_11.png",
+          "alt": "pole trójkąta",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Dzięki temu, możemy go podzielić wysokością (zaznaczoną na rysunku literą \\(h\\)) na dwa przystające trójkąty prostokątne.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I teraz możęmy obliczyć wysokość z twierdzenia Pitagorasa:\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(h^2+5^2=13^2\\)",
+            "\\(h^2=13^2+5^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymujemy \\(h=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(8\\)",
+            "\\(144\\)",
+            "\\(12\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I stąd pole trójkąta \\(P=\\frac{1}{2}\\cdot 10\\cdot 12=\\)\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(60\\)",
+            "\\(30\\)",
+            "\\(120\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Przyda nam się jeszcze połowa obwodu \\(p=\\)\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(15\\)",
+            "\\(18\\)",
+            "\\(35\\)",
+            "\\(36\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>I na zakończenie, mając dane pole równe \\(60\\) i połowę obwodu równą \\(18\\) możemy skorzystać ze wzoru\n                \\[\n                P=pr\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    aby znaleźć długość promienia okręgu wpisanego \\(r=\\)\n                    \n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(3\\tfrac{1}{3}\\)",
+            "\\(0,3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Długość promienia okręgu wpisanego \\(r=3\\tfrac{1}{3}\\).</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "78655e4dde92079c3d80b734b35fe44fd79199d2e8f56cb9638d49d083240511"
+  "seed_hash": "21a65fc2edb71524baccb9c22e1fa1750ce837b2cbc687cd9c8d2c6f7731e26c"
 }

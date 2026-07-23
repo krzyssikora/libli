@@ -21,10 +21,14 @@
       "body": "<p>(Dla swojej wygody możesz zazanczyć to, co już zrobisz.)</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div>\n<div class=\"mark_done statement\" data-width=\"200px\">\n                \\(\\langle 3, 5)\\)\n            </div>\n<input type=\"checkbox\"/>\n</div>\n<div>\n<div class=\"mark_done statement\" data-width=\"200px\">\n                \\((-2, 4\\rangle\\)\n            </div>\n<input type=\"checkbox\"/>\n</div>\n<div>\n<div class=\"mark_done statement\" data-width=\"200px\">\n                \\(\\{2\\}\\)\n            </div>\n<input type=\"checkbox\"/>\n</div>\n<div>\n<div class=\"mark_done statement\" data-width=\"200px\">\n                \\(\\{2\\}\\cup\\{5\\}\\)\n            </div>\n<input type=\"checkbox\"/>\n</div>\n<div>\n<div class=\"mark_done statement\" data-width=\"200px\">\n                \\((-5,-1)\\cup\\langle 2,4\\rangle\\)\n            </div>\n<input type=\"checkbox\"/>\n</div>",
-      "reason": "interactive_widget (Group B): mark_done"
+      "type": "mark_done",
+      "items": [
+        "\\(\\langle 3, 5)\\)",
+        "\\((-2, 4\\rangle\\)",
+        "\\(\\{2\\}\\)",
+        "\\(\\{2\\}\\cup\\{5\\}\\)",
+        "\\((-5,-1)\\cup\\langle 2,4\\rangle\\)"
+      ]
     },
     {
       "type": "iframe",
@@ -32,6 +36,6 @@
       "title": ""
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "8509b6b9d9c186802de74cc2e19446c8c139f6a8f8910bee8b1c6908a08ae5ca"
+  "fully_mapped": true,
+  "seed_hash": "498f991be52fa4b3c6b16dfb390f29cbbb27bef75fb9ae975ea4e3c952c09ae3"
 }

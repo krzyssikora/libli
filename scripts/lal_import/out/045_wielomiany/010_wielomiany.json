@@ -167,7 +167,16 @@
     {
       "type": "spoiler",
       "label": "Czy widzisz, jaki jest sens takiej zmiany?",
-      "body": "\n\n    Teraz:\n    <ul class=\"nolist\">\n<li>\n            \\(\\color{red}{a_2}\\) to\n            <u>\n                współczynnik\n            </u>\n            \\(\\color{red}{x^2}\\)\n        </li>\n<li>\n            \\(\\color{red}{a_1}\\) to\n            <u>\n                współczynnik\n            </u>\n            \\(x\\) czyli \\(\\color{red}{x^1}\\)\n        </li>\n<li>\n            \\(\\color{red}{a_0}\\) to wyraz wolny, czyli\n            <u>\n                współczynnik\n            </u>\n            \\(\\color{red}{x^0}\\)\n        </li>\n</ul>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Teraz:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n            \\(\\color{red}{a_2}\\) to\n            <u>\n                współczynnik\n            </u>\n            \\(\\color{red}{x^2}\\)\n        </li>\n<li>\n            \\(\\color{red}{a_1}\\) to\n            <u>\n                współczynnik\n            </u>\n            \\(x\\) czyli \\(\\color{red}{x^1}\\)\n        </li>\n<li>\n            \\(\\color{red}{a_0}\\) to wyraz wolny, czyli\n            <u>\n                współczynnik\n            </u>\n            \\(\\color{red}{x^0}\\)\n        </li>\n</ul>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -203,17 +212,103 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Określ, jaki jest stopień wielomianu.\n        <div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<th>\n                        wielomian \\(W(x)\\)\n                    </th>\n<th>\n                        stopień wielomianu, \\(\\deg(W)\\)\n                    </th>\n</tr>\n<tr>\n<td>\n                        \\(3x^5-100x^4+x^2-77\\)\n                    </td>\n<td>\n                        \\(5\\)\n                        <details>\n<summary>\n                                wyjaśnienie\n                            </summary>\n                            najwyższą potęgę \\(x\\) widzimy w wyrazie \\(3x^5\\); ta potęga to \\(5\\), więc taki jest stopień wielomianu\n                        </details>\n</td>\n</tr>\n<tr>\n<td>\n                        \\(2x^3-x^7+3x^2+42\\)\n                    </td>\n<td>\n                        \\(7\\)\n                        <details>\n<summary>\n                                wyjaśnienie\n                            </summary>\n                            najwyższą potęgę \\(x\\) widzimy w wyrazie \\(-x^7\\) (wyrazy nie są ustawione w kolejności potęg); ta potęga to \\(7\\), więc taki jest stopień wielomianu\n                        </details>\n</td>\n</tr>\n<tr>\n<td>\n                        \\(2\\)\n                    </td>\n<td>\n                        \\(0\\)\n                        <details>\n<summary>\n                                wyjaśnienie\n                            </summary>\n                            nie ma żadnego \\(x\\)-a, więc najwyższa potęga to \\(x^0\\), więc taki jest stopień wielomianu\n                        </details>\n</td>\n</tr>\n<tr>\n<td>\n                        \\(4x^6+6x^4+31x-5\\)\n                    </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                        \\(-11x^9+121x^5-17x^2+13\\)\n                    </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                        \\(131x^2-415x\\)\n                    </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                        \\(-11\\)\n                    </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n"
+      "body": "<p>Określ, jaki jest stopień wielomianu.</p>"
     },
     {
-      "type": "text",
-      "body": "\n    Świetnie!\n"
+      "type": "fill_table",
+      "data": {
+        "header_row": true,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "wielomian \\(W(x)\\)"
+            },
+            {
+              "kind": "static",
+              "html": "stopień wielomianu, \\(\\deg(W)\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(3x^5-100x^4+x^2-77\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(5\\)\n                        <details>\n<summary>\n                                wyjaśnienie\n                            </summary>\n                            najwyższą potęgę \\(x\\) widzimy w wyrazie \\(3x^5\\); ta potęga to \\(5\\), więc taki jest stopień wielomianu\n                        </details>"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(2x^3-x^7+3x^2+42\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(7\\)\n                        <details>\n<summary>\n                                wyjaśnienie\n                            </summary>\n                            najwyższą potęgę \\(x\\) widzimy w wyrazie \\(-x^7\\) (wyrazy nie są ustawione w kolejności potęg); ta potęga to \\(7\\), więc taki jest stopień wielomianu\n                        </details>"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(0\\)\n                        <details>\n<summary>\n                                wyjaśnienie\n                            </summary>\n                            nie ma żadnego \\(x\\)-a, więc najwyższa potęga to \\(x^0\\), więc taki jest stopień wielomianu\n                        </details>"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(4x^6+6x^4+31x-5\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "6"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(-11x^9+121x^5-17x^2+13\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "9"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(131x^2-415x\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(-11\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            }
+          ]
+        ]
+      }
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "3a288f0f4d44fdeecbf9c4ba344ef6bcde6f9ced24883c6a7dc263944619064a"
+  "seed_hash": "bd21f2bef9430a3c8a1a29f77d885a31b7823df7ff21490b8975c0fc728dd5f6"
 }

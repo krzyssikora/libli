@@ -14,10 +14,6 @@
     },
     {
       "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
-      "type": "text",
       "body": "<p>\n        Uwaga! Twierdzenie odwrotne nie musi być prawdziwe.\n    </p>"
     },
     {
@@ -56,5 +52,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "2b1ebde44b7acb4ee8daa6497420c0340af3673debf5963013c2da49fd0728b2"
+  "seed_hash": "32b3464d1e8b0c3425735a4b084391ab25e0f862c9373b653d0e7291f02218d5"
 }

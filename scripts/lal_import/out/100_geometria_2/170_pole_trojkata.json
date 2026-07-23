@@ -125,18 +125,27 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dany jest trójkąt o bokach \\(a\\), \\(b\\), \\(c\\). Kąty wewnętrzne przeciwległe do tych boków to odpowiednio \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\). Pole trójkąta jest równe \\(P\\).\n        </p>\n        Korzystając ze wzoru\n        \\[\n        P=\\frac{1}{2}ab\\sin\\gamma\n        \\]\n        oraz z twierdzenia sinusów udowodnij, że\n        \\[\n        P=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\n        \\]\n    "
+      "body": "<p>\n            Dany jest trójkąt o bokach \\(a\\), \\(b\\), \\(c\\). Kąty wewnętrzne przeciwległe do tych boków to odpowiednio \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\). Pole trójkąta jest równe \\(P\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Korzystając ze wzoru\n        \\[\n        P=\\frac{1}{2}ab\\sin\\gamma\n        \\]\n        oraz z twierdzenia sinusów udowodnij, że\n        \\[\n        P=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\n        \\]</p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n        Zauważmy, że z danego wzoru\n        \\[\n        P=\\frac{1}{2}ab\\sin\\gamma\n        \\]\n        chcemy wyeliminować długość \\(b\\), a wprowadzić do wzoru kąt \\(\\alpha\\). Dlatego żyjemy równania z twierdzenia sinusów, w którym jest zarówno \\(b\\) jak i \\(\\alpha\\):\n        \\[\n        \\frac{b}{\\sin\\beta}=\\frac{a}{\\sin\\alpha}\n        \\] \n        Z tego równania wyliczamy \\(b\\):\n        \\[\n        b=\\frac{a\\sin\\beta}{\\sin\\alpha}\n        \\]\n        i wstawiamy do wzoru na pole:\n        \\[\n        \\begin{align*}\n        P&amp;=\\frac{1}{2}ab\\sin\\gamma=\\\\\n        &amp;=\\frac{1}{2}a\\cdot \\frac{a\\sin\\beta}{\\sin\\alpha}\\sin\\gamma=\\\\\n        &amp;=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\n        \\end{align*}\n        \\]\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zauważmy, że z danego wzoru\n        \\[\n        P=\\frac{1}{2}ab\\sin\\gamma\n        \\]\n        chcemy wyeliminować długość \\(b\\), a wprowadzić do wzoru kąt \\(\\alpha\\). Dlatego żyjemy równania z twierdzenia sinusów, w którym jest zarówno \\(b\\) jak i \\(\\alpha\\):\n        \\[\n        \\frac{b}{\\sin\\beta}=\\frac{a}{\\sin\\alpha}\n        \\] \n        Z tego równania wyliczamy \\(b\\):\n        \\[\n        b=\\frac{a\\sin\\beta}{\\sin\\alpha}\n        \\]\n        i wstawiamy do wzoru na pole:\n        \\[\n        \\begin{align*}\n        P&=\\frac{1}{2}ab\\sin\\gamma=\\\\\n        &=\\frac{1}{2}a\\cdot \\frac{a\\sin\\beta}{\\sin\\alpha}\\sin\\gamma=\\\\\n        &=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\n        \\end{align*}\n        \\]</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "c0b162ed283fd7bf9b44ee80068780b96f90579da6793ca27d78c8810d74c339"
+  "seed_hash": "764242100166abca7780ae3d8a2938c57fe7ae9eb0350b1843161831baa883b8"
 }

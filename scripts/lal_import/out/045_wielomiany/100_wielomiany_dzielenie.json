@@ -6,27 +6,69 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Co to znaczy, że\n        <blockquote>\n            liczba naturalna \\(n\\) jest podzielna przez liczbę naturalną \\(d\\)?\n        </blockquote>\n        Zastanów się, zapisz swoją odpowiedź, a następnie zobacz poniższą.\n    "
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n<div class=\"important\">\n            Mówimy, że\n            <blockquote>\n<u>\n                    liczba naturalna\n                </u>\n                \\(n\\) jest podzielna przez\n                <u>\n                    liczbę naturalną\n                </u>\n                \\(d\\)\n            </blockquote>\n            jeśli istnieje taka\n            <u>\n                liczba naturalna\n            </u>\n            \\(k\\), że\n                    \\[\n                    n=d\\cdot k\n                    \\]\n            <ul class=\"nolist\">\n<li>\n                    liczbę \\(d\\) nazywamy\n                    <strong>\n                        dzielnikiem\n                    </strong>\n                    liczby \\(n\\),\n                </li>\n<li>\n                    liczbę \\(k\\), czyli wynik działania \\(n:d\\) nazywamy\n                    <strong>\n                        ilorazem\n                    </strong>\n                    .\n                </li>\n</ul>\n</div>\n<div class=\"ks_example\">\n<p class=\"example\">\n</p>\n<div style=\"min-height: 4em;\">\n                Liczba \\(n=20\\) jest podzielna przez dzielnik \\(d=4\\), bo \\(20=4\\cdot 5\\).\n                <p style=\"float: right;\">\n                    Możemy zapisać: \\(20:4=5\\) lub \\(\\frac{20}{4}=5\\).\n                </p>\n</div>\n<div style=\"min-height: 4em;\">\n                Liczba \\(n=102\\) jest podzielna przez dzielnik \\(d=3\\), bo \\(102=3\\cdot 34\\).\n                <p style=\"float: right;\">\n                    Możemy zapisać: \\(102:3=34\\) lub \\(\\frac{102}{3}=34\\).\n                </p>\n</div>\n</div>\n</div>",
-      "reason": "unmapped <div> in lesson body"
+      "body": "<p>Co to znaczy, że</p>"
     },
     {
       "type": "text",
-      "body": "\n"
+      "body": "<blockquote>\n            liczba naturalna \\(n\\) jest podzielna przez liczbę naturalną \\(d\\)?\n        </blockquote>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n        Podzielność liczb naturalnych - zobacz\n    </div>",
-      "reason": "show_solution button without solution"
+      "type": "text",
+      "body": "<p>Zastanów się, zapisz swoją odpowiedź, a następnie zobacz poniższą.</p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "Podzielność liczb naturalnych - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Mówimy, że</p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n<u>\n                    liczba naturalna\n                </u>\n                \\(n\\) jest podzielna przez\n                <u>\n                    liczbę naturalną\n                </u>\n                \\(d\\)\n            </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>jeśli istnieje taka</p>"
+        },
+        {
+          "type": "text",
+          "body": "<u>\n                liczba naturalna\n            </u>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(k\\), że\n                    \\[\n                    n=d\\cdot k\n                    \\]</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                    liczbę \\(d\\) nazywamy\n                    <strong>\n                        dzielnikiem\n                    </strong>\n                    liczby \\(n\\),\n                </li>\n<li>\n                    liczbę \\(k\\), czyli wynik działania \\(n:d\\) nazywamy\n                    <strong>\n                        ilorazem\n                    </strong>\n                    .\n                </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p><strong>Przykład</strong></p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Liczba \\(n=20\\) jest podzielna przez dzielnik \\(d=4\\), bo \\(20=4\\cdot 5\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p style=\"float: right;\">\n                    Możemy zapisać: \\(20:4=5\\) lub \\(\\frac{20}{4}=5\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Liczba \\(n=102\\) jest podzielna przez dzielnik \\(d=3\\), bo \\(102=3\\cdot 34\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p style=\"float: right;\">\n                    Możemy zapisać: \\(102:3=34\\) lub \\(\\frac{102}{3}=34\\).\n                </p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -62,7 +104,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -89,6 +131,6 @@
       "body": "<p style=\"float: right;\">\n                (\n                <small>\n                    liniowy, czyli stopnia \\(1\\), czyli postaci \\(ax+b\\)\n                </small>\n                )\n            </p>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "0139d828f508ed300e65854438c9e1881a6e3d5930992b787cb95cc839eb9920"
+  "fully_mapped": true,
+  "seed_hash": "812e11135d55c7fbe29c82a3b8c7f7526b0eaeef98c5210cdc171b80731d1395"
 }

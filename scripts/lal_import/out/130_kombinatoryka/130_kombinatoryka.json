@@ -30,70 +30,672 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W grupie jest pięć dziewcząt i czterech chłopców.\n        </p>\n<p>\n            Na ile sposobów możemy ustawić wszystkich dziewięcioro w szeregu, ale tak, aby zarówno wszyscy chłopcy stali razem, jak i wszystkie dziewczęta stały razem.\n        </p>\n"
+      "body": "<p>\n            W grupie jest pięć dziewcząt i czterech chłopców.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów możemy ustawić wszystkich dziewięcioro w szeregu, ale tak, aby zarówno wszyscy chłopcy stali razem, jak i wszystkie dziewczęta stały razem.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Skoro zarówno chłopcy i dziewczęta mają stać razem, to znaczy, że musimy ustawić albo najpierw dziewczęta, a potem chłopców:\n                <figure>\n<img src=\"static/dziewczeta_chlopcy.png\" style=\"max-width: 80%;\"/>\n</figure>\n                albo najpierw chłopców, a potem dziewczęta:\n                <figure>\n<img src=\"static/chlopcy_dziewczeta.png\" style=\"max-width: 80%;\"/>\n</figure>\n<div class=\"switch_line\">\n                    W każdej z tych dwóch sytuacji dziewczęta możemy ustawić na\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4!\\) sposobów</div>\n<div class=\"switch_value\">\\(5!\\) sposobów</div>\n<div class=\"switch_value\">\\(9!\\) sposobów</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Podobnie w każdej z tych dwóch sytuacji chłopców możemy ustawić na\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4!\\) sposobów</div>\n<div class=\"switch_value\">\\(5!\\) sposobów</div>\n<div class=\"switch_value\">\\(9!\\) sposobów</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I dlatego wszystkich ustawień dziewcząt i chłopców jest\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2\\cdot 5!\\cdot 4!\\)</div>\n<div class=\"switch_value\">\\(5!\\cdot 4!\\)</div>\n<div class=\"switch_value\">\\(9!\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder narrow_table\">\n<tr>\n<td>sytuacji</td>\n<td></td>\n<td>ustawień<br/>dziewcząt</td>\n<td></td>\n<td>ustawień<br/>chłopców</td>\n<td></td>\n</tr>\n<tr>\n<td>\\(\\downarrow\\)</td>\n<td></td>\n<td>\\(\\downarrow\\)</td>\n<td></td>\n<td>\\(\\downarrow\\)</td>\n<td></td>\n</tr>\n<tr>\n<td>\\(2\\)</td>\n<td>\\(\\cdot\\)</td>\n<td>\\(5!\\)</td>\n<td>\\(\\cdot\\)</td>\n<td>\\(4!\\)</td>\n<td>\\(=5\\,760\\)</td>\n</tr>\n</table>\n</div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skoro zarówno chłopcy i dziewczęta mają stać razem, to znaczy, że musimy ustawić albo najpierw dziewczęta, a potem chłopców:</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/dziewczeta_chlopcy.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>albo najpierw chłopców, a potem dziewczęta:</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/chlopcy_dziewczeta.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W każdej z tych dwóch sytuacji dziewczęta możemy ustawić na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4!\\) sposobów",
+            "\\(5!\\) sposobów",
+            "\\(9!\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Podobnie w każdej z tych dwóch sytuacji chłopców możemy ustawić na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4!\\) sposobów",
+            "\\(5!\\) sposobów",
+            "\\(9!\\) sposobów"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego wszystkich ustawień dziewcząt i chłopców jest\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\cdot 5!\\cdot 4!\\)",
+            "\\(5!\\cdot 4!\\)",
+            "\\(9!\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "sytuacji",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "ustawień<br/>dziewcząt",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "ustawień<br/>chłopców",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\downarrow\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\downarrow\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\downarrow\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\cdot\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5!\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\cdot\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4!\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(=5\\,760\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W grupie jest pięć dziewcząt i czterech chłopców.\n        </p>\n<p>\n            Na ile sposobów możemy ustawić wszystkich dziewięcioro w szeregu, ale tak, aby żadna dziewczynka nie stała obok innej dziewczynki.\n        </p>\n"
+      "body": "<p>\n            W grupie jest pięć dziewcząt i czterech chłopców.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Na ile sposobów możemy ustawić wszystkich dziewięcioro w szeregu, ale tak, aby żadna dziewczynka nie stała obok innej dziewczynki.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Skoro żadna dziewczynka nie może stać obok innej dziewczynki, to oznacza, że dziewczynki i chłopcy muszą stać na przemian:\n                <figure>\n<img src=\"static/dz_ch_dz_ch_dz_ch_dz_ch_dz.png\" style=\"max-width: 80%;\"/>\n</figure>\n                Miejsca, w których mają \"stać\" dziewczęta i chłopcy są więc ustalone. \n                <div class=\"switch_line\">\n                    Dziewczęta możemy ustawić na przeznaczonych dla nich miejscach na\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4!\\) sposobów</div>\n<div class=\"switch_value\">\\(5!\\) sposobów</div>\n<div class=\"switch_value\">\\(9!\\) sposobów</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Podobnie chłopców możemy ustawić na przeznaczonych dla nich miejscach na\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4!\\) sposobów</div>\n<div class=\"switch_value\">\\(5!\\) sposobów</div>\n<div class=\"switch_value\">\\(9!\\) sposobów</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I dlatego wszystkich ustawień dziewcząt i chłopców jest\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2\\cdot 5!\\cdot 4!\\)</div>\n<div class=\"switch_value\">\\(5!\\cdot 4!\\)</div>\n<div class=\"switch_value\">\\(9!\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                \\(5!\\cdot 4!=2\\,880\\)\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skoro żadna dziewczynka nie może stać obok innej dziewczynki, to oznacza, że dziewczynki i chłopcy muszą stać na przemian:</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/dz_ch_dz_ch_dz_ch_dz_ch_dz.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Miejsca, w których mają \"stać\" dziewczęta i chłopcy są więc ustalone.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dziewczęta możemy ustawić na przeznaczonych dla nich miejscach na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4!\\) sposobów",
+            "\\(5!\\) sposobów",
+            "\\(9!\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Podobnie chłopców możemy ustawić na przeznaczonych dla nich miejscach na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4!\\) sposobów",
+            "\\(5!\\) sposobów",
+            "\\(9!\\) sposobów"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I dlatego wszystkich ustawień dziewcząt i chłopców jest\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\cdot 5!\\cdot 4!\\)",
+            "\\(5!\\cdot 4!\\)",
+            "\\(9!\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(5!\\cdot 4!=2\\,880\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Na stole leżą dwie książki do matematyki i cztery inne. Na ile sposobów możemy ustawić wszystkie sześć książek w rzędzie na półce tak, aby książki do matematyki sąsiadowały ze sobą?\n        </p>\n"
+      "body": "<p>\n            Na stole leżą dwie książki do matematyki i cztery inne. Na ile sposobów możemy ustawić wszystkie sześć książek w rzędzie na półce tak, aby książki do matematyki sąsiadowały ze sobą?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Wyobraźmy sobie przez chwilę, że obie książki do matematyki \"sklejamy\" razem, tworząc jedną, grubszą książkę.\n                </p>\n<div class=\"switch_line\">\n                    Wówczas mielibyśmy \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">6 książek</div>\n<div class=\"switch_value\">5 książek</div>\n<div class=\"switch_value\">4 książki</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Moglibyśmy ustawić je w rzędzie na półce na\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(6!\\) sposobów</div>\n<div class=\"switch_value\">\\(5!\\) sposobów</div>\n<div class=\"switch_value\">\\(4!\\) sposobów</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Książki zostały ustawione, to teraz rozklejmy obie książki do matematyki. I dzięki temu stoją obok siebie.\n                </p>\n<div class=\"switch_line\">\n                    Jednak wyliczoną liczbę ustawień (\\(5!\\)) musimy jeszcze pomnożyć przez\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(0,5\\)</div>\n<div class=\"switch_value\">\\(2\\)</div>\n<div class=\"switch_value\">\\(3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Mnożymy przez \\(2\\), bo książki do matematyki mogły być \"sklejone\" na dwa sposoby.\n                </p>\n<p>\n                    I dlatego wszystkich sposobów ustawienia książek jest\n                </p>\n                \\[\n                2\\cdot 5!=240\n                \\]\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Wyobraźmy sobie przez chwilę, że obie książki do matematyki \"sklejamy\" razem, tworząc jedną, grubszą książkę.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wówczas mielibyśmy \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "6 książek",
+            "5 książek",
+            "4 książki"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Moglibyśmy ustawić je w rzędzie na półce na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6!\\) sposobów",
+            "\\(5!\\) sposobów",
+            "\\(4!\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Książki zostały ustawione, to teraz rozklejmy obie książki do matematyki. I dzięki temu stoją obok siebie.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jednak wyliczoną liczbę ustawień (\\(5!\\)) musimy jeszcze pomnożyć przez\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(0,5\\)",
+            "\\(2\\)",
+            "\\(3\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mnożymy przez \\(2\\), bo książki do matematyki mogły być \"sklejone\" na dwa sposoby.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    I dlatego wszystkich sposobów ustawienia książek jest\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                2\\cdot 5!=240\n                "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Na stole leżą dwie książki do matematyki i cztery inne. Na ile sposobów możemy ustawić wszystkie sześć książek w rzędzie na półce tak, aby książki do matematyki <strong>nie</strong> sąsiadowały ze sobą?\n        </p>\n"
+      "body": "<p>\n            Na stole leżą dwie książki do matematyki i cztery inne. Na ile sposobów możemy ustawić wszystkie sześć książek w rzędzie na półce tak, aby książki do matematyki <strong>nie</strong> sąsiadowały ze sobą?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<p>\n                Musimy policzyć, w ilu możliwych położeniach możemy umieścić książki do matematyki.\n            </p>\n<p>\n                W poniższej tabeli w kolumnie \"<strong>ustawienia</strong>\" widzisz symbolicznie narysowane 6 książek. W miejscu oznaczonym \"<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\" umieszczamy jedną książkę do matematyki. Wszystkie inne miejsca, w których może być druga książka do matematyki, oznaczamy kolejnymi liczbami - by policzyć, ile ich jest.\n            </p>\n<div class=\"switch_step\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>ustawienia</th>\n<th>liczba ustawień</th>\n</tr>\n<tr>\n<td>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">1</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">2</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">3</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">4</span>\n</td>\n<td>\n                                \\(4\\)\n                            </td>\n</tr>\n<tr>\n<td>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">1</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">2</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">3</span>\n</td>\n<td>\n                                \\(3\\)\n                            </td>\n</tr>\n<tr>\n<td>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">1</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">2</span>\n</td>\n<td>\n                                \\(2\\)\n                            </td>\n</tr>\n<tr>\n<td>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">1</span>\n</td>\n<td>\n                                \\(1\\)\n                            </td>\n</tr>\n</table>\n</div>\n<div class=\"switch_line\">\n                    Z tabeli wynika, że wszystkich par miejsc, w których możemy umieścić książki do matematyki jest\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(10\\)</div>\n<div class=\"switch_value\">\\(4\\)</div>\n<div class=\"switch_value\">\\(3\\)</div>\n<div class=\"switch_value\">\\(2\\)</div>\n<div class=\"switch_value\">\\(1\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Zwróćmy uwagę, że gdy mamy wybraną parę miejsc, w których możemy umieścić książki do matematyki, to dwie książki możemy umieścić w takich dwóch miejscach na dwa sposoby. (Np. \n                    <span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\"><strong>A</strong></span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\"><strong>B</strong></span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n                    oraz\n                    <span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\"><strong>B</strong></span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\"><strong>A</strong></span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n                    ). Dlatego dwie książki od matematyki możemy umieścić na wszystkich wybranych wcześniej miejscach na półce na\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2\\) sposoby</div>\n<div class=\"switch_value\">\\(20\\) sposobów</div>\n<div class=\"switch_value\">\\(10\\) sposobów</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Mamy więc dwie książki do matematyki umieszczone na dwóch miejscach. Zostały cztery miejsca, na których musimy umieścić pozostałe cztery książki.\n                </p>\n<div class=\"switch_line\">\n                    Możemy to zrobić na\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4!\\) sposobów</div>\n<div class=\"switch_value\">\\(4\\) sposoby</div>\n<div class=\"switch_value\">\\(4\\cdot 4\\) sposoby</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Książki do matematyki umieszczamy na \\(20\\) sposobów, a pozostałe na \\(4!=24\\) sposoby. Dlatego wszystkich sposobów ułożenia książek na półce jest\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(20\\cdot 24\\)</div>\n<div class=\"switch_value\">\\(20+24\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Czyli \\(480\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Musimy policzyć, w ilu możliwych położeniach możemy umieścić książki do matematyki.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                W poniższej tabeli w kolumnie \"<strong>ustawienia</strong>\" widzisz symbolicznie narysowane 6 książek. W miejscu oznaczonym \"<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\" umieszczamy jedną książkę do matematyki. Wszystkie inne miejsca, w których może być druga książka do matematyki, oznaczamy kolejnymi liczbami - by policzyć, ile ich jest.\n            </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "ustawienia",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "liczba ustawień",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">1</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">2</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">3</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">4</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">1</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">2</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">3</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">1</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">2</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color: lightblue; text-align: center;\">x</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">_</span>\n<span style=\"display: inline-block; height: 1.5rem; width: 1rem; background-color:lightblue; text-align: center;\">1</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z tabeli wynika, że wszystkich par miejsc, w których możemy umieścić książki do matematyki jest\n                    \n\n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(10\\)",
+            "\\(4\\)",
+            "\\(3\\)",
+            "\\(2\\)",
+            "\\(1\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Zwróćmy uwagę, że gdy mamy wybraną parę miejsc, w których możemy umieścić książki do matematyki, to dwie książki możemy umieścić w takich dwóch miejscach na dwa sposoby. (Np. \n                    _\n<strong>A</strong>\n_\n_\n<strong>B</strong>\n_\n                    oraz\n                    _\n<strong>B</strong>\n_\n_\n<strong>A</strong>\n_\n                    ). Dlatego dwie książki od matematyki możemy umieścić na wszystkich wybranych wcześniej miejscach na półce na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\) sposoby",
+            "\\(20\\) sposobów",
+            "\\(10\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mamy więc dwie książki do matematyki umieszczone na dwóch miejscach. Zostały cztery miejsca, na których musimy umieścić pozostałe cztery książki.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Możemy to zrobić na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4!\\) sposobów",
+            "\\(4\\) sposoby",
+            "\\(4\\cdot 4\\) sposoby"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Książki do matematyki umieszczamy na \\(20\\) sposobów, a pozostałe na \\(4!=24\\) sposoby. Dlatego wszystkich sposobów ułożenia książek na półce jest\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(20\\cdot 24\\)",
+            "\\(20+24\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Czyli \\(480\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Na ile sposobów możemy ustawić w rzędzie na półce: \n        </p>\n<ul class=\"nolist\">\n<li>2 książki z poezją,</li>\n<li>4 kryminały,</li>\n<li>3 książki science-fiction,</li>\n</ul>\n        jeśli:\n        <ol class=\"bold\" type=\"A\">\n<li>\n                mogą być ustawione jakkolwiek,\n            </li>\n<li>\n                książki z poezją muszą stać obok siebie,\n            </li>\n<li>\n                książki z poezją nie mogą stać obok siebie,\n            </li>\n<li>\n                książki tego samego rodzaju muszą stać obok siebie?\n            </li>\n</ol>\n"
+      "body": "<p>\n            Na ile sposobów możemy ustawić w rzędzie na półce: \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>2 książki z poezją,</li>\n<li>4 kryminały,</li>\n<li>3 książki science-fiction,</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>jeśli:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" type=\"A\">\n<li>\n                mogą być ustawione jakkolwiek,\n            </li>\n<li>\n                książki z poezją muszą stać obok siebie,\n            </li>\n<li>\n                książki z poezją nie mogą stać obok siebie,\n            </li>\n<li>\n                książki tego samego rodzaju muszą stać obok siebie?\n            </li>\n</ol>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Część <strong>A</strong>.\n                </p>\n<div class=\"switch_line\">\n                    Jeśli nie ma żadnych ograniczeń co do tego, jak mamy ustawiać książki, możemy to zrobić na\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(9!\\) sposobów</div>\n<div class=\"switch_value\">\\(2!\\cdot 4!\\cdot 3!\\) sposobów</div>\n<div class=\"switch_value\">\\(2!+4!+3!\\) sposobów</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Część <strong>B</strong>.\n                </p>\n<div class=\"switch_line\">\n                    Najpierw \"sklejamy\" dwie książki z poezją na \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2\\) sposoby</div>\n<div class=\"switch_value\">\\(3\\) sposoby</div>\n<div class=\"switch_value\">\\(4\\) sposoby</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Potem ustawiamy 7 pozostałych książek wraz z ósmą \"sklejoną\" poezją na\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(7!\\) sposobów</div>\n<div class=\"switch_value\">\\(8!\\) sposobów</div>\n<div class=\"switch_value\">\\(7+8\\) sposobów</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Czyli wszystkich ustawień jest\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2\\cdot 8!\\)</div>\n<div class=\"switch_value\">\\(2+8!\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Część <strong>C</strong>.\n                </p>\n<p>\n                    Zauważmy, że książki z poezją mogą\n                </p>\n<ul>\n<li>albo stać razem</li>\n<li>albo stać oddzielnie.</li>\n</ul>\n                Innych możliwości nie ma.\n                <p>\n                    Tak więc jeśli:\n                </p>\n<ul>\n<li>\n                        wszystkich możliwośći jest \\(9!\\),\n                    </li>\n<li>\n                        możliwości, gdy stoją razem jest \\(2\\cdot 8!\\)\n                    </li>\n</ul>\n<div class=\"switch_line\">\n                    to możliwości, gdy stoją oddzielnie jest\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(9!-2\\cdot 8!\\)</div>\n<div class=\"switch_value\">\\(9!+2\\cdot 8!\\)</div>\n<div class=\"switch_value\">\\(9!\\cdot 2\\cdot 8!\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Co możemy uprościć:\n                <div class=\"table_wrapper\">\n                    \\[\n                    9!-2\\cdot 8!=9\\cdot 8!-2\\cdot 8!=8!\\cdot(9-2)=7\\cdot 8!\n                    \\]\n                </div>\n<p>\n                    Część <strong>D</strong>.\n                </p>\n<div class=\"switch_line\">\n                    Dwie książki z poezją możemy \"skleić\" na \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2\\) sposoby</div>\n<div class=\"switch_value\">\\(3\\) sposoby</div>\n<div class=\"switch_value\">\\(4\\) sposoby</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Cztery kryminały możemy \"skleić\" na \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4\\) sposoby</div>\n<div class=\"switch_value\">\\(4!\\) sposobów</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Trzy książki science-fiction możemy \"skleić\" na \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3\\) sposoby</div>\n<div class=\"switch_value\">\\(3!\\) sposobów</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I teraz, gdy mamy \"sklejone\" trzy grupy książek tego samego rodzaju, możemy te trzy grupy ustawić na\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3\\) sposoby</div>\n<div class=\"switch_value\">\\(3!\\) sposobów</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>ustawień książek z poezją</td>\n<td>\\(2\\)</td>\n</tr>\n<tr>\n<td>ustawień kryminałów</td>\n<td>\\(4!\\)</td>\n</tr>\n<tr>\n<td>ustawień książek science-fiction</td>\n<td>\\(3!\\)</td>\n</tr>\n<tr>\n<td>ustawień trzech grup książek</td>\n<td>\\(3!\\)</td>\n</tr>\n</table>\n</div>\n<p>\n                    Więc razem:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    2\\cdot 4!\\cdot 3!\\cdot 3!=2\\cdot 24\\cdot 6\\cdot 6=1\\,728\n                    \\]\n                </div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Część <strong>A</strong>.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jeśli nie ma żadnych ograniczeń co do tego, jak mamy ustawiać książki, możemy to zrobić na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(9!\\) sposobów",
+            "\\(2!\\cdot 4!\\cdot 3!\\) sposobów",
+            "\\(2!+4!+3!\\) sposobów"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Część <strong>B</strong>.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Najpierw \"sklejamy\" dwie książki z poezją na \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\) sposoby",
+            "\\(3\\) sposoby",
+            "\\(4\\) sposoby"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Potem ustawiamy 7 pozostałych książek wraz z ósmą \"sklejoną\" poezją na\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(7!\\) sposobów",
+            "\\(8!\\) sposobów",
+            "\\(7+8\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Czyli wszystkich ustawień jest\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\cdot 8!\\)",
+            "\\(2+8!\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Część <strong>C</strong>.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zauważmy, że książki z poezją mogą\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>albo stać razem</li>\n<li>albo stać oddzielnie.</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Innych możliwości nie ma.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Tak więc jeśli:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                        wszystkich możliwośći jest \\(9!\\),\n                    </li>\n<li>\n                        możliwości, gdy stoją razem jest \\(2\\cdot 8!\\)\n                    </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    to możliwości, gdy stoją oddzielnie jest\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(9!-2\\cdot 8!\\)",
+            "\\(9!+2\\cdot 8!\\)",
+            "\\(9!\\cdot 2\\cdot 8!\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Co możemy uprościć:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    9!-2\\cdot 8!=9\\cdot 8!-2\\cdot 8!=8!\\cdot(9-2)=7\\cdot 8!\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Część <strong>D</strong>.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dwie książki z poezją możemy \"skleić\" na \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\) sposoby",
+            "\\(3\\) sposoby",
+            "\\(4\\) sposoby"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Cztery kryminały możemy \"skleić\" na \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4\\) sposoby",
+            "\\(4!\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Trzy książki science-fiction możemy \"skleić\" na \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3\\) sposoby",
+            "\\(3!\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I teraz, gdy mamy \"sklejone\" trzy grupy książek tego samego rodzaju, możemy te trzy grupy ustawić na\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3\\) sposoby",
+            "\\(3!\\) sposobów"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "ustawień książek z poezją",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "ustawień kryminałów",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4!\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "ustawień książek science-fiction",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3!\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "ustawień trzech grup książek",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3!\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Więc razem:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    2\\cdot 4!\\cdot 3!\\cdot 3!=2\\cdot 24\\cdot 6\\cdot 6=1\\,728\n                    \\]\n                "
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "48f7ee3e1084c865253b58f1535310d91d4d4c7a4f177102f28ad54eefbb0ff3"
+  "seed_hash": "b1eda7aaf596000745726197bf5f3264f9d86fcb0465673fe1f88b7abfac600b"
 }

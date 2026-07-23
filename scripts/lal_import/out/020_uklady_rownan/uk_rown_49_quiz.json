@@ -1,10 +1,8 @@
 {
   "elements": [
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>\n    Pytania 1 i 2 odnoszą się do następującego zadania:\n</p><p>\n    Dziecko uzbierało 52 monety – dwuzłotówki i pięciozłotówki.\n</p><p>\n    Ich łączna wartość to 173 złote.\n</p><p>\n    Ile dwuzłotówek i ile pięciozłotówek uzbierało dziecko?\n</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>\n    Pytania 1 i 2 odnoszą się do następującego zadania:\n</p><p>\n    Dziecko uzbierało 52 monety – dwuzłotówki i pięciozłotówki.\n</p><p>\n    Ich łączna wartość to 173 złote.\n</p><p>\n    Ile dwuzłotówek i ile pięciozłotówek uzbierało dziecko?\n</p>"
     },
     {
       "type": "choice",
@@ -51,10 +49,8 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>\n    Pytania 3 i 4 odnoszą się do następującego zadania:\n</p><p>\n    Suma czterokrotności większej liczby całkowitej i pięciokrotności mniejszej liczby całkowitej jest równa 1.\n</p><p>\n    Kiedy trzykrotność mniejszej liczby odejmiemy od pięciokrotności większej, otrzymamy 29.\n</p><p>\n    Znajdź obie liczby.\n</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>\n    Pytania 3 i 4 odnoszą się do następującego zadania:\n</p><p>\n    Suma czterokrotności większej liczby całkowitej i pięciokrotności mniejszej liczby całkowitej jest równa 1.\n</p><p>\n    Kiedy trzykrotność mniejszej liczby odejmiemy od pięciokrotności większej, otrzymamy 29.\n</p><p>\n    Znajdź obie liczby.\n</p>"
     },
     {
       "type": "choice",
@@ -101,10 +97,8 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>\n    Pytania 5 i 6 odnoszą się do następującego zadania:\n</p><p>\n    Podróżny przejechał 250 kilometrów w łącznym czasie 3 i pół godziny.\n</p><p>\n    Cześć trasy pokonał samochodem, a część pociągiem.\n</p><p>\n    Samochodem jechał ze średnią prędkością 40 kilometrów na godzinę, a pociągiem – 80 kilometrów na godzinę.\n</p><p>\n    Ile czasu jechał samochodem, a ile pociągiem?\n</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>\n    Pytania 5 i 6 odnoszą się do następującego zadania:\n</p><p>\n    Podróżny przejechał 250 kilometrów w łącznym czasie 3 i pół godziny.\n</p><p>\n    Cześć trasy pokonał samochodem, a część pociągiem.\n</p><p>\n    Samochodem jechał ze średnią prędkością 40 kilometrów na godzinę, a pociągiem – 80 kilometrów na godzinę.\n</p><p>\n    Ile czasu jechał samochodem, a ile pociągiem?\n</p>"
     },
     {
       "type": "choice",
@@ -151,6 +145,6 @@
       ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "7aeb1d0907785bdcad6d9197372efd55f2861130223e62b0b34975438c6b1aff"
+  "fully_mapped": true,
+  "seed_hash": "139364a6204889bd0b4b30177cfff94c40dbde6add86e5982dbf5ea37a5a8ba6"
 }

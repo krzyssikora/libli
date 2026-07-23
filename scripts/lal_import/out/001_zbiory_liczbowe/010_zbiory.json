@@ -23,39 +23,86 @@
     {
       "type": "spoiler",
       "label": "zbiór pusty",
-      "body": "\n                        Zbiór, który nie posiada żadnych elementów.\n                        <br/>\n                        Taki zbiór oznaczamy \\(\\emptyset\\) albo (rzadziej) \\(\\{\\}\\).\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zbiór, który nie posiada żadnych elementów.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Taki zbiór oznaczamy \\(\\emptyset\\) albo (rzadziej) \\(\\{\\}\\).</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "zbiór skończony",
-      "body": "\n                        Zbiór, który ma skończenie wiele elementów.\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zbiór, który ma skończenie wiele elementów.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "zbiór nieskończony",
-      "body": "\n                        Zbiór, którego liczba elementów jest nieskończona.\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zbiór, którego liczba elementów jest nieskończona.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "element zbioru",
-      "body": "\n                        Każdy pojedynczy obiekt wchodzący w skład zbioru. Elementami\n                        <strong>\n                            zbiorów liczbowych\n                        </strong>\n                        są, rzecz jasna, liczby.\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Każdy pojedynczy obiekt wchodzący w skład zbioru. Elementami</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n                            zbiorów liczbowych\n                        </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>są, rzecz jasna, liczby.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "równość zbiorów",
-      "body": "\n                        Zbiory są równe, gdy mają takie same elementy, czyli gdy każdy element jednego ze zbiorów jest też elementem drugiego - i odwrotnie.\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zbiory są równe, gdy mają takie same elementy, czyli gdy każdy element jednego ze zbiorów jest też elementem drugiego - i odwrotnie.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "zbiory rozłączne",
-      "body": "\n                        Zbiory nazywamy rozłącznymi, jeśli nie mają żadnego wspólnego elementu.\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zbiory nazywamy rozłącznymi, jeśli nie mają żadnego wspólnego elementu.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "dopełnienie zbioru",
-      "body": "\n                        Zbiór wszystkich elementów, które nie należą do danego zbioru.\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zbiór wszystkich elementów, które nie należą do danego zbioru.</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "8b2140787eb6e6efd0cc32dd21ae8fb8c0c43010b9f8d2eff0d72150d839521a"
+  "seed_hash": "80cd099c228a7f62f08a30ab43ddaf5a49cf043ebb2937e611f271a42e444a4a"
 }

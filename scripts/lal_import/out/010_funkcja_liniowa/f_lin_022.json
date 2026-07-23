@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -13,7 +13,7 @@
       "body": "<p>\n        Pierwsza funkcja: \\( y=-\\frac{1}{2}x \\)\n    </p>"
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -21,66 +21,54 @@
         "cells": [
           [
             {
-              "html": "\\(x\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(x\\)"
             },
             {
-              "html": "\\(-2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-2\\)"
             },
             {
-              "html": "\\(-1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-1\\)"
             },
             {
-              "html": "\\(0\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(0\\)"
             },
             {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(1\\)"
             },
             {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(2\\)"
             }
           ],
           [
             {
-              "html": "\\(y\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(y\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "1"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "0.5|0,5"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "0"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-0.5|-0,5"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-1"
             }
           ]
         ]
@@ -91,7 +79,7 @@
       "body": "<p>\n        Druga funkcja: \\( y=2x \\)\n    </p>"
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -99,66 +87,54 @@
         "cells": [
           [
             {
-              "html": "\\(x\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(x\\)"
             },
             {
-              "html": "\\(-2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-2\\)"
             },
             {
-              "html": "\\(-1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-1\\)"
             },
             {
-              "html": "\\(0\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(0\\)"
             },
             {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(1\\)"
             },
             {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(2\\)"
             }
           ],
           [
             {
-              "html": "\\(y\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(y\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-4"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-2"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "0"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "2"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "4"
             }
           ]
         ]
@@ -178,5 +154,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "c3942c535489eefd6855c2a627b4e95ec64e13e96befdbf16fb3e583eebeadf3"
+  "seed_hash": "df44ae69e22d15afc16c5e62a8379c22ae31668d1eca6743e3418c8503382ee9"
 }

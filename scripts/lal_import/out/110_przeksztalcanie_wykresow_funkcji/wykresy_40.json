@@ -2,61 +2,64 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        W poniższym aplecie możesz:\n        <ul>\n<li>\n                użyć\n                <span style=\"color: orange; background-color: gray;\">\n                    pomarańczowego\n                </span>\n                suwaka, żeby wybrać jedną z trzech funkcji,\n            </li>\n<li>\n                przesuwać punkt na osi \\(oy\\) będący końcem wektora, by przesuwać wykres wybranej funkcji,\n            </li>\n<li>\n                przesuwać\n                <span style=\"color: orange; background-color: gray;\">\n                    pomarańczowy\n                </span>\n                punkt na wykresie podstawowej (\n                <span style=\"color: green\">\n                    zielonym\n                </span>\n                ), by widzieć, jak przesuwa się na\n                <span style=\"color: red\">\n                    czerwony\n                </span>\n                wykres.\n            </li>\n</ul>\n<div>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"800px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/hayusj5n/width/800/height/800/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"przesunięcie oy\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n"
+      "body": "<p>W poniższym aplecie możesz:</p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<ul>\n<li>\n                użyć\n                <span style=\"color: orange; background-color: gray;\">\n                    pomarańczowego\n                </span>\n                suwaka, żeby wybrać jedną z trzech funkcji,\n            </li>\n<li>\n                przesuwać punkt na osi \\(oy\\) będący końcem wektora, by przesuwać wykres wybranej funkcji,\n            </li>\n<li>\n                przesuwać\n                <span style=\"color: orange; background-color: gray;\">\n                    pomarańczowy\n                </span>\n                punkt na wykresie podstawowej (\n                <span style=\"color: green\">\n                    zielonym\n                </span>\n                ), by widzieć, jak przesuwa się na\n                <span style=\"color: red\">\n                    czerwony\n                </span>\n                wykres.\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/hayusj5n/width/800/height/800/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dany jest wykres funkcji \\(y=f(x)\\) oraz liczba dodatnia \\(q\\).\n        </p>\n<p>\n            Wówczas wykres funkcji\n        </p>\n"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n                \\(y=f(x)+q\\) jest przesunięty w\n            "
+      "body": "<p>\n            Dany jest wykres funkcji \\(y=f(x)\\) oraz liczba dodatnia \\(q\\).\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n                górę\n            "
+      "body": "<p>\n            Wówczas wykres funkcji\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n                dół\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                względem wykresu \\(y=f(x)\\).\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(y=f(x)-q\\) jest przesunięty w\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                górę\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                dół\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                względem wykresu \\(y=f(x)\\).\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n            zatwierdź\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            Świetnie!\n        "
+      "type": "switch_grid",
+      "prompt": "",
+      "lines": [
+        {
+          "stem": "\n\n                \\(y=f(x)+q\\) jest przesunięty w\n            \n\n\n￿0￿\n                względem wykresu \\(y=f(x)\\).\n            \n",
+          "cyclers": [
+            {
+              "options": [
+                "górę",
+                "dół"
+              ],
+              "answer": 0
+            }
+          ]
+        },
+        {
+          "stem": "\n\n                \\(y=f(x)-q\\) jest przesunięty w\n            \n\n\n￿0￿\n                względem wykresu \\(y=f(x)\\).\n            \n",
+          "cyclers": [
+            {
+              "options": [
+                "górę",
+                "dół"
+              ],
+              "answer": 1
+            }
+          ]
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "88bcb20511602bf22966ca06143b0cb1a996cc1c2c92c59e9f7434c8665b2990"
+  "seed_hash": "bd8642b68006aa490f8d1085cca229717279f335df4c3797c968963e1e66b94f"
 }

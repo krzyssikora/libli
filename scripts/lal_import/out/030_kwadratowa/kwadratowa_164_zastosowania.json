@@ -14,11 +14,31 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Kierownik sklepu postanowił wyprzedać tablety zalegające w magazynie. Podstawowa cena jednego tabletu to 1000 złotych.\n        </p>\n<p>\n            Kierownik wymyślił następującą promocję:\n        </p>\n<blockquote>\n            Jeśli klient kupi\n            <strong>\n                ponad\n            </strong>\n            10 tabletów, to za każdy tablet powyżej dziesiątego zapłaci mniej o 50 zł pomnożone przez\n            <u>\n                liczbę kupionych tabletów powyżej 10\n            </u>\n            .\n        </blockquote>\n<p>\n            Kierownik chciał ogłosić promocję, gdy nagle sprzedawca zwrócił mu uwagę, że przy takiej promocji nie dość, że żaden klient nie zapłaci za więcej niż za 15 tabletów, niezależnie ile ich kupi, to dodatkowo, jeśli kupi ich odpowiednio dużo, nie zapłaci nic.\n        </p>\n<p>\n</p>\n<p>\n            Czy sprzedawca miał rację? Opiszmy jego spostrzeżenia w postaci pytań:\n        </p>\n<ol>\n<li>\n                Jaka jest maksymalna cena całkowita, jaką klient może zapłacić za pewną liczbę tabletów - i za ile tabletów zapłaci tę cenę?\n            </li>\n<li>\n                Przy zakupie jakiej liczby tabletów klient nie musiałby płacić nic?\n            </li>\n</ol>\n"
+      "body": "<p>\n            Kierownik sklepu postanowił wyprzedać tablety zalegające w magazynie. Podstawowa cena jednego tabletu to 1000 złotych.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kierownik wymyślił następującą promocję:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<blockquote>\n            Jeśli klient kupi\n            <strong>\n                ponad\n            </strong>\n            10 tabletów, to za każdy tablet powyżej dziesiątego zapłaci mniej o 50 zł pomnożone przez\n            <u>\n                liczbę kupionych tabletów powyżej 10\n            </u>\n            .\n        </blockquote>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Kierownik chciał ogłosić promocję, gdy nagle sprzedawca zwrócił mu uwagę, że przy takiej promocji nie dość, że żaden klient nie zapłaci za więcej niż za 15 tabletów, niezależnie ile ich kupi, to dodatkowo, jeśli kupi ich odpowiednio dużo, nie zapłaci nic.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy sprzedawca miał rację? Opiszmy jego spostrzeżenia w postaci pytań:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n                Jaka jest maksymalna cena całkowita, jaką klient może zapłacić za pewną liczbę tabletów - i za ile tabletów zapłaci tę cenę?\n            </li>\n<li>\n                Przy zakupie jakiej liczby tabletów klient nie musiałby płacić nic?\n            </li>\n</ol>"
     },
     {
       "type": "text",
@@ -37,32 +57,14 @@
       "body": "<p>\n                a ponieważ liczba tabletów musi być całkowita, możemy zapisać to jako:\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x\\ge 9\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x\\ge 10\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x\\ge 11\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>,</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>co zawęża dziedzinę funkcji, jaką zaraz zdefiniujemy.</p>"
+      "type": "switch_gate",
+      "stem": "\n\n\n\n￿0￿\n                ,\n                \n                co zawęża dziedzinę funkcji, jaką zaraz zdefiniujemy.\n            ",
+      "options": [
+        "\\(x\\ge 9\\)",
+        "\\(x\\ge 10\\)",
+        "\\(x\\ge 11\\)"
+      ],
+      "answer": 2
     },
     {
       "type": "text",
@@ -157,48 +159,15 @@
       }
     },
     {
-      "type": "text",
-      "body": "<p>\n                    Całkowita cena tabletów to suma ceny pierwszych dziesięciu oraz kolejnych, czyli:\n                </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\n                f(x)=10\\cdot 1\\,000+(x-10)\\cdot (1\\,000-50(x-10))\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                    Uprośćmy to wyrażenie:\n                </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\n                \\begin{align*}\n                f(x)&=10\\cdot 1\\,000+(x-10)\\cdot (1\\,000-50(x-10))=\\\\\n                &=10\\,000+(x-10)\\cdot(1\\,000-50x+500)=\\\\\n                &=10\\,000+(x-10)\\cdot(1\\;500-50x)=\\\\\n                &=10\\,000+1500x-50x^2-15\\,000+5\\,00x=\\dots\\\\\n                \\end{align*}\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                    Uproszczona funkcja ma postać:\n                </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(f(x)=50x^2+2\\,000x-5\\,000\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(f(x)=-50x^2+2\\,000x-5\\,000\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(f(x)=-50x^2+2\\,000x+5\\,000\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(f(x)=-50x^2+1\\,000x-5\\,000\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n\n                    Całkowita cena tabletów to suma ceny pierwszych dziesięciu oraz kolejnych, czyli:\n                \n                \\[\n                f(x)=10\\cdot 1\\,000+(x-10)\\cdot (1\\,000-50(x-10))\n                \\]\n                \n                    Uprośćmy to wyrażenie:\n                \n                \\[\n                \\begin{align*}\n                f(x)&=10\\cdot 1\\,000+(x-10)\\cdot (1\\,000-50(x-10))=\\\\\n                &=10\\,000+(x-10)\\cdot(1\\,000-50x+500)=\\\\\n                &=10\\,000+(x-10)\\cdot(1\\;500-50x)=\\\\\n                &=10\\,000+1500x-50x^2-15\\,000+5\\,00x=\\dots\\\\\n                \\end{align*}\n                \\]\n                \n                    Uproszczona funkcja ma postać:\n                \n\n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\(f(x)=50x^2+2\\,000x-5\\,000\\)",
+        "\\(f(x)=-50x^2+2\\,000x-5\\,000\\)",
+        "\\(f(x)=-50x^2+2\\,000x+5\\,000\\)",
+        "\\(f(x)=-50x^2+1\\,000x-5\\,000\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
@@ -213,32 +182,15 @@
       "body": "<p>\n                musimy znaleźć wierzchołek paraboli. Zacznijmy od współrzędnej \\(x\\)-owej.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\\(x=-\\frac{b}{2a}=-\\frac{2\\,000}{2\\cdot(-50)}=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(20\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(-20\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(50\\,000\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(40\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                \\(x=-\\frac{b}{2a}=-\\frac{2\\,000}{2\\cdot(-50)}=\\)\n                \n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\(20\\)",
+        "\\(-20\\)",
+        "\\(50\\,000\\)",
+        "\\(40\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
@@ -249,32 +201,15 @@
       "body": "<p>\n                Możemy ją policzyć albo ze wzoru na współrzędną \\(y\\)-ową wierzchołka, albo po prostu obliczając wartość funkcji \\(f\\) dla \\(x=20\\). I tak zrobimy tym razem.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\\(f(20)=-50\\cdot 20^2+2\\,000\\cdot 20-5\\,000=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(15\\,000\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(20\\,000\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(10\\,000\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(10\\,500\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                \\(f(20)=-50\\cdot 20^2+2\\,000\\cdot 20-5\\,000=\\)\n                \n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\(15\\,000\\)",
+        "\\(20\\,000\\)",
+        "\\(10\\,000\\)",
+        "\\(10\\,500\\)"
+      ],
+      "answer": 0
     },
     {
       "type": "text",
@@ -309,32 +244,15 @@
       "latex": "\n            x^2-40x+100=0\n            "
     },
     {
-      "type": "text",
-      "body": "<p>I teraz obliczmy deltę: \\(\\Delta=b^2-4ac=(-40)^2-4\\cdot 1\\cdot 100=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(0\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(1\\,200\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(400\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(4\\,000\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                I teraz obliczmy deltę: \\(\\Delta=b^2-4ac=(-40)^2-4\\cdot 1\\cdot 100=\\)\n                \n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\(0\\)",
+        "\\(1\\,200\\)",
+        "\\(400\\)",
+        "\\(4\\,000\\)"
+      ],
+      "answer": 0
     },
     {
       "type": "text",
@@ -349,32 +267,13 @@
       "body": "<p>\n                Otrzymujemy \\(x\\approx 2,68\\) lub \\(x\\approx 37,32\\). To pierwsze rozwiązanie odrzucamy (pamiętasz? dzidzina to \\(x\\ge 11\\)). Pozostaje \\(x\\approx 37,32\\). Co to oznacza, skoro \\(x\\) ma być całkowitą liczbą tabletów?\n            </p>"
     },
     {
-      "type": "text",
-      "body": "<p>Zauważ, że funkcja \\(f\\) osiąga wartość maksymalną dla \\(x=20\\), a potem maleje. Oznacza to, że najmniejsza</p>"
-    },
-    {
-      "type": "text",
-      "body": "<strong>\n                    całkowita dodatnia\n                </strong>"
-    },
-    {
-      "type": "text",
-      "body": "<p>wartość \\(x\\) dla której wartość funkcji jest mniejsza lub równa 0 (co oznacza, że klient nie płaci) to</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x=37\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(x=38\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n                Zauważ, że funkcja \\(f\\) osiąga wartość maksymalną dla \\(x=20\\), a potem maleje. Oznacza to, że najmniejsza\n                \n                    całkowita dodatnia\n                \n                wartość \\(x\\) dla której wartość funkcji jest mniejsza lub równa 0 (co oznacza, że klient nie płaci) to\n                \n\n\n\n￿0￿",
+      "options": [
+        "\\(x=37\\)",
+        "\\(x=38\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
@@ -385,8 +284,10 @@
       "body": "<ul class=\"nolist\">\n<li>\n                    Szara, przerywana krzywa to cała parabola.\n                </li>\n<li>\n                    Niebieska krzywa to parabola dla \\(x\\ge 11\\).\n                </li>\n<li>\n                    Czerwone punkty to punkty o współrzędnych całkowitych (i nadal \\(x\\ge 11\\)). To są prawdziwe liczby kupionych tabletów i odpowiadające im całkowite ceny.\n                </li>\n</ul>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"promocyjna cena tabletów\" height=\"250\" src=\"static/tablety.png\"/>\n"
+      "type": "image",
+      "media_src": "static/tablety.png",
+      "alt": "promocyjna cena tabletów",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -398,13 +299,9 @@
     },
     {
       "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
-      "type": "text",
       "body": "<p>\n                Na zakończenie dodajmy, że odpowiedź na drugie pytanie przyjmuje założenie, że obniżana promocyjna cena tabletów dla odpowiedniej wartości \\(x\\) spadnie poniżej 0 - i w takiej sytuacji, przy ujemnej cenie, sklep musiałby dopłacać. Nie jest to realistyczne założenie, ale też promocja była bardzo źle pomyślana.\n            </p>"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "64cc8a96f1743b40ca766f791cfdd8ab04a7fb3cff5807757f008072c9b8312a"
+  "seed_hash": "34b0db4f5cc2ede09f8bae5f7e42ec942d810a699786c6d129938031c8172aac"
 }

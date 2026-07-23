@@ -10,11 +10,29 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Poniżej widzisz dziesięć punktów, nad którymi wyświetlona jest liczba nazwana \\(r\\). Gdy przesuniesz którykolwiek z nich, wartość \\(r\\) zmieni się.\n        </p>\n<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"660px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/wgzr7tsu/width/880/height/660/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"korelacja 1\" width=\"880px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>\n<p>\n            Przesuwaj punkty dowolnie, ale w taki sposób, by móc odpowiedzieć na poniższe pytania.\n        </p>\n<p>\n            (Dla swojej wygody możesz oznaczyć.)\n        </p>\n<ol>\n<li>\n<div>\n<div class=\"mark_done statement\" data-width=\"400px\">\n                        Jaka jest najmniejsza możliwa wartość \\(r\\)?\n                    </div>\n<input type=\"checkbox\"/>\n</div>\n</li>\n<li>\n<div>\n<div class=\"mark_done statement\" data-width=\"400px\">\n                        Jaka jest największa możliwa wartość \\(r\\)?\n                    </div>\n<input type=\"checkbox\"/>\n</div>\n</li>\n<li>\n<div>\n<div class=\"mark_done statement\" data-width=\"400px\">\n                        Jak ustawić punkty, żeby uzyskać \\(r=-1\\)?\n                    </div>\n<input type=\"checkbox\"/>\n</div>\n</li>\n<li>\n<div>\n<div class=\"mark_done statement\" data-width=\"400px\">\n                        Jak ustawić punkty, żeby uzyskać \\(r=0\\)?\n                    </div>\n<input type=\"checkbox\"/>\n</div>\n</li>\n<li>\n<div>\n<div class=\"mark_done statement\" data-width=\"400px\">\n                        Jak ustawić punkty, żeby uzyskać \\(r=1\\)?\n                    </div>\n<input type=\"checkbox\"/>\n</div>\n</li>\n</ol>\n"
+      "body": "<p>\n            Poniżej widzisz dziesięć punktów, nad którymi wyświetlona jest liczba nazwana \\(r\\). Gdy przesuniesz którykolwiek z nich, wartość \\(r\\) zmieni się.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"660px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/wgzr7tsu/width/880/height/660/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"korelacja 1\" width=\"880px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwaj punkty dowolnie, ale w taki sposób, by móc odpowiedzieć na poniższe pytania.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            (Dla swojej wygody możesz oznaczyć.)\n        </p>"
+    },
+    {
+      "type": "mark_done",
+      "items": [
+        "Jaka jest najmniejsza możliwa wartość \\(r\\)?"
+      ]
     },
     {
       "type": "text",
@@ -54,5 +72,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "4ca52dfd7db1f25a0298bfadd0b9f0fa06cd20dc865c61050b9417cdd2fc20b8"
+  "seed_hash": "7e83999fa39c82754eadb8d06c89e1525eecba343da1fb4466f70c0aead4453b"
 }

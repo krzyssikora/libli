@@ -3,7 +3,120 @@
     {
       "type": "spoiler",
       "label": "dotychczas poznane wzory na pole trójkąta",
-      "body": "\n\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\n</th>\n<th>\n                        wzór\n                    </th>\n<th>\n                        dane\n                    </th>\n</tr>\n<tr>\n<td>\n<strong>\n                            1.\n                        </strong>\n</td>\n<td>\n                        \\(P=\\frac{1}{2}ah\\)\n                    </td>\n<td>\n                        \\(a\\) - podstawa, \\(h\\) - wysokość\n                    </td>\n</tr>\n<tr>\n<td>\n<strong>\n                            2.\n                        </strong>\n</td>\n<td>\n                        \\(P=\\frac{1}{2}ab\\sin\\gamma\\)\n                    </td>\n<td>\n                        \\(a\\), \\(b\\) - boki, \\(\\gamma\\) - kąt między nimi\n                    </td>\n</tr>\n<tr>\n<td>\n<strong>\n                            3.\n                        </strong>\n</td>\n<td>\n                        \\(P=\\frac{abc}{4R}\\)\n                    </td>\n<td>\n                        \\(a\\), \\(b\\), \\(c\\) - boki, \\(R\\) - promień okręgu opisanego\n                    </td>\n</tr>\n<tr>\n<td>\n<strong>\n                            4.\n                        </strong>\n</td>\n<td>\n                        \\(P=\\sqrt{p(p-a)(p-b)(p-c)}\\)\n                    </td>\n<td>\n                        \\(a\\), \\(b\\), \\(c\\) - boki, \\(p\\) - połowa obwodu trójkąta\n                    </td>\n</tr>\n<tr>\n<td>\n<strong>\n                            5.\n                        </strong>\n</td>\n<td>\n                        \\(P=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\\)\n                    </td>\n<td>\n                        \\(a\\) - bok, \\(\\beta\\), \\(\\gamma\\) - kąty przyległe, \\(\\alpha\\) - kąt naprzeciwległy\n                    </td>\n</tr>\n</table>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wzór",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "dane",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            1.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{1}{2}ah\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\) - podstawa, \\(h\\) - wysokość",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            2.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{1}{2}ab\\sin\\gamma\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\), \\(b\\) - boki, \\(\\gamma\\) - kąt między nimi",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            3.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{abc}{4R}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\), \\(b\\), \\(c\\) - boki, \\(R\\) - promień okręgu opisanego",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            4.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\sqrt{p(p-a)(p-b)(p-c)}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\), \\(b\\), \\(c\\) - boki, \\(p\\) - połowa obwodu trójkąta",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            5.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\) - bok, \\(\\beta\\), \\(\\gamma\\) - kąty przyległe, \\(\\alpha\\) - kąt naprzeciwległy",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
     },
     {
       "type": "text",
@@ -35,13 +148,28 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Przyjrzyj się poniższej animacji i zastanów się, dlaczego wzór\n        \\[\n        P=pr\n        \\]\n        opisuje pole trójkąta.\n        <div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"710px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/zv5uac45/width/416/height/710/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"pole trójkąta pr\" width=\"416px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<details>\n<summary>\n                komentarz\n            </summary>\n<ol class=\"bold\">\n<li>\n                    Trójkąt dzielimy na trzy mniejsze odcinkami łączącymi środek okręgu wpisanego z wierzchołkami trójkąta.\n                </li>\n<li>\n                    Każdy z nich ma wysokość równą \\(r\\), a ich podstawy to \\(a\\), \\(b\\) i \\(c\\).\n                </li>\n<li>\n                    Pole całego trójkąta to suma pól tych trzech trójkątów, czyli\n                    \\[\n                    \\begin{align*}\n                    P&amp;=\\frac{1}{2}ar+\\frac{1}{2}br+\\frac{1}{2}cr=\\\\\n                    &amp;=\\frac{1}{2}(a+b+c)r=\\\\\n                    &amp;=\\frac{a+b+c}{2}\\cdot r=\\\\\n                    &amp;=p\\cdot r\n                    \\end{align*}\n                    \\]\n                </li>\n</ol>\n</details>\n"
+      "body": "<p>Przyjrzyj się poniższej animacji i zastanów się, dlaczego wzór\n        \\[\n        P=pr\n        \\]\n        opisuje pole trójkąta.</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/zv5uac45/width/416/height/710/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "komentarz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                    Trójkąt dzielimy na trzy mniejsze odcinkami łączącymi środek okręgu wpisanego z wierzchołkami trójkąta.\n                </li>\n<li>\n                    Każdy z nich ma wysokość równą \\(r\\), a ich podstawy to \\(a\\), \\(b\\) i \\(c\\).\n                </li>\n<li>\n                    Pole całego trójkąta to suma pól tych trzech trójkątów, czyli\n                    \\[\n                    \\begin{align*}\n                    P&amp;=\\frac{1}{2}ar+\\frac{1}{2}br+\\frac{1}{2}cr=\\\\\n                    &amp;=\\frac{1}{2}(a+b+c)r=\\\\\n                    &amp;=\\frac{a+b+c}{2}\\cdot r=\\\\\n                    &amp;=p\\cdot r\n                    \\end{align*}\n                    \\]\n                </li>\n</ol>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "45d64b40dd6d344337f2f6857dfef5d04da7394786371cc2793a7678d58c0d95"
+  "seed_hash": "85db11300813ba0fc82041cf5c46dca884c49f7a869a7e7be62b3d9828e50d6b"
 }

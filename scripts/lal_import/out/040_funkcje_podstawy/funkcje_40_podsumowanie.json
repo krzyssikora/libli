@@ -5,12 +5,265 @@
       "body": "<h1>\n    Podstawowe własności wybranych funkcji - podsumowanie\n</h1>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<table class=\"my_table_border\">\n<tr>\n<td bgcolor=\"lightgray\" rowspan=\"2\">\n                    równanie\n                </td>\n<td bgcolor=\"#ebfaff\" colspan=\"2\">\n                    \\(y=\\frac{c}{x}\\)\n                </td>\n<td bgcolor=\"#ebfaff\" colspan=\"2\">\n                    \\(y=a^x\\)\n                </td>\n<td bgcolor=\"#ebfaff\" colspan=\"2\">\n                    \\(y=\\log_a x\\)\n                </td>\n</tr>\n<tr>\n<td bgcolor=\"#ebfaff\">\n                    \\(c\\gt 0\\)\n                </td>\n<td bgcolor=\"#ebfaff\">\n                    \\(c\\lt 0\\)\n                </td>\n<td bgcolor=\"#ebfaff\">\n                    \\(a\\gt 1\\)\n                </td>\n<td bgcolor=\"#ebfaff\">\n                    \\(0\\lt a\\lt 1\\)\n                </td>\n<td bgcolor=\"#ebfaff\">\n                    \\(a\\gt 1\\)\n                </td>\n<td bgcolor=\"#ebfaff\">\n                    \\(0\\lt a\\lt 1\\)\n                </td>\n</tr>\n<tr>\n<td bgcolor=\"lightgray\">\n                    dziedzina\n                </td>\n<td colspan=\"2\">\n                    \\(x\\in\\mathbb{R}\\setminus\\{0\\}\\)\n                </td>\n<td colspan=\"2\">\n                    \\(x\\in\\mathbb{R}\\)\n                </td>\n<td colspan=\"2\">\n                    \\(x\\ge 0\\)\n                </td>\n</tr>\n<tr>\n<td bgcolor=\"lightgray\">\n                    zbiór wartości\n                </td>\n<td colspan=\"2\">\n                    \\(y\\in\\mathbb{R}\\setminus\\{0\\}\\)\n                </td>\n<td colspan=\"2\">\n                    \\(y\\ge 0\\)\n                </td>\n<td colspan=\"2\">\n                    \\(y\\in\\mathbb{R}\\)\n                </td>\n</tr>\n<tr>\n<td bgcolor=\"lightgray\">\n                    monotoniczność\n                </td>\n<td>\n                    maleje dla \\(x\\lt 0\\)\n                    <br/>\n                    i potem dla \\(x\\gt 0\\)\n                </td>\n<td>\n                    rośnie dla \\(x\\lt 0\\)\n                    <br/>\n                    i potem dla \\(x\\gt 0\\)\n                </td>\n<td>\n                    rośnie\n                </td>\n<td>\n                    maleje\n                </td>\n<td>\n                    rośnie\n                </td>\n<td>\n                    maleje\n                </td>\n</tr>\n<tr>\n<td bgcolor=\"lightgray\">\n                    punkty na osiach\n                </td>\n<td colspan=\"2\">\n                    brak\n                </td>\n<td colspan=\"2\">\n                    \\((0,1)\\)\n                </td>\n<td colspan=\"2\">\n                    \\((1,0)\\)\n                </td>\n</tr>\n<tr>\n<td bgcolor=\"lightgray\">\n                    asymptoty\n                </td>\n<td colspan=\"2\">\n                    pozioma \\(y=0\\), pionowa \\(x=0\\)\n                </td>\n<td colspan=\"2\">\n                    pozioma \\(y=0\\)\n                </td>\n<td colspan=\"2\">\n                    pionowa \\(x=0\\)\n                </td>\n</tr>\n<tr>\n<td bgcolor=\"lightgray\">\n                    symetrie\n                </td>\n<td colspan=\"2\">\n                    wykres ma środek symetrii \\((0,0)\\)\n                </td>\n<td colspan=\"2\">\n                    wykresy funkcji\n                    <br/>\n                    o\n                    <strong>\n                        odwrotnych\n                    </strong>\n                    podstawach\n                    <br/>\n                    są symetryczne w osi \\(y\\)\n                </td>\n<td colspan=\"2\">\n                    wykresy funkcji\n                    <br/>\n                    o\n                    <strong>\n                        odwrotnych\n                    </strong>\n                    podstawach\n                    <br/>\n                    są symetryczne w osi \\(x\\)\n                </td>\n</tr>\n<tr>\n<td bgcolor=\"lightgray\">\n                    położenie wykresu\n                </td>\n<td>\n                    I i III ćwiartka\n                </td>\n<td>\n                    II i IV ćwiartka\n                </td>\n<td colspan=\"2\">\n                    nad osią \\(x\\) (I i II ćwiartka)\n                </td>\n<td colspan=\"2\">\n                    w prawo od osi \\(y\\) (I i IV ćwiartka)\n                </td>\n</tr>\n</table>",
-      "reason": "table uses rowspan/colspan"
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "równanie",
+              "halign": "left",
+              "valign": "top",
+              "rowspan": 2
+            },
+            {
+              "html": "\\(y=\\frac{c}{x}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\(y=a^x\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\(y=\\log_a x\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "\\(c\\gt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(c\\lt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a\\gt 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(0\\lt a\\lt 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(a\\gt 1\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(0\\lt a\\lt 1\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "dziedzina",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(x\\in\\mathbb{R}\\setminus\\{0\\}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\(x\\in\\mathbb{R}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\(x\\ge 0\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "zbiór wartości",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y\\in\\mathbb{R}\\setminus\\{0\\}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\(y\\ge 0\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\(y\\in\\mathbb{R}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "monotoniczność",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "maleje dla \\(x\\lt 0\\)\n                    <br/>\n                    i potem dla \\(x\\gt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rośnie dla \\(x\\lt 0\\)\n                    <br/>\n                    i potem dla \\(x\\gt 0\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rośnie",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "maleje",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "rośnie",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "maleje",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "punkty na osiach",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "brak",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\((0,1)\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "\\((1,0)\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "asymptoty",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "pozioma \\(y=0\\), pionowa \\(x=0\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "pozioma \\(y=0\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "pionowa \\(x=0\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "symetrie",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "wykres ma środek symetrii \\((0,0)\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "wykresy funkcji\n                    <br/>\n                    o\n                    <strong>\n                        odwrotnych\n                    </strong>\n                    podstawach\n                    <br/>\n                    są symetryczne w osi \\(y\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "wykresy funkcji\n                    <br/>\n                    o\n                    <strong>\n                        odwrotnych\n                    </strong>\n                    podstawach\n                    <br/>\n                    są symetryczne w osi \\(x\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "położenie wykresu",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "I i III ćwiartka",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "II i IV ćwiartka",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "nad osią \\(x\\) (I i II ćwiartka)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "w prawo od osi \\(y\\) (I i IV ćwiartka)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ]
+        ]
+      }
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "a1e1c023fec077a2be0a5bb5743fd2209ae6659cf467a663cb0650864593c912"
+  "fully_mapped": true,
+  "seed_hash": "7a93f0c88a1450d3f798f26ca20c4ec79ec074c7bb8407fbd6021acb1d4b7f4b"
 }

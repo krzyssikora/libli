@@ -6,7 +6,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -50,11 +50,15 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Przedstaw\n        <ul class=\"nolist\">\n<li>\n                wyrażenie  \\(x^2-2x\\) w postaci \\((x-a)^2+c_1\\)\n            </li>\n<li>\n                wyrażenie  \\(y^2+10y\\) w postaci \\((y+b)^2+c_2\\)\n            </li>\n</ul>\n"
+      "body": "<p>Przedstaw</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                wyrażenie  \\(x^2-2x\\) w postaci \\((x-a)^2+c_1\\)\n            </li>\n<li>\n                wyrażenie  \\(y^2+10y\\) w postaci \\((y+b)^2+c_2\\)\n            </li>\n</ul>"
     },
     {
       "type": "text",
@@ -65,178 +69,80 @@
       "body": "\n            \\[\n            \\begin{align*}\n            (x-a)^2&amp;=x^2-2ax+a^2\\\\\n            (y+b)^2&amp;=y^2+2by+b^2\n            \\end{align*}\n            \\]\n        "
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Wygodniej nam będzie zapisać je w drugą stronę:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                \\[\n                \\begin{align*}\n                x^2-2ax+a^2&amp;=(x-a)^2\\\\\n                y^2+2by+b^2&amp;=(y+b)^2\n                \\end{align*}\n                \\]\n            "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                To teraz porównajmy wzór z \\(x\\)-ami i wyrażenie z \\(x\\)-ami.\n            </p>"
-    },
-    {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
-            {
-              "html": "\\(\\color{blue}{x^2}\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(\\color{red}{-2a}\\color{blue}{x}\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(+a^2\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "\\(\\color{blue}{x^2}\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(\\color{red}{-2}\\color{blue}{x}\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(+\\dots\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ]
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Wygodniej nam będzie zapisać je w drugą stronę:\n            </p>\n<div class=\"important\">\n                \\[\n                \\begin{align*}\n                x^2-2ax+a^2&amp;=(x-a)^2\\\\\n                y^2+2by+b^2&amp;=(y+b)^2\n                \\end{align*}\n                \\]\n            </div>\n<p>\n                To teraz porównajmy wzór z \\(x\\)-ami i wyrażenie z \\(x\\)-ami.\n            </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                            \\(\\color{blue}{x^2}\\)\n                        </td>\n<td>\n                            \\(\\color{red}{-2a}\\color{blue}{x}\\)\n                        </td>\n<td>\n                            \\(+a^2\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(\\color{blue}{x^2}\\)\n                        </td>\n<td>\n                            \\(\\color{red}{-2}\\color{blue}{x}\\)\n                        </td>\n<td>\n                            \\(+\\dots\\)\n                        </td>\n</tr>\n</table>\n</div>\n            Porównując współczynniki \\(x\\)-a, widzimy, że \\(\\color{red}{-2a=-2}\\), więc \\(a=\\)\n            <span>\n￿0￿\n</span>\n            .\n        ",
+      "answers": [
+        [
+          "1"
         ]
-      }
+      ]
     },
     {
-      "type": "text",
-      "body": "<p>Porównując współczynniki \\(x\\)-a, widzimy, że \\(\\color{red}{-2a=-2}\\), więc \\(a=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "<span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            Mamy więc\n            \\[\n            \\begin{align*}\n            &amp;\\color{blue}{x^2}\\color{red}{-2a}\\color{blue}{x}+a^2=\\\\\n            =&amp;\\color{blue}{x^2}\\color{red}{-2\\cdot 1}\\color{blue}{x}+1^2=\\\\\n            =&amp;x^2-2x+1&amp;=(x-1)^2\n            \\end{align*}\n            \\]\n            A skoro \\(x^2-2x+1=(x-1)^2\\), to \\(x^2-2x=(x-1)^2-\\)\n            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n            .\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Teraz porównajmy wzór z \\(y\\)-ami i wyrażenie z \\(y\\)-ami.\n            </p>"
-    },
-    {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
-            {
-              "html": "\\(\\color{blue}{y^2}\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(\\color{red}{+2b}\\color{blue}{x}\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(+b^2\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ],
-          [
-            {
-              "html": "\\(\\color{blue}{y^2}\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(\\color{red}{+10}\\color{blue}{y}\\)",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "\\(+\\dots\\)",
-              "halign": "left",
-              "valign": "top"
-            }
-          ]
+      "type": "fill_gate",
+      "stem": "\n            Mamy więc\n            \\[\n            \\begin{align*}\n            &amp;\\color{blue}{x^2}\\color{red}{-2a}\\color{blue}{x}+a^2=\\\\\n            =&amp;\\color{blue}{x^2}\\color{red}{-2\\cdot 1}\\color{blue}{x}+1^2=\\\\\n            =&amp;x^2-2x+1&amp;=(x-1)^2\n            \\end{align*}\n            \\]\n            A skoro \\(x^2-2x+1=(x-1)^2\\), to \\(x^2-2x=(x-1)^2-\\)\n            <span>\n￿0￿\n</span>\n            .\n        ",
+      "answers": [
+        [
+          "1"
         ]
-      }
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Teraz porównajmy wzór z \\(y\\)-ami i wyrażenie z \\(y\\)-ami.\n            </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                            \\(\\color{blue}{y^2}\\)\n                        </td>\n<td>\n                            \\(\\color{red}{+2b}\\color{blue}{x}\\)\n                        </td>\n<td>\n                            \\(+b^2\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(\\color{blue}{y^2}\\)\n                        </td>\n<td>\n                            \\(\\color{red}{+10}\\color{blue}{y}\\)\n                        </td>\n<td>\n                            \\(+\\dots\\)\n                        </td>\n</tr>\n</table>\n</div>\n            Porównując współczynniki \\(y\\)-a, widzimy, że \\(\\color{red}{+2b=+10}\\), więc \\(b=\\)\n            <span>\n￿0￿\n</span>\n            .\n        ",
+      "answers": [
+        [
+          "5"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n            Mamy więc\n            \\[\n            \\begin{align*}\n            &amp;\\color{blue}{y^2}\\color{red}{+2b}\\color{blue}{y}+b^2=\\\\\n            =&amp;\\color{blue}{y^2}\\color{red}{+2\\cdot 5}\\color{blue}{y}+5^2=\\\\\n            =&amp;y^2+10y+25&amp;=(y+5)^2\n            \\end{align*}\n            \\]\n            A skoro \\(y^2+10x+25=(y+5)^2\\), to \\(y^2+10y=(y+5)^2-\\)\n            <span>\n￿0￿\n</span>\n            .\n        ",
+      "answers": [
+        [
+          "25"
+        ]
+      ]
     },
     {
       "type": "text",
-      "body": "<p>Porównując współczynniki \\(y\\)-a, widzimy, że \\(\\color{red}{+2b=+10}\\), więc \\(b=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "<span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            Mamy więc\n            \\[\n            \\begin{align*}\n            &amp;\\color{blue}{y^2}\\color{red}{+2b}\\color{blue}{y}+b^2=\\\\\n            =&amp;\\color{blue}{y^2}\\color{red}{+2\\cdot 5}\\color{blue}{y}+5^2=\\\\\n            =&amp;y^2+10y+25&amp;=(y+5)^2\n            \\end{align*}\n            \\]\n            A skoro \\(y^2+10x+25=(y+5)^2\\), to \\(y^2+10y=(y+5)^2-\\)\n            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</span>\n            .\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n    Ostatecznie więc:\n    \\[x^2-2x=(x-1)^2-1\\]\n    oraz\n    \\[y^2+10y=(y+5)^2-25\\]\n"
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Uzupełnij.\n    "
     },
     {
-      "type": "text",
-      "body": "<ol class=\"bold\">\n<li>\n            \\(x^2+6x=(x+\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\()^2-\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n            \\(y^2+8y=(y+\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\()^2-\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n            \\(x^2-4x=(x-\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\()^2-\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n<li>\n            \\(y^2-12y=(y-\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\()^2-\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</li>\n</ol>"
-    },
-    {
-      "type": "text",
-      "body": "\n    Świetnie!\n"
+      "type": "fillblank",
+      "stem": "\n<li>\n            \\(x^2+6x=(x+\\)\n            ￿0￿\n            \\()^2-\\)\n            ￿1￿\n</li>\n<li>\n            \\(y^2+8y=(y+\\)\n            ￿2￿\n            \\()^2-\\)\n            ￿3￿\n</li>\n<li>\n            \\(x^2-4x=(x-\\)\n            ￿4￿\n            \\()^2-\\)\n            ￿5￿\n</li>\n<li>\n            \\(y^2-12y=(y-\\)\n            ￿6￿\n            \\()^2-\\)\n            ￿7￿\n</li>\n",
+      "blanks": [
+        [
+          "3"
+        ],
+        [
+          "9"
+        ],
+        [
+          "4"
+        ],
+        [
+          "16"
+        ],
+        [
+          "2"
+        ],
+        [
+          "4"
+        ],
+        [
+          "6"
+        ],
+        [
+          "36"
+        ]
+      ]
     }
   ],
   "fully_mapped": false,
-  "seed_hash": "73bd4090465ffdbb8d545d4ab9c5e02240081e92aa8ad03b5009beb805499041"
+  "seed_hash": "275d1aa149abf9e5173f950bdbf6fe6ca1ccffa898bcbac8cc47d8c57c1b2583"
 }

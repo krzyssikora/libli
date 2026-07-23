@@ -6,15 +6,27 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Poniżej widzisz rysunki dwóch kątów w kołach. Jeden z kątów nazywa się\n            <strong>wpisanym</strong>, a drugi <strong>środkowym</strong>. Jak myślisz, który jest który? Jak można je zdefiniować?\n        </p>\n<div class=\"centered\">\n<img alt=\"Kąty wpisane i środkowe\" height=\"300\" src=\"static/kat_wpisany.png\"/>\n<img alt=\"Kąty wpisane i środkowe\" height=\"300\" src=\"static/kat_srodkowy.png\"/>\n</div>\n"
+      "body": "<p>\n            Poniżej widzisz rysunki dwóch kątów w kołach. Jeden z kątów nazywa się\n            <strong>wpisanym</strong>, a drugi <strong>środkowym</strong>. Jak myślisz, który jest który? Jak można je zdefiniować?\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n            pokaż\n        "
+      "type": "image",
+      "media_src": "static/kat_wpisany.png",
+      "alt": "Kąty wpisane i środkowe",
+      "figcaption": ""
+    },
+    {
+      "type": "image",
+      "media_src": "static/kat_srodkowy.png",
+      "alt": "Kąty wpisane i środkowe",
+      "figcaption": ""
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż"
     },
     {
       "type": "image",
@@ -58,13 +70,130 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie możesz obejrzeć geometryczną ilustrację czterech twierdzeń.\n        </p>\n<p>\n            Obejrzyj każdą dokładnie i zastanów się, jak może brzmieć ilustrowane twierdzenie, a następnie sprawdź moje odpowiedzi.\n        </p>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"794px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/hvugpjbv/width/583/height/794/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"twierdzenia na temat okręgów 2\" width=\"583px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<div class=\"question_solution hidden\" style=\"min-height: 410px;\">\n<div style=\"min-height: 210px;\">\n<img alt=\"Kąty wpisane i środkowe\" height=\"400\" src=\"static/tw_katy_1_wpisane.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<div class=\"important\" style=\"min-height: 410px;\">\n<p>\n<u>\n                            Kąty wpisane i środkowe\n                        </u>\n</p>\n<ul>\n<li>\n                            każdy kąt wpisany oparty na tym samym łuku ma tę samą miarę,\n                        </li>\n<li>\n                            jeśli kąt wpisany jest oparty na tym samym łuku, co kąt środkowy, to kąt środkowy ma miarę dwukrotnie większą niż kąt wpisany.\n                        </li>\n</ul>\n</div>\n</div>\n</div>\n<div class=\"question_answer\">\n<p>\n                Kąty wpisane i środkowe\n            </p>\n</div>\n<div class=\"show_solution ks_button\">\n            zobacz\n        </div>\n<div class=\"question_solution hidden\" style=\"min-height: 410px;\">\n<img alt=\"Kąt wpisany oparty na średnicy\" height=\"400\" src=\"static/tw_katy_2_polkole.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<div class=\"important\" style=\"min-height: 410px;\">\n<p>\n<u>\n                        Kąt wpisany oparty na średnicy\n                    </u>\n</p>\n<p>\n                    Kąt wpisany oparty na połowie okręgu jest prosty.\n                </p>\n<p>\n                    Gdy kąt wpisany jest oparty na połowie okręgu, czasem mówimy, że jest oparty na średnicy.\n                </p>\n</div>\n</div>\n<div class=\"question_answer\">\n<p>\n                Kąt wpisany oparty na średnicy\n            </p>\n</div>\n<div class=\"show_solution ks_button\">\n            zobacz\n        </div>\n<div class=\"question_solution hidden\" style=\"min-height: 410px;\">\n<img alt=\"Kąt między styczną a cięciwą\" height=\"400\" src=\"static/tw_katy_3_alternate.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<div class=\"important\" style=\"min-height: 410px;\">\n<p>\n<u>\n                        Kąt między styczną a cięciwą\n                    </u>\n</p>\n<p>\n                    Dany jest okrąg i styczna do tego okręgu. Jeśli cięciwa zaczyna się w punkcie styczności, to kąt między styczną a cięciwą jest równy kątowi wpisanemu opartemu na tej cięciwie.\n                </p>\n<p>\n<small>\n                        (Wierzchołek kąta wpisanego musi znajdować się na zewnątrz kąta między styczną a cięciwą, jak na rysunku.)\n                    </small>\n</p>\n</div>\n</div>\n<div class=\"question_answer\">\n<p>\n                Kąt między styczną a cięciwą\n            </p>\n</div>\n<div class=\"show_solution ks_button\">\n            zobacz\n        </div>\n<div class=\"question_solution hidden\" style=\"min-height: 410px;\">\n<img alt=\"Czworokąt wpisany w koło\" height=\"400\" src=\"static/tw_katy_4_czworokat.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<div class=\"important\" style=\"min-height: 410px;\">\n<p>\n<u>\n                        Czworokąt wpisany w koło\n                    </u>\n</p>\n<p>\n                    Jeśli czworokąt jest wpisany w koło, to przeciwległe kąty wewnętrzne tego czworokąta sumują się do \\(180^{\\circ}\\).\n                </p>\n<p>\n                    Jeśli przeciwległe kąty w czworokącie sumują się do \\(180^{\\circ}\\), na czworokącie można opisać koło.\n                </p>\n</div>\n</div>\n<div class=\"question_answer\">\n<p>\n                Czworokąt wpisany w koło\n            </p>\n</div>\n<div class=\"show_solution ks_button\">\n            zobacz\n        </div>\n"
+      "body": "<p>\n            W poniższym aplecie możesz obejrzeć geometryczną ilustrację czterech twierdzeń.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Obejrzyj każdą dokładnie i zastanów się, jak może brzmieć ilustrowane twierdzenie, a następnie sprawdź moje odpowiedzi.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/hvugpjbv/width/583/height/794/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Kąty wpisane i środkowe\n            </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_2_polkole.png",
+          "alt": "Kąt wpisany oparty na średnicy",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                        Kąt wpisany oparty na średnicy\n                    </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Kąt wpisany oparty na połowie okręgu jest prosty.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Gdy kąt wpisany jest oparty na połowie okręgu, czasem mówimy, że jest oparty na średnicy.\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Kąt wpisany oparty na średnicy\n            </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_3_alternate.png",
+          "alt": "Kąt między styczną a cięciwą",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                        Kąt między styczną a cięciwą\n                    </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dany jest okrąg i styczna do tego okręgu. Jeśli cięciwa zaczyna się w punkcie styczności, to kąt między styczną a cięciwą jest równy kątowi wpisanemu opartemu na tej cięciwie.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<small>\n                        (Wierzchołek kąta wpisanego musi znajdować się na zewnątrz kąta między styczną a cięciwą, jak na rysunku.)\n                    </small>\n</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Kąt między styczną a cięciwą\n            </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_4_czworokat.png",
+          "alt": "Czworokąt wpisany w koło",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                        Czworokąt wpisany w koło\n                    </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jeśli czworokąt jest wpisany w koło, to przeciwległe kąty wewnętrzne tego czworokąta sumują się do \\(180^{\\circ}\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jeśli przeciwległe kąty w czworokącie sumują się do \\(180^{\\circ}\\), na czworokącie można opisać koło.\n                </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Czworokąt wpisany w koło\n            </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_1_wpisane.png",
+          "alt": "Kąty wpisane i środkowe",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                            Kąty wpisane i środkowe\n                        </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                            każdy kąt wpisany oparty na tym samym łuku ma tę samą miarę,\n                        </li>\n<li>\n                            jeśli kąt wpisany jest oparty na tym samym łuku, co kąt środkowy, to kąt środkowy ma miarę dwukrotnie większą niż kąt wpisany.\n                        </li>\n</ul>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "8cc8096347466e35f78cef2234671aa9c682031694db7765101d9d60b2d2c1f3"
+  "seed_hash": "e4827c9efbbf4f500b59fe6361eb3e5e0f0c1a9d1ebd706e2281b28ab5be2047"
 }

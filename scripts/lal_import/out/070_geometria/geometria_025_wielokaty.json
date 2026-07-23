@@ -38,11 +38,38 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Oblicz miary kątów wewnętrznych we wskazanych niżej wielokątach foremnych. Wpisz samą liczbę, bez znaku stopnia.\n        </p>\n<p>\n            Miara kąta wewnętrznego w pięciokącie foremnym jest równa\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</p>\n<p>\n            Miara kąta wewnętrznego w ośmiokącie foremnym jest równa\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</p>\n<p>\n            Miara kąta wewnętrznego w dziesięciokącie foremnym jest równa\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</p>\n"
+      "body": "<p>\n            Oblicz miary kątów wewnętrznych we wskazanych niżej wielokątach foremnych. Wpisz samą liczbę, bez znaku stopnia.\n        </p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n            Miara kąta wewnętrznego w pięciokącie foremnym jest równa\n            ￿0￿\n",
+      "blanks": [
+        [
+          "108"
+        ]
+      ]
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n            Miara kąta wewnętrznego w ośmiokącie foremnym jest równa\n            ￿0￿\n",
+      "blanks": [
+        [
+          "135"
+        ]
+      ]
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n            Miara kąta wewnętrznego w dziesięciokącie foremnym jest równa\n            ￿0￿\n",
+      "blanks": [
+        [
+          "144"
+        ]
+      ]
     },
     {
       "type": "text",
@@ -50,5 +77,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "6eb1ad4a3ffde53bd111703a0bb5d62804a1ca8663f819c177bfe75f80296273"
+  "seed_hash": "78806541705822986a906249e7dce6f86751155f44aa238ab94b8f1bc1977850"
 }

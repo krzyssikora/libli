@@ -2,13 +2,114 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie możesz obejrzeć geometryczną ilustrację trzech twierdzeń.\n        </p>\n<p>\n            Obejrzyj każdą dokładnie i zastanów się, jak może brzmieć ilustrowane twierdzenie, a następnie sprawdź moje odpowiedzi.\n        </p>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"706px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/yrghpkpw/width/702/height/706/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"twierdzenia na temat okręgów 1\" width=\"702px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<div class=\"question_solution hidden\" style=\"min-height: 410;\">\n<div class=\"clearfix\" style=\"min-height: 220;\">\n<img alt=\"Promień i styczna\" height=\"200\" src=\"static/tw_promien_styczna.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n<u>\n                        Promień i styczna\n                    </u>\n</p>\n<p>\n                    Prosta jest styczna do okręgu\n                    <u>\n                        wtedy i tylko wtedy\n                    </u>\n                    , gdy promień łączący środek okręgu z punktem wspólnym prostej i okręgu jest prostopadły do prostej.\n                </p>\n<p>\n<strong>\n                        Wniosek\n                    </strong>\n<br/>\n                    Prosta jest styczna do okręgu\n                    <u>\n                        wtedy i tylko wtedy\n                    </u>\n                    , gdy odległość środka okręgu do prostej jest równa promieniowi okręgu.\n                </p>\n</div>\n<div class=\"clearfix\" style=\"min-height: 210;\">\n<img alt=\"Promień i styczna\" height=\"200\" src=\"static/tw_promien_styczna_2.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<img alt=\"Promień i styczna\" height=\"200\" src=\"static/tw_promien_styczna_3.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n<strong>\n                        Wniosek\n                    </strong>\n<br/>\n                    Jeśli dwa okręgi są styczne, to ich środki oraz punkt styczności leżą na jednej prostej.\n                </p>\n</div>\n</div>\n<div class=\"question_answer\">\n<p>\n                Promień i styczna\n            </p>\n</div>\n<div class=\"show_solution ks_button\">\n            zobacz\n        </div>\n<div class=\"question_solution hidden clearfix\" style=\"min-height: 210;\">\n<img alt=\"Promień i cięciwa\" height=\"200\" src=\"static/tw_promien_cieciwa.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n<u>\n                    Promień i cięciwa\n                </u>\n</p>\n<p>\n                Promień przecinający cięciwę pod kątem prostym dzieli tę cięciwę na połowy.\n            </p>\n</div>\n<div class=\"question_answer\">\n<p>\n                Promień i cięciwa\n            </p>\n</div>\n<div class=\"show_solution ks_button\">\n            zobacz\n        </div>\n<div class=\"question_solution hidden clearfix\" style=\"min-height: 210;\">\n<img alt=\"Styczne z jednego punktu\" height=\"200\" src=\"static/tw_2_styczne.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n<u>\n                    Styczne z jednego punktu\n                </u>\n</p>\n<p>\n                Jeśli dwie przecinające się proste są styczne do tego samego okręgu, to odległości od punktów styczności do wspólnego punktu obu prostych są równe.\n            </p>\n</div>\n<div class=\"question_answer\">\n<p>\n                Styczne z jednego punktu\n            </p>\n</div>\n<div class=\"show_solution ks_button\">\n            zobacz\n        </div>\n"
+      "body": "<p>\n            W poniższym aplecie możesz obejrzeć geometryczną ilustrację trzech twierdzeń.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Obejrzyj każdą dokładnie i zastanów się, jak może brzmieć ilustrowane twierdzenie, a następnie sprawdź moje odpowiedzi.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/yrghpkpw/width/702/height/706/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Promień i styczna\n            </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tw_promien_cieciwa.png",
+          "alt": "Promień i cięciwa",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                    Promień i cięciwa\n                </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Promień przecinający cięciwę pod kątem prostym dzieli tę cięciwę na połowy.\n            </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Promień i cięciwa\n            </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tw_2_styczne.png",
+          "alt": "Styczne z jednego punktu",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                    Styczne z jednego punktu\n                </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Jeśli dwie przecinające się proste są styczne do tego samego okręgu, to odległości od punktów styczności do wspólnego punktu obu prostych są równe.\n            </p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Styczne z jednego punktu\n            </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/tw_promien_styczna.png",
+          "alt": "Promień i styczna",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                        Promień i styczna\n                    </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Prosta jest styczna do okręgu\n                    <u>\n                        wtedy i tylko wtedy\n                    </u>\n                    , gdy promień łączący środek okręgu z punktem wspólnym prostej i okręgu jest prostopadły do prostej.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                        Wniosek\n                    </strong>\n<br/>\n                    Prosta jest styczna do okręgu\n                    <u>\n                        wtedy i tylko wtedy\n                    </u>\n                    , gdy odległość środka okręgu do prostej jest równa promieniowi okręgu.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_promien_styczna_2.png",
+          "alt": "Promień i styczna",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_promien_styczna_3.png",
+          "alt": "Promień i styczna",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                        Wniosek\n                    </strong>\n<br/>\n                    Jeśli dwa okręgi są styczne, to ich środki oraz punkt styczności leżą na jednej prostej.\n                </p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "b0476dbaafefbe5134d20689b90ec8014c08a44d5ee78fd7fb07a5ed8564f874"
+  "seed_hash": "0332de953911413409e3c4a730c0771e4140ee656893df900942a17ce79295de"
 }

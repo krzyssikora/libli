@@ -10,105 +10,52 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p>\n            Przyjrzyj się ilustracji klasyfikacji czworokątów, którą wcześniej wprowadziliśmy.\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n<p>\n            Przyjrzyj się ilustracji klasyfikacji czworokątów, którą wcześniej wprowadziliśmy.\n        </p>\n<figure>\n<img src=\"static/klasyfikacja_czworokatow.png\" style=\"max-width: 100%;\"/>\n</figure>\n"
+      "type": "image",
+      "media_src": "static/klasyfikacja_czworokatow.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "<p>\n        Wskaż wszystkie poprawne odpowiedzi.\n    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n        Każdy romb jest też:\n    </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                trapezoidem\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                W trapezoidzie żadne boki nie są równoległe. A w rombie?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                deltoidem\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                W deltoidzie mamy dwie pary sąsiednich boków równej długości. A co jeśli boki z obu par są równej długości?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                trapezem\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                W trapezie mamy <u>przynajmniej</u> jedną parę boków równoległych. A w rombie?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                równoległobokiem\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                W równoległoboku mamy dwie pary boków równoległych. A w rombie?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                prostokątem\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                Zastanów się jeszcze...\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                kwadratem\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                Przemyśl to jeszcze raz...\n            "
-    },
-    {
-      "type": "text",
-      "body": "potwierdź "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! Wybrałaś/-eś poprawnie.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Nie wybrałaś/-eś wszystkich odpowiedzi.\n    "
+      "type": "choice",
+      "stem": "",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "trapezoidem",
+          "is_correct": false,
+          "feedback": "W trapezoidzie żadne boki nie są równoległe. A w rombie?"
+        },
+        {
+          "text": "deltoidem",
+          "is_correct": true,
+          "feedback": "W deltoidzie mamy dwie pary sąsiednich boków równej długości. A co jeśli boki z obu par są równej długości?"
+        },
+        {
+          "text": "trapezem",
+          "is_correct": true,
+          "feedback": "W trapezie mamy przynajmniej jedną parę boków równoległych. A w rombie?"
+        },
+        {
+          "text": "równoległobokiem",
+          "is_correct": true,
+          "feedback": "W równoległoboku mamy dwie pary boków równoległych. A w rombie?"
+        },
+        {
+          "text": "prostokątem",
+          "is_correct": false,
+          "feedback": "Zastanów się jeszcze..."
+        },
+        {
+          "text": "kwadratem",
+          "is_correct": false,
+          "feedback": "Przemyśl to jeszcze raz..."
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "e16a6f0804f61bb56a95156af486cfe1f8d07957d5e99e91afc03422c48be363"
+  "seed_hash": "51b83ad4afa65565652742744cd9e53c5bd22d3221064aad0feb04109bbb4f9a"
 }

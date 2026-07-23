@@ -2,29 +2,85 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Na rysunku poniżej odcinki \\(DE\\) oraz \\(BC\\) są równoległe.\n        </p>\n<p>\n<img alt=\"twierdzenie Talesa, zadanie\" height=\"313\" src=\"static/twierdzenie_Talesa_zadanie_3.png\" style=\"width: 600px; height: 313px;\" width=\"600\"/>\n</p>\n<p>\n            Znając długości odcinków: \\(AD=25\\), \\(AB=10\\) i \\(CE=56\\), znajdź długość odcinka \\(AC\\).\n        </p>\n"
+      "body": "<p>\n            Na rysunku poniżej odcinki \\(DE\\) oraz \\(BC\\) są równoległe.\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n<p>\n            Z twierdzenia Talesa wynika, że czerwony odcinek \\(CE\\) jest w takim stosunku do \\(BD\\) jak dowolny innny czerwony odcinek do odpowiadającego mu czarnego.\n        </p>\n<p>\n            Na przykład:\n        </p>\n<ul>\n<li>\n                \\(AC\\) do \\(AB\\), i wówczas otrzymujemy proporcję: \\(\\frac{CE}{BD}=\\frac{AC}{AB}\\)\n            </li>\n<li>\n                \\(AE\\) do \\(AD\\), i wówczas otrzymujemy proporcję: \\(\\frac{CE}{BD}=\\frac{AE}{AD}\\)\n            </li>\n</ul>\n<p>\n            Chcemy znaleźć długość \\(AC\\), więc potrzebna nam jest ta pierwsza proporcja:\n        </p>\n        \\[\n        \\frac{CE}{BD}=\\frac{AC}{AB}\n        \\]\n        <p>\n            Podstawmy dane długości:\n        </p>\n        \\[\n        \\frac{56}{10+25}=\\frac{AC}{10}\n        \\]\n        <p>\n            czyli:\n        </p>\n        \\[\n        \\frac{56}{35}=\\frac{AC}{10}\n        \\]\n        <p>\n            Skróćmy ułamek po lewej stronie przez 7:\n        </p>\n        \\[\n        \\frac{8}{5}=\\frac{AC}{10}\n        \\]\n        <p>\n            I wyliczmy \\(AC\\):\n        </p>\n        \\[\n        \\begin{align*}\n        5\\cdot AC&amp;=8\\cdot 10\\\\\n        AC&amp;=8\\cdot 2\\\\\n        AC&amp;=16\\\\\n        \\end{align*}\n        \\]\n    </div>",
-      "reason": "unmapped <div> in lesson body"
+      "type": "image",
+      "media_src": "static/twierdzenie_Talesa_zadanie_3.png",
+      "alt": "twierdzenie Talesa, zadanie",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znając długości odcinków: \\(AD=25\\), \\(AB=10\\) i \\(CE=56\\), znajdź długość odcinka \\(AC\\).\n        </p>"
     },
     {
       "type": "text",
       "body": "<p>\n            Spróbuj rozwiązać zadanie samodzielnie, a następnie obejrzyj moje rozwiązanie.\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n        Rozwiązanie zadania - zobacz\n    </div>",
-      "reason": "show_solution button without solution"
+      "type": "spoiler",
+      "label": "Rozwiązanie zadania - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Z twierdzenia Talesa wynika, że czerwony odcinek \\(CE\\) jest w takim stosunku do \\(BD\\) jak dowolny innny czerwony odcinek do odpowiadającego mu czarnego.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Na przykład:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                \\(AC\\) do \\(AB\\), i wówczas otrzymujemy proporcję: \\(\\frac{CE}{BD}=\\frac{AC}{AB}\\)\n            </li>\n<li>\n                \\(AE\\) do \\(AD\\), i wówczas otrzymujemy proporcję: \\(\\frac{CE}{BD}=\\frac{AE}{AD}\\)\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Chcemy znaleźć długość \\(AC\\), więc potrzebna nam jest ta pierwsza proporcja:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\frac{CE}{BD}=\\frac{AC}{AB}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Podstawmy dane długości:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\frac{56}{10+25}=\\frac{AC}{10}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            czyli:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\frac{56}{35}=\\frac{AC}{10}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Skróćmy ułamek po lewej stronie przez 7:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\frac{8}{5}=\\frac{AC}{10}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            I wyliczmy \\(AC\\):\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\begin{align*}\n        5\\cdot AC&=8\\cdot 10\\\\\n        AC&=8\\cdot 2\\\\\n        AC&=16\\\\\n        \\end{align*}\n        "
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "d41f7db4b1ae5ef3cab2f115d7faefbe80904090237240b5e60209c5f18f684c"
+  "fully_mapped": true,
+  "seed_hash": "d1e5f3fdfbdabcf1a9a17e21cc149c7541d3d51d380ada0fbdcbd68cbe7050dc"
 }

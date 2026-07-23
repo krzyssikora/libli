@@ -2,16 +2,108 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W pudełku jest 10 kulek z liczbami od \\(1\\) do \\(10\\).\n        </p>\n<figure>\n<img src=\"static/10_kulek.png\"/>\n</figure>\n<p>\n            Czterokrotnie losujemy z pudełka kulkę, zapisujemy jej liczbę i zwracamy ją do pudełka. \n        </p>\n<p>\n            Ile jest możliwych losowań kulek, takich, by\n        </p>\n<ol class=\"bold\" type=\"A\">\n<li>wszystkie wylosowane liczby były parzyste,</li>\n<li>wszystkie wylosowane liczby były podzielne przez \\(3\\)</li>\n</ol>\n"
+      "body": "<p>\n            W pudełku jest 10 kulek z liczbami od \\(1\\) do \\(10\\).\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/10_kulek.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czterokrotnie losujemy z pudełka kulkę, zapisujemy jej liczbę i zwracamy ją do pudełka. \n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile jest możliwych losowań kulek, takich, by\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\" type=\"A\">\n<li>wszystkie wylosowane liczby były parzyste,</li>\n<li>wszystkie wylosowane liczby były podzielne przez \\(3\\)</li>\n</ol>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Część <strong>A</strong>.\n                </p>\n<div class=\"switch_line\">\n                    Wśród liczby na kulkach jest`\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">10 liczb parzystych</div>\n<div class=\"switch_value\">8 liczb parzystych</div>\n<div class=\"switch_value\">5 liczb parzystych</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Interesuje nas sytuacja, w której wybieramy jedną z pięciu kulek z liczbami: \\(2\\), \\(4\\), \\(6\\), \\(8\\) lub \\(10\\). Po takim wyborze kulkę zwracamy do pudełka i wybieramy ponownie.\n                <div class=\"switch_line\">\n                    Tym razem kulek z liczbami parzystymi jest\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">o jedną mniej</div>\n<div class=\"switch_value\">tyle samo</div>\n<div class=\"switch_value\">dwie</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Za trzecim razem też będziemy mieli 5 kulek z liczbami parzystymi, identycznie za czwartym razem.\n                <div class=\"switch_line\">\n                    A to oznacza, że liczba takich losowań, by wszystkie cztery liczby były parzyste jest równa\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(5\\cdot 4=20\\)</div>\n<div class=\"switch_value\">\\(5^4=625\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Część <strong>B</strong>.\n                </p>\n<div class=\"switch_line\">\n                    Spośród liczb na kulkach podzielne przez \\(3\\) są\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3\\), \\(6\\) i \\(9\\)</div>\n<div class=\"switch_value\">\\(0\\), \\(3\\), \\(6\\) i \\(9\\)</div>\n<div class=\"switch_value\">\\(0\\), \\(3\\) i \\(6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Interesuje nas sytuacja, w której wybieramy jedną z trzech kulek. Po takim wyborze kulkę zwracamy do pudełka i wybieramy ponownie. I znów interesuje nas wybór jednej z tych trzech kulek. Za trzecim i czwartym razem - tak samo. \n                <div class=\"switch_line\">\n                    To oznacza, że liczba takich losowań, by wszystkie cztery liczby były podzielne przez \\(3\\) jest równa\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3^4=81\\)</div>\n<div class=\"switch_value\">\\(4^3=64\\)</div>\n<div class=\"switch_value\">\\(3\\cdot 4=12\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<ul>\n<li>\n                        W obu częściach za każdym razem mieliśmy tyle samo interesujących nas wyborów - \\(5\\) liczb parzystych lub \\(3\\) liczby podzielne przez \\(3\\). Oznaczmy tę liczbę wyborów przez \\(n\\).\n                    </li>\n<li>\n                        W obu częściach identyczne losowanie przeprowadzaliśmy cztery razy - oznaczmy tę liczbę przez \\(k\\).\n                    </li>\n<li>\n                        W obu częściach liczba możliwych wyborów kulek jest równa\n                        \\[\n                        n^k\n                        \\]\n                    </li>\n</ul>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Część <strong>A</strong>.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wśród liczby na kulkach jest`\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "10 liczb parzystych",
+            "8 liczb parzystych",
+            "5 liczb parzystych"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Interesuje nas sytuacja, w której wybieramy jedną z pięciu kulek z liczbami: \\(2\\), \\(4\\), \\(6\\), \\(8\\) lub \\(10\\). Po takim wyborze kulkę zwracamy do pudełka i wybieramy ponownie.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Tym razem kulek z liczbami parzystymi jest\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "o jedną mniej",
+            "tyle samo",
+            "dwie"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Za trzecim razem też będziemy mieli 5 kulek z liczbami parzystymi, identycznie za czwartym razem.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A to oznacza, że liczba takich losowań, by wszystkie cztery liczby były parzyste jest równa\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(5\\cdot 4=20\\)",
+            "\\(5^4=625\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Część <strong>B</strong>.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Spośród liczb na kulkach podzielne przez \\(3\\) są\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3\\), \\(6\\) i \\(9\\)",
+            "\\(0\\), \\(3\\), \\(6\\) i \\(9\\)",
+            "\\(0\\), \\(3\\) i \\(6\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Interesuje nas sytuacja, w której wybieramy jedną z trzech kulek. Po takim wyborze kulkę zwracamy do pudełka i wybieramy ponownie. I znów interesuje nas wybór jednej z tych trzech kulek. Za trzecim i czwartym razem - tak samo.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    To oznacza, że liczba takich losowań, by wszystkie cztery liczby były podzielne przez \\(3\\) jest równa\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3^4=81\\)",
+            "\\(4^3=64\\)",
+            "\\(3\\cdot 4=12\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                        W obu częściach za każdym razem mieliśmy tyle samo interesujących nas wyborów - \\(5\\) liczb parzystych lub \\(3\\) liczby podzielne przez \\(3\\). Oznaczmy tę liczbę wyborów przez \\(n\\).\n                    </li>\n<li>\n                        W obu częściach identyczne losowanie przeprowadzaliśmy cztery razy - oznaczmy tę liczbę przez \\(k\\).\n                    </li>\n<li>\n                        W obu częściach liczba możliwych wyborów kulek jest równa\n                        \\[\n                        n^k\n                        \\]\n                    </li>\n</ul>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -23,7 +115,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -47,7 +139,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -71,7 +163,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -95,5 +187,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "d85b696071f08c408887b74c295630466908494947017e12dd3aed28c7ce8a06"
+  "seed_hash": "963e7840775f3733521025ac5c0e6cd873982a647ba1df71043d459ec37bdf20"
 }

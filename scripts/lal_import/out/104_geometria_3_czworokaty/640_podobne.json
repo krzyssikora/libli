@@ -19,34 +19,180 @@
       "body": "<p>\n        Powyższy schemat rozumiemy tak, że:\n    </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<table class=\"my_table_noborder\">\n<tr>\n<td>\\(1\\,\\text{cm}=10\\,\\text{mm}\\)</td>\n<td></td>\n<td>\\(1\\,\\text{dm}=10\\,\\text{cm}\\)</td>\n<td></td>\n<td>\\(1\\,\\text{m}=10\\,\\text{dm}\\)</td>\n</tr>\n<tr>\n<td></td>\n<td colspan=\"3\">\\(1\\,\\text{km}=1000\\,\\text{m}\\)</td>\n<td></td>\n</tr>\n<tr>\n<td>i odwrotnie:</td>\n<td colspan=\"4\"></td>\n</tr>\n<tr>\n<td>\\(1\\,\\text{mm}=0,1\\,\\text{cm}\\)</td>\n<td></td>\n<td>\\(1\\,\\text{cm}=0,1\\,\\text{dm}\\)</td>\n<td></td>\n<td>\\(1\\,\\text{dm}=0,1\\,\\text{m}\\)</td>\n</tr>\n<tr>\n<td></td>\n<td colspan=\"3\">\\(1\\,\\text{m}=0,001\\,\\text{km}\\)</td>\n<td></td>\n</tr>\n</table>",
-      "reason": "table uses rowspan/colspan"
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "\\(1\\,\\text{cm}=10\\,\\text{mm}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\,\\text{dm}=10\\,\\text{cm}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\,\\text{m}=10\\,\\text{dm}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\,\\text{km}=1000\\,\\text{m}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 3
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "i odwrotnie:",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 4
+            }
+          ],
+          [
+            {
+              "html": "\\(1\\,\\text{mm}=0,1\\,\\text{cm}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\,\\text{cm}=0,1\\,\\text{dm}\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\,\\text{dm}=0,1\\,\\text{m}\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(1\\,\\text{m}=0,001\\,\\text{km}\\)",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 3
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n                    Uzupełnij.\n                </p>\n<ol class=\"bold\">\n<li>\n                        \\(2\\,\\text{m}=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{dm}\\)\n                    </li>\n<li>\n                        \\(1\\,\\text{m}=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{mm}\\)\n                    </li>\n<li>\n                        \\(3\\,\\text{dm}=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{mm}\\)\n                    </li>\n<li>\n                        \\(15\\,\\text{m}=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{mm}\\)\n                    </li>\n<li>\n                        \\(2\\,\\text{km}=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{cm}\\)\n                    </li>\n</ol>\n"
+      "body": "<p>\n                    Uzupełnij.\n                </p>"
+    },
+    {
+      "type": "fillblank",
+      "stem": "\n<li>\n                        \\(2\\,\\text{m}=\\)￿0￿\\(\\,\\text{dm}\\)\n                    </li>\n<li>\n                        \\(1\\,\\text{m}=\\)￿1￿\\(\\,\\text{mm}\\)\n                    </li>\n<li>\n                        \\(3\\,\\text{dm}=\\)￿2￿\\(\\,\\text{mm}\\)\n                    </li>\n<li>\n                        \\(15\\,\\text{m}=\\)￿3￿\\(\\,\\text{mm}\\)\n                    </li>\n<li>\n                        \\(2\\,\\text{km}=\\)￿4￿\\(\\,\\text{cm}\\)\n                    </li>\n",
+      "blanks": [
+        [
+          "20"
+        ],
+        [
+          "1000"
+        ],
+        [
+          "300"
+        ],
+        [
+          "15000"
+        ],
+        [
+          "200000"
+        ]
+      ]
     },
     {
       "type": "text",
-      "body": "\n            Świetnie!\n        "
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p>\n                    Uzupełnij.\n                </p>"
     },
     {
-      "type": "text",
-      "body": "\n<p>\n                    Uzupełnij.\n                </p>\n<ol class=\"bold\">\n<li>\n                        \\(1\\,\\text{cm}=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{m}\\)\n                    </li>\n<li>\n                        \\(5\\,\\text{dm}=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{m}\\)\n                    </li>\n<li>\n                        \\(13\\,\\text{m}=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{km}\\)\n                    </li>\n<li>\n                        \\(20\\,\\text{cm}=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{km}\\)\n                    </li>\n<li>\n                        \\(25\\,\\text{mm}=\\)<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\\(\\,\\text{dm}\\)\n                    </li>\n</ol>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n            Brawo!\n        "
+      "type": "fillblank",
+      "stem": "\n<li>\n                        \\(1\\,\\text{cm}=\\)￿0￿\\(\\,\\text{m}\\)\n                    </li>\n<li>\n                        \\(5\\,\\text{dm}=\\)￿1￿\\(\\,\\text{m}\\)\n                    </li>\n<li>\n                        \\(13\\,\\text{m}=\\)￿2￿\\(\\,\\text{km}\\)\n                    </li>\n<li>\n                        \\(20\\,\\text{cm}=\\)￿3￿\\(\\,\\text{km}\\)\n                    </li>\n<li>\n                        \\(25\\,\\text{mm}=\\)￿4￿\\(\\,\\text{dm}\\)\n                    </li>\n",
+      "blanks": [
+        [
+          "0.01",
+          "0,01"
+        ],
+        [
+          "0.5",
+          "0,5"
+        ],
+        [
+          "0.013",
+          "0,013"
+        ],
+        [
+          "0.0002",
+          "0,0002"
+        ],
+        [
+          "0.25",
+          "0,25"
+        ]
+      ]
     },
     {
       "type": "text",
@@ -75,6 +221,6 @@
       "body": "<p>\n    Przyjrzyjmy im się bliżej. \n</p>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "7978ceff245475a8fc610e98508d2f7ce2f1ff877bcb8ee3a809d457ae53a235"
+  "fully_mapped": true,
+  "seed_hash": "9d51dbcd7bd9dced1f0d85cc11395ff04f4efd26e79680f1bc1056330a818fb0"
 }

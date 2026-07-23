@@ -11,23 +11,41 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Poprzesuwaj czerwony i niebieski punkt powyżej i zastanów się, jaką wspólną cechę mają:\n        <ul>\n<li style=\"color: blue;\">\n                wszystkie punkty na osi \\(x\\)\n            </li>\n<li style=\"color: red;\">\n                wszystkie punkty na osi \\(y\\)\n            </li>\n</ul>\n        Zapisz swoje odpowiedzi, a następnie porównaj je z odpowiedziami ukrytymi niżej.\n    "
+      "body": "<p>Poprzesuwaj czerwony i niebieski punkt powyżej i zastanów się, jaką wspólną cechę mają:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li style=\"color: blue;\">\n                wszystkie punkty na osi \\(x\\)\n            </li>\n<li style=\"color: red;\">\n                wszystkie punkty na osi \\(y\\)\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Zapisz swoje odpowiedzi, a następnie porównaj je z odpowiedziami ukrytymi niżej.</p>"
     },
     {
       "type": "spoiler",
       "label": "wspólna cecha punktów na osi \\(x\\)",
-      "body": "\n                        wszystkie punkty na osi \\(x\\) mają współrzędną \\(y=0\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>wszystkie punkty na osi \\(x\\) mają współrzędną \\(y=0\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "wspólna cecha punktów na osi \\(y\\)",
-      "body": "\n                        wszystkie punkty na osi \\(y\\) mają współrzędną \\(x=0\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>wszystkie punkty na osi \\(y\\) mają współrzędną \\(x=0\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "9dcf7942085255a1df98adb3251da24d41617c9a272ac26b69a274cda289bcb6"
+  "seed_hash": "7edfbb7bb20d7abaa9fb3834d7dc7a5011801f2a79d3993cc8a7f3beb0069968"
 }

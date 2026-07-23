@@ -3,11 +3,20 @@
     {
       "type": "spoiler",
       "label": "Przypomnijmy: wzór na odległość między prostymi równoległymi",
-      "body": "\n\n<div class=\"important\">\n<p>\n            Odległość \\(d\\) między prostymi równoległymi o równaniach \\(\\color{blue}{Ax+By+C_1=0}\\) i \\(\\color{blue}{Ax+By+C_2=0}\\) jest dana wzorem\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            d=\\frac{|C_1-C_2|}{\\sqrt{A^2+B^2}}\n            \\]\n        </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Odległość \\(d\\) między prostymi równoległymi o równaniach \\(\\color{blue}{Ax+By+C_1=0}\\) i \\(\\color{blue}{Ax+By+C_2=0}\\) jest dana wzorem\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\[\n            d=\\frac{|C_1-C_2|}{\\sqrt{A^2+B^2}}\n            \\]\n        "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -16,11 +25,62 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Aby użyć wzoru, musimy przedstawić równania prostych w postaci ogólnej.\n                <div class=\"switch_line\">\n                    Równanie \\(y=\\frac{1}{7}x-7\\) jest równoważne równaniu\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x-7y-7=0\\)</div>\n<div class=\"switch_value\">\\(x-7y-49=0\\)</div>\n<div class=\"switch_value\">\\(x+7y-49=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Natomiast równanie \\(y=\\frac{1}{7}x+3\\) jest równoważne równaniu \\(x-7y+21\\).\n                </p>\n<div class=\"switch_line\">\n                    Odległość między prostymi, \\(d\\) jest dana równaniem\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(d=\\frac{|-7-21|}{\\sqrt{1^2+(-7)^2}}\\)</div>\n<div class=\"switch_value\">\\(d=\\frac{|-49-21|}{\\sqrt{1^2+(-7)^2}}\\)</div>\n<div class=\"switch_value\">\\(d=\\frac{|-49+21|}{\\sqrt{1^2+(-7)^2}}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Upraszczamy:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    d&amp;=\\frac{|-49-21|}{\\sqrt{1^2+(-7)^2}}=\\\\\n                    &amp;=\\frac{|-70|}{\\sqrt{1+49}}=\\\\\n                    &amp;=\\frac{70}{\\sqrt{50}}=\\\\\n                    &amp;=\\frac{70}{\\sqrt{25\\cdot 2}}=\\\\\n                    &amp;=\\frac{70}{5\\sqrt{2}}=\\\\\n                    &amp;=\\frac{70}{5\\sqrt{2}}\\cdot\\frac{\\sqrt{2}}{\\sqrt{2}}\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Usunąwszy niewymierność z mianownika i skróciwszy ułamek uzyskamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(d=7\\sqrt{2}\\)</div>\n<div class=\"switch_value\">\\(d=14\\sqrt{2}\\)</div>\n<div class=\"switch_value\">\\(d=\\tfrac{7}{2}\\sqrt{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Odległość między prostymi \\(y=\\frac{1}{7}x-7\\) oraz \\(y=\\frac{1}{7}x+3\\) jest równa \\(7\\sqrt{2}\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Aby użyć wzoru, musimy przedstawić równania prostych w postaci ogólnej.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie \\(y=\\frac{1}{7}x-7\\) jest równoważne równaniu\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x-7y-7=0\\)",
+            "\\(x-7y-49=0\\)",
+            "\\(x+7y-49=0\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Natomiast równanie \\(y=\\frac{1}{7}x+3\\) jest równoważne równaniu \\(x-7y+21\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Odległość między prostymi, \\(d\\) jest dana równaniem\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d=\\frac{|-7-21|}{\\sqrt{1^2+(-7)^2}}\\)",
+            "\\(d=\\frac{|-49-21|}{\\sqrt{1^2+(-7)^2}}\\)",
+            "\\(d=\\frac{|-49+21|}{\\sqrt{1^2+(-7)^2}}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Upraszczamy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    d&amp;=\\frac{|-49-21|}{\\sqrt{1^2+(-7)^2}}=\\\\\n                    &amp;=\\frac{|-70|}{\\sqrt{1+49}}=\\\\\n                    &amp;=\\frac{70}{\\sqrt{50}}=\\\\\n                    &amp;=\\frac{70}{\\sqrt{25\\cdot 2}}=\\\\\n                    &amp;=\\frac{70}{5\\sqrt{2}}=\\\\\n                    &amp;=\\frac{70}{5\\sqrt{2}}\\cdot\\frac{\\sqrt{2}}{\\sqrt{2}}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Usunąwszy niewymierność z mianownika i skróciwszy ułamek uzyskamy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(d=7\\sqrt{2}\\)",
+            "\\(d=14\\sqrt{2}\\)",
+            "\\(d=\\tfrac{7}{2}\\sqrt{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Odległość między prostymi \\(y=\\frac{1}{7}x-7\\) oraz \\(y=\\frac{1}{7}x+3\\) jest równa \\(7\\sqrt{2}\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -29,22 +89,152 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Równanie ogólne tej prostej to \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4x-3y+6=0\\)</div>\n<div class=\"switch_value\">\\(4x-3y-6=0\\)</div>\n<div class=\"switch_value\">\\(4x+3y+6=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Szukamy prostej o równaniu\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(4x-3y+C=0\\)</div>\n<div class=\"switch_value\">\\(4x-3y-4=0\\)</div>\n<div class=\"switch_value\">\\(Ax+By+6=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Odległość między daną prostą \\(4x-3y+6=0\\) i szukaną prostą \\(4x-3y+C=0\\) jest równa \\(7\\), co opisuje równanie\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{7}{\\sqrt{4^2+3^2}}=|6-C|\\)</div>\n<div class=\"switch_value\">\\(\\frac{|6-C|}{\\sqrt{4^2+3^2}}=7\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Uprośćmy równanie:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    \\frac{|6-C|}{\\sqrt{4^2+3^2}}&amp;=7\\\\\n                    \\frac{|6-C|}{\\sqrt{16+9}}&amp;=7\\\\\n                    \\frac{|6-C|}{\\sqrt{25}}&amp;=7\\\\\n                    \\frac{|6-C|}{5}&amp;=7\\\\\n                    |6-C|&amp;=35\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    To oznacza, że wyrażenie \\(6-C\\) jest równe \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(35\\)</div>\n<div class=\"switch_value\">\\(-35\\)</div>\n<div class=\"switch_value\">\\(-35\\) lub \\(35\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Rozwiązujemy:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    6-C=-35\\quad&amp;\\text{lub}\\quad 6-C=35\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    i dostajemy wartości\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(C=41\\) i \\(C=-29\\)</div>\n<div class=\"switch_value\">\\(C=-41\\) i \\(C=29\\)</div>\n<div class=\"switch_value\">\\(C=-41\\) i \\(C=41\\)</div>\n<div class=\"switch_value\">\\(C=-29\\) i \\(C=29\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Szukane proste mają równania\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    4x-3y-29\\quad\\text{i}\\quad 4x-3y+41\n                    \\]\n                </div>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_840.png\" style=\"max-height: 300px\"/>\n</figure>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie ogólne tej prostej to \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4x-3y+6=0\\)",
+            "\\(4x-3y-6=0\\)",
+            "\\(4x+3y+6=0\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Szukamy prostej o równaniu\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(4x-3y+C=0\\)",
+            "\\(4x-3y-4=0\\)",
+            "\\(Ax+By+6=0\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Odległość między daną prostą \\(4x-3y+6=0\\) i szukaną prostą \\(4x-3y+C=0\\) jest równa \\(7\\), co opisuje równanie\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{7}{\\sqrt{4^2+3^2}}=|6-C|\\)",
+            "\\(\\frac{|6-C|}{\\sqrt{4^2+3^2}}=7\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Uprośćmy równanie:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    \\frac{|6-C|}{\\sqrt{4^2+3^2}}&amp;=7\\\\\n                    \\frac{|6-C|}{\\sqrt{16+9}}&amp;=7\\\\\n                    \\frac{|6-C|}{\\sqrt{25}}&amp;=7\\\\\n                    \\frac{|6-C|}{5}&amp;=7\\\\\n                    |6-C|&amp;=35\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    To oznacza, że wyrażenie \\(6-C\\) jest równe \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(35\\)",
+            "\\(-35\\)",
+            "\\(-35\\) lub \\(35\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Rozwiązujemy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    6-C=-35\\quad&amp;\\text{lub}\\quad 6-C=35\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    i dostajemy wartości\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(C=41\\) i \\(C=-29\\)",
+            "\\(C=-41\\) i \\(C=29\\)",
+            "\\(C=-41\\) i \\(C=41\\)",
+            "\\(C=-29\\) i \\(C=29\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Szukane proste mają równania\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    4x-3y-29\\quad\\text{i}\\quad 4x-3y+41\n                    \\]\n                "
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_840.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Podstawy trapezu są zawarte w prostych o równaniach\n        \\[\n        y=3x-4\n        \\] \n        oraz\n        \\[\n        y=3x+6\n        \\]\n        <p>\n            Znajdź wysokość trapezu.\n        </p>\n"
+      "body": "<p>Podstawy trapezu są zawarte w prostych o równaniach\n        \\[\n        y=3x-4\n        \\] \n        oraz\n        \\[\n        y=3x+6\n        \\]</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź wysokość trapezu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Równanie ogólne prostej \\(y=3x-4\\) to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3x-y-4=0\\)</div>\n<div class=\"switch_value\">\\(3x+y+4=0\\)</div>\n<div class=\"switch_value\">\\(3x+y-4=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Natomiast równanie ogólne prostej \\(y=3x+6\\) to \\(3x-y+6=0\\).\n                <div class=\"switch_line\">\n                    Wysokość trapezu to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(6-(-4)=10\\)</div>\n<div class=\"switch_value\">odległość między podstawami</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Używając wzoru na odległość między prostymi dostajemy wysokość, \\(h\\):\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(h=\\frac{|6-(-4)|}{\\sqrt{3^2+(-4)^2}}\\)</div>\n<div class=\"switch_value\">\\(h=\\frac{|6-4|}{\\sqrt{3^2+(-4)^2}}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Obliczamy:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    h&amp;=\\frac{|6-(-4)|}{\\sqrt{3^2+(-4)^2}}=\\\\\n                    &amp;=\\frac{|10|}{\\sqrt{9+16}}=\\\\\n                    &amp;=\\frac{10}{\\sqrt{25}}=\\\\\n                    &amp;=\\frac{10}{5}=\\\\\n                    &amp;=2\n                    \\end{align}\n                    \\]\n                </div>\n<p>\n                    Wysokość tego trapezu jest równa \\(2\\).\n                </p>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Równanie ogólne prostej \\(y=3x-4\\) to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3x-y-4=0\\)",
+            "\\(3x+y+4=0\\)",
+            "\\(3x+y-4=0\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Natomiast równanie ogólne prostej \\(y=3x+6\\) to \\(3x-y+6=0\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Wysokość trapezu to\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6-(-4)=10\\)",
+            "odległość między podstawami"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Używając wzoru na odległość między prostymi dostajemy wysokość, \\(h\\):\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(h=\\frac{|6-(-4)|}{\\sqrt{3^2+(-4)^2}}\\)",
+            "\\(h=\\frac{|6-4|}{\\sqrt{3^2+(-4)^2}}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Obliczamy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    h&amp;=\\frac{|6-(-4)|}{\\sqrt{3^2+(-4)^2}}=\\\\\n                    &amp;=\\frac{|10|}{\\sqrt{9+16}}=\\\\\n                    &amp;=\\frac{10}{\\sqrt{25}}=\\\\\n                    &amp;=\\frac{10}{5}=\\\\\n                    &amp;=2\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Wysokość tego trapezu jest równa \\(2\\).\n                </p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "f05de72ddfe96ccf35d9e7c7f40442c9896b13e880c6fcf9ff2359efff60a36e"
+  "seed_hash": "87c4e51aed8d097437caa7fa7226c5bf9a58e5a679dd1fd954add2f04957a7ce"
 }

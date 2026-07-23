@@ -2,65 +2,198 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n<p class=\"centered\">\n<span class=\"myequation\">\n                \\(\\sin^2\\alpha+\\cos^2\\alpha=1\\)\n            </span>\n</p>\n<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                        nagranie\n                    </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                        krok po kroku\n                    </a>\n</li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-1-1\">\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/tryg_jedynka.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-1-2\">\n<div class=\"fill_steps\">\n<div style=\"display: inline-block; vertical-align: middle;\">\n<img alt=\"trójkąt prostokątny z kątem ostrym alfa\" height=\"243\" src=\"static/trojkat_prost_alfa.png\" style=\"width: 400px; height: 243px;\" width=\"400\"/>\n</div>\n<div class=\"important\" style=\"display: inline-block; margin-left: 20px;\">\n                        \\(\n                        \\begin{align*}\n                        \\sin\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{red}{c}}\\\\[10pt]\n                        \\cos\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{red}{c}}\\\\[10pt]\n                        \\text{tg }\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{yellow}{b}}\\\\[10pt]\n                        \\text{ctg }\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{blue}{a}}\\\\\n                        \\end{align*}\n                        \\)\n                    </div>\n<p>\n                        Jak w każdym trójkącie prostokątnym, tak i w powyższym, możemy zastosować twierdzenie Pitagorasa:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(a^2+b^2=c^2\\)\n                        </span>\n</p>\n<div class=\"fill_show_next\">\n                        pokaż dalej\n                    </div>\n<div class=\"fill_step\">\n<p>\n                            Podzielmy obie strony równania przez \\(c^2\\):\n                        </p>\n<p>\n</p>\n<span class=\"myequation\">\n                            \\(\\frac{a^2}{c^2}+\\frac{b^2}{c^2}=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</div>\n<div class=\"fill_show_next\">\n                        pokaż dalej\n                    </div>\n<div class=\"fill_step\">\n<p>\n                            Możemy lekko przekształcić ułamki po lewej stronie równania:\n                        </p>\n<p>\n<span class=\"myequation\">\n                                \\(\\left(\\frac{a}{c}\\right)^2 + \\left(\\frac{b}{c}\\right)^2 = 1\\)\n                            </span>\n</p>\n<p>\n                            dzięki czemu dostrzegamy wewnętrz nawiasów funkcje trygonometryczne kąta \\(\\alpha\\):\n                        </p>\n<span class=\"myequation\">\n                            \\(\\left(\\sin\\alpha\\right)^2 + \\left(\\right.\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n                            \\(\\left.\\alpha\\right)^2=1\\)\n                        </span>\n</div>\n</div>\n<div class=\"success hidden\" id=\"success_question10\">\n<p>\n                        I stąd otrzymujemy równość zwaną \"\n                        <strong>\n                            jedynką trygonometryczną\n                        </strong>\n                        \".\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(\\sin^2\\alpha+\\cos^2\\alpha = 1\\)\n                        </span>\n</p>\n</div>\n</div>\n</div>\n</div>",
-      "reason": "unmapped <div> in lesson body"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "<p>\n            \\(\\sin^2\\alpha+\\cos^2\\alpha=1\\) (jedynka trygonometryczna)\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
-      "reason": "show_solution button without solution"
+      "type": "text",
+      "body": "<h4>zobacz</h4>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p class=\"centered\">\n<span class=\"myequation\">\n                \\(\\sin^2\\alpha+\\cos^2\\alpha=1\\)\n            </span>\n</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n<p class=\"centered\">\n<span class=\"myequation\">\n                \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\)\n            </span>\n            oraz\n            <span class=\"myequation\">\n                \\(\\text{ctg }\\alpha = \\frac{\\cos\\alpha}{\\sin\\alpha}\\)\n            </span>\n</p>\n<div class=\"ks_tabs\" id=\"tabs-2\">\n<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-2-1\" id=\"tab-2-1\">\n                        nagranie\n                    </a>\n</li>\n<li>\n<a href=\"#tabcontent-2-2\" id=\"tab-2-2\">\n                        krok po kroku\n                    </a>\n</li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-2-1\">\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/sin_przez_cos.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-2-2\">\n<div class=\"fill_steps\">\n<div style=\"display: inline-block; vertical-align: middle;\">\n<img alt=\"trójkąt prostokątny z kątem ostrym alfa\" height=\"243\" src=\"static/trojkat_prost_alfa.png\" style=\"width: 400px; height: 243px;\" width=\"400\"/>\n</div>\n<div class=\"important\" style=\"display: inline-block; margin-left: 20px;\">\n                        \\(\n                        \\begin{align*}\n                        \\sin\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{red}{c}}\\\\[10pt]\n                        \\cos\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{red}{c}}\\\\[10pt]\n                        \\text{tg }\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{yellow}{b}}\\\\[10pt]\n                        \\text{ctg }\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{blue}{a}}\\\\\n                        \\end{align*}\n                        \\)\n                    </div>\n<p>\n                        Pokażemy tu tylko tożsamość \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\). Druga, z cotangensem, jest bardzo podobna.\n                    </p>\n<div class=\"fill_show_next\">\n                        pokaż dalej\n                    </div>\n<div class=\"fill_step\">\n<p>\n                            Rozpatrzmy ułamek \\(\\frac{\\sin\\alpha}{\\cos\\alpha}\\):\n                        </p>\n<p>\n</p>\n<span class=\"myequation\">\n                            \\(\\frac{\\sin\\alpha}{\\cos\\alpha}=\\left(\\frac{a}{c}\\right):\\left(\\frac{b}{c}\\right)=\\frac{a}{c}\\cdot\\frac{c}{b}=\\frac{a}{b}=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n                            \\(\\alpha\\)\n                        </span>\n</div>\n</div>\n<div class=\"success hidden\" id=\"success_question30\">\n<p>\n                        I stąd otrzymujemy równość:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\)\n                        </span>\n</p>\n</div>\n</div>\n</div>\n</div>",
-      "reason": "unmapped <div> in lesson body"
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/tryg_jedynka.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "image",
+              "media_src": "static/trojkat_prost_alfa.png",
+              "alt": "trójkąt prostokątny z kątem ostrym alfa",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "\n                        \\[\\begin{align*}\n                        \\sin\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{red}{c}}\\\\[10pt]\n                        \\cos\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{red}{c}}\\\\[10pt]\n                        \\text{tg }\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{yellow}{b}}\\\\[10pt]\n                        \\text{ctg }\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{blue}{a}}\\\\\n                        \\end{align*}\\]\n                    "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Jak w każdym trójkącie prostokątnym, tak i w powyższym, możemy zastosować twierdzenie Pitagorasa:\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<span class=\"myequation\">\n                            \\(a^2+b^2=c^2\\)\n                        </span>\n</p>"
+            },
+            {
+              "type": "fill_gate",
+              "stem": "\n<p>\n                            Podzielmy obie strony równania przez \\(c^2\\):\n                        </p>\n<p>\n</p>\n<span class=\"myequation\">\n                            \\(\\frac{a^2}{c^2}+\\frac{b^2}{c^2}=\\)\n                            <span>\n￿0￿\n</span>\n</span>\n",
+              "answers": [
+                [
+                  "1"
+                ]
+              ]
+            },
+            {
+              "type": "fill_gate",
+              "stem": "\n<p>\n                            Możemy lekko przekształcić ułamki po lewej stronie równania:\n                        </p>\n<p>\n<span class=\"myequation\">\n                                \\(\\left(\\frac{a}{c}\\right)^2 + \\left(\\frac{b}{c}\\right)^2 = 1\\)\n                            </span>\n</p>\n<p>\n                            dzięki czemu dostrzegamy wewnętrz nawiasów funkcje trygonometryczne kąta \\(\\alpha\\):\n                        </p>\n<span class=\"myequation\">\n                            \\(\\left(\\sin\\alpha\\right)^2 + \\left(\\right.\\)\n                            <span>\n￿0￿\n</span>\n                            \\(\\left.\\alpha\\right)^2=1\\)\n                        </span>\n",
+              "answers": [
+                [
+                  "cos"
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\) oraz \\(\\text{ctg }\\alpha = \\frac{\\cos\\alpha}{\\sin\\alpha}\\)\n    "
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
-      "reason": "show_solution button without solution"
+      "type": "text",
+      "body": "<h4>zobacz</h4>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p class=\"centered\">\n<span class=\"myequation\">\n                \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\)\n            </span>\n            oraz\n            <span class=\"myequation\">\n                \\(\\text{ctg }\\alpha = \\frac{\\cos\\alpha}{\\sin\\alpha}\\)\n            </span>\n</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n<p class=\"centered\">\n<span class=\"myequation\">\n                \\(\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\)\n            </span>\n</p>\n<div class=\"ks_tabs\" id=\"tabs-3\">\n<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-3-1\" id=\"tab-3-1\">\n                        nagranie\n                    </a>\n</li>\n<li>\n<a href=\"#tabcontent-3-2\" id=\"tab-3-2\">\n                        krok po kroku\n                    </a>\n</li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-3-1\">\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/tg_ctg.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-3-2\">\n<div class=\"fill_steps\">\n<div style=\"display: inline-block; vertical-align: middle;\">\n<img alt=\"trójkąt prostokątny z kątem ostrym alfa\" height=\"243\" src=\"static/trojkat_prost_alfa.png\" style=\"width: 400px; height: 243px;\" width=\"400\"/>\n</div>\n<div class=\"important\" style=\"display: inline-block; margin-left: 20px;\">\n                        \\(\n                        \\begin{align*}\n                        \\sin\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{red}{c}}\\\\[10pt]\n                        \\cos\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{red}{c}}\\\\[10pt]\n                        \\text{tg }\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{yellow}{b}}\\\\[10pt]\n                        \\text{ctg }\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{blue}{a}}\\\\\n                        \\end{align*}\n                        \\)\n                    </div>\n                    Rozpatrzmy iloczyn \\(\\text{tg }\\alpha\\cdot \\text{tg }\\alpha\\)\n                </div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Rozpatrzmy ułamek \\(\\frac{\\sin\\alpha}{\\cos\\alpha}\\):\n                    </p>\n<p>\n</p>\n<span class=\"myequation\">\n                        \\(\\text{tg }\\alpha\\cdot \\text{tg }\\alpha=\\frac{a}{b}\\cdot\\frac{b}{a}=\\)\n                        <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</div>\n<div class=\"success hidden\" id=\"success_question30\">\n<p>\n                        I stąd otrzymujemy równość:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(\\text{tg }\\alpha\\cdot \\text{ctg }\\alpha = 1\\)\n                        </span>\n</p>\n</div>\n</div>\n</div>\n</div>",
-      "reason": "unmapped <div> in lesson body"
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/sin_przez_cos.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "image",
+              "media_src": "static/trojkat_prost_alfa.png",
+              "alt": "trójkąt prostokątny z kątem ostrym alfa",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "\n                        \\[\\begin{align*}\n                        \\sin\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{red}{c}}\\\\[10pt]\n                        \\cos\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{red}{c}}\\\\[10pt]\n                        \\text{tg }\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{yellow}{b}}\\\\[10pt]\n                        \\text{ctg }\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{blue}{a}}\\\\\n                        \\end{align*}\\]\n                    "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Pokażemy tu tylko tożsamość \\(\\text{tg }\\alpha = \\frac{\\sin\\alpha}{\\cos\\alpha}\\). Druga, z cotangensem, jest bardzo podobna.\n                    </p>"
+            },
+            {
+              "type": "fill_gate",
+              "stem": "\n<p>\n                            Rozpatrzmy ułamek \\(\\frac{\\sin\\alpha}{\\cos\\alpha}\\):\n                        </p>\n<p>\n</p>\n<span class=\"myequation\">\n                            \\(\\frac{\\sin\\alpha}{\\cos\\alpha}=\\left(\\frac{a}{c}\\right):\\left(\\frac{b}{c}\\right)=\\frac{a}{c}\\cdot\\frac{c}{b}=\\frac{a}{b}=\\)\n                            <span>\n￿0￿\n</span>\n                            \\(\\alpha\\)\n                        </span>\n",
+              "answers": [
+                [
+                  "tg"
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        \\(\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\)\n    "
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
-      "reason": "show_solution button without solution"
+      "type": "text",
+      "body": "<h4>zobacz</h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p class=\"centered\">\n<span class=\"myequation\">\n                \\(\\text{tg }\\alpha\\cdot\\text{ctg }\\alpha = 1\\)\n            </span>\n</p>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/tg_ctg.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "image",
+              "media_src": "static/trojkat_prost_alfa.png",
+              "alt": "trójkąt prostokątny z kątem ostrym alfa",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "\n                        \\[\\begin{align*}\n                        \\sin\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{red}{c}}\\\\[10pt]\n                        \\cos\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{red}{c}}\\\\[10pt]\n                        \\text{tg }\\alpha &amp;= \\frac{\\color{blue}{a}}{\\color{yellow}{b}}\\\\[10pt]\n                        \\text{ctg }\\alpha &amp;= \\frac{\\color{yellow}{b}}{\\color{blue}{a}}\\\\\n                        \\end{align*}\\]\n                    "
+            },
+            {
+              "type": "text",
+              "body": "<p>Rozpatrzmy iloczyn \\(\\text{tg }\\alpha\\cdot \\text{tg }\\alpha\\)</p>"
+            },
+            {
+              "type": "fill_gate",
+              "stem": "\n<p>\n                        Rozpatrzmy ułamek \\(\\frac{\\sin\\alpha}{\\cos\\alpha}\\):\n                    </p>\n<p>\n</p>\n<span class=\"myequation\">\n                        \\(\\text{tg }\\alpha\\cdot \\text{tg }\\alpha=\\frac{a}{b}\\cdot\\frac{b}{a}=\\)\n                        <span>\n￿0￿\n</span>\n</span>\n",
+              "answers": [
+                [
+                  "1"
+                ]
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "d1739ccb9b17633053abfc0c279b10a4b5b346ea3d5551039e8986af35c26467"
+  "fully_mapped": true,
+  "seed_hash": "6384d0d5d112601f3e44695874400a4509e4230c66366a6f1ad94efb396c20c1"
 }

@@ -9,8 +9,10 @@
       "body": "<p>\n            Rysunek poniżej przedstawia wykres funkcji \\(f\\).\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_1.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/zbior_wartosci_1.png",
+      "alt": "odczytywanie wartości z wykresu",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -30,8 +32,10 @@
       "body": "<p>\n                Dziedzina jest zaznaczona na rysunku poniżej.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_2.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/zbior_wartosci_2.png",
+      "alt": "odczytywanie wartości z wykresu",
+      "figcaption": ""
     },
     {
       "type": "switch_gate",
@@ -48,8 +52,10 @@
       "body": "<p>\n                Tę najmniejszą wartość widzisz zaznaczoną na rysunku poniżej.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_3.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/zbior_wartosci_3.png",
+      "alt": "odczytywanie wartości z wykresu",
+      "figcaption": ""
     },
     {
       "type": "switch_gate",
@@ -67,8 +73,10 @@
       "body": "<p>\n                Tę prawie osiągniętą największą wartość widzisz zaznaczoną na rysunku poniżej.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_4.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/zbior_wartosci_4.png",
+      "alt": "odczytywanie wartości z wykresu",
+      "figcaption": ""
     },
     {
       "type": "switch_gate",
@@ -85,8 +93,10 @@
       "body": "<p>\n                Zbiór wartości widzisz zaznaczony na rysunku poniżej.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"odczytywanie wartości z wykresu\" src=\"static/zbior_wartosci_5.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/zbior_wartosci_5.png",
+      "alt": "odczytywanie wartości z wykresu",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -98,5 +108,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "421596685a2509e85e840fd02e0ffbd0e46fb8f025a847dd786de23424a364bb"
+  "seed_hash": "1f164ea2d99eea26326011642e30b5cfd6665415333292c34998766a5908a6cf"
 }

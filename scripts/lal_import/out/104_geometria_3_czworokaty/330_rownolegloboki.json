@@ -22,11 +22,21 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Przypomnij sobie własności równoległoboku, a następnie sprawdź je poniżej.\n        </p>\n<details>\n<summary>własności równoległoboku</summary>\n<ul>\n<li>\n                    długości jego przeciwległych boków są sobie równe,\n                    <br/>\n<i>inaczej</i>: długości boków równoległych są sobie równe,\n                </li>\n<li>\n                    miary przeciwległych kątów są sobie równe,\n                </li>\n<li>\n                    sumy miar sąsiednich kątów (tj. kątów przy tym samym boku) są równe \\(180^{\\circ}\\),\n                </li>\n<li>\n                    przekątne przecinają się w połowie.\n                </li>\n</ul>\n</details>\n"
+      "body": "<p>\n            Przypomnij sobie własności równoległoboku, a następnie sprawdź je poniżej.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "własności równoległoboku",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                    długości jego przeciwległych boków są sobie równe,\n                    <br/>\n<i>inaczej</i>: długości boków równoległych są sobie równe,\n                </li>\n<li>\n                    miary przeciwległych kątów są sobie równe,\n                </li>\n<li>\n                    sumy miar sąsiednich kątów (tj. kątów przy tym samym boku) są równe \\(180^{\\circ}\\),\n                </li>\n<li>\n                    przekątne przecinają się w połowie.\n                </li>\n</ul>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -41,62 +51,28 @@
       "body": "<ul>\n<li>\n            długości przeciwległych, równoległych boków prostokąta są sobie równe,\n        </li>\n<li>\n            przekątne prostokąta przecinają się w połowie.\n        </li>\n</ul>"
     },
     {
-      "type": "text",
-      "body": "<p class=\"question\"></p>"
-    },
-    {
-      "type": "text",
-      "body": "\n        Wskaż zdania prawdziwe.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n                Każdy prostokąt jest równoległobokiem.\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                Skoro dwa kolejne kąty prostokąta są proste, to ich nie wspólne ramiona są prostopadłe do wspólnego ramienia, czyli są równoległe. W ten sposób widzimy, że pary przeciwległych boków prostokąta są równoległe. A jak definiujemy równoległobok?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                Każdy równoległobok jest prostokątem.\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                Czy równoległobok o kątach np. \\(60^{\\circ}\\), \\(120^{\\circ}\\), \\(60^{\\circ}\\), \\(120^{\\circ}\\) jest prostokątem?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                Równoległobok, którego przynajmniej jeden z kątów wewnętrznych jest prosty, jest prostokątem.\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                Jeśli jeden kąt równoległoboku ma miarę \\(90^{\\circ}\\), to oba sąsiednie kąty mają miarę \\(180^{\\circ}-90^{\\circ}=90^{\\circ}\\), czyli czwarty kąt (z sumy kątów w czworokącie) też jest prosty. \n            "
-    },
-    {
-      "type": "text",
-      "body": "potwierdź "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! Wybrałaś/-eś poprawnie.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Nie wybrałaś/-eś wszystkich odpowiedzi.\n    "
+      "type": "choice",
+      "stem": "<p>Wskaż zdania prawdziwe.</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "Każdy prostokąt jest równoległobokiem.",
+          "is_correct": true,
+          "feedback": "Skoro dwa kolejne kąty prostokąta są proste, to ich nie wspólne ramiona są prostopadłe do wspólnego ramienia, czyli są równoległe. W ten sposób widzimy, że pary przeciwległych boków prostokąta są równoległe. A jak definiujemy równoległobok?"
+        },
+        {
+          "text": "Każdy równoległobok jest prostokątem.",
+          "is_correct": false,
+          "feedback": "Czy równoległobok o kątach np. \\(60^{\\circ}\\), \\(120^{\\circ}\\), \\(60^{\\circ}\\), \\(120^{\\circ}\\) jest prostokątem?"
+        },
+        {
+          "text": "Równoległobok, którego przynajmniej jeden z kątów wewnętrznych jest prosty, jest prostokątem.",
+          "is_correct": true,
+          "feedback": "Jeśli jeden kąt równoległoboku ma miarę \\(90^{\\circ}\\), to oba sąsiednie kąty mają miarę \\(180^{\\circ}-90^{\\circ}=90^{\\circ}\\), czyli czwarty kąt (z sumy kątów w czworokącie) też jest prosty."
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "26c94b0375e539f8d81ec62356c18c3d91fa6bafc1e36096120b0b18e3393847"
+  "seed_hash": "e0239fe65507ffb2b96a2cc0e8260b7fb1e2dba0710c5ccace34b018593041d4"
 }

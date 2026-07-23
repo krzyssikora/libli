@@ -5,16 +5,20 @@
       "body": "<p>\n    Z proporcjonalnością prostą zetknąłeś/-aś się najprawdopodobniej w szkole podstawowej.\n</p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<div style=\"display: inline-block; width: 130px;\">\n</div>\n<div style=\"display: inline-block;\">\n<img alt=\"\" src=\"static/water_poured.gif\" style=\"width: 300px; border: 5px solid #ccc;\"/>\n</div>\n</p>"
+      "type": "image",
+      "media_src": "static/water_poured.gif",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
       "body": "<p>\n    Mamy z nią do czynienia, gdy obserwujemy zmianę, która następuje w stałym tempie. Na przykład, gdy nalewamy wodę do naczynia ze stałą prędkością. Przyjmijmy dla przykładu, że\n    <strong>\n        w każdej sekundzie\n    </strong>\n    wlewamy do naczynia\n    <strong>\n        5cm\n        <sup>\n            3\n        </sup>\n</strong>\n    wody.\n</p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<img alt=\"\" src=\"static/water_to_glass_2.gif\" style=\"width: 300px; border: 5px solid #ccc;\"/>\n</p>"
+      "type": "image",
+      "media_src": "static/water_to_glass_2.gif",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -30,14 +34,14 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "<p class=\"question_text\">\n        Uzupełnij tabelę.\n    </p>"
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -45,86 +49,70 @@
         "cells": [
           [
             {
-              "html": "czas\n                    <br/>\n                    [sekundy]",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "czas\n                    <br/>\n                    [sekundy]"
             },
             {
-              "html": "\\(0\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(0\\)"
             },
             {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(1\\)"
             },
             {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(2\\)"
             },
             {
-              "html": "\\(3\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(3\\)"
             },
             {
-              "html": "\\(5\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(5\\)"
             },
             {
-              "html": "\\(8\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(8\\)"
             },
             {
-              "html": "\\(10\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(10\\)"
             }
           ],
           [
             {
-              "html": "ilość wody\n                    <br/>\n                    [centymetry sześcienne]",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "ilość wody\n                    <br/>\n                    [centymetry sześcienne]"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "0"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "5"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "10"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "15"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "25"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "40"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "50"
             }
           ]
         ]
@@ -136,5 +124,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "414346228dbfb9e8c8b50f7439967b60f2a7e9a8bbaaaff14ba210cc12094064"
+  "seed_hash": "7013e8cbaa614b363598269dfb365db442866ffeb4022c3d106b4a194881b052"
 }

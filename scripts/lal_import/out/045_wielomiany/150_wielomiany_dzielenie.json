@@ -582,10 +582,6 @@
     },
     {
       "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
-      "type": "text",
       "body": "<p>Gdy rozpatrujemy dzielenie wielomianu przez pewien dzielnik, możemy zapisać ten wielomian jako sumę</p>"
     },
     {
@@ -630,10 +626,6 @@
     },
     {
       "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
-      "type": "text",
       "body": "<p>\n                gdzie \\(\\quad r\\lt d\\)\n            </p>"
     },
     {
@@ -662,5 +654,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "325f266408aefebe4ff06f5e30233487bae8b6fbb46866375bd512548f0a4611"
+  "seed_hash": "dfc0247a67c51e18fafd825ddff19ec4e5588fbc812c7cd523bada9fa7989fe2"
 }

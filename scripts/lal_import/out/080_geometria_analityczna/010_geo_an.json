@@ -2,18 +2,126 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Oblicz długość odcinka \\(AB\\) wskazanego na rysunku poniżej.\n        </p>\n<div class=\"centered\">\n<img alt=\"długość odcinka\" src=\"static/dlugosc_odcinka_1.png\" width=\"700\"/>\n</div>\n"
+      "body": "<p>\n            Oblicz długość odcinka \\(AB\\) wskazanego na rysunku poniżej.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/dlugosc_odcinka_1.png",
+      "alt": "długość odcinka",
+      "figcaption": ""
     },
     {
       "type": "spoiler",
       "label": "Pomyśl, a potem sprawdź rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Zrobimy to z pomocą twierdzenia Pitagorasa dla trójkąta prostokątnego, w którym jedna przyprostokątna jest pozioma, a druga pionowa, na przykład:\n                </p>\n<div class=\"centered\">\n<img alt=\"długość odcinka\" src=\"static/dlugosc_odcinka_2.png\" width=\"700\"/>\n</div>\n<div class=\"switch_line\">\n                    Potrzebujemy długości przyprostokątnych, a do tego warto najpierw odczytać współrzędne punktów \\(A\\) i \\(B\\), czyli\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(A(3,5)\\) i \\(B(6,2)\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(A(-3,5)\\) i \\(B(6,2)\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(A(5, -3)\\) i \\(B(2, 6)\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(A(5, 3)\\) i \\(B(2, 6)\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"centered\">\n<img alt=\"długość odcinka\" src=\"static/dlugosc_odcinka_3.png\" width=\"700\"/>\n</div>\n<div class=\"switch_line\">\n                    Długość poziomej przyprostokątnej to\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(3\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(4\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(8\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(9\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(10\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Długość pionowej przyprostokątnej to\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(3\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(4\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(8\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(9\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(10\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"centered\">\n<img alt=\"długość odcinka\" src=\"static/dlugosc_odcinka_4.png\" width=\"700\"/>\n</div>\n<div class=\"switch_line\">\n                    I teraz z twierdzenia Pitagorasa wyliczymy długość odcinka \\(AB\\):\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(AB^2=9^2+3^2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(3^2+AB^2=9^2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(9^2+AB^2=3^2\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Stąd \\(AB^2=90\\), a ponieważ \\(90=9\\cdot 10\\):\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(AB=10\\sqrt{9}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(AB=3\\sqrt{10}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(AB=10\\sqrt{3}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"centered\">\n<img alt=\"długość odcinka\" src=\"static/dlugosc_odcinka_5.png\" width=\"700\"/>\n</div>\n<p>\n                    Długość odcnika \\(AB\\) to \\(3\\sqrt{10}\\).\n                </p>\n<p>\n</p>\n<hr/>\n                Ze względu na to, że\n    \\[\n    \\begin{align*}\n    3&amp;=3\\cdot \\color{red}{1}\\\\\n    9&amp;=3\\cdot \\color{red}{3}\n    \\end{align*}\n    \\]\n    możemy narysować trzy trójkąty prostokątne o przyprostokątnych długości \\(\\color{red}{1}\\) i \\(\\color{red}{3}\\).\n                <div class=\"centered\">\n<img alt=\"długość odcinka\" src=\"static/dlugosc_odcinka_6.png\" width=\"700\"/>\n</div>\n                Długość przeciwprostokątnej każdego z nich to \\(\\sqrt{3^2+1^2}=\\sqrt{10}\\), więc długość odcinka \\(AB\\) to \\(3\\sqrt{10}\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zrobimy to z pomocą twierdzenia Pitagorasa dla trójkąta prostokątnego, w którym jedna przyprostokątna jest pozioma, a druga pionowa, na przykład:\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/dlugosc_odcinka_2.png",
+          "alt": "długość odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Potrzebujemy długości przyprostokątnych, a do tego warto najpierw odczytać współrzędne punktów \\(A\\) i \\(B\\), czyli\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(A(3,5)\\) i \\(B(6,2)\\)",
+            "\\(A(-3,5)\\) i \\(B(6,2)\\)",
+            "\\(A(5, -3)\\) i \\(B(2, 6)\\)",
+            "\\(A(5, 3)\\) i \\(B(2, 6)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/dlugosc_odcinka_3.png",
+          "alt": "długość odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Długość poziomej przyprostokątnej to\n                    \n\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(3\\)",
+            "\\(4\\)",
+            "\\(8\\)",
+            "\\(9\\)",
+            "\\(10\\)"
+          ],
+          "answer": 3
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Długość pionowej przyprostokątnej to\n                    \n\n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(3\\)",
+            "\\(4\\)",
+            "\\(8\\)",
+            "\\(9\\)",
+            "\\(10\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/dlugosc_odcinka_4.png",
+          "alt": "długość odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I teraz z twierdzenia Pitagorasa wyliczymy długość odcinka \\(AB\\):\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(AB^2=9^2+3^2\\)",
+            "\\(3^2+AB^2=9^2\\)",
+            "\\(9^2+AB^2=3^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd \\(AB^2=90\\), a ponieważ \\(90=9\\cdot 10\\):\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(AB=10\\sqrt{9}\\)",
+            "\\(AB=3\\sqrt{10}\\)",
+            "\\(AB=10\\sqrt{3}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/dlugosc_odcinka_5.png",
+          "alt": "długość odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Długość odcnika \\(AB\\) to \\(3\\sqrt{10}\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Ze względu na to, że\n    \\[\n    \\begin{align*}\n    3&=3\\cdot \\color{red}{1}\\\\\n    9&=3\\cdot \\color{red}{3}\n    \\end{align*}\n    \\]\n    możemy narysować trzy trójkąty prostokątne o przyprostokątnych długości \\(\\color{red}{1}\\) i \\(\\color{red}{3}\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/dlugosc_odcinka_6.png",
+          "alt": "długość odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Długość przeciwprostokątnej każdego z nich to \\(\\sqrt{3^2+1^2}=\\sqrt{10}\\), więc długość odcinka \\(AB\\) to \\(3\\sqrt{10}\\).</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "b40d6e2355de9681827785f1bbd39f51a8da01a9ecb35445b901824764093a35"
+  "seed_hash": "b357b2cad4bc6128c2c2a9ecad95b9b9eabf23d6a2e773f1133e5d7b929c0fc2"
 }

@@ -14,86 +14,212 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_prosta_rownanie_ogolne_A0.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "\n<img src=\"static/geometria_analityczna_2_prosta_rownanie_ogolne_A0.png\" style=\"float: right; height: 300px; margin: 0 0 0 15px;\"/>\n        Jeśli w równaniu ogólnym prostej, \\(Ax+By+C=0\\), współczynnik \\(A=0\\), równanie przyjmuje postać\n        \\[\n        By+C=0\n        \\]\n        lub równoważnie\n        \\[\n        y=-\\frac{C}{B}\n        \\]\n        Jest to równanie <strong>prostej poziomej</strong>.\n    "
+      "body": "<p>Jeśli w równaniu ogólnym prostej, \\(Ax+By+C=0\\), współczynnik \\(A=0\\), równanie przyjmuje postać\n        \\[\n        By+C=0\n        \\]\n        lub równoważnie\n        \\[\n        y=-\\frac{C}{B}\n        \\]\n        Jest to równanie <strong>prostej poziomej</strong>.</p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_prosta_rownanie_ogolne_B0.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "\n<img src=\"static/geometria_analityczna_2_prosta_rownanie_ogolne_B0.png\" style=\"float: right; height: 300px; margin: 0 0 0 15px;\"/>\n        Jeśli w równaniu ogólnym prostej, \\(Ax+By+C=0\\), współczynnik \\(B=0\\), równanie przyjmuje postać\n        \\[\n        Ax+C=0\n        \\]\n        lub równoważnie\n        \\[\n        x=-\\frac{C}{A}\n        \\]\n        Jest to równanie <strong>prostej pionowej</strong>.\n    "
+      "body": "<p>Jeśli w równaniu ogólnym prostej, \\(Ax+By+C=0\\), współczynnik \\(B=0\\), równanie przyjmuje postać\n        \\[\n        Ax+C=0\n        \\]\n        lub równoważnie\n        \\[\n        x=-\\frac{C}{A}\n        \\]\n        Jest to równanie <strong>prostej pionowej</strong>.</p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Pod każdym z podanych niżej równań prostych w postaci kierunkowej (\\(y=ax+b\\)) jest kilka równań w postaci ogólnej. \n        </p>\n<p>\n            Wskaż właściwe równanie, równoważne równaniu z góry.\n        </p>\n"
-    },
-    {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
-            {
-              "html": "<div class=\"statement\" data-width=\"150px\" style=\"height: 2rem !important\">\n                        \\(y=-4x+1\\)\n                    </div>\n<br/>\n<div class=\"one_choice ks_button\">\\(4x-y+1=0\\)</div>\n<br/>\n<div class=\"one_choice ks_button\">\\(4x+y-1=0\\)</div>\n<br/>\n<div class=\"one_choice ks_button\">\\(4x-y-1=0\\)</div>\n<br/>\n<div class=\"one_choice ks_button\">\\(4x+y+1=0\\)</div>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<div class=\"statement\" data-width=\"150px\" style=\"height: 2rem !important\">\n                        \\(y=3x-2\\)\n                    </div>\n<br/>\n<div class=\"one_choice ks_button\">\\(3x-y+2=0\\)</div>\n<br/>\n<div class=\"one_choice ks_button\">\\(3x+y-2=0\\)</div>\n<br/>\n<div class=\"one_choice ks_button\">\\(3x-y-2=0\\)</div>\n<br/>\n<div class=\"one_choice ks_button\">\\(3x+y+2=0\\)</div>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<div class=\"statement\" data-width=\"150px\" style=\"height: 2rem !important\">\n                        \\(y=\\tfrac{3}{2}x+4\\)\n                    </div>\n<br/>\n<div class=\"one_choice ks_button\">\\(3x-2y+8=0\\)</div>\n<br/>\n<div class=\"one_choice ks_button\">\\(3x+2y-8=0\\)</div>\n<br/>\n<div class=\"one_choice ks_button\">\\(6x-2y+8=0\\)</div>\n<br/>\n<div class=\"one_choice ks_button\">\\(3x+2y+4=0\\)</div>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<div class=\"statement\" data-width=\"150px\" style=\"height: 2rem !important\">\n                        \\(y=-\\frac{1}{3}x+\\frac{3}{4}\\)\n                    </div>\n<br/>\n<div class=\"one_choice ks_button\">\\(x+3y+3=0\\)</div>\n<br/>\n<div class=\"one_choice ks_button\">\\(4x+12y-9=0\\)</div>\n<br/>\n<div class=\"one_choice ks_button\">\\(x+3y-9=0\\)</div>\n<br/>\n<div class=\"one_choice ks_button\">\\(4x-12y+9=0\\)</div>",
-              "halign": "left",
-              "valign": "top"
-            }
-          ]
-        ]
-      }
+      "body": "<p>\n            Pod każdym z podanych niżej równań prostych w postaci kierunkowej (\\(y=ax+b\\)) jest kilka równań w postaci ogólnej. \n        </p>"
     },
     {
       "type": "text",
-      "body": "potwierdź "
+      "body": "<p>\n            Wskaż właściwe równanie, równoważne równaniu z góry.\n        </p>"
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(y=-4x+1\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(4x-y+1=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(4x+y-1=0\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(4x-y-1=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(4x+y+1=0\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(y=3x-2\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(3x-y+2=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(3x+y-2=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(3x-y-2=0\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(3x+y+2=0\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(y=\\tfrac{3}{2}x+4\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(3x-2y+8=0\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(3x+2y-8=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(6x-2y+8=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(3x+2y+4=0\\)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "type": "choice",
+      "stem": "<p>\\(y=-\\frac{1}{3}x+\\frac{3}{4}\\)</p>",
+      "multiple": false,
+      "choices": [
+        {
+          "text": "\\(x+3y+3=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(4x+12y-9=0\\)",
+          "is_correct": true
+        },
+        {
+          "text": "\\(x+3y-9=0\\)",
+          "is_correct": false
+        },
+        {
+          "text": "\\(4x-12y+9=0\\)",
+          "is_correct": false
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi: \n    "
+      "body": "<p>\n            Dane jest równanie ogólne prostej:\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        9x+15y-10=0\n        "
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
-    },
-    {
-      "type": "text",
-      "body": "\n<p>\n            Dane jest równanie ogólne prostej:\n        </p>\n        \\[\n        9x+15y-10=0\n        \\]\n        <p>\n            Znajdź równanie kierunkowe tej prostej.\n        </p>\n"
+      "body": "<p>\n            Znajdź równanie kierunkowe tej prostej.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Zacznijmy od przeniesienia wszystkich wyrazów, poza tym ze zmienną \\(y\\), na prawą stronę.\n                <div class=\"switch_line\">\n                    Otrzymamy:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(15y=9x+10\\)</div>\n<div class=\"switch_value\">\\(15y=-9x+10\\)</div>\n<div class=\"switch_value\">\\(15y=-9x-10\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I teraz wystarczy podzielić obie strony równania przez\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(9\\)</div>\n<div class=\"switch_value\">\\(10\\)</div>\n<div class=\"switch_value\">\\(15\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                i skrócić ułamki.\n                <div class=\"switch_line\">\n                    Dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=-\\frac{3}{5}x+\\frac{2}{3}\\)</div>\n<div class=\"switch_value\">\\(y=-\\frac{2}{3}x+\\frac{3}{5}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Równanie kierunkowe prostej o równaniu ogólnym\n                </p>\n                \\[\n                9x+15y-10=0\n                \\]\n                <p>\n                    to\n                </p>\n                \\[\n                y=-\\frac{3}{5}x+\\frac{2}{3}\n                \\]\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zacznijmy od przeniesienia wszystkich wyrazów, poza tym ze zmienną \\(y\\), na prawą stronę.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymamy:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(15y=9x+10\\)",
+            "\\(15y=-9x+10\\)",
+            "\\(15y=-9x-10\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I teraz wystarczy podzielić obie strony równania przez\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(9\\)",
+            "\\(10\\)",
+            "\\(15\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>i skrócić ułamki.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dostajemy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(y=-\\frac{3}{5}x+\\frac{2}{3}\\)",
+            "\\(y=-\\frac{2}{3}x+\\frac{3}{5}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Równanie kierunkowe prostej o równaniu ogólnym\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                9x+15y-10=0\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    to\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=-\\frac{3}{5}x+\\frac{2}{3}\n                "
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "00301db15c2b5f134fe4162171b48f0c8d7c48f57a46acd26d396479736e0c07"
+  "seed_hash": "750562d9ad17bb1d2e1ad6ccad06f77636ae36931f20fcce31059447cde9d0af"
 }

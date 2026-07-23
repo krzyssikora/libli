@@ -1,10 +1,10 @@
 {
   "elements": [
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<figure>\n<img src=\"static/homograficzna_quiz_1.png\"/>\n</figure>",
-      "reason": "<figure> media cannot live in a sanitized stem"
+      "type": "image",
+      "media_src": "static/homograficzna_quiz_1.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "choice",
@@ -34,10 +34,10 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<figure>\n<img src=\"static/homograficzna_quiz_2.png\"/>\n</figure>",
-      "reason": "<figure> media cannot live in a sanitized stem"
+      "type": "image",
+      "media_src": "static/homograficzna_quiz_2.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "choice",
@@ -67,10 +67,10 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<figure>\n<img src=\"static/homograficzna_quiz_3.png\"/>\n</figure>",
-      "reason": "<figure> media cannot live in a sanitized stem"
+      "type": "image",
+      "media_src": "static/homograficzna_quiz_3.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
       "type": "choice",
@@ -154,6 +154,6 @@
       ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "4a7d36b6a3bda58b6f46c1749aab1ed3353a218e462de4fc4cd5eef1c8873e89"
+  "fully_mapped": true,
+  "seed_hash": "d59260b3c7fac95e967979f50eea4c7fa6743d87922342214bb7b1c0bbf10bd3"
 }

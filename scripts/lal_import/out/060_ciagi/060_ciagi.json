@@ -23,7 +23,156 @@
     {
       "type": "spoiler",
       "label": "Rozumiesz te różnice?",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_CL\">\n<tr>\n<td>Pisząc:</td>\n<td>\\(a_n = 1,2\\cdot a_{n-1}\\)</td>\n<td>gdzie</td>\n<td>\\(n=2, 3, 4,\\dots\\)</td>\n</tr>\n<tr>\n<td rowspan=\"2\">myślimy:</td>\n<td style=\"border-bottom: none!important;\">wyraz bieżący (\\(a_n\\))</td>\n<td rowspan=\"2\">więc</td>\n<td style=\"border-bottom: none!important;\">poprzedni indeks to co najmniej \\(1\\)</td>\n</tr>\n<tr>\n<td>liczymy z poprzedniego (\\(a_{n-1}\\))</td>\n<td>czyli \\(n-1\\ge 1\\), więc \\(n\\ge 2\\)</td>\n</tr>\n<tr>\n<td></td>\n<td></td>\n<td></td>\n<td></td>\n</tr>\n<tr>\n<td>Pisząc:</td>\n<td>\\(a_{n+1} = 1,2\\cdot a_n\\)</td>\n<td>gdzie</td>\n<td>\\(n=1, 2, 3, 4,\\dots\\)</td>\n</tr>\n<tr>\n<td rowspan=\"2\">myślimy:</td>\n<td style=\"border-bottom: none!important;\">wyraz kolejny (\\(a_{n+1}\\))</td>\n<td rowspan=\"2\">więc</td>\n<td style=\"border-bottom: none!important;\">bieżący indeks to co najmniej \\(1\\)</td>\n</tr>\n<tr>\n<td>liczymy z bieżącego (\\(a_n\\))</td>\n<td>czyli \\(n\\ge 1\\)</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "Pisząc:",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_n = 1,2\\cdot a_{n-1}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "gdzie",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(n=2, 3, 4,\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "myślimy:",
+                  "halign": "left",
+                  "valign": "top",
+                  "rowspan": 2
+                },
+                {
+                  "html": "wyraz bieżący (\\(a_n\\))",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "więc",
+                  "halign": "left",
+                  "valign": "top",
+                  "rowspan": 2
+                },
+                {
+                  "html": "poprzedni indeks to co najmniej \\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "liczymy z poprzedniego (\\(a_{n-1}\\))",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "czyli \\(n-1\\ge 1\\), więc \\(n\\ge 2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "Pisząc:",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{n+1} = 1,2\\cdot a_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "gdzie",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(n=1, 2, 3, 4,\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "myślimy:",
+                  "halign": "left",
+                  "valign": "top",
+                  "rowspan": 2
+                },
+                {
+                  "html": "wyraz kolejny (\\(a_{n+1}\\))",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "więc",
+                  "halign": "left",
+                  "valign": "top",
+                  "rowspan": 2
+                },
+                {
+                  "html": "bieżący indeks to co najmniej \\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "liczymy z bieżącego (\\(a_n\\))",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "czyli \\(n\\ge 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
     },
     {
       "type": "text",
@@ -51,5 +200,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "52134ab7bb3754d1631054f5f5a55b89d4c58bc3f2aa51f1c80263c90e01dbe7"
+  "seed_hash": "7be4e3f6beac622d52220d67dc35ec547b17488de4123973c51002b8d935e985"
 }

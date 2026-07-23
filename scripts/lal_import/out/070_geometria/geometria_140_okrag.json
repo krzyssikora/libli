@@ -2,19 +2,46 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W aplecie poniżej widzisz dwa okręgi. Możesz zmieniać ich\n        </p>\n<ul class=\"nolist\">\n<li>\n                położenie, przesuwając środki okręgów wzdłuż przerywanej linii,\n            </li>\n<li>\n                oraz wielkość, przesuwając punkty zaznaczone na okręgu.\n            </li>\n</ul>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"555px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/mhegnray/width/800/height/555/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"dwa okręgi\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<p>\n            Dwa okręgi mogą być położone względem siebie na kilka różnych sposobów. Konkretnie, dwa okręgi mogą być:\n        </p>\n<ul>\n<li>\n                rozłączne zewnętrznie,\n            </li>\n<li>\n                styczne zewnętrznie,\n            </li>\n<li>\n                przecinające się,\n            </li>\n<li>\n                styczne wewnętrznie,\n            </li>\n<li>\n                rozłączne wewnętrznie.\n            </li>\n</ul>\n<ol class=\"bold\">\n<li>\n                Zastanów się, co mogą znaczyć te nazwy i ustaw okręgi w aplecie w odpowiedni sposób.\n            </li>\n<li>\n                Pomyśl, jaka jest w każdej z tych sytuacji relacja między odległością między środkami okręgów a ich promieniami.\n            </li>\n<li>\n                Zwróć uwagę, jak w każdym z tych położeń wyglądają narysowane na czerwono wspólne styczne do obu okręgów.\n            </li>\n</ol>\n<p>\n            Poniżej możesz sprawdzić, jak wyglądają okręgi we wskazanych wyżej położeniach.\n        </p>\n"
+      "body": "<p>\n            W aplecie poniżej widzisz dwa okręgi. Możesz zmieniać ich\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                położenie, przesuwając środki okręgów wzdłuż przerywanej linii,\n            </li>\n<li>\n                oraz wielkość, przesuwając punkty zaznaczone na okręgu.\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/mhegnray/width/800/height/555/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dwa okręgi mogą być położone względem siebie na kilka różnych sposobów. Konkretnie, dwa okręgi mogą być:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                rozłączne zewnętrznie,\n            </li>\n<li>\n                styczne zewnętrznie,\n            </li>\n<li>\n                przecinające się,\n            </li>\n<li>\n                styczne wewnętrznie,\n            </li>\n<li>\n                rozłączne wewnętrznie.\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                Zastanów się, co mogą znaczyć te nazwy i ustaw okręgi w aplecie w odpowiedni sposób.\n            </li>\n<li>\n                Pomyśl, jaka jest w każdej z tych sytuacji relacja między odległością między środkami okręgów a ich promieniami.\n            </li>\n<li>\n                Zwróć uwagę, jak w każdym z tych położeń wyglądają narysowane na czerwono wspólne styczne do obu okręgów.\n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Poniżej możesz sprawdzić, jak wyglądają okręgi we wskazanych wyżej położeniach.\n        </p>"
     },
     {
       "type": "text",
       "body": "<p>\n    W opisach użyłem oznaczeń jak na rysunku:\n</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"dwa okręgi\" src=\"static/dwa_okregi.png\" width=\"400\"/>\n"
+      "type": "image",
+      "media_src": "static/dwa_okregi.png",
+      "alt": "dwa okręgi",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -23,29 +50,84 @@
     {
       "type": "spoiler",
       "label": "Okręgi rozłączne zewnętrznie",
-      "body": "\n\n<img alt=\"Okręgi rozłączne zewnętrznie\" height=\"300\" src=\"static/okregi_1_rozlaczne_zew.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<div style=\"min-height: 310px;\">\n        \\[\n        d\\gt r_1 + r_2\n        \\]\n    </div>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/okregi_1_rozlaczne_zew.png",
+          "alt": "Okręgi rozłączne zewnętrznie",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "\n        \\[\n        d\\gt r_1 + r_2\n        \\]\n    "
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "Okręgi styczne zewnętrznie",
-      "body": "\n\n<img alt=\"Okręgi styczne zewnętrznie\" height=\"300\" src=\"static/okregi_2_styczne_zew.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<div style=\"min-height: 310px;\">\n        \\[\n        d= r_1 + r_2\n        \\]\n    </div>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/okregi_2_styczne_zew.png",
+          "alt": "Okręgi styczne zewnętrznie",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "\n        \\[\n        d= r_1 + r_2\n        \\]\n    "
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "Okręgi przecinające się",
-      "body": "\n\n<img alt=\"Okręgi przecinające się\" height=\"300\" src=\"static/okregi_3_przecinajace_sie.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<div style=\"min-height: 310px;\">\n        \\[\n        d\\lt r_1 + r_2\n        \\]\n        <strong>\n            i jednocześnie\n        </strong>\n        \\[\n        d \\gt r_1 - r_2\n        \\]\n        oraz \n        \\[\n        d \\gt r_2 - r_1\n        \\]\n    </div>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/okregi_3_przecinajace_sie.png",
+          "alt": "Okręgi przecinające się",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "\n        \\[\n        d\\lt r_1 + r_2\n        \\]\n        <strong>\n            i jednocześnie\n        </strong>\n        \\[\n        d \\gt r_1 - r_2\n        \\]\n        oraz \n        \\[\n        d \\gt r_2 - r_1\n        \\]\n    "
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "Okręgi styczne wewnętrznie",
-      "body": "\n\n<img alt=\"Okręgi styczne wewnętrznie\" height=\"300\" src=\"static/okregi_4_styczne_wew.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<div style=\"min-height: 310px;\">\n        \\[\n        d = r_1 - r_2\n        \\]\n        lub\n        \\[\n        d = r_2 - r_1\n        \\]\n    </div>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/okregi_4_styczne_wew.png",
+          "alt": "Okręgi styczne wewnętrznie",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "\n        \\[\n        d = r_1 - r_2\n        \\]\n        lub\n        \\[\n        d = r_2 - r_1\n        \\]\n    "
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "Okręgi rozłączne wewnętrznie",
-      "body": "\n\n<img alt=\"Okręgi rozłączne wewnętrznie\" height=\"300\" src=\"static/okregi_5_rozlaczne_wew.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<div style=\"min-height: 310px;\">\n        \\[\n        d + r_2 \\lt r_1\n        \\]\n        lub\n        \\[\n        d + r_1 \\lt r_2\n        \\]\n    </div>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/okregi_5_rozlaczne_wew.png",
+          "alt": "Okręgi rozłączne wewnętrznie",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "\n        \\[\n        d + r_2 \\lt r_1\n        \\]\n        lub\n        \\[\n        d + r_1 \\lt r_2\n        \\]\n    "
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "faed1129c1f06f67125bdc8b7ceb7e4172c2a250d177fa962f784259b46a5260"
+  "seed_hash": "8e475d0c28978e70cffab099a93085ff48567cdf7ab3c91eb2e3151bc2b67dbd"
 }

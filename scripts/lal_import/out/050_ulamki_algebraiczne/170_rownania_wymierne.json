@@ -26,167 +26,147 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Przy każdym dzieleniu wskaż, czy można je wykonać, czyli czy istnieje jego liczbowy wynik.\n    "
     },
     {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
-            {
-              "html": "<div class=\"statement\" data-width=\"150px\">\n                        \\(2:3\\)\n                    </div>\n<br/>\n<div class=\"one_choice ks_button\">tak</div>\n<br/>\n<div class=\"one_choice ks_button\">nie</div>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<div class=\"statement\" data-width=\"150px\">\n                        \\(4:0\\)\n                    </div>\n<br/>\n<div class=\"one_choice ks_button\">tak</div>\n<br/>\n<div class=\"one_choice ks_button\">nie</div>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<div class=\"statement\" data-width=\"150px\">\n                        \\(0:5\\)\n                    </div>\n<br/>\n<div class=\"one_choice ks_button\">tak</div>\n<br/>\n<div class=\"one_choice ks_button\">nie</div>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<div class=\"statement\" data-width=\"150px\">\n                        \\(0:0\\)\n                    </div>\n<br/>\n<div class=\"one_choice ks_button\">tak</div>\n<br/>\n<div class=\"one_choice ks_button\">nie</div>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<div class=\"statement\" data-width=\"150px\">\n                        \\(0:0,002\\)\n                    </div>\n<br/>\n<div class=\"one_choice ks_button\">tak</div>\n<br/>\n<div class=\"one_choice ks_button\">nie</div>",
-              "halign": "left",
-              "valign": "top"
-            }
-          ]
-        ]
-      }
+      "type": "choice_grid",
+      "columns": [
+        "tak",
+        "nie"
+      ],
+      "rows": [
+        {
+          "statement": "\\(2:3\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(4:0\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(0:5\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(0:0\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(0:0,002\\)",
+          "correct": 0
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "potwierdź "
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+      "body": "<p>\n            Kiedy można wykonać dzielenie \\(a:b\\), albo, zapisując inaczej: \\(\\frac{a}{b}\\)?\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi: \n    "
+      "body": "<p>\n            Jaki warunek musi spełniać liczba / wyrażenie \\(a\\)?\n        </p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p>\n            Jaki warunek musi spełniać liczba / wyrażenie \\(b\\)?\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Kiedy można wykonać dzielenie \\(a:b\\), albo, zapisując inaczej: \\(\\frac{a}{b}\\)?\n        </p>\n<p>\n            Jaki warunek musi spełniać liczba / wyrażenie \\(a\\)?\n        </p>\n<p>\n            Jaki warunek musi spełniać liczba / wyrażenie \\(b\\)?\n        </p>\n<p>\n            Zastanów się i sprawdź odpowiedzi.\n        </p>\n"
+      "body": "<p>\n            Zastanów się i sprawdź odpowiedzi.\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n<p>\n            Liczba \\(a\\) może być zupełnie <strong>dowolna</strong>.\n        </p>\n<p>\n            Liczba \\(b\\) musi być różna od \\(0\\).\n        </p>\n</div>",
-      "reason": "unmapped <div> in lesson body"
+      "type": "spoiler",
+      "label": "odpowiedź - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Liczba \\(a\\) może być zupełnie <strong>dowolna</strong>.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Liczba \\(b\\) musi być różna od \\(0\\).\n        </p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">odpowiedź - zobacz</div>",
-      "reason": "show_solution button without solution"
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Przy każdym dzieleniu wskaż, czy jego wynik jest równy \\(0\\).\n    "
     },
     {
-      "type": "table",
-      "data": {
-        "header_row": false,
-        "header_col": false,
-        "border": "grid",
-        "cells": [
-          [
-            {
-              "html": "<div class=\"statement\" data-width=\"150px\">\n                        \\(2:3\\)\n                    </div>\n<br/>\n<div class=\"one_choice ks_button\">tak</div>\n<br/>\n<div class=\"one_choice ks_button\">nie</div>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<div class=\"statement\" data-width=\"150px\">\n                        \\(4:0\\)\n                    </div>\n<br/>\n<div class=\"one_choice ks_button\">tak</div>\n<br/>\n<div class=\"one_choice ks_button\">nie</div>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<div class=\"statement\" data-width=\"150px\">\n                        \\(0:5\\)\n                    </div>\n<br/>\n<div class=\"one_choice ks_button\">tak</div>\n<br/>\n<div class=\"one_choice ks_button\">nie</div>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<div class=\"statement\" data-width=\"150px\">\n                        \\(0:0\\)\n                    </div>\n<br/>\n<div class=\"one_choice ks_button\">tak</div>\n<br/>\n<div class=\"one_choice ks_button\">nie</div>",
-              "halign": "left",
-              "valign": "top"
-            },
-            {
-              "html": "<div class=\"statement\" data-width=\"150px\">\n                        \\(0:0,002\\)\n                    </div>\n<br/>\n<div class=\"one_choice ks_button\">tak</div>\n<br/>\n<div class=\"one_choice ks_button\">nie</div>",
-              "halign": "left",
-              "valign": "top"
-            }
-          ]
-        ]
-      }
+      "type": "choice_grid",
+      "columns": [
+        "tak",
+        "nie"
+      ],
+      "rows": [
+        {
+          "statement": "\\(2:3\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(4:0\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(0:5\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(0:0\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(0:0,002\\)",
+          "correct": 0
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "potwierdź "
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+      "body": "<p>\n            Kiedy wynikiem dzielenia \\(a:b\\) (albo, zapisując inaczej: \\(\\frac{a}{b}\\)) jest \\(0\\)?\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi: \n    "
+      "body": "<p>\n            Jaki warunek musi spełniać liczba / wyrażenie \\(a\\)?\n        </p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p>\n            Jaki warunek musi spełniać liczba / wyrażenie \\(b\\)?\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Kiedy wynikiem dzielenia \\(a:b\\) (albo, zapisując inaczej: \\(\\frac{a}{b}\\)) jest \\(0\\)?\n        </p>\n<p>\n            Jaki warunek musi spełniać liczba / wyrażenie \\(a\\)?\n        </p>\n<p>\n            Jaki warunek musi spełniać liczba / wyrażenie \\(b\\)?\n        </p>\n<p>\n            Zastanów się i sprawdź odpowiedzi.\n        </p>\n"
+      "body": "<p>\n            Zastanów się i sprawdź odpowiedzi.\n        </p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n<p>\n            Liczba \\(a\\) musi być <strong>równa</strong> \\(0\\), \\(\\quad a=0\\).\n        </p>\n<p>\n            Liczba \\(b\\) musi być <strong>różna</strong> od \\(0\\), \\(\\quad b\\ne 0\\).\n        </p>\n</div>",
-      "reason": "unmapped <div> in lesson body"
-    },
-    {
-      "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">odpowiedź - zobacz</div>",
-      "reason": "show_solution button without solution"
+      "type": "spoiler",
+      "label": "odpowiedź - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Liczba \\(a\\) musi być <strong>równa</strong> \\(0\\), \\(\\quad a=0\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Liczba \\(b\\) musi być <strong>różna</strong> od \\(0\\), \\(\\quad b\\ne 0\\).\n        </p>"
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "45decc423a1e0bb98cb0d7836b76ab2c7a46d26d4a96ea8f625155696a99a2c2"
+  "fully_mapped": true,
+  "seed_hash": "49d4d54f9dbcc31dd424a8e00aa1a3a57119685db7a2dcabd289360032980fa0"
 }

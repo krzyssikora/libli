@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -11,79 +11,154 @@
     {
       "type": "spoiler",
       "label": "(1)",
-      "body": "\n                        \\(x=-4\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=-4\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(2)",
-      "body": "\n                        \\(x=\\frac{1}{2}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=\\frac{1}{2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(3)",
-      "body": "\n                        \\(x=\\frac{2}{3}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=\\frac{2}{3}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(4)",
-      "body": "\n                        \\(x=-2\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=-2\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(5)",
-      "body": "\n                        \\(x=-4\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=-4\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(6)",
-      "body": "\n                        \\(x=4\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=4\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(7)",
-      "body": "\n                        \\(x=\\frac{3}{4}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=\\frac{3}{4}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(8)",
-      "body": "\n                        \\(x=\\frac{1}{2}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=\\frac{1}{2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(9)",
-      "body": "\n                        \\(x=\\frac{3}{4}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=\\frac{3}{4}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(10)",
-      "body": "\n                        \\(x=\\frac{4}{5}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=\\frac{4}{5}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(11)",
-      "body": "\n                        \\(x=-2\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=-2\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(12)",
-      "body": "\n                        \\(x=2\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=2\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(13)",
-      "body": "\n                        \\(x=\\frac{1}{5}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=\\frac{1}{5}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(14)",
-      "body": "\n                        \\(x=\\frac{1}{2}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=\\frac{1}{2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(15)",
-      "body": "\n                        \\(x=1\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(x=1\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "bb5e76f20354f35bbf9ba80b7dcffa7b05c61ef74daf3a2d29996ba210e6d7b6"
+  "seed_hash": "e7019b012839668823c5579c5ba8fdb86bec21a3058d38e4c32df7f6e5b6156f"
 }

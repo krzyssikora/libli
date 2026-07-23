@@ -26,7 +26,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -35,11 +35,41 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Najmądrzej będzie pomnożyć obie strony równania przez najmniejszą wspólną wielokrotność obu mianowników, czyli liczb \\(4\\) i \\(6\\).\n                <div class=\"switch_line\">\n                    Najmniejszą wspólną wielokrotnością liczb \\(4\\) i \\(6\\) jest\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(48\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(24\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(12\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(2\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Mnożąc obie strony równania \\(\\frac{3}{4}x-\\frac{5}{6}y+1=0\\) przez \\(12\\) otrzymamy\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(9x-10y+1=0\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(9x-10y+12=0\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(36x-60x+12=0\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Równanie\n    \\[\n    \\frac{3}{4}x-\\frac{5}{6}y+1=0\n    \\]\n    jest równoważne równaniu\n    \\[\n    9x-10y+12=0\n    \\]\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Najmądrzej będzie pomnożyć obie strony równania przez najmniejszą wspólną wielokrotność obu mianowników, czyli liczb \\(4\\) i \\(6\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Najmniejszą wspólną wielokrotnością liczb \\(4\\) i \\(6\\) jest\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(48\\)",
+            "\\(24\\)",
+            "\\(12\\)",
+            "\\(2\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Mnożąc obie strony równania \\(\\frac{3}{4}x-\\frac{5}{6}y+1=0\\) przez \\(12\\) otrzymamy\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(9x-10y+1=0\\)",
+            "\\(9x-10y+12=0\\)",
+            "\\(36x-60x+12=0\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Równanie\n    \\[\n    \\frac{3}{4}x-\\frac{5}{6}y+1=0\n    \\]\n    jest równoważne równaniu\n    \\[\n    9x-10y+12=0\n    \\]</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -48,11 +78,37 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Najpierw przenieśmy wszystkie wyrazy na lewą stronę równania:\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(y-\\tfrac{3}{4}x+2=0\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{3}{4}x+y-2=0\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(\\tfrac{3}{4}x-y+2=0\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(2\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    W tak uzyskanym równaniu mamy jeden współczynnik (\\(\\frac{3}{4}\\)), który nie jest całkowity. Dlatego pomnożymy obie strony równania przez jego mianownik, czyli przez \\(4\\) i otrzymamy:\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(3x+y-8=0\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(3x+4y-2=0\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(3x+4y-8=0\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Równanie\n    \\[\n    y=-\\frac{3}{4}x+2\n    \\]\n    jest równoważne równaniu\n    \\[\n    3x+4y-8=0\n    \\]\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Najpierw przenieśmy wszystkie wyrazy na lewą stronę równania:\n                    \n\n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(y-\\tfrac{3}{4}x+2=0\\)",
+            "\\(\\tfrac{3}{4}x+y-2=0\\)",
+            "\\(\\tfrac{3}{4}x-y+2=0\\)",
+            "\\(2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W tak uzyskanym równaniu mamy jeden współczynnik (\\(\\frac{3}{4}\\)), który nie jest całkowity. Dlatego pomnożymy obie strony równania przez jego mianownik, czyli przez \\(4\\) i otrzymamy:\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(3x+y-8=0\\)",
+            "\\(3x+4y-2=0\\)",
+            "\\(3x+4y-8=0\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Równanie\n    \\[\n    y=-\\frac{3}{4}x+2\n    \\]\n    jest równoważne równaniu\n    \\[\n    3x+4y-8=0\n    \\]</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -61,9 +117,34 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Najpierw przenieśmy wszystkie wyrazy poza \\(-6y\\) na prawą stronę równania:\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(-6y=-4x+8\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-6y=4x-8\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(6y=-4x+8\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Aby takie równanie przedstawić w postaci \\(y=ax+b\\) wystarczy podzielić obie strony przez współczynnik \\(y\\)-a, czyli przez \\(-6\\):\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(y=-\\tfrac{2}{3}x+\\tfrac{4}{3}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(y=\\tfrac{2}{3}x-\\tfrac{4}{3}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(y=-\\tfrac{3}{2}x+\\tfrac{4}{3}\\)\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Równanie\n    \\[\n    4x-6y-8=0\n    \\]\n    jest równoważne równaniu\n    \\[\n    y=\\tfrac{2}{3}x-\\tfrac{4}{3}\n    \\]\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Najpierw przenieśmy wszystkie wyrazy poza \\(-6y\\) na prawą stronę równania:\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(-6y=-4x+8\\)",
+            "\\(-6y=4x-8\\)",
+            "\\(6y=-4x+8\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Aby takie równanie przedstawić w postaci \\(y=ax+b\\) wystarczy podzielić obie strony przez współczynnik \\(y\\)-a, czyli przez \\(-6\\):\n                    \n\n\n￿0￿\n                    .\n                    \n",
+          "options": [
+            "\\(y=-\\tfrac{2}{3}x+\\tfrac{4}{3}\\)",
+            "\\(y=\\tfrac{2}{3}x-\\tfrac{4}{3}\\)",
+            "\\(y=-\\tfrac{3}{2}x+\\tfrac{4}{3}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Równanie\n    \\[\n    4x-6y-8=0\n    \\]\n    jest równoważne równaniu\n    \\[\n    y=\\tfrac{2}{3}x-\\tfrac{4}{3}\n    \\]</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "c665226e07c8d2448a8cf843e4098a1c9492e4b50861928ac2ca25575417cfa0"
+  "seed_hash": "5e4e593f21df07cab43a0db87bbb9316ea21b2198c3a697f789199acb6db20b6"
 }

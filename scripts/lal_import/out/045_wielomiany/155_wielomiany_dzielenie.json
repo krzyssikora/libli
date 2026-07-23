@@ -2,10 +2,6 @@
   "elements": [
     {
       "type": "text",
-      "body": "<pre><small>  </small></pre>"
-    },
-    {
-      "type": "text",
       "body": "<h3>\n            Metoda\n        </h3>"
     },
     {
@@ -542,10 +538,6 @@
     },
     {
       "type": "text",
-      "body": "<pre><small>  </small></pre>"
-    },
-    {
-      "type": "text",
       "body": "<h3>\n            Wynik z resztą\n        </h3>"
     },
     {
@@ -555,10 +547,6 @@
     {
       "type": "text",
       "body": "\n                    \\((2x^3-9x^2+13x+1):(2x-3)=\\)\n                    <br/>\n                    \\(=x^2-3x+2\\) reszty \\(7\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "<pre><small>  </small></pre>"
     },
     {
       "type": "text",
@@ -574,10 +562,6 @@
     },
     {
       "type": "text",
-      "body": "<pre><small>  </small></pre>"
-    },
-    {
-      "type": "text",
       "body": "<h3>\n            Część podzielna + reszta\n        </h3>"
     },
     {
@@ -586,19 +570,11 @@
     },
     {
       "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
-      "type": "text",
       "body": "<p>\n                    \\(2x^3-9x^2+13x+1=\\)\n                </p>"
     },
     {
       "type": "text",
       "body": "<p>\n                    \\(=\\underbrace{(2x-3)\\cdot(x^2-3x+2)}_{\\text{część podzielna}} + \\underbrace{7}_{\\text{reszta}}\\)\n                </p>"
-    },
-    {
-      "type": "text",
-      "body": "<pre><small>  </small></pre>"
     },
     {
       "type": "text",
@@ -626,10 +602,6 @@
     },
     {
       "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
-      "type": "text",
       "body": "<p>\n                        gdzie \\(\\quad r\\lt d\\)\n                    </p>"
     },
     {
@@ -639,12 +611,8 @@
     {
       "type": "text",
       "body": "<p>\n                        gdzie \\(\\quad \\deg R(x) \\lt \\deg D(x)\\)\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "df31be72d686151789eafde996b8c8d1745a530a6148756cc36be09fd17034f9"
+  "seed_hash": "7c0f21fccfc1d5eaef83cda53c96738cd459944ad6fbd5fae463c51aeec78400"
 }

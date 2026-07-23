@@ -14,7 +14,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -29,8 +29,8 @@
       "body": "<p>\n        Jak rozwiązać takie równanie?\n    </p>"
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -41,8 +41,8 @@
       "latex": "\n                                                                                                \\frac{x^5-2x^4-13x^3+28x^2+46x-60}{x-1}=x^4-x^3-14x^2+14x+60\n                                                                                                \\]\n                                                                                                i tym samym powyższe równanie zamienilibyśmy na równanie równoważne:\n                                                                                                \\[\n                                                                                                (x-1)(x^4-x^3-14x^2+14x+60)=0\n                                                                                                "
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -57,8 +57,8 @@
       "body": "<p>\n                To z lewej daje wynik \\(x=1\\), a to z prawej jest trochę prostszym (bo niższego stopnia) równaniem wielomianowym.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -73,8 +73,8 @@
       "body": "<p>\n                Ale skąd mamy znać te kolejne dzielniki: \\((x-1)\\), \\((x+2)\\)...?\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -82,5 +82,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "a9a7eca92cf4bd08e6336949fa516843f5f0714645fc10afc59666c24f76c7f0"
+  "seed_hash": "3a9dee800d40b34b3f67bdee71b1bc16eb57592890a32720e4bcc55130465a2a"
 }

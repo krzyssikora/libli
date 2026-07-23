@@ -2,15 +2,19 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Znajdź równanie funkcji w postaci \\(y=ax^2\\), której wykres przechodzi przez punkt \\((-2, -6)\\).\n        </p>\n<p>\n            Spróbuj najpierw rozwiązać to zadanie samodzielnie, zanim sprawdzisz poniższe rozwiązanie.\n        </p>\n"
+      "body": "<p>\n            Znajdź równanie funkcji w postaci \\(y=ax^2\\), której wykres przechodzi przez punkt \\((-2, -6)\\).\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "body": "<p>\n            Spróbuj najpierw rozwiązać to zadanie samodzielnie, zanim sprawdzisz poniższe rozwiązanie.\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -29,8 +33,8 @@
       "body": "<p>\n                Podstawmy je do tego równania.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -49,8 +53,8 @@
       "body": "<p>\n                I teraz wyliczmy wartość \\(a\\).\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -65,8 +69,8 @@
       "body": "<p>\n<span class=\"myequation\">\n                    \\(a=-\\frac{3}{2}\\)\n                </span>\n</p>"
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -78,29 +82,43 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "<p class=\"question_text\">\n        Dla każdego z podanych punktów znajdź wartość współczynnika \\(a\\), dla której ten punkt leży na wykresie funkcji o równaniu \\(y=ax^2\\).\n    </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\n        Punkt \\((3,-18)\\) leży na wykresie funkcji \\(y=ax^2\\) jeśli\n        <span class=\"myequation\">\n            \\(a=\\)\n            <input class=\"table_input\" placeholder=\"wpisz a\" type=\"text\"/>\n</span>\n        .\n    </p>"
+      "type": "fillblank",
+      "stem": "\n        Punkt \\((3,-18)\\) leży na wykresie funkcji \\(y=ax^2\\) jeśli\n        <span class=\"myequation\">\n            \\(a=\\)\n            ￿0￿\n</span>\n        .\n    ",
+      "blanks": [
+        [
+          "-2.0",
+          "-2,0"
+        ]
+      ]
     },
     {
-      "type": "text",
-      "body": "<p>\n        Punkt \\((2,2)\\) leży na wykresie funkcji \\(y=ax^2\\) jeśli\n        <span class=\"myequation\">\n            \\(a=\\)\n            <input class=\"table_input\" placeholder=\"wpisz a\" type=\"text\"/>\n</span>\n        .\n    </p>"
+      "type": "fillblank",
+      "stem": "\n        Punkt \\((2,2)\\) leży na wykresie funkcji \\(y=ax^2\\) jeśli\n        <span class=\"myequation\">\n            \\(a=\\)\n            ￿0￿\n</span>\n        .\n    ",
+      "blanks": [
+        [
+          "0.5",
+          "0,5"
+        ]
+      ]
     },
     {
-      "type": "text",
-      "body": "<p>\n        Punkt \\((-4,12)\\) leży na wykresie funkcji \\(y=ax^2\\) jeśli\n        <span class=\"myequation\">\n            \\(a=\\)\n            <input class=\"table_input\" placeholder=\"wpisz a\" type=\"text\"/>\n</span>\n        .\n    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n        Świetnie!\n    </p>"
+      "type": "fillblank",
+      "stem": "\n        Punkt \\((-4,12)\\) leży na wykresie funkcji \\(y=ax^2\\) jeśli\n        <span class=\"myequation\">\n            \\(a=\\)\n            ￿0￿\n</span>\n        .\n    ",
+      "blanks": [
+        [
+          "0.75",
+          "0,75"
+        ]
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "987065b1a8fc40a29cc9da8499d5aede81468c51126d4f6276f998cd5912259a"
+  "seed_hash": "57b97f51f1d3b1e6f6d208dd926ccbb3f8cc630cb99d01fb7661a3620ef5fdee"
 }

@@ -10,53 +10,98 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W trójkącie prostokątnym o bokach długości 3, 4 i 5 poprowadzono wysokość z wierzchołka kąta prostego.\n        </p>\n<p>\n            Wysokość ta podzieliła trójkąt na dwa mniejsze trójkąty.\n        </p>\n<p>\n            Oblicz długości boków każdego z nich.\n        </p>\n"
+      "body": "<p>\n            W trójkącie prostokątnym o bokach długości 3, 4 i 5 poprowadzono wysokość z wierzchołka kąta prostego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wysokość ta podzieliła trójkąt na dwa mniejsze trójkąty.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz długości boków każdego z nich.\n        </p>"
     },
     {
       "type": "text",
       "body": "<p>\n    Obejrzyj nagrania z rozwiązaniem lub przejdź przez rozwiązanie krok po kroku.\n</p>"
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                nagranie\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                krok po kroku\n            </a>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Dlaczego możemy użyć podobieństwa?\n        </p>"
-    },
-    {
-      "type": "video",
-      "media_src": "static/podobienstwo_zadanie_1.mp4"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Obliczenie długości boków jednego trójkąta.\n        </p>"
-    },
-    {
-      "type": "video",
-      "media_src": "static/podobienstwo_zadanie_2.mp4"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Obliczenie długości boków drugiego trójkąta.\n        </p>"
-    },
-    {
-      "type": "video",
-      "media_src": "static/podobienstwo_zadanie_3.mp4"
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"fill_steps\">\n<p>\n                    Rysunek poniżej przedstawia opisany w zadaniu trójkąt przecięty wysokością na dwa mniejsze.\n                </p>\n<p>\n<img alt=\"podobieństwo, zadanie 1, 1\" height=\"579\" src=\"static/podobienstwo_zadanie_1.png\" style=\"width: 600px; height: 579px;\" width=\"600\"/>\n</p>\n<p>\n                    Zauważmy, że danym trójkącie mamy trzy kąty: \\(\\alpha\\), \\(\\beta\\) i \\(90^{\\circ}\\), które sumują się do \\(180^{\\circ}\\):\n                </p>\n<p>\n<span class=\"myequation\">\n                        \\(\\alpha+\\beta+90^{\\circ}=180^{\\circ}\\)\n                    </span>\n</p>\n<p>\n                    Z tego powodu brakujący kąt w trójkącie po lewej stronie ma miarę \\(\\beta\\), a brakujący kąt w trójkącie po prawej stronie ma miarę \\(\\alpha\\).\n                </p>\n<p>\n                    Tym samym wszystkie trzy trójkąty mają takie same kąty (\\(\\alpha\\), \\(\\beta\\) i \\(90^{\\circ}\\)), więc na mocy zasady \"kąt-kąt-kąt\" są to trójkąty podobne.\n                </p>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        W kolejnym rysunku, w każdym z trzech trójkątów:\n                    </p>\n<ul>\n<li>\n<span style=\"color: blue\">\n                                na niebiesko zaznaczono najkrótszy bok\n                            </span>\n</li>\n<li>\n<span style=\"color: green\">\n                                na zielono zaznaczono bok średni\n                            </span>\n</li>\n<li>\n<span style=\"color: red\">\n                                na czerwono zaznaczono najdłuższy bok (przeciwprostokątną)\n                            </span>\n</li>\n</ul>\n<p>\n<img alt=\"podobieństwo, zadanie 1, 2\" height=\"579\" src=\"static/podobienstwo_zadanie_2.png\" style=\"width: 600px; height: 579px;\" width=\"600\"/>\n</p>\n<p>\n                        W najmniejszym trójkącie, tym po lewej stronie:\n                    </p>\n<ul>\n<li>\n<span style=\"color: blue\">\n                                najkrótszy bok to \\(a\\)\n                            </span>\n</li>\n<li>\n<span style=\"color: green\">\n                                średni bok to \\(b\\)\n                            </span>\n</li>\n<li>\n<span style=\"color: red\">\n                                najdłuższy bok to\n                            </span>\n<span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n</ul>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        W trójkącie po prawej stronie:\n                    </p>\n<ul>\n<li>\n<span style=\"color: blue\">\n                                najkrótszy bok to \\(c\\)\n                            </span>\n</li>\n<li>\n<span style=\"color: green\">\n                                średni bok to \\(d\\)\n                            </span>\n</li>\n<li>\n<span style=\"color: red\">\n                                najdłuższy bok to\n                            </span>\n<span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n</ul>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Ułożymy proporcje według następującego schematu:\n                    </p>\n<p>\n                        \\(\n                        \\frac{\\color{blue}{\\text{najkrótszy bok w górnym trójkącie}}}{\\color{blue}{\\text{najkrótszy bok w dolnym trójkącie}}}\n                        =\\frac{\\color{red}{\\text{najdłuższy bok w górnym trójkącie}}}{\\color{red}{\\text{najdłuższy bok w dolnym trójkącie}}}\n                        \\)\n                    </p>\n<p>\n                        oraz\n                    </p>\n<p>\n                        \\(\n                        \\frac{\\color{red}{\\text{najdłuższy bok w górnym trójkącie}}}{\\color{red}{\\text{najdłuższy bok w dolnym trójkącie}}}\n                        =\\frac{\\color{green}{\\text{średni bok w górnym trójkącie}}}{\\color{green}{\\text{średni bok w dolnym trójkącie}}}\n                        \\)\n                    </p>\n<p>\n                        Gdy jako dolny trójkąt weźmiemy ten lewy, otrzymamy:\n                    </p>\n<p>\n                        \\(\\frac{3}{a}=\\frac{5}{3}\\) oraz \\(\\frac{5}{3}=\\frac{4}{b}\\)\n                    </p>\n<p>\n                        Wymnażając pierwsze równanie na krzyż otrzymamy:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(5a=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        czyli\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(a=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Podobnie, rozwiązując drugie równanie, otrzymamy:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(b=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Gdy jako dolny trójkąt weźmiemy ten prawy, otrzymamy:\n                    </p>\n<p>\n                        \\(\\frac{3}{c}=\\frac{5}{4}\\) oraz \\(\\frac{5}{4}=\\frac{4}{d}\\)\n                    </p>\n<p>\n                        Zauważmy, że nie musimy liczyć \\(c\\), bo \\(c=b\\) - jest to wysokość pierwotnego trójkąta.\n                    </p>\n<p>\n                        Mnożąc na krzyż drugie równanie otrzymamy:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(5d=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Czyli ostatni brakujący bok ma długość\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(d=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n            Ostatecznie \\(a=1,8, b=c=2,4\\) a \\(d=3,2\\).\n        "
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n            Dlaczego możemy użyć podobieństwa?\n        </p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/podobienstwo_zadanie_1.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Obliczenie długości boków jednego trójkąta.\n        </p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/podobienstwo_zadanie_2.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Obliczenie długości boków drugiego trójkąta.\n        </p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/podobienstwo_zadanie_3.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p><p>\n                    Rysunek poniżej przedstawia opisany w zadaniu trójkąt przecięty wysokością na dwa mniejsze.\n                </p></p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/podobienstwo_zadanie_1.png",
+              "alt": "podobieństwo, zadanie 1, 1",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p><p>\n                    Zauważmy, że danym trójkącie mamy trzy kąty: \\(\\alpha\\), \\(\\beta\\) i \\(90^{\\circ}\\), które sumują się do \\(180^{\\circ}\\):\n                </p>\n<p>\n<span class=\"myequation\">\n                        \\(\\alpha+\\beta+90^{\\circ}=180^{\\circ}\\)\n                    </span>\n</p>\n<p>\n                    Z tego powodu brakujący kąt w trójkącie po lewej stronie ma miarę \\(\\beta\\), a brakujący kąt w trójkącie po prawej stronie ma miarę \\(\\alpha\\).\n                </p>\n<p>\n                    Tym samym wszystkie trzy trójkąty mają takie same kąty (\\(\\alpha\\), \\(\\beta\\) i \\(90^{\\circ}\\)), więc na mocy zasady \"kąt-kąt-kąt\" są to trójkąty podobne.\n                </p>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div></p>"
+            },
+            {
+              "type": "text",
+              "body": "<p><p>\n                        W kolejnym rysunku, w każdym z trzech trójkątów:\n                    </p>\n<ul>\n<li>\n<span style=\"color: blue\">\n                                na niebiesko zaznaczono najkrótszy bok\n                            </span>\n</li>\n<li>\n<span style=\"color: green\">\n                                na zielono zaznaczono bok średni\n                            </span>\n</li>\n<li>\n<span style=\"color: red\">\n                                na czerwono zaznaczono najdłuższy bok (przeciwprostokątną)\n                            </span>\n</li>\n</ul></p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/podobienstwo_zadanie_2.png",
+              "alt": "podobieństwo, zadanie 1, 2",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p><p>\n                        W najmniejszym trójkącie, tym po lewej stronie:\n                    </p>\n<ul>\n<li>\n<span style=\"color: blue\">\n                                najkrótszy bok to \\(a\\)\n                            </span>\n</li>\n<li>\n<span style=\"color: green\">\n                                średni bok to \\(b\\)\n                            </span>\n</li>\n<li>\n<span style=\"color: red\">\n                                najdłuższy bok to\n                            </span>\n<span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n</ul></p>"
+            },
+            {
+              "type": "text",
+              "body": "<p><div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        W trójkącie po prawej stronie:\n                    </p>\n<ul>\n<li>\n<span style=\"color: blue\">\n                                najkrótszy bok to \\(c\\)\n                            </span>\n</li>\n<li>\n<span style=\"color: green\">\n                                średni bok to \\(d\\)\n                            </span>\n</li>\n<li>\n<span style=\"color: red\">\n                                najdłuższy bok to\n                            </span>\n<span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</li>\n</ul>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Ułożymy proporcje według następującego schematu:\n                    </p>\n<p>\n                        \\(\n                        \\frac{\\color{blue}{\\text{najkrótszy bok w górnym trójkącie}}}{\\color{blue}{\\text{najkrótszy bok w dolnym trójkącie}}}\n                        =\\frac{\\color{red}{\\text{najdłuższy bok w górnym trójkącie}}}{\\color{red}{\\text{najdłuższy bok w dolnym trójkącie}}}\n                        \\)\n                    </p>\n<p>\n                        oraz\n                    </p>\n<p>\n                        \\(\n                        \\frac{\\color{red}{\\text{najdłuższy bok w górnym trójkącie}}}{\\color{red}{\\text{najdłuższy bok w dolnym trójkącie}}}\n                        =\\frac{\\color{green}{\\text{średni bok w górnym trójkącie}}}{\\color{green}{\\text{średni bok w dolnym trójkącie}}}\n                        \\)\n                    </p>\n<p>\n                        Gdy jako dolny trójkąt weźmiemy ten lewy, otrzymamy:\n                    </p>\n<p>\n                        \\(\\frac{3}{a}=\\frac{5}{3}\\) oraz \\(\\frac{5}{3}=\\frac{4}{b}\\)\n                    </p>\n<p>\n                        Wymnażając pierwsze równanie na krzyż otrzymamy:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(5a=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        czyli\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(a=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Podobnie, rozwiązując drugie równanie, otrzymamy:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(b=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Gdy jako dolny trójkąt weźmiemy ten prawy, otrzymamy:\n                    </p>\n<p>\n                        \\(\\frac{3}{c}=\\frac{5}{4}\\) oraz \\(\\frac{5}{4}=\\frac{4}{d}\\)\n                    </p>\n<p>\n                        Zauważmy, że nie musimy liczyć \\(c\\), bo \\(c=b\\) - jest to wysokość pierwotnego trójkąta.\n                    </p>\n<p>\n                        Mnożąc na krzyż drugie równanie otrzymamy:\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(5d=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n                    pokaż dalej\n                </div>\n<div class=\"fill_step\">\n<p>\n                        Czyli ostatni brakujący bok ma długość\n                    </p>\n<p>\n<span class=\"myequation\">\n                            \\(d=\\)\n                            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</p>\n</div></p>"
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "551b7ff18acd478deb1bde9cf4ca07630f94b78e853645332e5a2ae455b63e59"
+  "fully_mapped": true,
+  "seed_hash": "65f0abb2d1c8d5476ac8cc0a3fcaf7bc21cd65e0ae6138ce72b52ab1aa9a796a"
 }

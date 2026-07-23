@@ -18,7 +18,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -31,11 +31,96 @@
     {
       "type": "spoiler",
       "label": "początkowe wyrazy",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n<td>\\(6\\)</td>\n</tr>\n<tr>\n<th>\\(a_n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(4\\)</td>\n<td>\\(8\\)</td>\n<td>\\(16\\)</td>\n<td>\\(32\\)</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": true,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(a_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(16\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(32\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -48,11 +133,96 @@
     {
       "type": "spoiler",
       "label": "początkowe wyrazy",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n<td>\\(6\\)</td>\n</tr>\n<tr>\n<th>\\(b_n\\)</th>\n<td>\\(0\\)</td>\n<td>\\(2\\)</td>\n<td>\\(4\\)</td>\n<td>\\(6\\)</td>\n<td>\\(8\\)</td>\n<td>\\(10\\)</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": true,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(b_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(10\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -65,11 +235,96 @@
     {
       "type": "spoiler",
       "label": "początkowe wyrazy",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n<td>\\(6\\)</td>\n</tr>\n<tr>\n<th>\\(c_n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(4\\)</td>\n<td>\\(9\\)</td>\n<td>\\(16\\)</td>\n<td>\\(25\\)</td>\n<td>\\(36\\)</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": true,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(c_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(9\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(16\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(25\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(36\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -82,11 +337,96 @@
     {
       "type": "spoiler",
       "label": "początkowe wyrazy",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n<td>\\(6\\)</td>\n</tr>\n<tr>\n<th>\\(d_n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(6\\)</td>\n<td>\\(24\\)</td>\n<td>\\(120\\)</td>\n<td>\\(720\\)</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": true,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(d_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(24\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(120\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(720\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -99,11 +439,96 @@
     {
       "type": "spoiler",
       "label": "początkowe wyrazy",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n<td>\\(6\\)</td>\n</tr>\n<tr>\n<th>\\(f_n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(5\\)</td>\n<td>\\(8\\)</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": true,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(f_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -116,9 +541,94 @@
     {
       "type": "spoiler",
       "label": "początkowe wyrazy",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n<td>\\(6\\)</td>\n</tr>\n<tr>\n<th>\\(h_n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(3\\)</td>\n<td>\\(7\\)</td>\n<td>\\(15\\)</td>\n<td>\\(31\\)</td>\n<td>\\(63\\)</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": true,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(h_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(15\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(31\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(63\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "b6e3a2442fdbd3313e0d45e062ddff8d9ae6ba92538b4e7f76d12d8c511bc065"
+  "seed_hash": "4f5d5b4d9a6ebf0212661c699f6cea46baa459c634be47e55565aff46ba8bc70"
 }

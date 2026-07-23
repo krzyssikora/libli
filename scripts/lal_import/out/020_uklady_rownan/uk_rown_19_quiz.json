@@ -1,10 +1,8 @@
 {
   "elements": [
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>Rozpatrzmy układ równań</p><p>\\[</p><p>\\begin{cases}</p><p>2x+3y=1\\\\</p><p>3x+4y=2</p><p>\\end{cases}</p><p>\\]</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>Rozpatrzmy układ równań</p><p>\\[\n\\begin{cases}\n2x+3y=1\\\\\n3x+4y=2\n\\end{cases}\n\\]</p>"
     },
     {
       "type": "choice",
@@ -88,10 +86,8 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>Rozpatrzmy układ równań</p><p>\\[</p><p>\\begin{cases}</p><p>4x+3y-26=0\\\\</p><p>2x-3y+5=0</p><p>\\end{cases}</p><p>\\]</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>Rozpatrzmy układ równań</p><p>\\[\n\\begin{cases}\n4x+3y-26=0\\\\\n2x-3y+5=0\n\\end{cases}\n\\]</p>"
     },
     {
       "type": "choice",
@@ -175,6 +171,6 @@
       ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "8b91688d0570ff78467ed7a9802bb5cd8aad2c58093fa95611e10c39d684c733"
+  "fully_mapped": true,
+  "seed_hash": "9d8acb80d1e4bd821a96325742579f21cd4203079be7a42e9f51e7aae9f9fae4"
 }

@@ -9,82 +9,33 @@
       "body": "<ul>\n<li>\n        wartość bezwzględna liczby to jej\n        <u>\n            odległość od zera\n        </u>\n        ,\n    </li>\n<li>\n        odległość nigdy\n        <u>\n            nie jest ujemna\n        </u>\n        (jest większa lub równa \\(0\\)).\n    </li>\n</ul>"
     },
     {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n        Wybierz wszystkie zdania\n        <strong>\n            prawdziwe\n        </strong>\n        .\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n                Odległość może być większa od \\(2\\).\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                Odległość może być równa 3, 4, 5...\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                Odległość może być mniejsza od \\(5\\).\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                Odległość może być równa 0, 1, 2, 3, 4, \\(4\\tfrac{1}{2}\\)...\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                Odległość może być większa od \\(-3\\).\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                Odległość jest większa (lub równa) \\(0\\), więc tym bardziej większa od dowolnej wartości ujemnej.\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                Odległość może być mniejsza od \\(-4\\).\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                Odległość jest większa (lub równa) \\(0\\), więc nie może być ujmna.\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "<p>Brawo! Wybrałaś/-eś poprawnie. Przyjrzyj się swoim odpowiedziom i zauważ, że oznaczają one, że:</p>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li>\n                nierówność \\(|x|\\gt 2\\) ma rozwiązania\n            </li>\n<li>\n                nierówność \\(|x|\\lt 5\\) ma rozwiązania\n            </li>\n<li>\n                nierówność \\(|x|\\gt -3\\) ma rozwiązania\n            </li>\n<li>\n                nierówność \\(|x|\\lt -4\\) nie ma rozwiązań\n            </li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<p>W dalszej części rozwiążemy kilka nierówności, które mają rozwiązania.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n        Nie wybrałaś/-eś wszystkich odpowiedzi.\n    "
+      "type": "choice",
+      "stem": "<p>Wybierz wszystkie zdania prawdziwe .</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "Odległość może być większa od \\(2\\).",
+          "is_correct": true,
+          "feedback": "Odległość może być równa 3, 4, 5..."
+        },
+        {
+          "text": "Odległość może być mniejsza od \\(5\\).",
+          "is_correct": true,
+          "feedback": "Odległość może być równa 0, 1, 2, 3, 4, \\(4\\tfrac{1}{2}\\)..."
+        },
+        {
+          "text": "Odległość może być większa od \\(-3\\).",
+          "is_correct": true,
+          "feedback": "Odległość jest większa (lub równa) \\(0\\), więc tym bardziej większa od dowolnej wartości ujemnej."
+        },
+        {
+          "text": "Odległość może być mniejsza od \\(-4\\).",
+          "is_correct": false,
+          "feedback": "Odległość jest większa (lub równa) \\(0\\), więc nie może być ujmna."
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "b39f6f03815667fe8f9b783e6e60b2bd4399dc0189aaed56a42f3a53d7a29988"
+  "seed_hash": "bb2fe61a1241a4aa1a3a1daf76c372edacd581c1642f081085795421ceabe70c"
 }

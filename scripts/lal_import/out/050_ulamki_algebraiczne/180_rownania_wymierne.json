@@ -38,317 +38,181 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
-    },
-    {
-      "type": "text",
-      "body": "\n        Rozwiąż równanie\n        <div class=\"table_wrapper\">\\[\n        \\frac{x^2-x-6}{x^2+x-2}=0\n        \\]</div>\n"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li><a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a></li>\n<li><a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a></li>\n</ul>"
-    },
-    {
-      "type": "video",
-      "media_src": "static/rownanie_wymierne.mp4"
-    },
-    {
-      "type": "text",
-      "body": "<ol class=\"bold\">\n<li>\n                            Najpierw znajdziemy dziedzinę równania.\n                        </li>\n<li>\n                            A potem rozwiążemy równanie w tej dziedzinie.\n                        </li>\n</ol>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Aby znaleźć dziedzinę, musimy rozwiązać</p>"
-    },
-    {
-      "type": "text",
-      "body": "&gt;&gt; wybierz &gt;&gt;"
-    },
-    {
-      "type": "text",
-      "body": "równanie \\(x^2-x-6=0\\)"
-    },
-    {
-      "type": "text",
-      "body": "nierówność \\(x^2+x-2\\ne 0\\)"
-    },
-    {
-      "type": "text",
-      "body": "równanie \\(x^2+x-2=0\\)"
-    },
-    {
-      "type": "text",
-      "body": "nierówność \\(x^2-x-6\\ne 0\\)"
-    },
-    {
-      "type": "text",
-      "body": "zatwierdź"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Żeby rozwiązać nierówność \\(x^2+x-2\\ne 0\\), obliczymy wyróżnik (deltę) wyrażenia \\(x^2+x-2\\).\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\\(\\Delta=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "&gt;&gt; wybierz &gt;&gt;"
-    },
-    {
-      "type": "text",
-      "body": "\\(9\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(3\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(1\\)"
-    },
-    {
-      "type": "text",
-      "body": "zatwierdź"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Teraz miejsca zerowe:</p>"
-    },
-    {
-      "type": "text",
-      "body": "\\[\n                    x=\\frac{-1-\\sqrt{9}}{2\\cdot 1},\\quad\\quad x=\\frac{-1+\\sqrt{9}}{2\\cdot 1}\n                    \\]"
-    },
-    {
-      "type": "text",
-      "body": "<p>Miejsca zerowe to</p>"
-    },
-    {
-      "type": "text",
-      "body": "&gt;&gt; wybierz &gt;&gt;"
-    },
-    {
-      "type": "text",
-      "body": "\\(-2\\) oraz \\(1\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(-1\\) oraz \\(2\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(-5\\) oraz \\(4\\)"
-    },
-    {
-      "type": "text",
-      "body": "zatwierdź"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Z wyrażenia \\(x^2+x-2\\) wyliczyliśmy miejsca zerowe \\(-2\\) oraz \\(1\\), więc dziedzina równania \\(\\frac{x^2-x-6}{x^2+x-2}=0\\) to</p>"
-    },
-    {
-      "type": "text",
-      "body": "&gt;&gt; wybierz &gt;&gt;"
-    },
-    {
-      "type": "text",
-      "body": "\\(x=-2\\) oraz \\(x=1\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(x\\ne-2\\) oraz \\(x\\ne 1\\)"
-    },
-    {
-      "type": "text",
-      "body": "zatwierdź"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        A dokładniej dziedzina to zbiór wszystkich liczb rzeczywistych poza \\(x=-2\\) oraz \\(x=1\\), czyli \\(\\mathbb{R}\\setminus\\{-2, 1\\}\\).\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Możemy też powiedzieć, że <u>przyjmujemy założenie</u>, że \\(x\\ne-2\\) oraz \\(x\\ne 1\\).\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Teraz, aby rozwiązać równanie \\(\\frac{x^2-x-6}{x^2+x-2}=0\\), musimy rozwiązać</p>"
-    },
-    {
-      "type": "text",
-      "body": "&gt;&gt; wybierz &gt;&gt;"
-    },
-    {
-      "type": "text",
-      "body": "równanie \\(x^2-x-6=0\\)"
-    },
-    {
-      "type": "text",
-      "body": "nierówność \\(x^2+x-2\\ne 0\\)"
-    },
-    {
-      "type": "text",
-      "body": "równanie \\(x^2+x-2=0\\)"
-    },
-    {
-      "type": "text",
-      "body": "nierówność \\(x^2-x-6\\ne 0\\)"
-    },
-    {
-      "type": "text",
-      "body": "zatwierdź"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Delta tego równania to \\(\\Delta=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "&gt;&gt; wybierz &gt;&gt;"
-    },
-    {
-      "type": "text",
-      "body": "\\(1\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(5\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(9\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(25\\)"
-    },
-    {
-      "type": "text",
-      "body": "zatwierdź"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Czas na miejsca zerowe:</p>"
-    },
-    {
-      "type": "text",
-      "body": "\\[\n                    x=\\frac{-(-1)-\\sqrt{25}}{2\\cdot 1},\\quad\\quad x=\\frac{-(-1)+\\sqrt{25}}{2\\cdot 1}\n                    \\]"
-    },
-    {
-      "type": "text",
-      "body": "<p>Miejsca zerowe to</p>"
-    },
-    {
-      "type": "text",
-      "body": "&gt;&gt; wybierz &gt;&gt;"
-    },
-    {
-      "type": "text",
-      "body": "\\(-2\\) oraz \\(3\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(-3\\) oraz \\(2\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(-12\\) oraz \\(13\\)"
-    },
-    {
-      "type": "text",
-      "body": "zatwierdź"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Rozwiązując równanie\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "\\[\n                    \\frac{x^2-x-6}{x^2+x-2}=0\n                    \\]"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        najpierw z nierówności \\(x^2+x-2\\ne 0\\) wyliczyliśmy założenie \\(x\\ne -2\\), \\(x\\ne 1\\),\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        a potem z równania \\(x^2-x-6=0\\) wyliczyliśmy \\(x=-2\\) oraz \\(x=3\\).\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Dlatego rozwiązanie początkowego równania to</p>"
-    },
-    {
-      "type": "text",
-      "body": "&gt;&gt; wybierz &gt;&gt;"
-    },
-    {
-      "type": "text",
-      "body": "\\(x=-2\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(x=3\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(x=1\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(x\\in\\{-2, 1, 3\\}\\)"
-    },
-    {
-      "type": "text",
-      "body": "zatwierdź"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Zgadza się, z rozwiązań \\(x=-2\\) oraz \\(x=3\\) musimy wyeliminować sprzeczne z założeniem  \\(x=-2\\), więc rozwiązaniem równania \n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "\\[\n                    \\frac{x^2-x-6}{x^2+x-2}=0\n                    \\]"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        jest \\(x=3\\).\n                    </p>"
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Rozwiąż równanie</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        \\frac{x^2-x-6}{x^2+x-2}=0\n        \\]"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/rownanie_wymierne.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<ol class=\"bold\">\n<li>\n                            Najpierw znajdziemy dziedzinę równania.\n                        </li>\n<li>\n                            A potem rozwiążemy równanie w tej dziedzinie.\n                        </li>\n</ol>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Aby znaleźć dziedzinę, musimy rozwiązać \n                        \n\n\n\n\n￿0￿.\n                    ",
+              "options": [
+                "równanie \\(x^2-x-6=0\\)",
+                "nierówność \\(x^2+x-2\\ne 0\\)",
+                "równanie \\(x^2+x-2=0\\)",
+                "nierówność \\(x^2-x-6\\ne 0\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Żeby rozwiązać nierówność \\(x^2+x-2\\ne 0\\), obliczymy wyróżnik (deltę) wyrażenia \\(x^2+x-2\\).\n                    </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        \\(\\Delta=\\)\n                        \n\n\n\n￿0￿.\n                    ",
+              "options": [
+                "\\(9\\)",
+                "\\(3\\)",
+                "\\(1\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>Teraz miejsca zerowe:</p>"
+            },
+            {
+              "type": "text",
+              "body": "\\[\n                    x=\\frac{-1-\\sqrt{9}}{2\\cdot 1},\\quad\\quad x=\\frac{-1+\\sqrt{9}}{2\\cdot 1}\n                    \\]"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Miejsca zerowe to\n                        \n\n\n\n￿0￿.\n                    ",
+              "options": [
+                "\\(-2\\) oraz \\(1\\)",
+                "\\(-1\\) oraz \\(2\\)",
+                "\\(-5\\) oraz \\(4\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Z wyrażenia \\(x^2+x-2\\) wyliczyliśmy miejsca zerowe \\(-2\\) oraz \\(1\\), więc dziedzina równania \\(\\frac{x^2-x-6}{x^2+x-2}=0\\) to \n                        \n\n\n￿0￿.\n                    ",
+              "options": [
+                "\\(x=-2\\) oraz \\(x=1\\)",
+                "\\(x\\ne-2\\) oraz \\(x\\ne 1\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        A dokładniej dziedzina to zbiór wszystkich liczb rzeczywistych poza \\(x=-2\\) oraz \\(x=1\\), czyli \\(\\mathbb{R}\\setminus\\{-2, 1\\}\\).\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Możemy też powiedzieć, że <u>przyjmujemy założenie</u>, że \\(x\\ne-2\\) oraz \\(x\\ne 1\\).\n                    </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Teraz, aby rozwiązać równanie \\(\\frac{x^2-x-6}{x^2+x-2}=0\\), musimy rozwiązać \n                        \n\n\n\n\n￿0￿.\n                    ",
+              "options": [
+                "równanie \\(x^2-x-6=0\\)",
+                "nierówność \\(x^2+x-2\\ne 0\\)",
+                "równanie \\(x^2+x-2=0\\)",
+                "nierówność \\(x^2-x-6\\ne 0\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Delta tego równania to \\(\\Delta=\\)\n                        \n\n\n\n\n￿0￿.\n                    ",
+              "options": [
+                "\\(1\\)",
+                "\\(5\\)",
+                "\\(9\\)",
+                "\\(25\\)"
+              ],
+              "answer": 3
+            },
+            {
+              "type": "text",
+              "body": "<p>Czas na miejsca zerowe:</p>"
+            },
+            {
+              "type": "text",
+              "body": "\\[\n                    x=\\frac{-(-1)-\\sqrt{25}}{2\\cdot 1},\\quad\\quad x=\\frac{-(-1)+\\sqrt{25}}{2\\cdot 1}\n                    \\]"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Miejsca zerowe to\n                        \n\n\n\n￿0￿.\n                    ",
+              "options": [
+                "\\(-2\\) oraz \\(3\\)",
+                "\\(-3\\) oraz \\(2\\)",
+                "\\(-12\\) oraz \\(13\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Rozwiązując równanie\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "\\[\n                    \\frac{x^2-x-6}{x^2+x-2}=0\n                    \\]"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        najpierw z nierówności \\(x^2+x-2\\ne 0\\) wyliczyliśmy założenie \\(x\\ne -2\\), \\(x\\ne 1\\),\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        a potem z równania \\(x^2-x-6=0\\) wyliczyliśmy \\(x=-2\\) oraz \\(x=3\\).\n                    </p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Dlatego rozwiązanie początkowego równania to\n                        \n\n\n\n\n￿0￿.\n                    ",
+              "options": [
+                "\\(x=-2\\)",
+                "\\(x=3\\)",
+                "\\(x=1\\)",
+                "\\(x\\in\\{-2, 1, 3\\}\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Zgadza się, z rozwiązań \\(x=-2\\) oraz \\(x=3\\) musimy wyeliminować sprzeczne z założeniem  \\(x=-2\\), więc rozwiązaniem równania \n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "\\[\n                    \\frac{x^2-x-6}{x^2+x-2}=0\n                    \\]"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        jest \\(x=3\\).\n                    </p>"
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "d293db8b525a21fc54148574add01183ab43fb36052c7b6e92482d4b40d60e6f"
+  "fully_mapped": true,
+  "seed_hash": "26b3eb48db4896525d4e6f62964ba5ea9386b8dcfda11bf382f4cc4d7ba4dce5"
 }

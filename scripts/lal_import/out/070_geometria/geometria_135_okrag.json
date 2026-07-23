@@ -2,159 +2,94 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/dwa_okregi_prosta_1.png",
+      "alt": "zadanie 3",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "\n<img alt=\"zadanie 3\" height=\"400\" src=\"static/dwa_okregi_prosta_1.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n            Rysunek przedstawia dwa okręgi o środkach w punktach \\(S_1\\) i \\(S_2\\). Do okręgów poprowadzono wspólną styczną, w punktach \\(P_1\\) i \\(P_2\\) odpowiednio. Prosta łącząca środki okręgów przecina styczną w punkcie \\(A\\). Dane są następujące długości:\n        </p>\n<ul class=\"nolist\">\n<li>\n                promień \\(S_1P_1=2\\) cm,\n            </li>\n<li>\n                promień \\(S_2P_2=5\\) cm,\n            </li>\n<li>\n                odległość między środkami okręgów \\(S_1S_2=14\\) cm,\n            </li>\n</ul>\n<p>\n            Znajdź odległość między punktami styczności \\(P_1P_2\\).\n        </p>\n"
+      "body": "<p>\n            Rysunek przedstawia dwa okręgi o środkach w punktach \\(S_1\\) i \\(S_2\\). Do okręgów poprowadzono wspólną styczną, w punktach \\(P_1\\) i \\(P_2\\) odpowiednio. Prosta łącząca środki okręgów przecina styczną w punkcie \\(A\\). Dane są następujące długości:\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n            zacznij rozwiązanie\n        "
+      "body": "<ul class=\"nolist\">\n<li>\n                promień \\(S_1P_1=2\\) cm,\n            </li>\n<li>\n                promień \\(S_2P_2=5\\) cm,\n            </li>\n<li>\n                odległość między środkami okręgów \\(S_1S_2=14\\) cm,\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź odległość między punktami styczności \\(P_1P_2\\).\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "zacznij rozwiązanie"
     },
     {
       "type": "text",
       "body": "<p>\n                        Z twierdzenia \"o promieniu i stycznej\"\n                    </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"promień i styczna\" src=\"static/tw_promien_styczna.png\" width=\"320\"/>\n"
+      "type": "image",
+      "media_src": "static/tw_promien_styczna.png",
+      "alt": "promień i styczna",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "<p>wynika, że kąty \\(\\angle S_1P_1A\\) oraz \\(\\angle S_2P_2A\\) mają miarę</p>"
+      "type": "switch_gate",
+      "stem": "\n                        wynika, że kąty \\(\\angle S_1P_1A\\) oraz \\(\\angle S_2P_2A\\) mają miarę\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(60^{\\circ}\\)",
+        "\\(90^{\\circ}\\)",
+        "\\(120^{\\circ}\\)",
+        "\\(180^{\\circ}\\)"
+      ],
+      "answer": 1
     },
     {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(60^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(90^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(120^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(180^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>Kąty \\(\\angle P_1AS_1\\) oraz \\(\\angle P_2AS_2\\) są</p>"
-    },
-    {
-      "type": "text",
-      "body": "<strong>\n                            wierzchołkowe\n                        </strong>"
-    },
-    {
-      "type": "text",
-      "body": "<p>, co oznacza, że</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            sumują się do \\(180^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            sumują się do \\(90^{\\circ}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            ich miary są równe\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
+      "type": "switch_gate",
+      "stem": "\n                        Kąty \\(\\angle P_1AS_1\\) oraz \\(\\angle P_2AS_2\\) są\n                        \n                            wierzchołkowe\n                        \n                        , co oznacza, że\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "sumują się do \\(180^{\\circ}\\)",
+        "sumują się do \\(90^{\\circ}\\)",
+        "ich miary są równe"
+      ],
+      "answer": 2
     },
     {
       "type": "text",
       "body": "<p>\n                        Z sumy kątów w trójkątach \\(P_1AS_1\\) i \\(P_2AS_2\\) także kąty \\(\\angle P_1S_1A\\) i \\(\\angle P_2S_2A\\) mają równe miary. Wszystkie wspomniane kąty o tych samych miarach zaznaczono tymi samymi kolorami na rysunku:\n                    </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"zadanie 3\" height=\"400\" src=\"static/dwa_okregi_prosta_2.png\"/>\n"
+      "type": "image",
+      "media_src": "static/dwa_okregi_prosta_2.png",
+      "alt": "zadanie 3",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "<p>Wynika z tego, że trójkąty \\(P_1AS_1\\) i \\(P_2AS_2\\) są</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            przystające\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            podobne\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            równoramienne\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
+      "type": "switch_gate",
+      "stem": "\n                        Wynika z tego, że trójkąty \\(P_1AS_1\\) i \\(P_2AS_2\\) są\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "przystające",
+        "podobne",
+        "równoramienne"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
       "body": "<p>\n                        Trójkąty \\(P_1AS_1\\) i \\(P_2AS_2\\) są podobne, co oznacza, że odpowiednie boki są w tym samym stosunku zwanym\n                        <strong>\n                            skalą podobieństwa\n                        </strong>\n                        . Na rysunku odpowiednie boki zaznaczono tym samym kolorem. Porównując odpowiednie boki możemy ustalić skalę podobieństwa.\n                    </p>"
     },
     {
-      "type": "text",
-      "body": "<p>Skala podobieństwa trójkąta \\(P_2AS_2\\) do trójkąta \\(P_1AS_1\\) jest równa stosunkowi niebieskich odcinków \\(S_2P_2\\) do \\(S_1P_1\\), czyli</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(2,5\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(0,4\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(3\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
+      "type": "switch_gate",
+      "stem": "\n                        Skala podobieństwa trójkąta \\(P_2AS_2\\) do trójkąta \\(P_1AS_1\\) jest równa stosunkowi niebieskich odcinków \\(S_2P_2\\) do \\(S_1P_1\\), czyli\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(2,5\\)",
+        "\\(0,4\\)",
+        "\\(3\\)"
+      ],
+      "answer": 0
     },
     {
       "type": "text",
@@ -173,178 +108,76 @@
       "latex": "\n                                                        \\begin{cases}\n                                                        S_2A=2,5\\cdot S_1A\\\\\n                                                        S_2A + S_1A = 14\n                                                        \\end{cases}\n                                                        "
     },
     {
-      "type": "text",
-      "body": "<p>Rozwiązując ten układ równań otrzymujemy</p>"
+      "type": "switch_gate",
+      "stem": "\n                        Rozwiązując ten układ równań otrzymujemy\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(S_1A=4\\) i \\(S_2A=10\\)",
+        "\\(S_1A=10\\) i \\(S_2A=4\\)",
+        "\\(S_1A=5,6\\) i \\(S_2A=8,4\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "image",
+      "media_src": "static/dwa_okregi_prosta_3.png",
+      "alt": "zadanie 3",
+      "figcaption": ""
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Możemy teraz obliczyć długość odcinka \\(AP_1\\) z twierdzenia Pitagorasa:\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(S_1P_1^2=S_1A^2+P_1A^2\\)",
+        "\\(S_1A^2=S_1P_1^2+P_1A^2\\)",
+        "\\(P_1A^2=S_1A^2+S_1P_1^2\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Podstawiając \\(S_1P_1=2\\) i \\(S_1A=4\\) i obliczając dostajemy\n                        \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(P_1A^2=20\\)",
+        "\\(P_1A^2=4\\)",
+        "\\(P_1A^2=12\\)"
+      ],
+      "answer": 2
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        więc\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(P_1A=2\\sqrt{3}\\)",
+        "\\(P_1A=3\\sqrt{2}\\)",
+        "\\(P_1A=4\\sqrt{3}\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Ponownie korzystając ze skali podobieństwa możemy wyliczyć \\(P_2A=2,5\\cdot P_1A=\\)\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(3\\sqrt{3}\\)",
+        "\\(5\\sqrt{3}\\)",
+        "\\(2,5\\sqrt{3}\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                        Na zakończenie, by obliczyć odległość między punktami styczności \\(P_1P_2\\), wystarczy dodać dwa ostatnie wyniki. Otrzymujemy \\(P_1P_2=\\)\n                        \n\n\n￿0￿\n                        .\n                        \n",
+      "options": [
+        "\\(7\\sqrt{3}\\) (cm)",
+        "\\(14\\sqrt{3}\\) (cm)",
+        "\\(21\\) (cm)"
+      ],
+      "answer": 0
     },
     {
       "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(S_1A=4\\) i \\(S_2A=10\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(S_1A=10\\) i \\(S_2A=4\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(S_1A=5,6\\) i \\(S_2A=8,4\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n<img alt=\"zadanie 3\" height=\"400\" src=\"static/dwa_okregi_prosta_3.png\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "<p>Możemy teraz obliczyć długość odcinka \\(AP_1\\) z twierdzenia Pitagorasa:</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(S_1P_1^2=S_1A^2+P_1A^2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(S_1A^2=S_1P_1^2+P_1A^2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(P_1A^2=S_1A^2+S_1P_1^2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>Podstawiając \\(S_1P_1=2\\) i \\(S_1A=4\\) i obliczając dostajemy</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(P_1A^2=20\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(P_1A^2=4\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(P_1A^2=12\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>więc</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(P_1A=2\\sqrt{3}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(P_1A=3\\sqrt{2}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(P_1A=4\\sqrt{3}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>Ponownie korzystając ze skali podobieństwa możemy wyliczyć \\(P_2A=2,5\\cdot P_1A=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(3\\sqrt{3}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(5\\sqrt{3}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(2,5\\sqrt{3}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>Na zakończenie, by obliczyć odległość między punktami styczności \\(P_1P_2\\), wystarczy dodać dwa ostatnie wyniki. Otrzymujemy \\(P_1P_2=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(7\\sqrt{3}\\) (cm)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(14\\sqrt{3}\\) (cm)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(21\\) (cm)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                    I to kończy zadanie.\n                "
+      "body": "<p>I to kończy zadanie.</p>"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "665140a24dad0572549bdd487a2ef2e058a2de6c6ceeef1f57f0705876e0c516"
+  "seed_hash": "f0bb9769529da3d2271514a1112b4ba0f707092e62f34dfea0c40aa8913ceb51"
 }

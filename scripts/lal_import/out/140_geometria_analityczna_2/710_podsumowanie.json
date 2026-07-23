@@ -2,23 +2,168 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Trójkąt \\(ABC\\) jest prostokątny, przy czym \\(A=(0,0)\\), punkt \\(B\\) leży na osi \\(OY\\), a punkt \\(C\\) na osi \\(OX\\).\n        </p>\n<p>\n            Punkt \\(D=(-6,9)\\) jest spodkiem wysokości \\(AD\\) trójkąta \\(ABC\\).\n        </p>\n<p>\n            Znajdź współrzędne wierzchołków \\(B\\)i \\(C\\) trójkąta \\(ABC\\).\n        </p>\n"
+      "body": "<p>\n            Trójkąt \\(ABC\\) jest prostokątny, przy czym \\(A=(0,0)\\), punkt \\(B\\) leży na osi \\(OY\\), a punkt \\(C\\) na osi \\(OX\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkt \\(D=(-6,9)\\) jest spodkiem wysokości \\(AD\\) trójkąta \\(ABC\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzędne wierzchołków \\(B\\)i \\(C\\) trójkąta \\(ABC\\).\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "metoda rozwiązania",
-      "body": "\n\n<p>\n</p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"396px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/dranecwm/width/552/height/396/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"geometria analityczna 2, zadanie 1560\" width=\"552px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">ten email</a>.\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n<details>\n<summary>dlaczego ta metoda jest poprawna?</summary>\n            Bok \\(BC\\) jest prostopadły do wysokości \\(AD\\).\n        </details>\n"
+      "elements": [
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/dranecwm/width/552/height/396/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        },
+        {
+          "type": "text",
+          "body": "<h4>dlaczego ta metoda jest poprawna?</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Bok \\(BC\\) jest prostopadły do wysokości \\(AD\\).</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Zacznijmy od znalezienia nachylenia odcinka \\(AD\\).\n                </p>\n<details>\n<summary>pamiętasz, jak?</summary>\n<div class=\"important\">\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_330_nachylenie_odcinka.png\" style=\"max-height: 200px;\"/>\n</figure>\n<p>\n                            Nachylenie odcinka \\(AB\\) dane jest wzorem:\n                        </p>\n<div class=\"table_wrapper\">\n                            \\[\n                            \\left(\\small\\frac{\\text{skok}}{\\text{krok}}\\right)=\\frac{y_B-y_A}{x_B-x_A}\n                            \\]\n                        </div>\n</div>\n<!-- ADD INTERNAL LINK -->\n</details>\n<div class=\"switch_line\">\n                    Nachylenie odcinka \\(AD\\) jest równe\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(-\\frac{3}{2}\\)</div>\n<div class=\"switch_value\">\\(-\\frac{2}{3}\\)</div>\n<div class=\"switch_value\">\\(\\frac{3}{2}\\)</div>\n<div class=\"switch_value\">\\(\\frac{2}{3}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Bok \\(BC\\) jest prostopadły do wysokości \\(AD\\), więc jego nachylenie jest równe\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{3}{2}\\)</div>\n<div class=\"switch_value\">\\(\\frac{2}{3}\\)</div>\n<div class=\"switch_value\">\\(-\\frac{3}{2}\\)</div>\n<div class=\"switch_value\">\\(-\\frac{2}{3}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Prosta zawierajca bok \\(BC\\) ma więc równanie postaci\n                </p>\n                \\[\n                y=\\frac{2}{3}x+b\n                \\]\n                <p>\n                    Aby ustalić wartość współczynnika \\(b\\), skorzystamy z faktu, że ta prosta przechodzi przez punkt \\(D\\)\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    y&amp;=\\frac{2}{3}x+b\\\\\n                    9&amp;=\\frac{2}{3}\\cdot(-6)+b\\\\\n                    9&amp;=-4+b\\\\\n                    b&amp;=13\n                    \\end{align}\n                    \\]\n                </div>\n<p>\n                    Równanie prostej zawierającej bok \\(BC\\) to\n                </p>\n                \\[\n                y=\\frac{2}{3}x+13\n                \\]\n                <div class=\"switch_line\">\n                    Punkt \\(B\\) leży na tej prostej i na osi \\(OY\\). Dlatego, by znaleźć jego współrzędne, do równania prostej podstawiamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x=0\\)</div>\n<div class=\"switch_value\">\\(y=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Dostajemy\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    y=\\frac{2}{3}\\cdot 0+13=13\n                    \\]\n                </div>\n<p>\n                    więc \\(B=(0,13)\\).\n                </p>\n<div class=\"switch_line\">\n                    Punkt \\(C\\) leży na tej prostej i na osi \\(OX\\). Dlatego, by znaleźć jego współrzędne, do równania prostej podstawiamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x=0\\)</div>\n<div class=\"switch_value\">\\(y=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Otrzymujemy\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    0&amp;=\\frac{2}{3}\\cdot x+13\\\\\n                    -13&amp;=\\frac{2}{3}\\cdot x\\\\\n                    \\frac{2}{3}\\cdot x&amp;=-13\\\\\n                    x&amp;=-13\\cdot\\frac{3}{2}\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Dlatego współrzędne punktu \\(C\\) to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((0,-19\\tfrac{1}{2})\\)</div>\n<div class=\"switch_value\">\\((-19\\tfrac{1}{2},0)\\)</div>\n<div class=\"switch_value\">\\((19\\tfrac{1}{2},0)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1560.png\" style=\"max-height: 350px;\"/>\n</figure>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zacznijmy od znalezienia nachylenia odcinka \\(AD\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz, jak?</h4>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_330_nachylenie_odcinka.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Nachylenie odcinka \\(AB\\) dane jest wzorem:\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                            \\[\n                            \\left(\\small\\frac{\\text{skok}}{\\text{krok}}\\right)=\\frac{y_B-y_A}{x_B-x_A}\n                            \\]\n                        "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Nachylenie odcinka \\(AD\\) jest równe\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(-\\frac{3}{2}\\)",
+            "\\(-\\frac{2}{3}\\)",
+            "\\(\\frac{3}{2}\\)",
+            "\\(\\frac{2}{3}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Bok \\(BC\\) jest prostopadły do wysokości \\(AD\\), więc jego nachylenie jest równe\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{3}{2}\\)",
+            "\\(\\frac{2}{3}\\)",
+            "\\(-\\frac{3}{2}\\)",
+            "\\(-\\frac{2}{3}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Prosta zawierajca bok \\(BC\\) ma więc równanie postaci\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=\\frac{2}{3}x+b\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby ustalić wartość współczynnika \\(b\\), skorzystamy z faktu, że ta prosta przechodzi przez punkt \\(D\\)\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    y&amp;=\\frac{2}{3}x+b\\\\\n                    9&amp;=\\frac{2}{3}\\cdot(-6)+b\\\\\n                    9&amp;=-4+b\\\\\n                    b&amp;=13\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Równanie prostej zawierającej bok \\(BC\\) to\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                y=\\frac{2}{3}x+13\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Punkt \\(B\\) leży na tej prostej i na osi \\(OY\\). Dlatego, by znaleźć jego współrzędne, do równania prostej podstawiamy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x=0\\)",
+            "\\(y=0\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dostajemy\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    y=\\frac{2}{3}\\cdot 0+13=13\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    więc \\(B=(0,13)\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Punkt \\(C\\) leży na tej prostej i na osi \\(OX\\). Dlatego, by znaleźć jego współrzędne, do równania prostej podstawiamy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x=0\\)",
+            "\\(y=0\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Otrzymujemy\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    0&amp;=\\frac{2}{3}\\cdot x+13\\\\\n                    -13&amp;=\\frac{2}{3}\\cdot x\\\\\n                    \\frac{2}{3}\\cdot x&amp;=-13\\\\\n                    x&amp;=-13\\cdot\\frac{3}{2}\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dlatego współrzędne punktu \\(C\\) to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((0,-19\\tfrac{1}{2})\\)",
+            "\\((-19\\tfrac{1}{2},0)\\)",
+            "\\((19\\tfrac{1}{2},0)\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1560.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "818175ddface14118e967fb66a9f1e9c54c08f413087ab01f2d0c0bfeb87de14"
+  "seed_hash": "20f6db4015303f5cc546df1d8096167ee1945a16f41bc23b07e35095613c6e88"
 }

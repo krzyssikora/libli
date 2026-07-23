@@ -9,26 +9,108 @@
       "body": "\n    Długość odcinka \\(AB\\), gdzie\n    \\[\n    A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n    \\]\n    jest dana wzorem\n    \\[\n    AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n    \\]\n"
     },
     {
-      "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
       "type": "spoiler",
       "label": "kilka dodatkowych szczegółów",
-      "body": "\n\n<div class=\"important\">\n        Aby obliczyć długość odcinka \\(AB\\), gdzie\n        \\[\n        A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n        \\]\n        potrzebujemy:\n        <ul>\n<li>\n                odległości w\n                <strong>\n                    poziomie\n                </strong>\n                między \\(A\\) i \\(B\\), czyli \\(x_B-x_A\\) (oznaczmy ją \\(\\Delta x\\))\n            </li>\n<li>\n                odległości w\n                <strong>\n                    pionie\n                </strong>\n                między \\(A\\) i \\(B\\), czyli \\(y_B-y_A\\) (oznaczmy ją \\(\\Delta y\\))\n            </li>\n</ul>\n<div class=\"centered\">\n<img alt=\"długość odcinka\" src=\"static/dlugosc_odcinka.png\" style=\"max-height: 250px;\"/>\n</div>\n        I potem możemy obliczyć długość \\(AB\\) z twierdzenia Pitagorasa:\n        \\[\n        AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n        \\]\n        <hr/>\n<strong>\n            Uwaga!\n        </strong>\n<ol class=\"bold\">\n<li>\n                Nie ma znaczenia, czy liczymy\n                <ul class=\"nolist\">\n<li>\n                        \\(\\Delta x=x_B-x_A\\) czy\n                    </li>\n<li>\n                        \\(\\Delta x=x_A-x_B\\).\n                    </li>\n</ul>\n                Te dwa wyniki są przeciwne, tzn. wskazują na tę samą odległość, tylko jeden z nich jest ujemny.\n            </li>\n<li>\n                \\(\\Delta x\\) lub \\(\\Delta y\\) może być ujemna. To nic nie szkodzi, bo w twierdzeniu Pitagorasa i tak podnosimy taką wartość do kwadratu:\n                        \\[\n                        \\begin{align*}\n                        (x_B-x_A)&amp;=-(x_A-x_B)\\\\\n                        (x_B-x_A)^2&amp;=(x_A-x_B)^2\n                        \\end{align*}\n                        \\]\n            </li>\n</ol>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Aby obliczyć długość odcinka \\(AB\\), gdzie\n        \\[\n        A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n        \\]\n        potrzebujemy:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                odległości w\n                <strong>\n                    poziomie\n                </strong>\n                między \\(A\\) i \\(B\\), czyli \\(x_B-x_A\\) (oznaczmy ją \\(\\Delta x\\))\n            </li>\n<li>\n                odległości w\n                <strong>\n                    pionie\n                </strong>\n                między \\(A\\) i \\(B\\), czyli \\(y_B-y_A\\) (oznaczmy ją \\(\\Delta y\\))\n            </li>\n</ul>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/dlugosc_odcinka.png",
+          "alt": "długość odcinka",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>I potem możemy obliczyć długość \\(AB\\) z twierdzenia Pitagorasa:\n        \\[\n        AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n        \\]</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n            Uwaga!\n        </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                Nie ma znaczenia, czy liczymy\n                <ul class=\"nolist\">\n<li>\n                        \\(\\Delta x=x_B-x_A\\) czy\n                    </li>\n<li>\n                        \\(\\Delta x=x_A-x_B\\).\n                    </li>\n</ul>\n                Te dwa wyniki są przeciwne, tzn. wskazują na tę samą odległość, tylko jeden z nich jest ujemny.\n            </li>\n<li>\n                \\(\\Delta x\\) lub \\(\\Delta y\\) może być ujemna. To nic nie szkodzi, bo w twierdzeniu Pitagorasa i tak podnosimy taką wartość do kwadratu:\n                        \\[\n                        \\begin{align*}\n                        (x_B-x_A)&amp;=-(x_A-x_B)\\\\\n                        (x_B-x_A)^2&amp;=(x_A-x_B)^2\n                        \\end{align*}\n                        \\]\n            </li>\n</ol>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dane są punkty:\n        </p>\n<ul class=\"nolist\">\n<li>\\(A=(1, 5)\\)</li>\n<li>\\(B=(-6, 6)\\)</li>\n<li>\\(C=(-7, -1)\\)</li>\n<li>\\(S=(-3, 2)\\)</li>\n</ul>\n<p>\n            Znajdź odległości punktów \\(A\\), \\(B\\) i \\(C\\) od punktu \\(S\\).\n        </p>\n"
+      "body": "<p>\n            Dane są punkty:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\\(A=(1, 5)\\)</li>\n<li>\\(B=(-6, 6)\\)</li>\n<li>\\(C=(-7, -1)\\)</li>\n<li>\\(S=(-3, 2)\\)</li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź odległości punktów \\(A\\), \\(B\\) i \\(C\\) od punktu \\(S\\).\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Zacznijmy od odległości punktu \\(A\\) od punktu \\(S\\).\n                <div class=\"switch_line\">\n                    Jest ona dana wzorem \\(AS=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\sqrt{(1-(-3))^2+(5-2)^2}\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{(1-3)^2+(5+2)^2}\\)</div>\n<div class=\"switch_value\">\\(\\sqrt{(1-5)^2+(-3-2)^2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Obliczamy:\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    AS&amp;=\\sqrt{(-3-1)^2+(2-5)^2}=\\\\\n                    &amp;=\\sqrt{(-4)^2+(-3)^2}=\\\\\n                    &amp;=\\sqrt{16+9}=\\\\\n                    &amp;=\\sqrt{25}=\\\\\n                    &amp;=5\n                    \\end{align}\n                    \\]\n                </div>\n<p>\n                    W podobny sposób obliczamy \\(BS\\) i \\(CS\\).\n                </p>\n<div class=\"switch_line\">\n                    Otrzymujemy \\(BS=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3\\)</div>\n<div class=\"switch_value\">\\(5\\)</div>\n<div class=\"switch_value\">\\(7\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>,\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    oraz \\(CS=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3\\)</div>\n<div class=\"switch_value\">\\(5\\)</div>\n<div class=\"switch_value\">\\(7\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Wszystkie trzy punkty (\\(A\\), \\(B\\) i \\(C\\)) są w tej samej odległości, równej \\(5\\) od punktu \\(S\\).\n                </p>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zacznijmy od odległości punktu \\(A\\) od punktu \\(S\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jest ona dana wzorem \\(AS=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\sqrt{(1-(-3))^2+(5-2)^2}\\)",
+            "\\(\\sqrt{(1-3)^2+(5+2)^2}\\)",
+            "\\(\\sqrt{(1-5)^2+(-3-2)^2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Obliczamy:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    AS&amp;=\\sqrt{(-3-1)^2+(2-5)^2}=\\\\\n                    &amp;=\\sqrt{(-4)^2+(-3)^2}=\\\\\n                    &amp;=\\sqrt{16+9}=\\\\\n                    &amp;=\\sqrt{25}=\\\\\n                    &amp;=5\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    W podobny sposób obliczamy \\(BS\\) i \\(CS\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymujemy \\(BS=\\)\n                    \n\n\n\n￿0￿,\n                ",
+          "options": [
+            "\\(3\\)",
+            "\\(5\\)",
+            "\\(7\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    oraz \\(CS=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3\\)",
+            "\\(5\\)",
+            "\\(7\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Wszystkie trzy punkty (\\(A\\), \\(B\\) i \\(C\\)) są w tej samej odległości, równej \\(5\\) od punktu \\(S\\).\n                </p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -36,5 +118,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "2652c3b3e110d609a37e885fd13a1ba6555606cb470b4831c7e8e80a70f6bdec"
+  "seed_hash": "0b70448ec38b7b6507d8ffd4cd4a4278740e9f0222d163812f2028bd8a918988"
 }

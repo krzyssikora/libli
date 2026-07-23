@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -11,7 +11,1076 @@
     {
       "type": "spoiler",
       "label": "przeczytaj rozwiązanie",
-      "body": "\n\n<div class=\"steps\">\n<p>\n                    Oznaczmy te pięć obiektów literami: \n                    <span style=\"color: red; font-weight: bold;\">A</span>, \n                    <span style=\"color: blue; font-weight: bold;\">B</span>, \n                    <span style=\"color: green; font-weight: bold;\">C</span>, \n                    <span style=\"color: orange; font-weight: bold;\">D</span>, \n                    <span style=\"color: black; font-weight: bold;\">E</span>.\n                </p>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                        Czy to przypadkiem nie jest tak, że \n                    </p>\n<ul class=\"nolist\">\n<li>pierwszy obiekt wybieramy na \\(5\\) sposobów,</li>\n<li>drugi obiekt wybieramy na \\(4\\) sposoby,</li>\n<li>trzeci obiekt wybieramy na \\(3\\) sposoby?</li>\n</ul>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                        Czyli odpowiedzią na to pytanie byłaby liczba \\(3\\)-wyrazowych wariacji <strong>bez powtórzeń</strong> ze zbioru \\(5\\)-elementowego?\n                    </p>\n                    \\[\n                    V_5^3=\\frac{5!}{(5-3)!}=5\\cdot 4\\cdot 3=60\n                    \\]\n                    ?\n                </div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                        Nie całkiem... \n                    </p>\n<p>\n                        Dlaczego? Wypiszmy wszystkie takie wariacje:\n                    </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr><td>1.</td><th><span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span></th><th></th><td>13.</td><th><span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span><span style=\"color: green;\">C</span></th><th></th><td>25.</td><th><span style=\"color: green;\">C</span><span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span></th><th></th><td>37.</td><th><span style=\"color: orange;\">D</span><span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span></th><th></th><td>49.</td><th><span style=\"color: black;\">E</span><span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span></th></tr>\n<tr><td>2.</td><th><span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span><span style=\"color: orange;\">D</span></th><th></th><td>14.</td><th><span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span><span style=\"color: orange;\">D</span></th><th></th><td>26.</td><th><span style=\"color: green;\">C</span><span style=\"color: red;\">A</span><span style=\"color: orange;\">D</span></th><th></th><td>38.</td><th><span style=\"color: orange;\">D</span><span style=\"color: red;\">A</span><span style=\"color: green;\">C</span></th><th></th><td>50.</td><th><span style=\"color: black;\">E</span><span style=\"color: red;\">A</span><span style=\"color: green;\">C</span></th></tr>\n<tr><td>3.</td><th><span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span><span style=\"color: black;\">E</span></th><th></th><td>15.</td><th><span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span><span style=\"color: black;\">E</span></th><th></th><td>27.</td><th><span style=\"color: green;\">C</span><span style=\"color: red;\">A</span><span style=\"color: black;\">E</span></th><th></th><td>39.</td><th><span style=\"color: orange;\">D</span><span style=\"color: red;\">A</span><span style=\"color: black;\">E</span></th><th></th><td>51.</td><th><span style=\"color: black;\">E</span><span style=\"color: red;\">A</span><span style=\"color: orange;\">D</span></th></tr>\n<tr><td>4.</td><th><span style=\"color: red;\">A</span><span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span></th><th></th><td>16.</td><th><span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span><span style=\"color: red;\">A</span></th><th></th><td>28.</td><th><span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span></th><th></th><td>40.</td><th><span style=\"color: orange;\">D</span><span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span></th><th></th><td>52.</td><th><span style=\"color: black;\">E</span><span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span></th></tr>\n<tr><td>5.</td><th><span style=\"color: red;\">A</span><span style=\"color: green;\">C</span><span style=\"color: orange;\">D</span></th><th></th><td>17.</td><th><span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span><span style=\"color: orange;\">D</span></th><th></th><td>29.</td><th><span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span><span style=\"color: orange;\">D</span></th><th></th><td>41.</td><th><span style=\"color: orange;\">D</span><span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span></th><th></th><td>53.</td><th><span style=\"color: black;\">E</span><span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span></th></tr>\n<tr><td>6.</td><th><span style=\"color: red;\">A</span><span style=\"color: green;\">C</span><span style=\"color: black;\">E</span></th><th></th><td>18.</td><th><span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span><span style=\"color: black;\">E</span></th><th></th><td>30.</td><th><span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span><span style=\"color: black;\">E</span></th><th></th><td>42.</td><th><span style=\"color: orange;\">D</span><span style=\"color: blue;\">B</span><span style=\"color: black;\">E</span></th><th></th><td>54.</td><th><span style=\"color: black;\">E</span><span style=\"color: blue;\">B</span><span style=\"color: orange;\">D</span></th></tr>\n<tr><td>7.</td><th><span style=\"color: red;\">A</span><span style=\"color: orange;\">D</span><span style=\"color: blue;\">B</span></th><th></th><td>19.</td><th><span style=\"color: blue;\">B</span><span style=\"color: orange;\">D</span><span style=\"color: red;\">A</span></th><th></th><td>31.</td><th><span style=\"color: green;\">C</span><span style=\"color: orange;\">D</span><span style=\"color: red;\">A</span></th><th></th><td>43.</td><th><span style=\"color: orange;\">D</span><span style=\"color: green;\">C</span><span style=\"color: red;\">A</span></th><th></th><td>55.</td><th><span style=\"color: black;\">E</span><span style=\"color: green;\">C</span><span style=\"color: red;\">A</span></th></tr>\n<tr><td>8.</td><th><span style=\"color: red;\">A</span><span style=\"color: orange;\">D</span><span style=\"color: green;\">C</span></th><th></th><td>20.</td><th><span style=\"color: blue;\">B</span><span style=\"color: orange;\">D</span><span style=\"color: green;\">C</span></th><th></th><td>32.</td><th><span style=\"color: green;\">C</span><span style=\"color: orange;\">D</span><span style=\"color: blue;\">B</span></th><th></th><td>44.</td><th><span style=\"color: orange;\">D</span><span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span></th><th></th><td>56.</td><th><span style=\"color: black;\">E</span><span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span></th></tr>\n<tr><td>9.</td><th><span style=\"color: red;\">A</span><span style=\"color: orange;\">D</span><span style=\"color: black;\">E</span></th><th></th><td>21.</td><th><span style=\"color: blue;\">B</span><span style=\"color: orange;\">D</span><span style=\"color: black;\">E</span></th><th></th><td>33.</td><th><span style=\"color: green;\">C</span><span style=\"color: orange;\">D</span><span style=\"color: black;\">E</span></th><th></th><td>45.</td><th><span style=\"color: orange;\">D</span><span style=\"color: green;\">C</span><span style=\"color: black;\">E</span></th><th></th><td>57.</td><th><span style=\"color: black;\">E</span><span style=\"color: green;\">C</span><span style=\"color: orange;\">D</span></th></tr>\n<tr><td>10.</td><th><span style=\"color: red;\">A</span><span style=\"color: black;\">E</span><span style=\"color: blue;\">B</span></th><th></th><td>22.</td><th><span style=\"color: blue;\">B</span><span style=\"color: black;\">E</span><span style=\"color: red;\">A</span></th><th></th><td>34.</td><th><span style=\"color: green;\">C</span><span style=\"color: black;\">E</span><span style=\"color: red;\">A</span></th><th></th><td>46.</td><th><span style=\"color: orange;\">D</span><span style=\"color: black;\">E</span><span style=\"color: red;\">A</span></th><th></th><td>58.</td><th><span style=\"color: black;\">E</span><span style=\"color: orange;\">D</span><span style=\"color: red;\">A</span></th></tr>\n<tr><td>11.</td><th><span style=\"color: red;\">A</span><span style=\"color: black;\">E</span><span style=\"color: green;\">C</span></th><th></th><td>23.</td><th><span style=\"color: blue;\">B</span><span style=\"color: black;\">E</span><span style=\"color: green;\">C</span></th><th></th><td>35.</td><th><span style=\"color: green;\">C</span><span style=\"color: black;\">E</span><span style=\"color: blue;\">B</span></th><th></th><td>47.</td><th><span style=\"color: orange;\">D</span><span style=\"color: black;\">E</span><span style=\"color: blue;\">B</span></th><th></th><td>59.</td><th><span style=\"color: black;\">E</span><span style=\"color: orange;\">D</span><span style=\"color: blue;\">B</span></th></tr>\n<tr><td>12.</td><th><span style=\"color: red;\">A</span><span style=\"color: black;\">E</span><span style=\"color: orange;\">D</span></th><th></th><td>24.</td><th><span style=\"color: blue;\">B</span><span style=\"color: black;\">E</span><span style=\"color: orange;\">D</span></th><th></th><td>36.</td><th><span style=\"color: green;\">C</span><span style=\"color: black;\">E</span><span style=\"color: orange;\">D</span></th><th></th><td>48.</td><th><span style=\"color: orange;\">D</span><span style=\"color: black;\">E</span><span style=\"color: green;\">C</span></th><th></th><td>60.</td><th><span style=\"color: black;\">E</span><span style=\"color: orange;\">D</span><span style=\"color: green;\">C</span></th></tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                        Teraz przyjrzyj się wariacjom o numerach 1, 4, 13, 16, 25 i 28:\n                    </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>1.</td><th><span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span></th>\n<td>13.</td><th><span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span><span style=\"color: green;\">C</span></th>\n<td>25.</td><th><span style=\"color: green;\">C</span><span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span></th>\n</tr>\n<tr>\n<td>4.</td><th><span style=\"color: red;\">A</span><span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span></th>\n<td>16.</td><th><span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span><span style=\"color: red;\">A</span></th>\n<td>28.</td><th><span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span></th>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                        Te wariacje różnią się kolejnością, ale składają się z tych samych elementów. A my chcieliśmy tylko\n                    </p>\n<blockquote>\n                        \"wybrać trzy obiekty spośród pięciu\",\n                    </blockquote>\n<p>\n                        ich <strong>kolejność</strong> jest dla nas <strong>bez znaczenia</strong>.\n                    </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                        I dlatego te <strong>sześć</strong> wariacji to tylko jeden wybór - trzech elementów: <span style=\"color: red; font-weight: bold;\">A</span>, <span style=\"color: blue; font-weight: bold;\">B</span> i <span style=\"color: green; font-weight: bold;\">C</span>.\n                    </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                        Podobnie dla każdego innego wyboru <strong>trzech</strong> elementów mamy <strong>sześć</strong> wariacji.\n                    </p>\n<p>\n                        Wyborów jest więc sześciokrotnie mniej, czyli \\(60:6=10\\).\n                    </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                        Ale dlaczego akurat sześciokrotnie mniej?\n                    </p>\n<p>\n                        Dlatego, że dowolne trzy elementy możemy ustawić w kolejności na \\(3!=6\\) sposobów.\n                    </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                        Podsumujmy. Jak znaleźć liczbę możliwych wyborów trzech elementów z pięciu?\n                    </p>\n<p>\n                        Najpierw policzyliśmy liczbę wariacji bez powtórzeń:\n                    </p>\n                    \\[\n                    \\frac{5!}{(5-3)!}\n                    \\]\n                    <p>\n                        a potem tę liczbę podzieliliśmy przez \\(3!\\):\n                    </p>\n                    \\[\n                    \\frac{5!}{(5-3)!}:3!=\\frac{5!}{(5-3)!}\\cdot\\frac{1}{3!}=\\frac{5!}{(5-3)!\\cdot 3!}\n                    \\]\n                </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy te pięć obiektów literami: \n                    <span style=\"color: red; font-weight: bold;\">A</span>, \n                    <span style=\"color: blue; font-weight: bold;\">B</span>, \n                    <span style=\"color: green; font-weight: bold;\">C</span>, \n                    <span style=\"color: orange; font-weight: bold;\">D</span>, \n                    <span style=\"color: black; font-weight: bold;\">E</span>.\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Czy to przypadkiem nie jest tak, że \n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>pierwszy obiekt wybieramy na \\(5\\) sposobów,</li>\n<li>drugi obiekt wybieramy na \\(4\\) sposoby,</li>\n<li>trzeci obiekt wybieramy na \\(3\\) sposoby?</li>\n</ul>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Czyli odpowiedzią na to pytanie byłaby liczba \\(3\\)-wyrazowych wariacji <strong>bez powtórzeń</strong> ze zbioru \\(5\\)-elementowego?\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n                    V_5^3=\\frac{5!}{(5-3)!}=5\\cdot 4\\cdot 3=60\n                    \\]\n                    ?</p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Nie całkiem... \n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Dlaczego? Wypiszmy wszystkie takie wariacje:\n                    </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "1.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "13.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span><span style=\"color: green;\">C</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "25.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: green;\">C</span><span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "37.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: orange;\">D</span><span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "49.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: black;\">E</span><span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "2.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span><span style=\"color: orange;\">D</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "14.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span><span style=\"color: orange;\">D</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "26.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: green;\">C</span><span style=\"color: red;\">A</span><span style=\"color: orange;\">D</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "38.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: orange;\">D</span><span style=\"color: red;\">A</span><span style=\"color: green;\">C</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "50.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: black;\">E</span><span style=\"color: red;\">A</span><span style=\"color: green;\">C</span>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "3.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span><span style=\"color: black;\">E</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "15.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span><span style=\"color: black;\">E</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "27.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: green;\">C</span><span style=\"color: red;\">A</span><span style=\"color: black;\">E</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "39.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: orange;\">D</span><span style=\"color: red;\">A</span><span style=\"color: black;\">E</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "51.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: black;\">E</span><span style=\"color: red;\">A</span><span style=\"color: orange;\">D</span>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "4.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: red;\">A</span><span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "16.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span><span style=\"color: red;\">A</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "28.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "40.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: orange;\">D</span><span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "52.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: black;\">E</span><span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "5.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: red;\">A</span><span style=\"color: green;\">C</span><span style=\"color: orange;\">D</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "17.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span><span style=\"color: orange;\">D</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "29.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span><span style=\"color: orange;\">D</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "41.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: orange;\">D</span><span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "53.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: black;\">E</span><span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "6.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: red;\">A</span><span style=\"color: green;\">C</span><span style=\"color: black;\">E</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "18.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span><span style=\"color: black;\">E</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "30.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span><span style=\"color: black;\">E</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "42.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: orange;\">D</span><span style=\"color: blue;\">B</span><span style=\"color: black;\">E</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "54.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: black;\">E</span><span style=\"color: blue;\">B</span><span style=\"color: orange;\">D</span>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "7.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: red;\">A</span><span style=\"color: orange;\">D</span><span style=\"color: blue;\">B</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "19.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: blue;\">B</span><span style=\"color: orange;\">D</span><span style=\"color: red;\">A</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "31.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: green;\">C</span><span style=\"color: orange;\">D</span><span style=\"color: red;\">A</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "43.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: orange;\">D</span><span style=\"color: green;\">C</span><span style=\"color: red;\">A</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "55.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: black;\">E</span><span style=\"color: green;\">C</span><span style=\"color: red;\">A</span>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "8.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: red;\">A</span><span style=\"color: orange;\">D</span><span style=\"color: green;\">C</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "20.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: blue;\">B</span><span style=\"color: orange;\">D</span><span style=\"color: green;\">C</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "32.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: green;\">C</span><span style=\"color: orange;\">D</span><span style=\"color: blue;\">B</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "44.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: orange;\">D</span><span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "56.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: black;\">E</span><span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "9.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: red;\">A</span><span style=\"color: orange;\">D</span><span style=\"color: black;\">E</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "21.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: blue;\">B</span><span style=\"color: orange;\">D</span><span style=\"color: black;\">E</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "33.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: green;\">C</span><span style=\"color: orange;\">D</span><span style=\"color: black;\">E</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "45.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: orange;\">D</span><span style=\"color: green;\">C</span><span style=\"color: black;\">E</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "57.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: black;\">E</span><span style=\"color: green;\">C</span><span style=\"color: orange;\">D</span>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "10.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: red;\">A</span><span style=\"color: black;\">E</span><span style=\"color: blue;\">B</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "22.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: blue;\">B</span><span style=\"color: black;\">E</span><span style=\"color: red;\">A</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "34.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: green;\">C</span><span style=\"color: black;\">E</span><span style=\"color: red;\">A</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "46.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: orange;\">D</span><span style=\"color: black;\">E</span><span style=\"color: red;\">A</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "58.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: black;\">E</span><span style=\"color: orange;\">D</span><span style=\"color: red;\">A</span>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "11.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: red;\">A</span><span style=\"color: black;\">E</span><span style=\"color: green;\">C</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "23.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: blue;\">B</span><span style=\"color: black;\">E</span><span style=\"color: green;\">C</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "35.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: green;\">C</span><span style=\"color: black;\">E</span><span style=\"color: blue;\">B</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "47.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: orange;\">D</span><span style=\"color: black;\">E</span><span style=\"color: blue;\">B</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "59.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: black;\">E</span><span style=\"color: orange;\">D</span><span style=\"color: blue;\">B</span>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "12.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: red;\">A</span><span style=\"color: black;\">E</span><span style=\"color: orange;\">D</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "24.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: blue;\">B</span><span style=\"color: black;\">E</span><span style=\"color: orange;\">D</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "36.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: green;\">C</span><span style=\"color: black;\">E</span><span style=\"color: orange;\">D</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "48.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: orange;\">D</span><span style=\"color: black;\">E</span><span style=\"color: green;\">C</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "60.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: black;\">E</span><span style=\"color: orange;\">D</span><span style=\"color: green;\">C</span>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Teraz przyjrzyj się wariacjom o numerach 1, 4, 13, 16, 25 i 28:\n                    </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "1.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "13.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span><span style=\"color: green;\">C</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "25.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: green;\">C</span><span style=\"color: red;\">A</span><span style=\"color: blue;\">B</span>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "4.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: red;\">A</span><span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "16.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: blue;\">B</span><span style=\"color: green;\">C</span><span style=\"color: red;\">A</span>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "28.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "<span style=\"color: green;\">C</span><span style=\"color: blue;\">B</span><span style=\"color: red;\">A</span>",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Te wariacje różnią się kolejnością, ale składają się z tych samych elementów. A my chcieliśmy tylko\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                        \"wybrać trzy obiekty spośród pięciu\",\n                    </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        ich <strong>kolejność</strong> jest dla nas <strong>bez znaczenia</strong>.\n                    </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        I dlatego te <strong>sześć</strong> wariacji to tylko jeden wybór - trzech elementów: <span style=\"color: red; font-weight: bold;\">A</span>, <span style=\"color: blue; font-weight: bold;\">B</span> i <span style=\"color: green; font-weight: bold;\">C</span>.\n                    </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Podobnie dla każdego innego wyboru <strong>trzech</strong> elementów mamy <strong>sześć</strong> wariacji.\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Wyborów jest więc sześciokrotnie mniej, czyli \\(60:6=10\\).\n                    </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Ale dlaczego akurat sześciokrotnie mniej?\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Dlatego, że dowolne trzy elementy możemy ustawić w kolejności na \\(3!=6\\) sposobów.\n                    </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Podsumujmy. Jak znaleźć liczbę możliwych wyborów trzech elementów z pięciu?\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Najpierw policzyliśmy liczbę wariacji bez powtórzeń:\n                    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                    \\frac{5!}{(5-3)!}\n                    "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        a potem tę liczbę podzieliliśmy przez \\(3!\\):\n                    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                    \\frac{5!}{(5-3)!}:3!=\\frac{5!}{(5-3)!}\\cdot\\frac{1}{3!}=\\frac{5!}{(5-3)!\\cdot 3!}\n                    "
+        }
+      ]
     },
     {
       "type": "text",
@@ -23,5 +1092,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "35d30ab05846e1d1f5fe17b9b611ab446190191a74411eadca8f837e58bbbecb"
+  "seed_hash": "534b3a9e853269f7e1c269bb50923fa14cc40d3cb771ae556d44e0887f4c4dcc"
 }

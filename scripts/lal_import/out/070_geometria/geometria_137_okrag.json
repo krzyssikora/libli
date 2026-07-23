@@ -2,15 +2,29 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/czworokat_na_kole_1.png",
+      "alt": "okrąg i styczne - zadanie 3",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "\n<img alt=\"okrąg i styczne - zadanie 3\" height=\"400\" src=\"static/czworokat_na_kole_1.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n            Rysunek przedstawia czworokąt \\(ABCD\\)\n            <strong>\n                opisany\n            </strong>\n            na okręgu (czyli taki, którego wszystkie boki są styczne do okręgu).\n        </p>\n<p>\n            Długość boku \\(AD\\) to \\(8\\). Długość boku \\(BC\\) to \\(13\\).\n        </p>\n<p>\n            Znajdź obwód czworokąta \\(ABCD\\).\n        </p>\n"
+      "body": "<p>\n            Rysunek przedstawia czworokąt \\(ABCD\\)\n            <strong>\n                opisany\n            </strong>\n            na okręgu (czyli taki, którego wszystkie boki są styczne do okręgu).\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n            zacznij rozwiązanie\n        "
+      "body": "<p>\n            Długość boku \\(AD\\) to \\(8\\). Długość boku \\(BC\\) to \\(13\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź obwód czworokąta \\(ABCD\\).\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "zacznij rozwiązanie"
     },
     {
       "type": "text",
@@ -21,40 +35,46 @@
       "body": "<p>\n                Mamy jednak dany też okrąg, do którego wszystkie cztery boki są styczne, przypomnijmy więc sobie\n                <u>\n                    twierdzenie o dwóch stycznych z jednego punktu\n                </u>\n                :\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"Styczne z jednego punktu\" height=\"300\" src=\"static/tw_2_styczne.png\"/>\n"
+      "type": "image",
+      "media_src": "static/tw_2_styczne.png",
+      "alt": "Styczne z jednego punktu",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
       "body": "<p>\n                Każdy z boków czworokąta składa się z dwóch odcinków łączących punkt styczności z wierzchołkami.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"okrąg i styczne - zadanie 3\" height=\"400\" src=\"static/czworokat_na_kole_2.png\"/>\n"
+      "type": "image",
+      "media_src": "static/czworokat_na_kole_2.png",
+      "alt": "okrąg i styczne - zadanie 3",
+      "figcaption": ""
     },
     {
       "type": "text",
       "body": "<ul class=\"nolist\">\n<li>\n                    bok \\(AD\\) o długości \\(8\\) składa się z odcinka\n                    <span style=\"color:red\">\n                        czerwonego\n                    </span>\n                    i\n                    <span style=\"color: yellow; background-color: gray;\">\n                        żółtego\n                    </span>\n                    ,\n                </li>\n<li>\n                    bok \\(BC\\) o długości \\(13\\) składa się z odcinka\n                    <span style=\"color:blue\">\n                        niebieskiego\n                    </span>\n                    i\n                    <span style=\"color: green\">\n                        zielonego\n                    </span>\n                    .\n                </li>\n</ul>"
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
       "body": "<p>\n                Z\n                <u>\n                    twierdzenia o dwóch stycznych z jednego punktu\n                </u>\n                dwa pozostałe boki składają się z odcinków o tych samych długościach, zaznaczonych niżej tymi samymi kolorami.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"okrąg i styczne - zadanie 3\" height=\"400\" src=\"static/czworokat_na_kole_3.png\"/>\n"
+      "type": "image",
+      "media_src": "static/czworokat_na_kole_3.png",
+      "alt": "okrąg i styczne - zadanie 3",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -65,8 +85,8 @@
       "body": "<p>\n                Ale przecież boki \\(AB\\) i \\(CD\\) składają się z takich samych odcinków, wiec także są długości \\(21\\).\n            </p>"
     },
     {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -74,5 +94,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "c1dc52030c1b499d769055a37e100106bae08600c5778b5b3801e0343de40ed2"
+  "seed_hash": "1f618ae1a85ac9b6596bed758576b0aa98be9c112b58d34dda71c1bdd15345cc"
 }

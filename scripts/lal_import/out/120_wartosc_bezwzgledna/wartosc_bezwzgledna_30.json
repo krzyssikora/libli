@@ -10,38 +10,101 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Oblicz i przedstaw wynik w najprostszej postaci.\n        <ol type=\"a\">\n<li>\n                \\(|3-\\sqrt{7}|\\)\n            </li>\n<li>\n                \\(|7-5\\sqrt{2}|\\)\n            </li>\n</ol>\n<p>\n            Zanim przeczytasz moje rozwiązania, spróbuj odpowiedzieć na oba pytania samodzielnie.\n        </p>\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n<p>\n            Jeśli \\(a=3-\\sqrt{7}\\), to żeby obliczyć \\(|a|\\), musimy wiedzieć, czy \\(a\\ge 0\\) czy też \\(a\\lt 0\\).\n        </p>\n<p>\n            Zauważmy, że \\(3=\\sqrt{9}\\), więc\n        </p>\n        \\[a=3-\\sqrt{7}=\\sqrt{9}-\\sqrt{7}\\]\n        <p>\n            Oczywiście \\(\\sqrt{9}&gt;\\sqrt{7}\\), więc\n        </p>\n        \\[a=\\sqrt{9}-\\sqrt{7}\\gt 0\\]\n        <p>\n            A skoro \\(a\\gt 0\\), to \\(|a|=a\\), więc:\n        </p>\n        \\[|3-\\sqrt{7}|=3-\\sqrt{7}\\]\n    </div>",
-      "reason": "unmapped <div> in lesson body"
+      "body": "<p>Oblicz i przedstaw wynik w najprostszej postaci.</p>"
     },
     {
       "type": "text",
-      "body": "\n"
+      "body": "<ol type=\"a\">\n<li>\n                \\(|3-\\sqrt{7}|\\)\n            </li>\n<li>\n                \\(|7-5\\sqrt{2}|\\)\n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Zanim przeczytasz moje rozwiązania, spróbuj odpowiedzieć na oba pytania samodzielnie.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "Rozwiązanie części (a) - zobacz",
-      "body": "\n<p>\n            Podobnie jak w części (a), musimy sprawdzić, czy liczba \\(a=7-5\\sqrt{2}\\) jest dodatnia czy ujemna.\n        </p>\n<p>\n            Zauważmy, że\n        </p>\n        \\[7=\\sqrt{49}\\]\n        <p>\n            natomiast\n        </p>\n        \\[5\\sqrt{2}=\\sqrt{25}\\cdot\\sqrt{2}=\\sqrt{50}\\]\n        <p>\n            Stąd:\n        </p>\n        \\[a=7-5\\sqrt{2}=\\sqrt{49}-\\sqrt{50}\\lt 0\\]\n        <p>\n            bo \\(\\sqrt{49}\\lt \\sqrt{50}\\)\n        </p>\n<p>\n            I teraz skoro liczba \\(a=7-5\\sqrt{2}\\) jest ujemna, to \\(|a|=-a\\), czyli:\n        </p>\n        \\[|7-5\\sqrt{2}|=-(7-5\\sqrt{2})=-7+5\\sqrt{2}=5\\sqrt{2}-7\\]\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Podobnie jak w części (a), musimy sprawdzić, czy liczba \\(a=7-5\\sqrt{2}\\) jest dodatnia czy ujemna.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zauważmy, że\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "7=\\sqrt{49}"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            natomiast\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "5\\sqrt{2}=\\sqrt{25}\\cdot\\sqrt{2}=\\sqrt{50}"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Stąd:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "a=7-5\\sqrt{2}=\\sqrt{49}-\\sqrt{50}\\lt 0"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            bo \\(\\sqrt{49}\\lt \\sqrt{50}\\)\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            I teraz skoro liczba \\(a=7-5\\sqrt{2}\\) jest ujemna, to \\(|a|=-a\\), czyli:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "|7-5\\sqrt{2}|=-(7-5\\sqrt{2})=-7+5\\sqrt{2}=5\\sqrt{2}-7"
+        }
+      ]
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n        Rozwiązanie części (b) - zobacz\n    </div>",
-      "reason": "show_solution button without solution"
+      "type": "spoiler",
+      "label": "Rozwiązanie części (b) - zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Jeśli \\(a=3-\\sqrt{7}\\), to żeby obliczyć \\(|a|\\), musimy wiedzieć, czy \\(a\\ge 0\\) czy też \\(a\\lt 0\\).\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zauważmy, że \\(3=\\sqrt{9}\\), więc\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "a=3-\\sqrt{7}=\\sqrt{9}-\\sqrt{7}"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Oczywiście \\(\\sqrt{9}&gt;\\sqrt{7}\\), więc\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "a=\\sqrt{9}-\\sqrt{7}\\gt 0"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            A skoro \\(a\\gt 0\\), to \\(|a|=a\\), więc:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "|3-\\sqrt{7}|=3-\\sqrt{7}"
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "f77ce1cac086f50f60b79f7dbed126b25309b607aceb9daeb6b9165dcc26a4e7"
+  "fully_mapped": true,
+  "seed_hash": "7ce91a6970279922573d5d555db5426afa5ba1b1d10530741e2998cb492ce6b6"
 }

@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -11,11 +11,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(a_5=18\\), \\(a_6=34\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(a_5=18\\), \\(a_6=34\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -24,11 +29,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(b_{10}=3\\), \\(b_{100}=3\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(b_{10}=3\\), \\(b_{100}=3\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -37,11 +47,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(c_n=3^n\\) dla \\(n=1, 2, 3, \\dots\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(c_n=3^n\\) dla \\(n=1, 2, 3, \\dots\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -50,11 +65,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(d_n=5n\\) dla \\(n=1, 2, 3, \\dots\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(d_n=5n\\) dla \\(n=1, 2, 3, \\dots\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -63,11 +83,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(e_n=4^{n-1}\\) dla \\(n=1, 2, 3, \\dots\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(e_n=4^{n-1}\\) dla \\(n=1, 2, 3, \\dots\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -76,11 +101,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(f_n=7(n-1)\\) dla \\(n=1, 2, 3, \\dots\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(f_n=7(n-1)\\) dla \\(n=1, 2, 3, \\dots\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -89,11 +119,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(g_n=3\\cdot 2^{n-1}\\) dla \\(n=1, 2, 3, \\dots\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(g_n=3\\cdot 2^{n-1}\\) dla \\(n=1, 2, 3, \\dots\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -102,9 +137,14 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(h_n=2+3(n-1)\\) dla \\(n=1, 2, 3, \\dots\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(h_n=2+3(n-1)\\) dla \\(n=1, 2, 3, \\dots\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "5977f85a11f82d203ab4e28ac46d1d67cd4cd4de254cd83c8cfe7d27c8a729ca"
+  "seed_hash": "ca3611bff96e39ecdd97b2969e2575ec017cba7d01769dace9641ae93b79f191"
 }

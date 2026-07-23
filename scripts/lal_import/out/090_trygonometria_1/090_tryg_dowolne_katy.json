@@ -10,17 +10,161 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/wielokrotnosci_90.png",
+      "alt": "funkcje trygonometryczne wielokrotności 90 stopni",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "\n<img alt=\"funkcje trygonometryczne wielokrotności 90 stopni\" height=\"300\" src=\"static/wielokrotnosci_90.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n<small>\n                Rysunek przedstawia okrąg jednostkowy, czyli taki, którego promień \\(r=1\\).\n            </small>\n</p>\n<p>\n            Jakie są wartości funkcji trygonometrycznych kątów \\(0^{\\circ}\\), \\(90^{\\circ}\\), \\(180^{\\circ}\\) i \\(270^{\\circ}\\)?\n        </p>\n<p>\n            Skorzystaj z definicji funkcji trygonometrycznych, użyj współrzędnych z rysunku i uzupełnij tabelę.\n        </p>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                            \\(\\alpha\\)\n                        </td>\n<td>\n                            \\(\\sin\\alpha\\)\n                        </td>\n<td>\n                            \\(\\cos\\alpha\\)\n                        </td>\n<td>\n                            \\(\\text{tg}\\alpha\\)\n                        </td>\n<td>\n                            \\(\\text{ctg}\\alpha\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(0^{\\circ}\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            nie istnieje\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(90^{\\circ}\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            nie istnieje\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n<tr>\n<td>\n                            \\(180^{\\circ}\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            nie istnieje\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(270^{\\circ}\\)\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n<td>\n                            nie istnieje\n                        </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>\n<details>\n<summary>\n                Czy rozumiesz, dlaczego niektóre wartości\n                <em>\n                    nie istnieją\n                </em>\n                ?\n            </summary>\n<p>\n                Tangens jest zdefiniowany: \\(\\text{tg}\\alpha=\\frac{y}{x}\\), więc jego wartość nie istnieje dla kątów wskazanych przez punkty na osi \\(OY\\) - bo mają współrzędną \\(x=0\\).\n            </p>\n<p>\n                Cotangens jest zdefiniowany: \\(\\text{ctg}\\alpha=\\frac{x}{y}\\), więc jego wartość nie istnieje dla kątów wskazanych przez punkty na osi \\(OX\\) - bo mają współrzędną \\(y=0\\).\n            </p>\n</details>\n"
+      "body": "<p>\n<small>\n                Rysunek przedstawia okrąg jednostkowy, czyli taki, którego promień \\(r=1\\).\n            </small>\n</p>"
     },
     {
       "type": "text",
-      "body": "\n    Świetnie!\n"
+      "body": "<p>\n            Jakie są wartości funkcji trygonometrycznych kątów \\(0^{\\circ}\\), \\(90^{\\circ}\\), \\(180^{\\circ}\\) i \\(270^{\\circ}\\)?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Skorzystaj z definicji funkcji trygonometrycznych, użyj współrzędnych z rysunku i uzupełnij tabelę.\n        </p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(\\alpha\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\sin\\alpha\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\cos\\alpha\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\text{tg}\\alpha\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(\\text{ctg}\\alpha\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(0^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "static",
+              "html": "nie istnieje"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(90^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "static",
+              "html": "nie istnieje"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(180^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "answer",
+              "answer": "-1"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "static",
+              "html": "nie istnieje"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(270^{\\circ}\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "-1"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            },
+            {
+              "kind": "static",
+              "html": "nie istnieje"
+            },
+            {
+              "kind": "answer",
+              "answer": "0"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "spoiler",
+      "label": "Czy rozumiesz, dlaczego niektóre wartościnie istnieją?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Tangens jest zdefiniowany: \\(\\text{tg}\\alpha=\\frac{y}{x}\\), więc jego wartość nie istnieje dla kątów wskazanych przez punkty na osi \\(OY\\) - bo mają współrzędną \\(x=0\\).\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Cotangens jest zdefiniowany: \\(\\text{ctg}\\alpha=\\frac{x}{y}\\), więc jego wartość nie istnieje dla kątów wskazanych przez punkty na osi \\(OX\\) - bo mają współrzędną \\(y=0\\).\n            </p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "bd8916a734b30decf2348c7ad118988725add32b7a10050db64617258f360691"
+  "seed_hash": "27e1ff93839261a177941796a5a39ae02c8321daf4d4ba3cb083dd65b899e108"
 }

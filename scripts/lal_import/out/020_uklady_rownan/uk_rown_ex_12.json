@@ -26,7 +26,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -38,17 +38,27 @@
     },
     {
       "type": "text",
-      "body": "\n    Świetnie!\n"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p>\n            Pomyśl, jak obliczyć najmniejszą wspólną wielokrotność\n            <strong>\n                trzech\n            </strong>\n            (lub większej liczby) liczb.\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Pomyśl, jak obliczyć najmniejszą wspólną wielokrotność\n            <strong>\n                trzech\n            </strong>\n            (lub większej liczby) liczb.\n        </p>\n<p>\n            Możesz poszukać inspiracji choćby w\n            <a href=\"https://pl.wikipedia.org/wiki/Najmniejsza_wsp%C3%B3lna_wielokrotno%C5%9B%C4%87\">\n                artykule o najmniejszej wspólnej wielokrotności na Wikipedii\n            </a>\n            .\n        </p>\n<p>\n            Z tego artykułu pochodzi poniższy diagram przedstawiający najmniejsze wspólne wielokrotności dla wszystkich możliwych kombinacji liczb 2, 3, 4, 5 i 7:\n        </p>\n<p>\n<img alt=\"wielokrotności\" src=\"static/lcm.png\"/>\n</p>\n"
+      "body": "<p>\n            Możesz poszukać inspiracji choćby w\n            <a href=\"https://pl.wikipedia.org/wiki/Najmniejsza_wsp%C3%B3lna_wielokrotno%C5%9B%C4%87\">\n                artykule o najmniejszej wspólnej wielokrotności na Wikipedii\n            </a>\n            .\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Z tego artykułu pochodzi poniższy diagram przedstawiający najmniejsze wspólne wielokrotności dla wszystkich możliwych kombinacji liczb 2, 3, 4, 5 i 7:\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/lcm.png",
+      "alt": "wielokrotności",
+      "figcaption": ""
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "b01ccc27bf992352b3be670f0dcd388f02adb41904c811e43bf0504bc1d848b5"
+  "seed_hash": "2747d4daf49cc46463ad171aa50489310bc30c280e0d49afddec3295cd04cd09"
 }

@@ -26,99 +26,49 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Rozwiąż równanie.\n        <div class=\"table_wrapper\">\\[\n        \\frac{3x+10}{x+4}=\\frac{x+7}{x}\n        \\]</div>\n"
+      "body": "<p>Rozwiąż równanie.</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        \\frac{3x+10}{x+4}=\\frac{x+7}{x}\n        \\]"
     },
     {
       "type": "text",
       "body": "<p>\n                Zacznijmy od dziedziny.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "<p>Ułamki w równaniu są określone (mają wartość liczbową) jeśli</p>"
+      "type": "switch_gate",
+      "stem": "\n                Ułamki w równaniu są określone (mają wartość liczbową) jeśli\n                \n\n\n\n￿0￿.\n            ",
+      "options": [
+        "\\(x= -4\\) lub \\(x= 0\\)",
+        "\\(x= 4\\) lub \\(x= 0\\)",
+        "\\(x\\ne -4\\) i \\(x\\ne 0\\)"
+      ],
+      "answer": 2
     },
     {
-      "type": "text",
-      "body": "&gt;&gt; wybierz &gt;&gt;"
+      "type": "switch_gate",
+      "stem": "\n                Teraz wymnażamy proporcję na skos otrzymując\n                \n\n\n\n￿0￿.\n            ",
+      "options": [
+        "\\((3x+10)(x+7)=(x+4)\\cdot x\\)",
+        "\\((3x+10)\\cdot x=(x+4)(x+7)\\)",
+        "\\((3x+10)(x+4)=(x+7)\\cdot x\\)"
+      ],
+      "answer": 1
     },
     {
-      "type": "text",
-      "body": "\\(x= -4\\) lub \\(x= 0\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(x= 4\\) lub \\(x= 0\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(x\\ne -4\\) i \\(x\\ne 0\\)"
-    },
-    {
-      "type": "text",
-      "body": "zatwierdź"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Teraz wymnażamy proporcję na skos otrzymując</p>"
-    },
-    {
-      "type": "text",
-      "body": "&gt;&gt; wybierz &gt;&gt;"
-    },
-    {
-      "type": "text",
-      "body": "\\((3x+10)(x+7)=(x+4)\\cdot x\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\((3x+10)\\cdot x=(x+4)(x+7)\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\((3x+10)(x+4)=(x+7)\\cdot x\\)"
-    },
-    {
-      "type": "text",
-      "body": "zatwierdź"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Wymnażamy wyrażenia po obu stronach równania i redukujemy wyrazy podobne otrzymując</p>"
-    },
-    {
-      "type": "text",
-      "body": "&gt;&gt; wybierz &gt;&gt;"
-    },
-    {
-      "type": "text",
-      "body": "\\(3x^2+10x=x^2+11x+28\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(3x^2+10x=x^2+28\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(14x=13x+28\\)"
-    },
-    {
-      "type": "text",
-      "body": "zatwierdź"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
+      "type": "switch_gate",
+      "stem": "\n                Wymnażamy wyrażenia po obu stronach równania i redukujemy wyrazy podobne otrzymując \n                \n\n\n\n￿0￿.\n            ",
+      "options": [
+        "\\(3x^2+10x=x^2+11x+28\\)",
+        "\\(3x^2+10x=x^2+28\\)",
+        "\\(14x=13x+28\\)"
+      ],
+      "answer": 0
     },
     {
       "type": "text",
@@ -129,32 +79,14 @@
       "body": "\\[\n            2x^2-x-28=0\n            \\]"
     },
     {
-      "type": "text",
-      "body": "<p>Delta tego wyrażenia to</p>"
-    },
-    {
-      "type": "text",
-      "body": "&gt;&gt; wybierz &gt;&gt;"
-    },
-    {
-      "type": "text",
-      "body": "\\(\\Delta=15\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(\\Delta=225\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(\\Delta=57\\)"
-    },
-    {
-      "type": "text",
-      "body": "zatwierdź"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
+      "type": "switch_gate",
+      "stem": "\n                Delta tego wyrażenia to \n                \n\n\n\n￿0￿.\n            ",
+      "options": [
+        "\\(\\Delta=15\\)",
+        "\\(\\Delta=225\\)",
+        "\\(\\Delta=57\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
@@ -165,32 +97,14 @@
       "body": "\\[\n            x=\\frac{-b\\pm\\sqrt{\\Delta}}{2a}=\\frac{1\\pm\\sqrt{225}}{2\\cdot 2}\n            \\]"
     },
     {
-      "type": "text",
-      "body": "<p>i otrzymujemy</p>"
-    },
-    {
-      "type": "text",
-      "body": "&gt;&gt; wybierz &gt;&gt;"
-    },
-    {
-      "type": "text",
-      "body": "\\(\\tfrac{7}{2}\\) oraz \\(-4\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(-\\tfrac{7}{2}\\) oraz \\(4\\)"
-    },
-    {
-      "type": "text",
-      "body": "\\(-7\\) oraz \\(8\\)"
-    },
-    {
-      "type": "text",
-      "body": "zatwierdź"
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
+      "type": "switch_gate",
+      "stem": "\n                i otrzymujemy \n                \n\n\n\n￿0￿.\n            ",
+      "options": [
+        "\\(\\tfrac{7}{2}\\) oraz \\(-4\\)",
+        "\\(-\\tfrac{7}{2}\\) oraz \\(4\\)",
+        "\\(-7\\) oraz \\(8\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
@@ -206,5 +120,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "914e3c90b367bf54b25eeaa641249c00ec2fb1ea9702811b23df2c19a7e486f7"
+  "seed_hash": "b445a187d6d585d170db5d9ebd79c23a5647632fdc1a18c48b7dade4b993041f"
 }

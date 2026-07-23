@@ -30,37 +30,73 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie możesz przesuwać zaznaczone na <span style=\"color: red\">czerwono</span> punkty, żeby zmienić kształt czworokąta.\n        </p>\n<p>\n            Czwarty wierzchołek zmieni się sam - tak, by czworokąt był deltoidem. Zwróć uwagę, że boki równej długości są zaznaczone tym samym kolorem.\n        </p>\n<p>\n            Zaznaczaj pola wyboru i zmieniaj kształt deltoidu, by obserwować opisane wyżej własności.\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"728px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/dcbgm36n/width/675/height/728/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"własności deltoidu\" width=\"675px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać zaznaczone na <span style=\"color: red\">czerwono</span> punkty, żeby zmienić kształt czworokąta.\n        </p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p>\n            Czwarty wierzchołek zmieni się sam - tak, by czworokąt był deltoidem. Zwróć uwagę, że boki równej długości są zaznaczone tym samym kolorem.\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Czworokąt \\(PQRS\\) jest deltoidem, w którym \\(PQ=PS\\) oraz \\(RQ=RS\\).\n        </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_90.png\" style=\"max-width: 600px;\"/>\n</figure>\n"
+      "body": "<p>\n            Zaznaczaj pola wyboru i zmieniaj kształt deltoidu, by obserwować opisane wyżej własności.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/dcbgm36n/width/675/height/728/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
     },
     {
       "type": "text",
-      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Linia \\(PR\\) jest osią symetrii deltoidu.\n            </div>\n<div class=\"one_choice ks_button\">prawda</div>\n<div class=\"one_choice ks_button\">fałsz</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Linia \\(QS\\) jest osią symetrii deltoidu.\n            </div>\n<div class=\"one_choice ks_button\">prawda</div>\n<div class=\"one_choice ks_button\">fałsz</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Kąty \\(PSR\\) oraz \\(SPQ\\) są równe.\n            </div>\n<div class=\"one_choice ks_button\">prawda</div>\n<div class=\"one_choice ks_button\">fałsz</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Kąty \\(PSR\\) oraz \\(PQR\\) są równe.\n            </div>\n<div class=\"one_choice ks_button\">prawda</div>\n<div class=\"one_choice ks_button\">fałsz</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Odcinki \\(PR\\) i \\(QS\\) są prostopadłe.\n            </div>\n<div class=\"one_choice ks_button\">prawda</div>\n<div class=\"one_choice ks_button\">fałsz</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Odcinki \\(PQ\\) i \\(QR\\) są prostopadłe.\n            </div>\n<div class=\"one_choice ks_button\">prawda</div>\n<div class=\"one_choice ks_button\">fałsz</div>\n</li>\n</ul>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "potwierdź "
+      "body": "<p>\n            Czworokąt \\(PQRS\\) jest deltoidem, w którym \\(PQ=PS\\) oraz \\(RQ=RS\\).\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+      "type": "image",
+      "media_src": "static/geometria_3_zadanie_90.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi: \n    "
+      "type": "choice_grid",
+      "columns": [
+        "prawda",
+        "fałsz"
+      ],
+      "rows": [
+        {
+          "statement": "Linia \\(PR\\) jest osią symetrii deltoidu.",
+          "correct": 0
+        },
+        {
+          "statement": "Linia \\(QS\\) jest osią symetrii deltoidu.",
+          "correct": 1
+        },
+        {
+          "statement": "Kąty \\(PSR\\) oraz \\(SPQ\\) są równe.",
+          "correct": 1
+        },
+        {
+          "statement": "Kąty \\(PSR\\) oraz \\(PQR\\) są równe.",
+          "correct": 0
+        },
+        {
+          "statement": "Odcinki \\(PR\\) i \\(QS\\) są prostopadłe.",
+          "correct": 0
+        },
+        {
+          "statement": "Odcinki \\(PQ\\) i \\(QR\\) są prostopadłe.",
+          "correct": 1
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "6daf2c4701c18ececa6c36ff41e75623019c6b9834e669a863822aade3374a8b"
+  "seed_hash": "cfa94a2a334204c536529439c537c95e8a87d108e65dafd2a3145cb92fa1dd56"
 }

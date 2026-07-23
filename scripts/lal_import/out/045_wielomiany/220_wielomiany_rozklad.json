@@ -18,7 +18,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -27,7 +27,36 @@
     {
       "type": "spoiler",
       "label": "przeczytaj",
-      "body": "\n\n<p>\n            Skorzystamy z prostej, ale bardzo ważnej obserwacji:\n        </p>\n<div class=\"important\">\n            jeżeli iloczyn dwóch czynników (liczb, wyrażeń) jest równy \\(0\\):\n                    \\[\n                    A\\cdot B=0\n                    \\]\n                    to jeden z nich (lub oba) musi być równy \\(0\\):\n            <div class=\"centered\">\n                \\(A=0\\quad\\) lub \\(\\quad B=0\\)\n            </div>\n</div>\n        Tak więc jeśli\n                                    \\[\n                                    6\\left(x-\\frac{3}{2}\\right)\\left(x+\\frac{1}{3}\\right)=0\n                                    \\]\n                                    to\n        <div class=\"centered\">\n            \\(\\left(x-\\frac{3}{2}\\right)=0\\quad\\) lub \\(\\quad \\left(x+\\frac{1}{3}\\right)=0\\)\n        </div>\n        czyli\n        <div class=\"centered\">\n            \\(x=\\frac{3}{2}\\quad\\) lub \\(\\quad x=-\\frac{1}{3}\\)\n        </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Skorzystamy z prostej, ale bardzo ważnej obserwacji:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>jeżeli iloczyn dwóch czynników (liczb, wyrażeń) jest równy \\(0\\):\n                    \\[\n                    A\\cdot B=0\n                    \\]\n                    to jeden z nich (lub oba) musi być równy \\(0\\):</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\(A=0\\quad\\) lub \\(\\quad B=0\\)\n            "
+        },
+        {
+          "type": "text",
+          "body": "<p>Tak więc jeśli\n                                    \\[\n                                    6\\left(x-\\frac{3}{2}\\right)\\left(x+\\frac{1}{3}\\right)=0\n                                    \\]\n                                    to</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(\\left(x-\\frac{3}{2}\\right)=0\\quad\\) lub \\(\\quad \\left(x+\\frac{1}{3}\\right)=0\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>czyli</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(x=\\frac{3}{2}\\quad\\) lub \\(\\quad x=-\\frac{1}{3}\\)\n        "
+        }
+      ]
     },
     {
       "type": "text",
@@ -35,7 +64,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -44,7 +73,32 @@
     {
       "type": "spoiler",
       "label": "przeczytaj",
-      "body": "\n\n<p>\n            Skoro\n        </p>\n        \\[\n                                    (2x-3)(3x+1)=0\n                                    \\]\n                                    to\n        <div class=\"centered\">\n            \\(2x-3=0\\quad\\) lub \\(\\quad 3x+1=0\\)\n        </div>\n        czyli\n        <div class=\"centered\">\n            \\(x=\\frac{3}{2}\\quad\\) lub \\(\\quad x=-\\frac{1}{3}\\)\n        </div>\n        Zauważ, że rozwiązania są identyczne, jak w przykładzie powyżej. Nic dziwnego, użyliśmy tej samej funkcji, tylko zapisanej w innej postaci:\n                                    \\[\n                                    \\begin{align*}\n                                    y&amp;=6\\left(x-\\frac{3}{2}\\right)\\left(x+\\frac{1}{3}\\right)=\\\\\n                                    &amp;=\\color{red}{2}\\cdot\\color{blue}{3}\\cdot\\color{red}{\\left(x-\\frac{3}{2}\\right)}\\color{blue}{\\left(x+\\frac{1}{3}\\right)}=\\\\\n                                    &amp;=\\color{red}{2}\\cdot\\color{red}{\\left(x-\\frac{3}{2}\\right)}\\cdot \\color{blue}{3}\\cdot\\color{blue}{\\left(x+\\frac{1}{3}\\right)}=\\\\\n                                    &amp;=\\color{red}{\\left(2x-3\\right)}\\cdot \\color{blue}{\\left(3x+1\\right)}\n                                    \\end{align*}\n                                    \\]\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Skoro\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n                                    (2x-3)(3x+1)=0\n                                    \\]\n                                    to</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(2x-3=0\\quad\\) lub \\(\\quad 3x+1=0\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>czyli</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(x=\\frac{3}{2}\\quad\\) lub \\(\\quad x=-\\frac{1}{3}\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważ, że rozwiązania są identyczne, jak w przykładzie powyżej. Nic dziwnego, użyliśmy tej samej funkcji, tylko zapisanej w innej postaci:\n                                    \\[\n                                    \\begin{align*}\n                                    y&=6\\left(x-\\frac{3}{2}\\right)\\left(x+\\frac{1}{3}\\right)=\\\\\n                                    &=\\color{red}{2}\\cdot\\color{blue}{3}\\cdot\\color{red}{\\left(x-\\frac{3}{2}\\right)}\\color{blue}{\\left(x+\\frac{1}{3}\\right)}=\\\\\n                                    &=\\color{red}{2}\\cdot\\color{red}{\\left(x-\\frac{3}{2}\\right)}\\cdot \\color{blue}{3}\\cdot\\color{blue}{\\left(x+\\frac{1}{3}\\right)}=\\\\\n                                    &=\\color{red}{\\left(2x-3\\right)}\\cdot \\color{blue}{\\left(3x+1\\right)}\n                                    \\end{align*}\n                                    \\]</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -52,5 +106,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "1cbcd43bea38e06ea78714a168c763ffa3a037124ffe5f8253881afeb1ef98cb"
+  "seed_hash": "d59b113345cd53c38cb26b8f016ae1587e3012439d035b4eb83de1dfa25262f5"
 }

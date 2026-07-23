@@ -18,7 +18,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -29,7 +29,7 @@
       "body": "<p>\n        Pierwsza funkcja: \\( y=-\\frac{1}{2}x^2 \\)\n    </p>"
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -37,66 +37,54 @@
         "cells": [
           [
             {
-              "html": "\\(x\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(x\\)"
             },
             {
-              "html": "\\(-2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-2\\)"
             },
             {
-              "html": "\\(-1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-1\\)"
             },
             {
-              "html": "\\(0\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(0\\)"
             },
             {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(1\\)"
             },
             {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(2\\)"
             }
           ],
           [
             {
-              "html": "\\(y\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(y\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-2.0|-2,0"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-0.5|-0,5"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "0.0|0,0"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-0.5|-0,5"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-2.0|-2,0"
             }
           ]
         ]
@@ -107,7 +95,7 @@
       "body": "<p>\n        Druga funkcja: \\( y=2x^2 \\)\n    </p>"
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -115,94 +103,60 @@
         "cells": [
           [
             {
-              "html": "\\(x\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(x\\)"
             },
             {
-              "html": "\\(-2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-2\\)"
             },
             {
-              "html": "\\(-1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-1\\)"
             },
             {
-              "html": "\\(0\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(0\\)"
             },
             {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(1\\)"
             },
             {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(2\\)"
             }
           ],
           [
             {
-              "html": "\\(y\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(y\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "8.0|8,0"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "2.0|2,0"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "0.0|0,0"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "2.0|2,0"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz y\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "8.0|8,0"
             }
           ]
         ]
       }
-    },
-    {
-      "type": "text",
-      "body": "<p>\n        Doskonale! Teraz przesuń punkty w obu poniższych układach współrzędnych w odpowiednie miejsca, by zobaczyć wykresy funkcji \\(y=-\\frac{1}{2}x^2\\) oraz \\(y=-2x^2\\).\n    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n        Najpierw \\(y=-\\frac{1}{2}x^2\\):\n    </p>"
-    },
-    {
-      "type": "iframe",
-      "url": "https://www.geogebra.org/material/iframe/id/xdeb3qtv/width/800/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
-      "title": ""
-    },
-    {
-      "type": "text",
-      "body": "<p>\n        A teraz \\(y=2x^2\\):\n    </p>"
-    },
-    {
-      "type": "iframe",
-      "url": "https://www.geogebra.org/material/iframe/id/uhzefjrz/width/800/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
-      "title": ""
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "fb5915e071c5ec3ef6c1684ff17012b9a914b70d9fb1c9b32f7cded6af3ac5d2"
+  "seed_hash": "350caf222069f0e7774bfbb109e990d603807910a2a4e8bd64c881b2f7bc2250"
 }

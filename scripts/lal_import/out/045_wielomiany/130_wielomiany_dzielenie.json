@@ -18,7 +18,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -27,7 +27,1489 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"steps\">\n<p>\n                Zapiszmy działanie pod kreską:\n            </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n<td>\n                            \\(\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            \\(7\\)\n                        </td>\n<td>\n                            \\(4\\)\n                        </td>\n<td>\n                            \\(5\\)\n                        </td>\n<td>\n                            \\(:\\)\n                        </td>\n<td>\n                            \\(6\\)\n                        </td>\n</tr>\n</table>\n</div>\n<p>\n                Rozpatrujemy kolejne cyfry liczby \\(745\\), od lewej.\n            </p>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Najpierw\n                    <strong>\n                        dzielimy\n                    </strong>\n                    \\(7\\) przez \\(6\\). Szóstka w siedmiu mieści się \\(1\\) raz.\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr style=\"border-bottom: 1px solid black;\">\n<td class=\"red_on_yellow\">\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr>\n<td class=\"red_on_yellow\">\n                                \\(7\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(:\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(6\\)\n                            </td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Teraz\n                    <strong>\n                        mnożymy\n                    </strong>\n                    wynik (\\(1\\)) przez dzielnik \\(6\\) i zapisujemy rezultat pod siódemką:\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr style=\"border-bottom: 1px solid black;\">\n<td class=\"red_on_yellow\">\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(7\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(:\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(6\\)\n                            </td>\n</tr>\n<tr>\n<td class=\"red_on_yellow\">\n                                \\(6\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<strong>\n                    Odejmujemy\n                </strong>\n                i spisujemy kolejne cyfry.\n                <div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr>\n<td class=\"red_on_yellow\">\n                                \\(7\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(:\\)\n                            </td>\n<td>\n                                \\(6\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td class=\"red_on_yellow\">\n                                \\(6\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td class=\"red_on_yellow\">\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Zauważ, że to, co zrobiliśmy do tej pory, można ująć w trzech małych krokach:\n                    <strong>\n                        dzielimy-mnożymy-odejmujemy\n                    </strong>\n                    .\n                </p>\n<p>\n                    Będziemy te kroki powtarzać. Teraz znów\n                    <strong>\n                        dzielimy\n                    </strong>\n                    , nie \\(1\\) przez \\(6\\) (bo \\(6\\) w \\(1\\) się nie mieści), lecz \\(14\\) przez \\(6\\).\n                </p>\n<p>\n                    \\(6\\) w \\(14\\) mieści się \\(2\\) razy.\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(1\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(2\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(7\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(:\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(6\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(6\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td class=\"red_on_yellow\">\n                                \\(1\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Znów\n                    <strong>\n                        mnożymy\n                    </strong>\n                    (\\(2\\cdot 6=12\\)).\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(1\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(2\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(7\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(:\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(6\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(6\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td>\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td class=\"red_on_yellow\">\n                                \\(1\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(2\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n<strong>\n                        Odejmujemy\n                    </strong>\n                    (\\(14-12\\)).\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(2\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(7\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(:\\)\n                            </td>\n<td>\n                                \\(6\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(6\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td class=\"red_on_yellow\">\n                                \\(1\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td class=\"red_on_yellow\">\n                                \\(1\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(2\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td>\n                                \\(\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(2\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n<strong>\n                        Dzielimy\n                    </strong>\n                    (\\(25:6\\)).\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(2\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(7\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(:\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(6\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(6\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td>\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(2\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td>\n                                \\(\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(2\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n<strong>\n                        Mnożymy\n                    </strong>\n                    (\\(4\\cdot 6=24\\))\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(2\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(7\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(:\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(6\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(6\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td>\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(2\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(2\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n</td>\n<td class=\"red_on_yellow\">\n                                \\(2\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(4\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n<strong>\n                        Odejmujemy\n                    </strong>\n                    (\\(25-24=1\\)).\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(2\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(7\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(:\\)\n                            </td>\n<td>\n                                \\(6\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(6\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td>\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(4\\)\n                            </td>\n<td>\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(2\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td>\n                                \\(\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(2\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(5\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n</td>\n<td class=\"red_on_yellow\">\n                                \\(2\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(4\\)\n                            </td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td class=\"red_on_yellow\">\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n<td>\n                                \\(\\)\n                            </td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">\n                pokaż dalej\n            </div>\n<div class=\"show_step\">\n<p>\n                    Na dole zostało \\(1\\), i w tej liczbie dzielnik \\(6\\) już się nie mieści.\n                </p>\n<p>\n                    Wyszło nam\n                </p>\n                \\[\n                745:6=124\\tfrac{1}{6}\n                \\]\n                albo\n                <div class=\"centered\">\n                    \\(745:6=124\\) reszty \\(1\\)\n                </div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Zapiszmy działanie pod kreską:\n            </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(:\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Rozpatrujemy kolejne cyfry liczby \\(745\\), od lewej.\n            </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Najpierw\n                    <strong>\n                        dzielimy\n                    </strong>\n                    \\(7\\) przez \\(6\\). Szóstka w siedmiu mieści się \\(1\\) raz.\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(:\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Teraz\n                    <strong>\n                        mnożymy\n                    </strong>\n                    wynik (\\(1\\)) przez dzielnik \\(6\\) i zapisujemy rezultat pod siódemką:\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(:\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n                    Odejmujemy\n                </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>i spisujemy kolejne cyfry.</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(:\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zauważ, że to, co zrobiliśmy do tej pory, można ująć w trzech małych krokach:\n                    <strong>\n                        dzielimy-mnożymy-odejmujemy\n                    </strong>\n                    .\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Będziemy te kroki powtarzać. Teraz znów\n                    <strong>\n                        dzielimy\n                    </strong>\n                    , nie \\(1\\) przez \\(6\\) (bo \\(6\\) w \\(1\\) się nie mieści), lecz \\(14\\) przez \\(6\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    \\(6\\) w \\(14\\) mieści się \\(2\\) razy.\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(:\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Znów\n                    <strong>\n                        mnożymy\n                    </strong>\n                    (\\(2\\cdot 6=12\\)).\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(:\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                        Odejmujemy\n                    </strong>\n                    (\\(14-12\\)).\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(:\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                        Dzielimy\n                    </strong>\n                    (\\(25:6\\)).\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(:\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                        Mnożymy\n                    </strong>\n                    (\\(4\\cdot 6=24\\))\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(:\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                        Odejmujemy\n                    </strong>\n                    (\\(25-24=1\\)).\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(:\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Na dole zostało \\(1\\), i w tej liczbie dzielnik \\(6\\) już się nie mieści.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Wyszło nam\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n                745:6=124\\tfrac{1}{6}\n                \\]\n                albo</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\(745:6=124\\) reszty \\(1\\)\n                "
+        }
+      ]
     },
     {
       "type": "text",
@@ -36,185 +1518,111 @@
     {
       "type": "spoiler",
       "label": "przypomnienie",
-      "body": "\n\n<div class=\"important\">\n        \\[\n        \\begin{align*}\n        x^n\\cdot x^k&amp;=x^{n+k}\\\\\n        x^n: x^k&amp;=x^{n-k}\n        \\end{align*}\n        \\]\n    </div>\n<div class=\"important\">\n        Rozpatrzmy dwa wyrazy z potęgą \\(x\\):\n        <div class=\"centered\">\n            \\(Ax^n\\) oraz \\(Bx^k\\)\n        </div>\n        gdzie\n        <ul class=\"nolist\">\n<li>\n                \\(A\\) i \\(B\\) to pewne rzeczywiste, niezerowe współczynniki, a\n            </li>\n<li>\n                \\(n\\) i \\(k\\) to naturalne wykładniki potęg \\(x\\)-a.\n            </li>\n</ul>\n        Wówczas\n        \\[\n        \\begin{align*}\n        (Ax^n)\\cdot (Bx^k)&amp;=ABx^{n+k}\\\\\n        (Ax^n): (Bx^k)&amp;=\\tfrac{A}{B}x^{n-k}\\\\\n        \\text{to drugie łatwiej zapamiątać}&amp;\\\\\n        \\text{w postaci ułamków:}&amp;\\\\\n        \\frac{Ax^n}{Bx^k}&amp;=\\frac{A}{B}x^{n-k}\n        \\end{align*}\n        \\]\n    </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n        \\[\n        \\begin{align*}\n        x^n\\cdot x^k&amp;=x^{n+k}\\\\\n        x^n: x^k&amp;=x^{n-k}\n        \\end{align*}\n        \\]\n    "
+        },
+        {
+          "type": "text",
+          "body": "<p>Rozpatrzmy dwa wyrazy z potęgą \\(x\\):</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(Ax^n\\) oraz \\(Bx^k\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>gdzie</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                \\(A\\) i \\(B\\) to pewne rzeczywiste, niezerowe współczynniki, a\n            </li>\n<li>\n                \\(n\\) i \\(k\\) to naturalne wykładniki potęg \\(x\\)-a.\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Wówczas\n        \\[\n        \\begin{align*}\n        (Ax^n)\\cdot (Bx^k)&=ABx^{n+k}\\\\\n        (Ax^n): (Bx^k)&=\\tfrac{A}{B}x^{n-k}\\\\\n        \\text{to drugie łatwiej zapamiątać}&\\\\\n        \\text{w postaci ułamków:}&\\\\\n        \\frac{Ax^n}{Bx^k}&=\\frac{A}{B}x^{n-k}\n        \\end{align*}\n        \\]</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Wskaż wyniki następujących działań.\n    "
     },
     {
-      "type": "text",
-      "body": "<p>\\(3x^4\\cdot x^2=\\)</p>"
+      "type": "switch_gate",
+      "stem": "\n                \\(3x^4\\cdot x^2=\\)\n                \n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\(3x^8\\)",
+        "\\(3x^6\\)",
+        "\\(9x^8\\)",
+        "\\(9x^6\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                \\(4x^2\\cdot 3x=\\)\n                \n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\(12x^3\\)",
+        "\\(12x^2\\)",
+        "\\(7x^2\\)",
+        "\\(7x^4\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                \\((6x^5):(2x)=\\)\n                \n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\(3x^4\\)",
+        "\\(4x^4\\)",
+        "\\(3x^5\\)",
+        "\\(4x^5\\)"
+      ],
+      "answer": 0
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                \\((8x^6):(4x^3)=\\)\n                \n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\(4x^2\\)",
+        "\\(2x^2\\)",
+        "\\(4x^3\\)",
+        "\\(2x^3\\)"
+      ],
+      "answer": 3
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                \\(4x^3\\cdot x=\\)\n                \n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\(4x^3\\)",
+        "\\(4x^4\\)",
+        "\\(5x^3\\)",
+        "\\(5x^4\\)"
+      ],
+      "answer": 1
+    },
+    {
+      "type": "switch_gate",
+      "stem": "\n                \\(\\frac{6x^3}{x}=\\)\n                \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(6x^2\\)",
+        "\\(5x^3\\)",
+        "\\(6x^3\\)"
+      ],
+      "answer": 0
     },
     {
       "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(3x^8\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(3x^6\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(9x^8\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(9x^6\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\\(4x^2\\cdot 3x=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(12x^3\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(12x^2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(7x^2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(7x^4\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\\((6x^5):(2x)=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(3x^4\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(4x^4\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(3x^5\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(4x^5\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\\((8x^6):(4x^3)=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(4x^2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(2x^2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(4x^3\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(2x^3\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\\(4x^3\\cdot x=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(4x^3\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(4x^4\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(5x^3\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(5x^4\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>\\(\\frac{6x^3}{x}=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(6x^2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(5x^3\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(6x^3\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n            Znakomicie, przejdźmy do dzielenia wielomianów.\n        "
+      "body": "<p>Znakomicie, przejdźmy do dzielenia wielomianów.</p>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "4e2a0a281682cc3af5ec2aa4c0458a0441392934413fc585e33b10237e19b009"
+  "fully_mapped": true,
+  "seed_hash": "b158fba2ab08e9ce37ea0f0f9036c126545a292d7fb4029441b9cc49c9822766"
 }

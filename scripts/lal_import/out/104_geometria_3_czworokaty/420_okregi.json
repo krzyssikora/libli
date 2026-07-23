@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -11,12 +11,50 @@
     {
       "type": "spoiler",
       "label": "kątwpisany",
-      "body": "\n<img alt=\"Kąt wpisany\" src=\"static/kat_wpisany.png\" style=\"height: 300px; float: right; margin: 0 0 0 15px;\"/>\n<p>\n<strong>\n                        Kąt wpisany\n                    </strong>\n                    w koło to kąt, którego wierzchołek leży na okręgu, a ramiona \"wycinają\" z okręgu łuk.\n                </p>\n<p>\n                    Mówimy, że kąt wpisany jest\n                    <u>\n                        oparty na tym łuku\n                    </u>\n                    . Na rysunku ten łuk jest pogrubiony.\n                </p>\n<p>\n                    Jest nieskończenie wiele kątów wpisanych opartych na jednym łuku.\n                </p>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/kat_wpisany.png",
+          "alt": "Kąt wpisany",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                        Kąt wpisany\n                    </strong>\n                    w koło to kąt, którego wierzchołek leży na okręgu, a ramiona \"wycinają\" z okręgu łuk.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mówimy, że kąt wpisany jest\n                    <u>\n                        oparty na tym łuku\n                    </u>\n                    . Na rysunku ten łuk jest pogrubiony.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jest nieskończenie wiele kątów wpisanych opartych na jednym łuku.\n                </p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "kątśrodkowy",
-      "body": "\n<img alt=\"Kąt środkowy\" src=\"static/kat_srodkowy.png\" style=\"height: 300px; float: right; margin: 0 0 0 15px;\"/>\n<p>\n<strong>\n                        Kąt środkowy\n                    </strong>\n                    w kole to kąt, którego wierzchołkiem jest środek okręgu, a ramiona \"wycinają\" z okręgu łuk.\n                </p>\n<p>\n                    Mówimy, że kąt środkowy jest\n                    <u>\n                        oparty na tym łuku\n                    </u>\n                    . Na rysunku ten łuk jest pogrubiony.\n                </p>\n<p>\n                    Istnieje dokładnie jeden kąt środkowy oparty na jednym łuku.\n                </p>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/kat_srodkowy.png",
+          "alt": "Kąt środkowy",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                        Kąt środkowy\n                    </strong>\n                    w kole to kąt, którego wierzchołkiem jest środek okręgu, a ramiona \"wycinają\" z okręgu łuk.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Mówimy, że kąt środkowy jest\n                    <u>\n                        oparty na tym łuku\n                    </u>\n                    . Na rysunku ten łuk jest pogrubiony.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Istnieje dokładnie jeden kąt środkowy oparty na jednym łuku.\n                </p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -32,7 +70,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -49,5 +87,5 @@
     }
   ],
   "fully_mapped": false,
-  "seed_hash": "bb5a3312ed8f56db18a69e414d99be9055f94f24c594c2165c586d7422c03e04"
+  "seed_hash": "6c8215486d0bd7dae48a9ede416d675ea025694331eb77380189156244dbe7ab"
 }

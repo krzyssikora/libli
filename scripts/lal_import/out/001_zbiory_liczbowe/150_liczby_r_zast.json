@@ -27,7 +27,20 @@
     {
       "type": "spoiler",
       "label": "Kliknij, jeśli nie wiesz, czym jest wartość bezwzględna.",
-      "body": "\n\n<div class=\"important\">\n<p>\n                    O wartości bezwzględnej możesz dowiedzieć się więcej z działu \"wartość bezwzględna\".\n                </p>\n<p>\n                    W tej chwili wystarczy, że przyjmiesz, że:\n                </p>\n<ul>\n<li>\n                        wartość bezwzlędna z liczby \\(a\\) jest zapisywana jako \\(|a|\\)\n                    </li>\n<li>\n                        wartość bezwzlędna z liczby\n                        <strong>\n                            dodatniej\n                        </strong>\n                        to po prostu ta liczba:\n                        \\[|5|=5, \\quad\\quad\\quad |8,5|=8,5\\]\n                    </li>\n<li>\n                        wartość bezwzlędna z liczby\n                        <strong>\n                            ujemnej\n                        </strong>\n                        to przeciwna do niej liczba dodatnia:\n                        \\[|-7|=7, \\quad\\quad\\quad |-11,2|=11,2\\]\n                    </li>\n</ul>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    O wartości bezwzględnej możesz dowiedzieć się więcej z działu \"wartość bezwzględna\".\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    W tej chwili wystarczy, że przyjmiesz, że:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                        wartość bezwzlędna z liczby \\(a\\) jest zapisywana jako \\(|a|\\)\n                    </li>\n<li>\n                        wartość bezwzlędna z liczby\n                        <strong>\n                            dodatniej\n                        </strong>\n                        to po prostu ta liczba:\n                        \\[|5|=5, \\quad\\quad\\quad |8,5|=8,5\\]\n                    </li>\n<li>\n                        wartość bezwzlędna z liczby\n                        <strong>\n                            ujemnej\n                        </strong>\n                        to przeciwna do niej liczba dodatnia:\n                        \\[|-7|=7, \\quad\\quad\\quad |-11,2|=11,2\\]\n                    </li>\n</ul>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -155,10 +168,6 @@
     },
     {
       "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
-      "type": "text",
       "body": "<p>\n        Obliczmy błąd względny pomiaru obu braci.\n    </p>"
     },
     {
@@ -218,5 +227,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "ad545189000eb3aa90f5cc9c47c358c7648000d7bcbd27961ddbdf34985072f9"
+  "seed_hash": "b35b9385ecde2b05476396091433916d6a95c61668a00ed03c060a3b41ca5f41"
 }

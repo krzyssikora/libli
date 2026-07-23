@@ -22,15 +22,91 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Oblicz silnie kolejnych liczb naturalnych.\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_CL\">\n<tr>\n<td style=\"text-align: right!important;\">\\(0!\\)</td>\n<td>\\(=1\\)</td>\n</tr>\n<tr>\n<td style=\"text-align: right!important;\">\\(1!\\)</td>\n<td>\\(=1\\)</td>\n</tr>\n<tr>\n<td style=\"text-align: right!important;\">\\(2!=1\\cdot 2\\)</td>\n<td>\\(=2\\)</td>\n</tr>\n<tr>\n<td style=\"text-align: right!important;\">\\(3!=1\\cdot 2\\cdot 3\\)</td>\n<td>\\(=6\\)</td>\n</tr>\n<tr>\n<td style=\"text-align: right!important;\">\\(4!=1\\cdot 2\\cdot 3\\cdot 4\\)</td>\n<td>\\(=\\) <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<td style=\"text-align: right!important;\">\\(5!=1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\)</td>\n<td>\\(=\\) <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n<tr>\n<td style=\"text-align: right!important;\">\\(6!=1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\cdot 6\\)</td>\n<td>\\(=\\) <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/></td>\n</tr>\n</table>\n</div>\n"
+      "body": "<p>\n            Oblicz silnie kolejnych liczb naturalnych.\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n    Świetnie!\n"
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "\\(0!\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(=1\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(1!\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(=1\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(2!=1\\cdot 2\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(=2\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(3!=1\\cdot 2\\cdot 3\\)"
+            },
+            {
+              "kind": "static",
+              "html": "\\(=6\\)"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(4!=1\\cdot 2\\cdot 3\\cdot 4\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "24"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(5!=1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "120"
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "\\(6!=1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\cdot 6\\)"
+            },
+            {
+              "kind": "answer",
+              "answer": "720"
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "text",
@@ -50,5 +126,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "a29a62568bea563134d6b1c7b01ccd309eb0e64ed9450c4a2b341d877ec5ee8f"
+  "seed_hash": "d1f9c9625dad51c75095219d9cf00522f9851816cf87aa0dacd592fd4a43163a"
 }

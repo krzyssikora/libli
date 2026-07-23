@@ -17,10 +17,12 @@
       "body": "<ul>\n<li>\n        najdłuższy to\n        <span style=\"color: green\">\n            przeciwprostokątna\n        </span>\n        ,\n    </li>\n<li>\n        dwa krótsze to przyprostokątne:\n        <ul>\n<li>\n                jedna z nich jest\n                <span style=\"color: red\">\n                    przyległa do kąta \\(\\alpha\\)\n                </span>\n                i leży\n                <span style=\"color: blue\">\n                    naprzeciwko kąta \\(\\beta\\)\n                </span>\n</li>\n<li>\n                druga z nich jest\n                <span style=\"color: blue\">\n                    przyległa do kąta \\(\\beta\\)\n                </span>\n                i leży\n                <span style=\"color: red\">\n                    naprzeciwko kąta \\(\\alpha\\)\n                </span>\n</li>\n</ul>\n</li>\n</ul>"
     },
     {
-      "type": "text",
-      "body": "<p>\n<img alt=\"boki w trójkącie prostokątnym\" class=\"img_center\" src=\"static/boki_trojkat_prostokatny.png\" style=\"width: 800px;\" width=\"800\"/>\n</p>"
+      "type": "image",
+      "media_src": "static/boki_trojkat_prostokatny.png",
+      "alt": "boki w trójkącie prostokątnym",
+      "figcaption": ""
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "d402ee654f5fc921524bc5602f6ecb107832530323b0eed70a98b3bf7882e67c"
+  "seed_hash": "0dcfad3d098732c6ae3b0f1ec0647c3d5bd018a6aaae6c64278924346e2255ed"
 }

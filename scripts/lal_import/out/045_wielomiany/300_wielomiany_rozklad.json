@@ -2,133 +2,191 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Znajdż wszystkie pierwiastki wymierne wielomianu \\(W(x)\\).\n        </p>\n<p>\n            Rozłóż wielomian \\(W(x)\\) na czynniki.\n        </p>\n"
+      "body": "<p>\n            Znajdż wszystkie pierwiastki wymierne wielomianu \\(W(x)\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Rozłóż wielomian \\(W(x)\\) na czynniki.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(\\frac{1}{2}\\), \\(-\\frac{1}{3}\\), \\(-\\frac{1}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x-1)(3x+1)(3x+1)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(\\frac{1}{2}\\), \\(-\\frac{1}{3}\\), \\(-\\frac{1}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x-1)(3x+1)(3x+1)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=18x^{3}+3x^{2}-4x-1\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(-\\frac{1}{2}\\), \\(-\\frac{3}{2}\\), \\(\\frac{4}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x+1)(2x+3)(3x-4)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(-\\frac{1}{2}\\), \\(-\\frac{3}{2}\\), \\(\\frac{4}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x+1)(2x+3)(3x-4)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=12x^{3}+8x^{2}-23x-12\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(-\\frac{1}{2}\\), \\(-\\frac{1}{3}\\), \\(\\frac{5}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x+1)(3x+1)(3x-5)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(-\\frac{1}{2}\\), \\(-\\frac{1}{3}\\), \\(\\frac{5}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x+1)(3x+1)(3x-5)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=18x^{3}-15x^{2}-22x-5\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(\\frac{1}{2}\\), \\(\\frac{5}{2}\\), \\(\\frac{1}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x-1)(2x-5)(3x-1)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(\\frac{1}{2}\\), \\(\\frac{5}{2}\\), \\(\\frac{1}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x-1)(2x-5)(3x-1)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=12x^{3}-40x^{2}+27x-5\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(\\frac{5}{2}\\), \\(\\frac{2}{3}\\), \\(-\\frac{5}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x-5)(3x-2)(3x+5)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(\\frac{5}{2}\\), \\(\\frac{2}{3}\\), \\(-\\frac{5}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x-5)(3x-2)(3x+5)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=18x^{3}-27x^{2}-65x+50\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(-\\frac{1}{2}\\), \\(-\\frac{3}{2}\\), \\(-\\frac{2}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x+1)(2x+3)(3x+2)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(-\\frac{1}{2}\\), \\(-\\frac{3}{2}\\), \\(-\\frac{2}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x+1)(2x+3)(3x+2)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=12x^{3}+32x^{2}+25x+6\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(-\\frac{3}{2}\\), \\(\\frac{4}{3}\\), \\(-\\frac{4}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x+3)(3x-4)(3x+4)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(-\\frac{3}{2}\\), \\(\\frac{4}{3}\\), \\(-\\frac{4}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x+3)(3x-4)(3x+4)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=18x^{3}+27x^{2}-32x-48\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(\\frac{1}{2}\\), \\(\\frac{2}{3}\\), \\(\\frac{5}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x-1)(3x-2)(3x-5)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(\\frac{1}{2}\\), \\(\\frac{2}{3}\\), \\(\\frac{5}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x-1)(3x-2)(3x-5)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=18x^{3}-51x^{2}+41x-10\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(-\\frac{1}{2}\\), \\(\\frac{1}{3}\\), \\(\\frac{4}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x+1)(3x-1)(3x-4)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(-\\frac{1}{2}\\), \\(\\frac{1}{3}\\), \\(\\frac{4}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x+1)(3x-1)(3x-4)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=18x^{3}-21x^{2}-7x+4\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(\\frac{1}{3}\\), \\(\\frac{5}{3}\\), \\(-\\frac{5}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(3x-1)(3x-5)(3x+5)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(\\frac{1}{3}\\), \\(\\frac{5}{3}\\), \\(-\\frac{5}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(3x-1)(3x-5)(3x+5)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -136,147 +194,197 @@
     },
     {
       "type": "text",
-      "body": "\n"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p>\n            Znajdż wszystkie pierwiastki wymierne wielomianu \\(W(x)\\).\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Znajdż wszystkie pierwiastki wymierne wielomianu \\(W(x)\\).\n        </p>\n<p>\n            Rozłóż wielomian \\(W(x)\\) na czynniki.\n        </p>\n"
+      "body": "<p>\n            Rozłóż wielomian \\(W(x)\\) na czynniki.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(\\frac{2}{3}\\), \\(\\frac{4}{3}\\), \\(-\\frac{4}{3}\\), \\(-\\frac{5}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(3x-2)(3x-4)(3x+4)(3x+5)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(\\frac{2}{3}\\), \\(\\frac{4}{3}\\), \\(-\\frac{4}{3}\\), \\(-\\frac{5}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(3x-2)(3x-4)(3x+4)(3x+5)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=81x^{4}+81x^{3}-234x^{2}-144x+160\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(\\frac{5}{2}\\), \\(-\\frac{5}{2}\\), \\(-\\frac{4}{3}\\), \\(\\frac{5}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x-5)(2x+5)(3x+4)(3x-5)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(\\frac{5}{2}\\), \\(-\\frac{5}{2}\\), \\(-\\frac{4}{3}\\), \\(\\frac{5}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x-5)(2x+5)(3x+4)(3x-5)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=36x^{4}-12x^{3}-305x^{2}+75x+500\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(\\frac{5}{2}\\), \\(-\\frac{2}{3}\\), \\(\\frac{4}{3}\\), \\(-\\frac{5}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x-5)(3x+2)(3x-4)(3x+5)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(\\frac{5}{2}\\), \\(-\\frac{2}{3}\\), \\(\\frac{4}{3}\\), \\(-\\frac{5}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x-5)(3x+2)(3x-4)(3x+5)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=54x^{4}-81x^{3}-243x^{2}+190x+200\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(-\\frac{1}{2}\\), \\(-\\frac{1}{3}\\), \\(-\\frac{1}{3}\\), \\(\\frac{2}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x+1)(3x+1)(3x+1)(3x-2)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(-\\frac{1}{2}\\), \\(-\\frac{1}{3}\\), \\(-\\frac{1}{3}\\), \\(\\frac{2}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x+1)(3x+1)(3x+1)(3x-2)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=54x^{4}+27x^{3}-18x^{2}-13x-2\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(-\\frac{5}{2}\\), \\(-\\frac{1}{3}\\), \\(\\frac{4}{3}\\), \\(\\frac{4}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x+5)(3x+1)(3x-4)(3x-4)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(-\\frac{5}{2}\\), \\(-\\frac{1}{3}\\), \\(\\frac{4}{3}\\), \\(\\frac{4}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x+5)(3x+1)(3x-4)(3x-4)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=54x^{4}+9x^{3}-267x^{2}+152x+80\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(\\frac{5}{3}\\), \\(-\\frac{5}{3}\\), \\(-\\frac{5}{3}\\), \\(-\\frac{5}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(3x-5)(3x+5)(3x+5)(3x+5)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(\\frac{5}{3}\\), \\(-\\frac{5}{3}\\), \\(-\\frac{5}{3}\\), \\(-\\frac{5}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(3x-5)(3x+5)(3x+5)(3x+5)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=81x^{4}+270x^{3}-750x-625\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(-\\frac{5}{2}\\), \\(\\frac{1}{3}\\), \\(\\frac{4}{3}\\), \\(-\\frac{4}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x+5)(3x-1)(3x-4)(3x+4)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(-\\frac{5}{2}\\), \\(\\frac{1}{3}\\), \\(\\frac{4}{3}\\), \\(-\\frac{4}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x+5)(3x-1)(3x-4)(3x+4)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=54x^{4}+117x^{3}-141x^{2}-208x+80\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(-\\frac{3}{2}\\), \\(\\frac{2}{3}\\), \\(-\\frac{2}{3}\\), \\(\\frac{5}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x+3)(3x-2)(3x+2)(3x-5)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(-\\frac{3}{2}\\), \\(\\frac{2}{3}\\), \\(-\\frac{2}{3}\\), \\(\\frac{5}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x+3)(3x-2)(3x+2)(3x-5)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=54x^{4}-9x^{3}-159x^{2}+4x+60\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(\\frac{3}{2}\\), \\(-\\frac{3}{2}\\), \\(-\\frac{1}{3}\\), \\(\\frac{5}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x-3)(2x+3)(3x+1)(3x-5)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(\\frac{3}{2}\\), \\(-\\frac{3}{2}\\), \\(-\\frac{1}{3}\\), \\(\\frac{5}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x-3)(2x+3)(3x+1)(3x-5)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=36x^{4}-48x^{3}-101x^{2}+108x+45\\)\n    "
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n        pierwiastki: \\(-\\frac{1}{2}\\), \\(-\\frac{3}{2}\\), \\(-\\frac{5}{2}\\), \\(\\frac{5}{3}\\)\n        <br/>\n        rozkład: \\(W(x)=(2x+1)(2x+3)(2x+5)(3x-5)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>pierwiastki: \\(-\\frac{1}{2}\\), \\(-\\frac{3}{2}\\), \\(-\\frac{5}{2}\\), \\(\\frac{5}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>rozkład: \\(W(x)=(2x+1)(2x+3)(2x+5)(3x-5)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
       "body": "\n        \\(W(x)=24x^{4}+68x^{3}-42x^{2}-185x-75\\)\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "9c256f2e75f292cf2dbb8389882be0b9ca904cae9bf6d2a561ee5fc2e774a250"
+  "seed_hash": "3f9f885fa8bbe2a0d4182b2ee5abbb2861fe97731341c9f0708e370b752f370a"
 }

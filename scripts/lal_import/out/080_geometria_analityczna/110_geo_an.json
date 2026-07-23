@@ -25,128 +25,113 @@
       "body": "<p>\n    Jeśli czujesz się gotowa/-y, poniżej znajdziesz kilka ćwiczeń powtarzających podstawowe wiadomości i umiejętności.\n</p>"
     },
     {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n        Wskaż równanie linii przedstawionej na rysunku.\n    "
-    },
-    {
       "type": "image",
       "media_src": "static/geom_analit_prosta_rownanie_liniowe.png",
       "alt": "symetria miejsc zerowych",
       "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n                \\(y=\\frac{2}{3}x+1\\)\n            "
+      "type": "choice",
+      "stem": "<p>Wskaż równanie linii przedstawionej na rysunku.</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(y=\\frac{2}{3}x+1\\)",
+          "is_correct": false,
+          "feedback": "Współczynnik \\(b\\) wskazuje na punkt na osi \\(OY\\)."
+        },
+        {
+          "text": "\\(y=\\frac{2}{3}x-1\\)",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "\\(y=\\frac{3}{2}x-1\\)",
+          "is_correct": false,
+          "feedback": "Współczynnik kierunkowy to \"SKOK przez KROK\", czyli ruch w pionie przez ruch w poziomie."
+        },
+        {
+          "text": "\\(y=-\\frac{2}{3}x-1\\)",
+          "is_correct": false,
+          "feedback": "Współczynnik kierunkowy jest ujemny, gdy prosta maleje."
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                Współczynnik \\(b\\) wskazuje na punkt na osi \\(OY\\).\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(y=\\frac{2}{3}x-1\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(y=\\frac{3}{2}x-1\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                Współczynnik kierunkowy to \"SKOK przez KROK\", czyli ruch w pionie przez ruch w poziomie.\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(y=-\\frac{2}{3}x-1\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                Współczynnik kierunkowy jest ujemny, gdy prosta maleje.\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! Wybrałaś/-eś poprawnie.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Nie wybrałaś/-eś wszystkich odpowiedzi.\n    "
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "<p class=\"question_text\">\n        Które z poniższych zdań są prawdziwe?\n    </p>"
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Punkt \\((2,13)\\) leży na prostej \\(y=2x+13\\).\n            </div>\n<div class=\"truth ks_button\">\n                tak\n            </div>\n<div class=\"false ks_button\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Punkt \\((0,13)\\) leży na prostej \\(y=2x+13\\).\n            </div>\n<div class=\"truth ks_button\">\n                tak\n            </div>\n<div class=\"false ks_button\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Punkt \\((13, 0)\\) leży na prostej \\(y=2x+13\\).\n            </div>\n<div class=\"truth ks_button\">\n                tak\n            </div>\n<div class=\"false ks_button\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Punkt \\((4, 0)\\) leży na prostej \\(y=\\frac{3}{2}x-6\\).\n            </div>\n<div class=\"truth ks_button\">\n                tak\n            </div>\n<div class=\"false ks_button\">\n                nie\n            </div>\n</li>\n</ul>"
+      "type": "choice_grid",
+      "columns": [
+        "tak",
+        "nie"
+      ],
+      "rows": [
+        {
+          "statement": "Punkt \\((2,13)\\) leży na prostej \\(y=2x+13\\).",
+          "correct": 0
+        },
+        {
+          "statement": "Punkt \\((0,13)\\) leży na prostej \\(y=2x+13\\).",
+          "correct": 1
+        },
+        {
+          "statement": "Punkt \\((13, 0)\\) leży na prostej \\(y=2x+13\\).",
+          "correct": 1
+        },
+        {
+          "statement": "Punkt \\((4, 0)\\) leży na prostej \\(y=\\frac{3}{2}x-6\\).",
+          "correct": 1
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! To już koniec tej sekcji.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        To nie jest dobra odpowiedź, spróbuj jeszcze raz.\n    "
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "<p class=\"question_text\">\n        Które z poniższych zdań są prawdziwe?\n    </p>"
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Proste \\(y=2x-11\\) i \\(y=2x+13\\) są równoległe.\n            </div>\n<div class=\"truth ks_button\">\n                tak\n            </div>\n<div class=\"false ks_button\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Proste \\(y=2x-1\\) i \\(y=\\frac{1}{2}x+7\\) są równoległe.\n            </div>\n<div class=\"truth ks_button\">\n                tak\n            </div>\n<div class=\"false ks_button\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Proste \\(y=\\frac{3}{2}x+2\\) i \\(y=-\\frac{3}{2}x-4\\) są równoległe.\n            </div>\n<div class=\"truth ks_button\">\n                tak\n            </div>\n<div class=\"false ks_button\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Proste \\(y=\\frac{3}{2}x\\) i \\(y=-\\frac{3}{2}x+3\\) są prostopadłe.\n            </div>\n<div class=\"truth ks_button\">\n                tak\n            </div>\n<div class=\"false ks_button\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Proste \\(y=\\frac{3}{2}x+3\\) i \\(y=-\\frac{2}{3}x+3\\) są prostopadłe.\n            </div>\n<div class=\"truth ks_button\">\n                tak\n            </div>\n<div class=\"false ks_button\">\n                nie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Proste \\(y=-\\frac{4}{5}x-6\\) i \\(y=1\\tfrac{1}{4}x+6\\) są prostopadłe.\n            </div>\n<div class=\"truth ks_button\">\n                tak\n            </div>\n<div class=\"false ks_button\">\n                nie\n            </div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! To już koniec tej sekcji.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        To nie jest dobra odpowiedź, spróbuj jeszcze raz.\n    "
+      "type": "choice_grid",
+      "columns": [
+        "tak",
+        "nie"
+      ],
+      "rows": [
+        {
+          "statement": "Proste \\(y=2x-11\\) i \\(y=2x+13\\) są równoległe.",
+          "correct": 0
+        },
+        {
+          "statement": "Proste \\(y=2x-1\\) i \\(y=\\frac{1}{2}x+7\\) są równoległe.",
+          "correct": 1
+        },
+        {
+          "statement": "Proste \\(y=\\frac{3}{2}x+2\\) i \\(y=-\\frac{3}{2}x-4\\) są równoległe.",
+          "correct": 1
+        },
+        {
+          "statement": "Proste \\(y=\\frac{3}{2}x\\) i \\(y=-\\frac{3}{2}x+3\\) są prostopadłe.",
+          "correct": 1
+        },
+        {
+          "statement": "Proste \\(y=\\frac{3}{2}x+3\\) i \\(y=-\\frac{2}{3}x+3\\) są prostopadłe.",
+          "correct": 0
+        },
+        {
+          "statement": "Proste \\(y=-\\frac{4}{5}x-6\\) i \\(y=1\\tfrac{1}{4}x+6\\) są prostopadłe.",
+          "correct": 0
+        }
+      ]
     }
   ],
   "fully_mapped": false,
-  "seed_hash": "db949fd8dabcd4fed263fc4a6db929cde652ccd6a4f3e138dcbcb72b7e5e6b15"
+  "seed_hash": "405d9ccd05bb11d84e428ee781f7cd80311b6f57f4f517c4725697bcfa4be7d8"
 }

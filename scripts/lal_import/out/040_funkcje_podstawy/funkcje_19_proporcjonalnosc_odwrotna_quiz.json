@@ -51,10 +51,8 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>\n    Dwóch malarzy potrzebuje 15 godzin na pomalowanie ściany.\n</p><p>\n    Zakładając, że wszyscy malarze malują z jednakową i stałą wydajnością, uzupełnij zdania. Wpisz liczby, a nie wyrazy.\n</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>\n    Dwóch malarzy potrzebuje 15 godzin na pomalowanie ściany.\n</p><p>\n    Zakładając, że wszyscy malarze malują z jednakową i stałą wydajnością, uzupełnij zdania. Wpisz liczby, a nie wyrazy.\n</p>"
     },
     {
       "type": "numeric",
@@ -69,6 +67,6 @@
       "tolerance": "0"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "a1a2a4e7c423fe2a9301ceb798c9d2ec41ad55de39c990406673b14a4d031a3d"
+  "fully_mapped": true,
+  "seed_hash": "f97f7ce7a041ea15667a63fbeae7de7ed9d33b8a112e968413eff878bbbe599e"
 }

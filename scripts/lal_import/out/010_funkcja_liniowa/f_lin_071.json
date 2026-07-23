@@ -27,38 +27,36 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Dane są proste\n        <strong>\n            prostopadłe\n        </strong>\n        :\n        \\[y=a_1x+b_1\\quad\\quad\\text{oraz}\\quad\\quad y=a_2x+b_2\\]\n        Jaka jest zależność między współczynnikami \\(a_1\\) i \\(a_2\\)?\n    "
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n<p>\n            Tę zależność można zapisać na dwa równoważne sposoby:\n        </p>\n<ol>\n<li>\n                Iloczyn obu współczynników kierunkowych jest równy \\(-1\\):\n                \\[a_1a_2=-1\\]\n            </li>\n<li>\n                Współczynnik \\(a_2\\) jest liczbą jednocześnie\n                <strong>\n                    przeciwną\n                </strong>\n                i\n                <strong>\n                    odwrotną\n                </strong>\n                do współczynnika \\(a_1\\):\n                \\[a_2=-\\frac{1}{a_1}\\]\n            </li>\n</ol>\n</div>",
-      "reason": "unmapped <div> in lesson body"
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Tę zależność można zapisać na dwa równoważne sposoby:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                Iloczyn obu współczynników kierunkowych jest równy \\(-1\\):\n                \\[a_1a_2=-1\\]\n            </li>\n<li>\n                Współczynnik \\(a_2\\) jest liczbą jednocześnie\n                <strong>\n                    przeciwną\n                </strong>\n                i\n                <strong>\n                    odwrotną\n                </strong>\n                do współczynnika \\(a_1\\):\n                \\[a_2=-\\frac{1}{a_1}\\]\n            </li>\n</ol>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
-      "reason": "show_solution button without solution"
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "<p class=\"question_text\">\n        Przyjrzyj się przykładom i wpisz współczynniki kierunkowe prostych prostopadłych do podanych.\n    </p>"
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -66,86 +64,72 @@
         "cells": [
           [
             {
-              "html": "\\(a_1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(a_1\\)"
             },
             {
-              "html": "\\(a_2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(a_2\\)"
             }
           ],
           [
             {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(2\\)"
             },
             {
-              "html": "\\(-\\frac{1}{2}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-\\frac{1}{2}\\)"
             }
           ],
           [
             {
-              "html": "\\(-\\frac{2}{3}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-\\frac{2}{3}\\)"
             },
             {
-              "html": "\\(\\frac{3}{2}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\frac{3}{2}\\)"
             }
           ],
           [
             {
-              "html": "\\(-3\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-3\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "1/3"
             }
           ],
           [
             {
-              "html": "\\(\\frac{5}{2}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\frac{5}{2}\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-2/5"
             }
           ],
           [
             {
-              "html": "\\(\\frac{1}{4}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\frac{1}{4}\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-4"
             }
           ],
           [
             {
-              "html": "\\(-\\frac{2}{7}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-\\frac{2}{7}\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "7/2"
             }
           ]
         ]
@@ -156,6 +140,6 @@
       "body": "<p>\n<div class=\"success hidden\" id=\"success_question20\">\n        Świetnie!\n    </div>\n</p>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "6af7e6d8918ee17902f3c854f7713119aa18bac0efcd735e7db2ca88fe475408"
+  "fully_mapped": true,
+  "seed_hash": "8d12c21486ad218932360fbaaacfbecdf03c4a8edd5d9172fddecffe226a0954"
 }

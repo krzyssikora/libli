@@ -106,11 +106,31 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Poniżej jest opisanych kilka różnych typów zadań. Każde z nich można rozwiązać używając\n        <strong>\n            tylko raz\n        </strong>\n        twierdzenia sinusów lub twierdzenia cosinusów.\n        <small>\n            (No i trzeba wykonać dodatkowe obliczenia - obliczyć kąt z sumy kątów w trójkącie, albo rozwiązać równanie.)\n        </small>\n        Którego twierdzenia możemy użyć dla danego typu zadań?\n        <ul class=\"nolist\">\n<li>\n                twierdzenia sinusów?\n            </li>\n<li>\n                twierdzenia cosinusów?\n            </li>\n<li>\n                a może da się użyć obu twierdzeń?\n            </li>\n</ul>\n"
+      "body": "<p>Poniżej jest opisanych kilka różnych typów zadań. Każde z nich można rozwiązać używając</p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n            tylko raz\n        </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>twierdzenia sinusów lub twierdzenia cosinusów.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<small>\n            (No i trzeba wykonać dodatkowe obliczenia - obliczyć kąt z sumy kątów w trójkącie, albo rozwiązać równanie.)\n        </small>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Którego twierdzenia możemy użyć dla danego typu zadań?</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                twierdzenia sinusów?\n            </li>\n<li>\n                twierdzenia cosinusów?\n            </li>\n<li>\n                a może da się użyć obu twierdzeń?\n            </li>\n</ul>"
     },
     {
       "type": "text",
@@ -131,16 +151,19 @@
       "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n<span style=\"color: blue;\">\n<strong>\n                    dane\n                </strong>\n</span>\n            3 boki\n            <br/>\n<span style=\"color: red;\">\n<strong>\n                    znajdź\n                </strong>\n</span>\n            kąt\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            sinusów\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            cosinusów\n        "
+      "type": "multi_grid",
+      "columns": [
+        "sinusów",
+        "cosinusów"
+      ],
+      "rows": [
+        {
+          "statement": "dane 3 boki znajdź kąt",
+          "correct": [
+            1
+          ]
+        }
+      ]
     },
     {
       "type": "text",
@@ -153,16 +176,19 @@
       "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n<span style=\"color: blue;\">\n<strong>\n                    dane\n                </strong>\n</span>\n            2 boki i kąt między nimi\n            <br/>\n<span style=\"color: red;\">\n<strong>\n                    znajdź\n                </strong>\n</span>\n            trzeci bok\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            sinusów\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            cosinusów\n        "
+      "type": "multi_grid",
+      "columns": [
+        "sinusów",
+        "cosinusów"
+      ],
+      "rows": [
+        {
+          "statement": "dane 2 boki i kąt między nimi znajdź trzeci bok",
+          "correct": [
+            1
+          ]
+        }
+      ]
     },
     {
       "type": "text",
@@ -175,16 +201,19 @@
       "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n<span style=\"color: blue;\">\n<strong>\n                    dane\n                </strong>\n</span>\n            2 boki i kąt między nimi\n            <br/>\n<span style=\"color: red;\">\n<strong>\n                    znajdź\n                </strong>\n</span>\n            kąt\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            sinusów\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            cosinusów\n        "
+      "type": "multi_grid",
+      "columns": [
+        "sinusów",
+        "cosinusów"
+      ],
+      "rows": [
+        {
+          "statement": "dane 2 boki i kąt między nimi znajdź kąt",
+          "correct": [
+            1
+          ]
+        }
+      ]
     },
     {
       "type": "text",
@@ -197,16 +226,19 @@
       "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n<span style=\"color: blue;\">\n<strong>\n                    dane\n                </strong>\n</span>\n            2 boki i kąt przyległy do jednego z nich\n            <br/>\n<span style=\"color: red;\">\n<strong>\n                    znajdź\n                </strong>\n</span>\n            trzeci bok\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            sinusów\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            cosinusów\n        "
+      "type": "multi_grid",
+      "columns": [
+        "sinusów",
+        "cosinusów"
+      ],
+      "rows": [
+        {
+          "statement": "dane 2 boki i kąt przyległy do jednego z nich znajdź trzeci bok",
+          "correct": [
+            1
+          ]
+        }
+      ]
     },
     {
       "type": "text",
@@ -219,16 +251,19 @@
       "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n<span style=\"color: blue;\">\n<strong>\n                    dane\n                </strong>\n</span>\n            2 boki i kąt przyległy do jednego z nich\n            <br/>\n<span style=\"color: red;\">\n<strong>\n                    znajdź\n                </strong>\n</span>\n            kąt przyległy do drugiego\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            sinusów\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            cosinusów\n        "
+      "type": "multi_grid",
+      "columns": [
+        "sinusów",
+        "cosinusów"
+      ],
+      "rows": [
+        {
+          "statement": "dane 2 boki i kąt przyległy do jednego z nich znajdź kąt przyległy do drugiego",
+          "correct": [
+            1
+          ]
+        }
+      ]
     },
     {
       "type": "text",
@@ -241,16 +276,19 @@
       "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n<span style=\"color: blue;\">\n<strong>\n                    dane\n                </strong>\n</span>\n            2 boki i kąt przyległy do jednego z nich\n            <br/>\n<span style=\"color: red;\">\n<strong>\n                    znajdź\n                </strong>\n</span>\n            kąt między bokami\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            sinusów\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            cosinusów\n        "
+      "type": "multi_grid",
+      "columns": [
+        "sinusów",
+        "cosinusów"
+      ],
+      "rows": [
+        {
+          "statement": "dane 2 boki i kąt przyległy do jednego z nich znajdź kąt między bokami",
+          "correct": [
+            1
+          ]
+        }
+      ]
     },
     {
       "type": "text",
@@ -263,73 +301,165 @@
       "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n<span style=\"color: blue;\">\n<strong>\n                    dane\n                </strong>\n</span>\n            bok i przyległe do niego kąty\n            <br/>\n<span style=\"color: red;\">\n<strong>\n                    znajdź\n                </strong>\n</span>\n            inny bok\n        "
+      "type": "multi_grid",
+      "columns": [
+        "sinusów",
+        "cosinusów"
+      ],
+      "rows": [
+        {
+          "statement": "dane bok i przyległe do niego kąty znajdź inny bok",
+          "correct": [
+            1
+          ]
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "\n            sinusów\n        "
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n            cosinusów\n        "
+      "body": "<p>Poniżej możesz przeczytać wskazówki, jak rozwiązywać zadania każdego typu.</p>"
     },
     {
       "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawne odpowiedzi zaznaczone są na zielono.\n    "
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n        Poniżej możesz przeczytać wskazówki, jak rozwiązywać zadania każdego typu.\n        <p>\n            Dla ułatwienia boki i wierzchołki (więc też kąty) trójkąta zostały nazwane.\n        </p>\n"
+      "body": "<p>\n            Dla ułatwienia boki i wierzchołki (więc też kąty) trójkąta zostały nazwane.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "1.dane3 boki,znajdźkąt",
-      "body": "\n\n<figure>\n<img alt=\"trojkat ABC\" src=\"static/solve_triangle_1_hint.png\" width=\"250\"/>\n</figure>\n        Do wzoru z tw. cosinusów:\n        \\[\n        a^2=b^2+c^2-2bc\\cos A\n        \\]\n        podstaw długości boków, wylicz \\(\\cos A\\), a wreszcie \\(A\\).\n    "
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/solve_triangle_1_hint.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Do wzoru z tw. cosinusów:\n        \\[\n        a^2=b^2+c^2-2bc\\cos A\n        \\]\n        podstaw długości boków, wylicz \\(\\cos A\\), a wreszcie \\(A\\).</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "2.dane2 boki i kąt między nimi,znajdźtrzeci bok",
-      "body": "\n\n<figure>\n<img alt=\"trojkat ABC\" src=\"static/solve_triangle_2_hint.png\" width=\"250\"/>\n</figure>\n        Do wzoru z tw. cosinusów:\n        \\[\n        a^2=b^2+c^2-2bc\\cos A\n        \\]\n        podstaw wartości \\(b\\), \\(c\\) i \\(A\\), wylicz \\(a^2\\), a potem \\(a\\).\n    "
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/solve_triangle_2_hint.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Do wzoru z tw. cosinusów:\n        \\[\n        a^2=b^2+c^2-2bc\\cos A\n        \\]\n        podstaw wartości \\(b\\), \\(c\\) i \\(A\\), wylicz \\(a^2\\), a potem \\(a\\).</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "3.dane2 boki i kąt między nimi,znajdźkąt",
-      "body": "\n\n<figure>\n<img alt=\"trojkat ABC\" src=\"static/solve_triangle_3_hint.png\" width=\"250\"/>\n</figure>\n        Najpierw z sumy kątów w trójkącie oblicz miarę kąta \\(C\\), a następnie użyj tw. sinusów:\n        \\[\n        \\frac{c}{\\sin C}=\\frac{b}{\\sin B}\n        \\]\n        aby znaleźć \\(\\sin B\\) i potem \\(B\\).\n        <p>\n<small>\n                Sprawdź, czy poprawnym rozwiązaniem nie jest także kąt \\(180^{\\circ}-B\\), którego sinus jest taki sam, jak kąta \\(B\\).\n            </small>\n</p>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/solve_triangle_3_hint.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Najpierw z sumy kątów w trójkącie oblicz miarę kąta \\(C\\), a następnie użyj tw. sinusów:\n        \\[\n        \\frac{c}{\\sin C}=\\frac{b}{\\sin B}\n        \\]\n        aby znaleźć \\(\\sin B\\) i potem \\(B\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<small>\n                Sprawdź, czy poprawnym rozwiązaniem nie jest także kąt \\(180^{\\circ}-B\\), którego sinus jest taki sam, jak kąta \\(B\\).\n            </small>\n</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "4.dane2 boki i kąt przyległy do jednego z nich,znajdźtrzeci bok",
-      "body": "\n\n<figure>\n<img alt=\"trojkat ABC\" src=\"static/solve_triangle_4_hint.png\" width=\"250\"/>\n</figure>\n        Do wzoru z tw. cosinusów:\n        \\[\n        b^2=a^2+c^2-2ac\\cos B\n        \\]\n        podstaw wartości \\(b\\), \\(c\\) i \\(B\\).\n        <p>\n            Otrzymasz równanie kwadratowe zmiennej \\(a\\), a którego wyliczysz dwa rozwiązania. Upewnij się, czy oba mają sens.\n        </p>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/solve_triangle_4_hint.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Do wzoru z tw. cosinusów:\n        \\[\n        b^2=a^2+c^2-2ac\\cos B\n        \\]\n        podstaw wartości \\(b\\), \\(c\\) i \\(B\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Otrzymasz równanie kwadratowe zmiennej \\(a\\), a którego wyliczysz dwa rozwiązania. Upewnij się, czy oba mają sens.\n        </p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "5.dane2 boki i kąt przyległy do jednego z nich,znajdźkąt przyległy do drugiego",
-      "body": "\n\n<figure>\n<img alt=\"trojkat ABC\" src=\"static/solve_triangle_5_hint.png\" width=\"250\"/>\n</figure>\n        Do wzoru z tw. sinusów:\n        \\[\n        \\frac{c}{\\sin C}=\\frac{b}{\\sin B}\n        \\]\n        podstaw \\(b\\), \\(c\\), \\(B\\), oblicz \\(\\sin C\\), a następnie \\(C\\).\n        <p>\n<small>\n                Sprawdź, czy poprawnym rozwiązaniem nie jest także kąt \\(180^{\\circ}-C\\), którego sinus jest taki sam, jak kąta \\(C\\).\n            </small>\n</p>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/solve_triangle_5_hint.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Do wzoru z tw. sinusów:\n        \\[\n        \\frac{c}{\\sin C}=\\frac{b}{\\sin B}\n        \\]\n        podstaw \\(b\\), \\(c\\), \\(B\\), oblicz \\(\\sin C\\), a następnie \\(C\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<small>\n                Sprawdź, czy poprawnym rozwiązaniem nie jest także kąt \\(180^{\\circ}-C\\), którego sinus jest taki sam, jak kąta \\(C\\).\n            </small>\n</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "6.dane2 boki i kąt przyległy do jednego z nich,znajdźkąt między bokami",
-      "body": "\n\n<figure>\n<img alt=\"trojkat ABC\" src=\"static/solve_triangle_6_hint.png\" width=\"250\"/>\n</figure>\n        Do wzoru z tw. sinusów:\n        \\[\n        \\frac{c}{\\sin C}=\\frac{b}{\\sin B}\n        \\]\n        podstaw \\(b\\), \\(c\\), \\(B\\), oblicz \\(\\sin C\\), a następnie \\(C\\).\n        <br/>\n        Na zakończenie - z sumy kątów w trójkącie znajdź miarę \\(A\\).\n        <p>\n<small>\n                Sprawdź, czy poprawnym rozwiązaniem nie jest także kąt \\(180^{\\circ}-C\\), którego sinus jest taki sam, jak kąta \\(C\\). Jeśli jest - dostaniesz drugą, poprawną wartość \\(A\\).\n            </small>\n</p>\n"
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/solve_triangle_6_hint.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Do wzoru z tw. sinusów:\n        \\[\n        \\frac{c}{\\sin C}=\\frac{b}{\\sin B}\n        \\]\n        podstaw \\(b\\), \\(c\\), \\(B\\), oblicz \\(\\sin C\\), a następnie \\(C\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Na zakończenie - z sumy kątów w trójkącie znajdź miarę \\(A\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<small>\n                Sprawdź, czy poprawnym rozwiązaniem nie jest także kąt \\(180^{\\circ}-C\\), którego sinus jest taki sam, jak kąta \\(C\\). Jeśli jest - dostaniesz drugą, poprawną wartość \\(A\\).\n            </small>\n</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "7.danebok i przyległe do niego kąty,znajdźinny bok",
-      "body": "\n\n<figure>\n<img alt=\"trojkat ABC\" src=\"static/solve_triangle_7_hint.png\" width=\"250\"/>\n</figure>\n        Najpierw z sumy kątów w trójkącie oblicz miarę kąta \\(C\\), a następnie użyj tw. sinusów:\n        \\[\n        \\frac{c}{\\sin C}=\\frac{a}{\\sin A}\n        \\]\n        aby znaleźć \\(a\\).\n    "
+      "elements": [
+        {
+          "type": "image",
+          "media_src": "static/solve_triangle_7_hint.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>Najpierw z sumy kątów w trójkącie oblicz miarę kąta \\(C\\), a następnie użyj tw. sinusów:\n        \\[\n        \\frac{c}{\\sin C}=\\frac{a}{\\sin A}\n        \\]\n        aby znaleźć \\(a\\).</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "82c53331b15772505b0d2c4966198177ca970064ec336955aa280c48fc63f352"
+  "seed_hash": "45e9b1d2bace4a5400b12b99b6f19b99497d97f9f8338a833ad4d0b977a7976b"
 }

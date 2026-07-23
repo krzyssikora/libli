@@ -198,18 +198,383 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Ile punktów wspólnych ma każda z poniższych prostych z okręgiem \\((x-3)^2+(y+1)^2=20\\)?\n        </p>\n<p>\n            Znajdź współrzędne tych punktów.\n        </p>\n<ol class=\"bold\">\n<li>\\(x-2y+5=0\\)</li>\n<li>\\(x-y-2=0\\)</li>\n<li>\\(2x+y+7=0\\)</li>\n</ol>\n"
+      "body": "<p>\n            Ile punktów wspólnych ma każda z poniższych prostych z okręgiem \\((x-3)^2+(y+1)^2=20\\)?\n        </p>"
     },
     {
-      "type": "spoiler",
-      "label": "rozwiązanie",
-      "body": "\n\n<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li><a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\"><strong>1</strong></a></li>\n<li><a href=\"#tabcontent-1-2\" id=\"tab-1-2\"><strong>2</strong></a></li>\n<li><a href=\"#tabcontent-1-3\" id=\"tab-1-3\"><strong>3</strong></a></li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-1-1\">\n<p><strong>\\(x-2y+5=0\\)</strong></p>\n<div id=\"question1164\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                                Z równania prostej w tej sytuacji łątwiej wyznaczyć zmienną \\(x\\). Otrzymujemy\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x=2y-5\\)</div>\n<div class=\"switch_value\">\\(x=2y+5\\)</div>\n<div class=\"switch_value\">\\(x=-2y+5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Podstawiamy \\(\\color{red}{x=2y-5}\\) do równania okręgu:\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                (x-3)^2+(y+1)^2&amp;=20\\\\\n                                (\\color{red}{2y-5}-3)^2+(y+1)^2&amp;=20\\\\\n                                (2y-8)^2+(y+1)^2&amp;=20\\\\\n                                (2y-8)^2+(y+1)^2-20&amp;=0\n                                \\end{align}\n                                \\]\n                            </div>\n<div class=\"switch_line\">\n                                Po uproszczeniu lewej strony równania dostajemy\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3y^2-30y+45=0\\)</div>\n<div class=\"switch_value\">\\(5y^2-30y+45=0\\)</div>\n<div class=\"switch_value\">\\(5y^2-34y+45=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Dzieląc obie strony równania na \\(5\\) dostajemy:\n                            </p>\n                            \\[\n                            y^2-6y+9=0\n                            \\]\n                            <p>\n                                I teraz możemy policzyć \\(\\Delta\\).\n                            </p>\n<details>\n<summary>pamiętasz, jak?</summary>\n<div class=\"important\">\n<p>\n                                        Dla równania kwadratowego\n                                    </p>\n                                    \\[Ax^2+Bx+C=0\\]\n                                    <p>\n                                        jego wyróżnik (\\(\\Delta\\)) to\n                                    </p>\n                                    \\[\n                                    \\Delta=B^2-4AC\n                                    \\]\n                                </div>\n</details>\n<div class=\"switch_line\">\n                                \\(\\Delta=\\)\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(0\\)</div>\n<div class=\"switch_value\">\\(72\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                \\(\\Delta=0\\) oznacza, że okrąg i prosta mają\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(0\\) punktów wspólnych</div>\n<div class=\"switch_value\">\\(1\\) punkt wspólny</div>\n<div class=\"switch_value\">\\(2\\) punkty wspólne</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Rozwiążmy równanie.\n                            </p>\n<details>\n<summary>Pamiętasz, jak?</summary>\n<div class=\"important\">\n<p>\n                                        Rozwiązania równania kwadratowego\n                                    </p>\n                                    \\[Ax^2+Bx+C=0\\]\n                                    <p>\n                                        są dane wzorami\n                                    </p>\n<div class=\"table_wrapper\">\n                                        \\[\n                                        x=\\frac{-B-\\sqrt{\\Delta}}{2A}\\quad\\text{lub}\\quad x=\\frac{-B+\\sqrt{\\Delta}}{2A}\n                                        \\]\n                                    </div>\n<p>\n                                        albo w skrócie \\(x=\\frac{-B\\pm\\sqrt{\\Delta}}{2A}\\)\n                                    </p>\n<hr/>\n<p>\n                                        Dla równania \\(y^2-6y+9=0\\) rozwiązanie jest postaci\n                                    </p>\n                                    \\[\n                                    y=\\frac{6\\pm\\sqrt{0}}{2\\cdot 1}\n                                    \\]\n                                </div>\n</details>\n<div class=\"switch_line\">\n                                Rozwiązaniem równania jest\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=3\\)</div>\n<div class=\"switch_value\">\\(y=-3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Pozostaje podstawić \\(y=3\\) do równania prostej \\(x=2y-5\\), by otrzymać\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x=1\\)</div>\n<div class=\"switch_value\">\\(x=-1\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Prosta ma jeden punkt wspólny z okręgiem. Jest to punkt \\(\\color{red}{(1, 3)}\\). \n                            </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1154.png\" style=\"max-height: 250px;\"/>\n</figure>\n<hr/>\n<p>\n<strong>Uwaga!</strong> Zauważmy, że równanie \n                            </p>\n                            \\[\n                            y^2-6y+9=0\n                            \\]\n                            <p>\n                                można rozwiązać szybciej:\n                            </p>\n                            \\[\n                            \\begin{align}\n                            y^2-6y+9&amp;=0\\\\\n                            (y-3)^2&amp;=0\\\\\n                            y-3&amp;=0\\\\\n                            y&amp;=3\n                            \\end{align}\n                            \\]\n                        </div>\n</div>\n</div>\n</div>\n<div id=\"tabcontent-1-2\">\n<p><strong>\\(x-y-2=0\\)</strong></p>\n<div id=\"question1166\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                                Tym razem z równania prostej wyliczmy \\(y\\):\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=x-2\\)</div>\n<div class=\"switch_value\">\\(y=x+2\\)</div>\n<div class=\"switch_value\">\\(y=-x+2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Podstawiamy \\(\\color{red}{y=x-2}\\) do równania okręgu:\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                (x-3)^2+(y+1)^2&amp;=20\\\\\n                                (x-3)^2+(\\color{red}{x-2}+1)^2&amp;=20\\\\\n                                (x-3)^2+(x-1)^2&amp;=20\\\\\n                                (x-3)^2+(x-1)^2-20&amp;=0\n                                \\end{align}\n                                \\]\n                            </div>\n<div class=\"switch_line\">\n                                Podnosząc wyrażenia do kwadratu, redukując wyrazy podobne i dzieląc obie strony przez \\(2\\) otrzymujemy\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x^2-4x-5=0\\)</div>\n<div class=\"switch_value\">\\(x^2-2x-5=0\\)</div>\n<div class=\"switch_value\">\\(x^2-2x+5=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Liczymy deltę:\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\Delta=-4\\)</div>\n<div class=\"switch_value\">\\(\\Delta=36\\)</div>\n<div class=\"switch_value\">\\(\\Delta=16\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Wiemy już, że prosta i okrąg mają\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(0\\) punktów wspólnych</div>\n<div class=\"switch_value\">\\(1\\) punkt wspólny</div>\n<div class=\"switch_value\">\\(2\\) punkty wspólne</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Obliczamy rozwiązania równania: \\(x=\\frac{4\\pm\\sqrt{36}}{2\\cdot 1}\\) otrzymując\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x=-5\\) lub \\(x=1\\)</div>\n<div class=\"switch_value\">\\(x=-1\\) lub \\(x=5\\)</div>\n<div class=\"switch_value\">\\(x=-2\\) lub \\(x=10\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Podstawiając oba \\(x\\)-y do równania prostej \\(y=x-2\\) dostajemy\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=-3\\), \\(y=3\\)</div>\n<div class=\"switch_value\">\\(y=1\\), \\(y=7\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Prosta ma dwa punkty wspólne z okręgiem. Są to punkt \\(\\color{red}{(-1, -3)}\\) oraz \\(\\color{red}{(5, 3)}\\). \n                            </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1156.png\" style=\"max-height: 250px;\"/>\n</figure>\n</div>\n</div>\n</div>\n</div>\n<div id=\"tabcontent-1-3\">\n<p><strong>\\(2x+y+7=0\\)</strong></p>\n<div id=\"question1168\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                                Równanie prostej możemy przedstawić w postaci\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(y=-2x-7\\)</div>\n<div class=\"switch_value\">\\(y=2x+7\\)</div>\n<div class=\"switch_value\">\\(y=2x-7\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Podstawiamy \\(\\color{red}{y=-2x-7}\\) do równania okręgu:\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                (x-3)^2+(y+1)^2&amp;=20\\\\\n                                (x-3)^2+(\\color{red}{-2x-7}+1)^2&amp;=20\\\\\n                                (x-3)^2+(-2x-6)^2&amp;=20\\\\\n                                (x-3)^2+(-2x-6)^2-20&amp;=0\n                                \\end{align}\n                                \\]\n                            </div>\n<div class=\"switch_line\">\n                                Po podniesieniu wyrażeń do kwadratu, redukcji wyrazów podobnych dostajemy:\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(5x^2+18x+25=0\\)</div>\n<div class=\"switch_value\">\\(5x^2-30x+25=0\\)</div>\n<div class=\"switch_value\">\\(3x^2-30x+25=0\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Obliczamy deltę.\n                            </p>\n<details>\n<summary>pamiętasz, jak?</summary>\n<div class=\"important\">\n<p>\n                                        Dla równania kwadratowego\n                                    </p>\n                                    \\[Ax^2+Bx+C=0\\]\n                                    <p>\n                                        jego wyróżnik (\\(\\Delta\\)) to\n                                    </p>\n                                    \\[\n                                    \\Delta=B^2-4AC\n                                    \\]\n                                </div>\n</details>\n<div class=\"switch_line\">\n                                \\(\\Delta=18^2-4\\cdot 5\\cdot 25=\\)\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(-176\\)</div>\n<div class=\"switch_value\">\\(824\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Stąd wiemy, że prosta i okrąg mają\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(0\\) punktów wspólnych</div>\n<div class=\"switch_value\">\\(1\\) punkt wspólny</div>\n<div class=\"switch_value\">\\(2\\) punkty wspólne</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                                Prosta nie ma punktów wspólnych z okręgiem.\n                            </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1158.png\" style=\"max-height: 250px;\"/>\n</figure>\n</div>\n</div>\n</div>\n</div>\n</div>\n"
+      "type": "text",
+      "body": "<p>\n            Znajdź współrzędne tych punktów.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\\(x-2y+5=0\\)</li>\n<li>\\(x-y-2=0\\)</li>\n<li>\\(2x+y+7=0\\)</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "1",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p><strong>\\(x-2y+5=0\\)</strong></p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Z równania prostej w tej sytuacji łątwiej wyznaczyć zmienną \\(x\\). Otrzymujemy\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(x=2y-5\\)",
+                "\\(x=2y+5\\)",
+                "\\(x=-2y+5\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Podstawiamy \\(\\color{red}{x=2y-5}\\) do równania okręgu:\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                (x-3)^2+(y+1)^2&amp;=20\\\\\n                                (\\color{red}{2y-5}-3)^2+(y+1)^2&amp;=20\\\\\n                                (2y-8)^2+(y+1)^2&amp;=20\\\\\n                                (2y-8)^2+(y+1)^2-20&amp;=0\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Po uproszczeniu lewej strony równania dostajemy\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(3y^2-30y+45=0\\)",
+                "\\(5y^2-30y+45=0\\)",
+                "\\(5y^2-34y+45=0\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Dzieląc obie strony równania na \\(5\\) dostajemy:\n                            </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                            y^2-6y+9=0\n                            "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                I teraz możemy policzyć \\(\\Delta\\).\n                            </p>"
+            },
+            {
+              "type": "spoiler",
+              "label": "pamiętasz, jak?",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        Dla równania kwadratowego\n                                    </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "Ax^2+Bx+C=0"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        jego wyróżnik (\\(\\Delta\\)) to\n                                    </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "\n                                    \\Delta=B^2-4AC\n                                    "
+                }
+              ]
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                \\(\\Delta=\\)\n                                \n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(0\\)",
+                "\\(72\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                \\(\\Delta=0\\) oznacza, że okrąg i prosta mają\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(0\\) punktów wspólnych",
+                "\\(1\\) punkt wspólny",
+                "\\(2\\) punkty wspólne"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Rozwiążmy równanie.\n                            </p>"
+            },
+            {
+              "type": "spoiler",
+              "label": "Pamiętasz, jak?",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        Rozwiązania równania kwadratowego\n                                    </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "Ax^2+Bx+C=0"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        są dane wzorami\n                                    </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "\n                                        \\[\n                                        x=\\frac{-B-\\sqrt{\\Delta}}{2A}\\quad\\text{lub}\\quad x=\\frac{-B+\\sqrt{\\Delta}}{2A}\n                                        \\]\n                                    "
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        albo w skrócie \\(x=\\frac{-B\\pm\\sqrt{\\Delta}}{2A}\\)\n                                    </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        Dla równania \\(y^2-6y+9=0\\) rozwiązanie jest postaci\n                                    </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "\n                                    y=\\frac{6\\pm\\sqrt{0}}{2\\cdot 1}\n                                    "
+                }
+              ]
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Rozwiązaniem równania jest\n                                \n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(y=3\\)",
+                "\\(y=-3\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Pozostaje podstawić \\(y=3\\) do równania prostej \\(x=2y-5\\), by otrzymać\n                                \n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(x=1\\)",
+                "\\(x=-1\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Prosta ma jeden punkt wspólny z okręgiem. Jest to punkt \\(\\color{red}{(1, 3)}\\). \n                            </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometria_analityczna_2_zadanie_1154.png",
+              "alt": "",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>Uwaga!</strong> Zauważmy, że równanie \n                            </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                            y^2-6y+9=0\n                            "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                można rozwiązać szybciej:\n                            </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                            \\begin{align}\n                            y^2-6y+9&=0\\\\\n                            (y-3)^2&=0\\\\\n                            y-3&=0\\\\\n                            y&=3\n                            \\end{align}\n                            "
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "2",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p><strong>\\(x-y-2=0\\)</strong></p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Tym razem z równania prostej wyliczmy \\(y\\):\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(y=x-2\\)",
+                "\\(y=x+2\\)",
+                "\\(y=-x+2\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Podstawiamy \\(\\color{red}{y=x-2}\\) do równania okręgu:\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                (x-3)^2+(y+1)^2&amp;=20\\\\\n                                (x-3)^2+(\\color{red}{x-2}+1)^2&amp;=20\\\\\n                                (x-3)^2+(x-1)^2&amp;=20\\\\\n                                (x-3)^2+(x-1)^2-20&amp;=0\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Podnosząc wyrażenia do kwadratu, redukując wyrazy podobne i dzieląc obie strony przez \\(2\\) otrzymujemy\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(x^2-4x-5=0\\)",
+                "\\(x^2-2x-5=0\\)",
+                "\\(x^2-2x+5=0\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Liczymy deltę:\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(\\Delta=-4\\)",
+                "\\(\\Delta=36\\)",
+                "\\(\\Delta=16\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Wiemy już, że prosta i okrąg mają\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(0\\) punktów wspólnych",
+                "\\(1\\) punkt wspólny",
+                "\\(2\\) punkty wspólne"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Obliczamy rozwiązania równania: \\(x=\\frac{4\\pm\\sqrt{36}}{2\\cdot 1}\\) otrzymując\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(x=-5\\) lub \\(x=1\\)",
+                "\\(x=-1\\) lub \\(x=5\\)",
+                "\\(x=-2\\) lub \\(x=10\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Podstawiając oba \\(x\\)-y do równania prostej \\(y=x-2\\) dostajemy\n                                \n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(y=-3\\), \\(y=3\\)",
+                "\\(y=1\\), \\(y=7\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Prosta ma dwa punkty wspólne z okręgiem. Są to punkt \\(\\color{red}{(-1, -3)}\\) oraz \\(\\color{red}{(5, 3)}\\). \n                            </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometria_analityczna_2_zadanie_1156.png",
+              "alt": "",
+              "figcaption": ""
+            }
+          ]
+        },
+        {
+          "id": "t000002",
+          "label": "3",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p><strong>\\(2x+y+7=0\\)</strong></p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Równanie prostej możemy przedstawić w postaci\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(y=-2x-7\\)",
+                "\\(y=2x+7\\)",
+                "\\(y=2x-7\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Podstawiamy \\(\\color{red}{y=-2x-7}\\) do równania okręgu:\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                (x-3)^2+(y+1)^2&amp;=20\\\\\n                                (x-3)^2+(\\color{red}{-2x-7}+1)^2&amp;=20\\\\\n                                (x-3)^2+(-2x-6)^2&amp;=20\\\\\n                                (x-3)^2+(-2x-6)^2-20&amp;=0\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Po podniesieniu wyrażeń do kwadratu, redukcji wyrazów podobnych dostajemy:\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(5x^2+18x+25=0\\)",
+                "\\(5x^2-30x+25=0\\)",
+                "\\(3x^2-30x+25=0\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Obliczamy deltę.\n                            </p>"
+            },
+            {
+              "type": "spoiler",
+              "label": "pamiętasz, jak?",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        Dla równania kwadratowego\n                                    </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "Ax^2+Bx+C=0"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        jego wyróżnik (\\(\\Delta\\)) to\n                                    </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "\n                                    \\Delta=B^2-4AC\n                                    "
+                }
+              ]
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                \\(\\Delta=18^2-4\\cdot 5\\cdot 25=\\)\n                                \n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(-176\\)",
+                "\\(824\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Stąd wiemy, że prosta i okrąg mają\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(0\\) punktów wspólnych",
+                "\\(1\\) punkt wspólny",
+                "\\(2\\) punkty wspólne"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Prosta nie ma punktów wspólnych z okręgiem.\n                            </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometria_analityczna_2_zadanie_1158.png",
+              "alt": "",
+              "figcaption": ""
+            }
+          ]
+        }
+      ]
     }
   ],
   "fully_mapped": false,
-  "seed_hash": "1be715a5f10332e295fcce41e9a69e3c8233e86391ded9a7daddf329604c03ce"
+  "seed_hash": "6c5c77876660485cafe9b6f4e3b0b9e8c7909f84251561315c0273b4901e162e"
 }

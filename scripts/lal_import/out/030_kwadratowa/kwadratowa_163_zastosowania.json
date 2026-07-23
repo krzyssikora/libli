@@ -2,11 +2,19 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dany jest prostokąt o wymiarach 20 cm na 14 cm.\n        </p>\n<p>\n            Dłuższy bok prostokąta skracamy o \\(x\\) cm a krótszy bok prostokąta wydłużamy o \\(x\\) cm.\n        </p>\n<p>\n            Jaka powinna być wartość \\(x\\), by otrzymany w ten sposób prostokąt miał jak największe pole?\n        </p>\n"
+      "body": "<p>\n            Dany jest prostokąt o wymiarach 20 cm na 14 cm.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dłuższy bok prostokąta skracamy o \\(x\\) cm a krótszy bok prostokąta wydłużamy o \\(x\\) cm.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaka powinna być wartość \\(x\\), by otrzymany w ten sposób prostokąt miał jak największe pole?\n        </p>"
     },
     {
       "type": "text",
@@ -17,92 +25,105 @@
       "media_src": "static/kwadratowa_podstawy_07.mp4"
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                nagranie\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                opis\n            </a>\n</li>\n</ul>"
-    },
-    {
-      "type": "video",
-      "media_src": "static/kwadratowa_podstawy_08.mp4"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Rysunek poniżej przedstawia niebieski prostokąt o wymiarach 20 cm na 14 cm.\n        </p>"
-    },
-    {
-      "type": "iframe",
-      "url": "https://www.geogebra.org/material/iframe/id/ptjfkmvj/width/1070/height/850/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
-      "title": ""
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Przesuwaj punkt zaznaczony czerwonym krzyżykiem, żeby stworzyć nowy, żółty prostokąt.\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Żółty prostokąt powstał przez:</p>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li>\n                        wydłużenie boku o długości 14 o \\(x\\) - nowy bok ma długość \\(14+x\\)\n                    </li>\n<li>\n                        skrócenie boku o długości 20 o \\(x\\) - nowy bok ma długość \\(20-x\\)\n                    </li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Pole żółtego prostokąta to iloczyn długości jego boków, czyli\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                \\((14+x)(20-x)\\)\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Oznaczmy pole prostokąta przez \\(y\\), czyli\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                \\(y=(14+x)(20-x)\\)\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Po wymnożeniu i uproszczeniu otrzymamy:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                \\(y=-x^2+6x+280\\)\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Szukamy takiej wartości \\(x\\), by pole, czyli \\(y\\), było jak największe. Mamy do czynienia z funkcją kwadratową, której wykres ma ramiona skierowane do dołu, więc taki punkt z najwyższą wartością \\(y\\) to po prostu wierzchołek paraboli. Żeby znaleźć wierzchołek, zamienimy równanie funkcji w postać kanoniczną. (Zostawiam Ci to jako ćwiczenie).\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                \\(y=-(x-3)^2+ 289\\)\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Stąd widzimy, że dla \\(x=3\\) wartość funkcji (czyli pole prostokąta) będzie największe.\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Możemy to obejrzeć poniżej. Przesuń pomarańczowy punkt tak, żeby wskazywał na największe możliwe pole prostokąta.\n            </p>"
-    },
-    {
-      "type": "iframe",
-      "url": "https://www.geogebra.org/material/iframe/id/wymbcsyr/width/1200/height/700/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
-      "title": ""
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Na zakończenie warto zwrócić uwagę na wymiary prostokąta o największym polu:\n            </p>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li>\n                    z jednej strony \\(20-3=17\\)\n                </li>\n<li>\n                    a z drugiej \\(14+3=17\\)\n                </li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                jest to więc kwadrat.\n            </p>"
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "video",
+              "media_src": "static/kwadratowa_podstawy_08.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "opis",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n            Rysunek poniżej przedstawia niebieski prostokąt o wymiarach 20 cm na 14 cm.\n        </p>"
+            },
+            {
+              "type": "iframe",
+              "url": "https://www.geogebra.org/material/iframe/id/ptjfkmvj/width/1070/height/850/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+              "title": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Przesuwaj punkt zaznaczony czerwonym krzyżykiem, żeby stworzyć nowy, żółty prostokąt.\n            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>Żółty prostokąt powstał przez:</p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul>\n<li>\n                        wydłużenie boku o długości 14 o \\(x\\) - nowy bok ma długość \\(14+x\\)\n                    </li>\n<li>\n                        skrócenie boku o długości 20 o \\(x\\) - nowy bok ma długość \\(20-x\\)\n                    </li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Pole żółtego prostokąta to iloczyn długości jego boków, czyli\n            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                \\((14+x)(20-x)\\)\n            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Oznaczmy pole prostokąta przez \\(y\\), czyli\n            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                \\(y=(14+x)(20-x)\\)\n            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Po wymnożeniu i uproszczeniu otrzymamy:\n            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                \\(y=-x^2+6x+280\\)\n            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Szukamy takiej wartości \\(x\\), by pole, czyli \\(y\\), było jak największe. Mamy do czynienia z funkcją kwadratową, której wykres ma ramiona skierowane do dołu, więc taki punkt z najwyższą wartością \\(y\\) to po prostu wierzchołek paraboli. Żeby znaleźć wierzchołek, zamienimy równanie funkcji w postać kanoniczną. (Zostawiam Ci to jako ćwiczenie).\n            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                \\(y=-(x-3)^2+ 289\\)\n            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Stąd widzimy, że dla \\(x=3\\) wartość funkcji (czyli pole prostokąta) będzie największe.\n            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Możemy to obejrzeć poniżej. Przesuń pomarańczowy punkt tak, żeby wskazywał na największe możliwe pole prostokąta.\n            </p>"
+            },
+            {
+              "type": "iframe",
+              "url": "https://www.geogebra.org/material/iframe/id/wymbcsyr/width/1200/height/700/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+              "title": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Na zakończenie warto zwrócić uwagę na wymiary prostokąta o największym polu:\n            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul>\n<li>\n                    z jednej strony \\(20-3=17\\)\n                </li>\n<li>\n                    a z drugiej \\(14+3=17\\)\n                </li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                jest to więc kwadrat.\n            </p>"
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "94530f31665dd738280b0db1b3156829ca1739c4891e14086c2529ef2325a1e4"
+  "fully_mapped": true,
+  "seed_hash": "12a71c0122703f8c3ca5bc6355c2c355f0da8b079fe528f41afce15e75c51af4"
 }

@@ -6,7 +6,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -17,7 +17,7 @@
       "body": "\n                \\[\\color{blue}{y=\\frac{1}{2}x+\\frac{3}{2}}\\]\n            "
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -25,66 +25,54 @@
         "cells": [
           [
             {
-              "html": "\\(x\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(x\\)"
             },
             {
-              "html": "\\(-2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-2\\)"
             },
             {
-              "html": "\\(-1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(-1\\)"
             },
             {
-              "html": "\\(0\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(0\\)"
             },
             {
-              "html": "\\(1\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(1\\)"
             },
             {
-              "html": "\\(2\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(2\\)"
             }
           ],
           [
             {
-              "html": "\\(y\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(y\\)"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "0.5|0,5"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "1.0|1,0"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "1.5|1,5"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "2.0|2,0"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "2.5|2,5"
             }
           ]
         ]
@@ -97,10 +85,6 @@
     {
       "type": "text",
       "body": "<p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_border\">\n<tr>\n<td>\n                                \\(x\\)\n                            </td>\n<td>\n                                \\(-2\\)\n                            </td>\n<td>\n                                \\(-1\\)\n                            </td>\n<td>\n                                \\(0\\)\n                            </td>\n<td>\n                                \\(1\\)\n                            </td>\n<td>\n                                \\(2\\)\n                            </td>\n</tr>\n<tr>\n<td>\n                                \\(y\\)\n                            </td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"wpisz wartość\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n"
     },
     {
       "type": "text",
@@ -120,5 +104,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "b9ef74c912f4de29b471bc9389b36b27f0a9bc5096f1ac7486307c5bb6621cb2"
+  "seed_hash": "0ec0c9d272e822203e3a81644ec4e7f99b6890b5cba19930cae2eb9143a5e909"
 }

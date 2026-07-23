@@ -3,7 +3,154 @@
     {
       "type": "spoiler",
       "label": "dotychczas poznane wzory na pole trójkąta",
-      "body": "\n\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\n</th>\n<th>\n                        wzór\n                    </th>\n<th>\n                        dane\n                    </th>\n</tr>\n<tr>\n<td>\n<strong>\n                            1.\n                        </strong>\n</td>\n<td>\n                        \\(P=\\frac{1}{2}ah\\)\n                    </td>\n<td>\n                        \\(a\\) - podstawa, \\(h\\) - wysokość\n                    </td>\n</tr>\n<tr>\n<td>\n<strong>\n                            2.\n                        </strong>\n</td>\n<td>\n                        \\(P=\\frac{1}{2}ab\\sin\\gamma\\)\n                    </td>\n<td>\n                        \\(a\\), \\(b\\) - boki, \\(\\gamma\\) - kąt między nimi\n                    </td>\n</tr>\n<tr>\n<td>\n<strong>\n                            3.\n                        </strong>\n</td>\n<td>\n                        \\(P=\\frac{abc}{4R}\\)\n                    </td>\n<td>\n                        \\(a\\), \\(b\\), \\(c\\) - boki, \\(R\\) - promień okręgu opisanego\n                    </td>\n</tr>\n<tr>\n<td>\n<strong>\n                            4.\n                        </strong>\n</td>\n<td>\n                        \\(P=\\sqrt{p(p-a)(p-b)(p-c)}\\)\n                    </td>\n<td>\n                        \\(a\\), \\(b\\), \\(c\\) - boki, \\(p\\) - połowa obwodu trójkąta\n                    </td>\n</tr>\n<tr>\n<td>\n<strong>\n                            5.\n                        </strong>\n</td>\n<td>\n                        \\(P=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\\)\n                    </td>\n<td>\n                        \\(a\\) - bok, \\(\\beta\\), \\(\\gamma\\) - kąty przyległe, \\(\\alpha\\) - kąt naprzeciwległy\n                    </td>\n</tr>\n<tr>\n<td>\n<strong>\n                            6.\n                        </strong>\n</td>\n<td>\n                        \\(P=pr\\)\n                    </td>\n<td>\n                        \\(p\\) - połowa obwodu trójkąta, \\(r\\) - promień okręgu wpisanego\n                    </td>\n</tr>\n<tr>\n<td>\n<strong>\n                            7.\n                        </strong>\n</td>\n<td>\n                        \\(P=2R^2\\cdot\\sin\\alpha\\cdot\\sin\\beta\\cdot\\sin\\gamma\\)\n                    </td>\n<td>\n                        \\(\\alpha\\), \\(\\beta\\), \\(\\gamma\\) - kąty, \\(R\\) - promień okręgu opisanego\n                    </td>\n</tr>\n</table>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "wzór",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "dane",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            1.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{1}{2}ah\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\) - podstawa, \\(h\\) - wysokość",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            2.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{1}{2}ab\\sin\\gamma\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\), \\(b\\) - boki, \\(\\gamma\\) - kąt między nimi",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            3.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{abc}{4R}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\), \\(b\\), \\(c\\) - boki, \\(R\\) - promień okręgu opisanego",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            4.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\sqrt{p(p-a)(p-b)(p-c)}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\), \\(b\\), \\(c\\) - boki, \\(p\\) - połowa obwodu trójkąta",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            5.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=\\frac{1}{2}a^2\\cdot\\frac{\\sin\\beta\\cdot\\sin\\gamma}{\\sin\\alpha}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\) - bok, \\(\\beta\\), \\(\\gamma\\) - kąty przyległe, \\(\\alpha\\) - kąt naprzeciwległy",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            6.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=pr\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(p\\) - połowa obwodu trójkąta, \\(r\\) - promień okręgu wpisanego",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "<strong>\n                            7.\n                        </strong>",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(P=2R^2\\cdot\\sin\\alpha\\cdot\\sin\\beta\\cdot\\sin\\gamma\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\alpha\\), \\(\\beta\\), \\(\\gamma\\) - kąty, \\(R\\) - promień okręgu opisanego",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
     },
     {
       "type": "text",
@@ -14,10 +161,40 @@
       "body": "<p>\n    Ograniczę się do trzech przykładów, z których pierwsze dwa są do siebie dość podobne.\n</p>"
     },
     {
+      "type": "image",
+      "media_src": "static/pole_trojkata_wzor_2.png",
+      "alt": "pole trójkąta",
+      "figcaption": ""
+    },
+    {
       "type": "text",
-      "body": "<ol class=\"bold\">\n<li>\n<div style=\"min-height: 320px;\">\n<img alt=\"pole trójkąta\" height=\"300\" src=\"static/pole_trojkata_wzor_2.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n            Inny wzór przy danym boku i kątach do niego przyległych.\n            <br/>\n            Jeśli \\(a\\) to bok, a \\(\\beta\\) i \\(\\gamma\\) kąty do niego przyległe, to pole jest dane wzorem:\n            <div class=\"important\" style=\"width: 50%;\">\n                \\[\n                P=\\frac{a^2}{2(\\text{ctg }\\beta+\\text{ctg }\\gamma)}\n                \\]\n            </div>\n</div>\n</li>\n<li>\n<div style=\"min-height: 320px;\">\n<img alt=\"pole trójkąta\" height=\"300\" src=\"static/pole_trojkata_wzor_2.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n            Inny wersja tego wzoru:\n            <div class=\"important\" style=\"width: 50%;\">\n                \\[\n                P=\\frac{a^2\\sin \\beta \\cdot \\sin \\gamma}{2\\sin(\\beta+\\gamma)}\n                \\]\n            </div>\n</div>\n</li>\n<li>\n        Trzeci wzór dotyczy pojęcia okręgów dopisanych do trójkąta.\n        <div class=\"important\">\n            Okrąg\n            <strong>\n                dopisany\n            </strong>\n            do trójkąta to okrąg styczny do jednego boku trójkąta i do przedłużeń dwóch pozostałych boków.\n        </div>\n<p>\n</p>\n<div class=\"important\" style=\"min-height: 420px;\">\n<img alt=\"pole trójkąta\" height=\"400\" src=\"static/okregi_dopisane.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n            Jeśli\n            <ul class=\"nolist\">\n<li>\n                    \\(a\\), \\(b\\), \\(c\\) to boki trójkąta,\n                </li>\n<li>\n                    \\(p\\) to połowa obwodu trójkąta,\n                </li>\n<li>\n                    a \\(r_a\\), \\(r_b\\), \\(r_c\\) to promienie okręgów dopisanych, stycznych do boków \\(a\\), \\(b\\), \\(c\\) odpowiednio,\n                </li>\n</ul>\n            to pole trójkąta jest równe\n            \\[\n            \\begin{align*}\n            P&amp;=r_a(p-a)\\\\\n            &amp;=r_b(p-b)\\\\\n            &amp;=r_c(p-c)\n            \\end{align*}\n            \\]\n        </div>\n</li>\n</ol>"
+      "body": "<p>Inny wzór przy danym boku i kątach do niego przyległych.\n            <br/>\n            Jeśli \\(a\\) to bok, a \\(\\beta\\) i \\(\\gamma\\) kąty do niego przyległe, to pole jest dane wzorem:\n            <div class=\"important\" style=\"width: 50%;\">\n                \\[\n                P=\\frac{a^2}{2(\\text{ctg }\\beta+\\text{ctg }\\gamma)}\n                \\]\n            </div></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_trojkata_wzor_2.png",
+      "alt": "pole trójkąta",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Inny wersja tego wzoru:\n            <div class=\"important\" style=\"width: 50%;\">\n                \\[\n                P=\\frac{a^2\\sin \\beta \\cdot \\sin \\gamma}{2\\sin(\\beta+\\gamma)}\n                \\]\n            </div></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Trzeci wzór dotyczy pojęcia okręgów dopisanych do trójkąta.\n        <div class=\"important\">\n            Okrąg\n            <strong>\n                dopisany\n            </strong>\n            do trójkąta to okrąg styczny do jednego boku trójkąta i do przedłużeń dwóch pozostałych boków.\n        </div>\n<p>\n</p></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/okregi_dopisane.png",
+      "alt": "pole trójkąta",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli\n            <ul class=\"nolist\">\n<li>\n                    \\(a\\), \\(b\\), \\(c\\) to boki trójkąta,\n                </li>\n<li>\n                    \\(p\\) to połowa obwodu trójkąta,\n                </li>\n<li>\n                    a \\(r_a\\), \\(r_b\\), \\(r_c\\) to promienie okręgów dopisanych, stycznych do boków \\(a\\), \\(b\\), \\(c\\) odpowiednio,\n                </li>\n</ul>\n            to pole trójkąta jest równe\n            \\[\n            \\begin{align*}\n            P&=r_a(p-a)\\\\\n            &=r_b(p-b)\\\\\n            &=r_c(p-c)\n            \\end{align*}\n            \\]</p>"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "5a77c9cc3fc8bd21d66c500b506c6c660b79ee16c44965f23051c6e08741275a"
+  "seed_hash": "df589fc1754f263def58d3d71026e2d58b8dd98025ba9bfea062541ea87cc7f5"
 }

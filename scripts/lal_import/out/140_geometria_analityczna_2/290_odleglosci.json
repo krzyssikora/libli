@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -11,11 +11,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(2\\sqrt{26}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(2\\sqrt{26}\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -24,11 +29,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(\\frac{3}{2}\\sqrt{34}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{3}{2}\\sqrt{34}\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -37,11 +47,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(2\\sqrt{13}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(2\\sqrt{13}\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -50,11 +65,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(\\frac{5}{2}\\sqrt{10}\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{5}{2}\\sqrt{10}\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -63,11 +83,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\((-31,4)\\) i \\((15,-10)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((-31,4)\\) i \\((15,-10)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -76,9 +101,14 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\((-11,1)\\) i \\((17,-3)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((-11,1)\\) i \\((17,-3)\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "56d1bc1abe1ba655de26dd01ec6f7502f75476e721072f40bca0e68e5a3f71be"
+  "seed_hash": "d3b494cc8e807347c14d05a0e76b6b6e393a83b868ff55a76e4d66059a7c9369"
 }

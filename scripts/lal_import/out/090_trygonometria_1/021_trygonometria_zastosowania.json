@@ -14,14 +14,14 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Znajdź w tablicach trygonometrycznych wartości wskazane w tabeli i wpisz je poniżej.\n        </p>\n"
+      "body": "<p>\n            Znajdź w tablicach trygonometrycznych wartości wskazane w tabeli i wpisz je poniżej.\n        </p>"
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -29,76 +29,60 @@
         "cells": [
           [
             {
-              "html": "\\(\\sin 50^{\\circ}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\sin 50^{\\circ}\\)"
             },
             {
-              "html": "\\(\\text{tg }28^{\\circ}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\text{tg }28^{\\circ}\\)"
             },
             {
-              "html": "\\(\\cos 85^{\\circ}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\cos 85^{\\circ}\\)"
             },
             {
-              "html": "\\(\\sin 82^{\\circ}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\sin 82^{\\circ}\\)"
             },
             {
-              "html": "\\(\\text{tg }71^{\\circ}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\text{tg }71^{\\circ}\\)"
             },
             {
-              "html": "\\(\\cos 11^{\\circ}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\cos 11^{\\circ}\\)"
             }
           ],
           [
             {
-              "html": "<input class=\"table_input\" placeholder=\"sin 50°\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "0.7660|0,7660"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"tg 28°\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "0.5317|0,5317"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"cos 85°\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "0.0872|0,0872"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"sin 82°\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "0.9903|0,9903"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"tg 71°\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "2.9042|2,9042"
             },
             {
-              "html": "<input class=\"table_input\" placeholder=\"cos 11°\" type=\"text\"/>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "0.9816|0,9816"
             }
           ]
         ]
       }
-    },
-    {
-      "type": "text",
-      "body": "\n        Świetnie!\n    "
     }
   ],
   "fully_mapped": false,
-  "seed_hash": "d2b2ba9305581fb1d85408f1471252f4408559b53fc6018d942fd08b9d48ba4f"
+  "seed_hash": "f54e237c56f3b86b6b43b18d7a92f84982bfdb86d2d2e8d314cf6414a2342372"
 }

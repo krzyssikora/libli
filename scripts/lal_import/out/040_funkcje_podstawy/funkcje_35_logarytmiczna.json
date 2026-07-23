@@ -12,66 +12,230 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n<a href=\"https://pl.wikipedia.org/wiki/Trz%C4%99sienie_ziemi_w_Peru_(2007)\">\n                Trzęsienie ziemi w Peru\n            </a>\n            , w sierpniu 2007 roku, trwało zaledwie około 2 minut, ale pochłonęło blisko 600 ofiar. Siła tego trzęsienia ziemi została określona na magnitudę 8,0.\n        </p>\n<p>\n            Największym trzęsieniem ziemi odnotowanym w historii pomiarów sejsmograficznych było\n            <a href=\"https://pl.wikipedia.org/wiki/Trz%C4%99sienie_ziemi_w_Chile_(1960)\">\n                wielkie trzęsienie chilijskie\n            </a>\n            w 1960 roku. Było to trzęsienie ziemi o magnitudzie 9,5.\n        </p>\n<p>\n            Relacja między intensywnością dwóch trzęsień ziemi, \\(I_1\\), \\(I_2\\) obserwowaną na sejsmografach, a ich magnitudami \\(M_1\\) i \\(M_2\\), opisana jest wzorem:\n        </p>\n        \\[\n                                                                           \\log I_1 - \\log I_2 = M_1 - M_2\n                                                                                              \\]\n        <ol>\n<li>\n                Ilokrotnie większa była intensywność trzęsienia ziemi w Chile od tego w Peru?\n            </li>\n<li>\n                Jaka byłaby magnituda trzęsienia ziemi o 100-krotnie mniejszej intensywności niż to w Peru?\n            </li>\n</ol>\n"
+      "body": "<p>\n<a href=\"https://pl.wikipedia.org/wiki/Trz%C4%99sienie_ziemi_w_Peru_(2007)\">\n                Trzęsienie ziemi w Peru\n            </a>\n            , w sierpniu 2007 roku, trwało zaledwie około 2 minut, ale pochłonęło blisko 600 ofiar. Siła tego trzęsienia ziemi została określona na magnitudę 8,0.\n        </p>"
     },
     {
       "type": "text",
-      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                    nagranie\n                </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                    krok po kroku\n                </a>\n</li>\n</ul>"
+      "body": "<p>\n            Największym trzęsieniem ziemi odnotowanym w historii pomiarów sejsmograficznych było\n            <a href=\"https://pl.wikipedia.org/wiki/Trz%C4%99sienie_ziemi_w_Chile_(1960)\">\n                wielkie trzęsienie chilijskie\n            </a>\n            w 1960 roku. Było to trzęsienie ziemi o magnitudzie 9,5.\n        </p>"
     },
     {
       "type": "text",
-      "body": "<p>\n                Porównanie intensywności - co jest dane, czego szukamy:\n            </p>"
+      "body": "<p>\n            Relacja między intensywnością dwóch trzęsień ziemi, \\(I_1\\), \\(I_2\\) obserwowaną na sejsmografach, a ich magnitudami \\(M_1\\) i \\(M_2\\), opisana jest wzorem:\n        </p>"
     },
     {
-      "type": "video",
-      "media_src": "static/logarytmiczna_zastosowania_1.mp4"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                Porównanie intensywności - obliczenia:\n            </p>"
-    },
-    {
-      "type": "video",
-      "media_src": "static/logarytmiczna_zastosowania_2.mp4"
+      "type": "math",
+      "latex": "\n                                                                           \\log I_1 - \\log I_2 = M_1 - M_2\n                                                                                              "
     },
     {
       "type": "text",
-      "body": "<p>\n                Magnituda trzęsienia ziemi o 100-krotnie mniejszej intensywności:\n            </p>"
+      "body": "<ol>\n<li>\n                Ilokrotnie większa była intensywność trzęsienia ziemi w Chile od tego w Peru?\n            </li>\n<li>\n                Jaka byłaby magnituda trzęsienia ziemi o 100-krotnie mniejszej intensywności niż to w Peru?\n            </li>\n</ol>"
     },
     {
-      "type": "video",
-      "media_src": "static/logarytmiczna_zastosowania_3.mp4"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n<p>\n                    Przyjmijmy dla uproszczenia, że trzęsienie ziemi w Peru w 2007 roku to trzęsienie\n                    <strong>\n                        pierwsze\n                    </strong>\n                    , a wielkie trzęsienie chilijskie w 1960 roku to trzęsienie\n                    <strong>\n                        drugie\n                    </strong>\n                    . Oznacza to, że:\n                </p>\n                \\[\n                M_1=8,0\\quad\\text{ oraz }\\quad M_2 = 9,5\n                \\]\n                <p>\n                    Czego szukamy? Szukamy odpowiedzi w rodzaju:\n                </p>\n<ul>\n<li>\n                        Drugie trzęsienie ziemi było 2 razy bardziej intensywne niż pierwsze.\n                    </li>\n<li>\n                        Drugie trzęsienie ziemi było 5 razy bardziej intensywne niż pierwsze.\n                    </li>\n</ul>\n                czyli:\n                <ul>\n<li>\n                        \\(I_2=2\\cdot I_1\\)\n                    </li>\n<li>\n                        \\(I_2=5\\cdot I_1\\)\n                    </li>\n</ul>\n                albo\n                <ul>\n<li>\n                        \\(\\frac{I_2}{I_1}=2\\)\n                    </li>\n<li>\n                        \\(\\frac{I_2}{I_1}=5\\)\n                    </li>\n</ul>\n<p>\n                    Szukamy więc stosunku \\(\\frac{I_2}{I_1}\\).\n                </p>\n<p>\n                    Przyjrzyjmy się teraz danemu równaniu:\n                </p>\n                \\[\n                \\log I_1 - \\log I_2 = M_1 - M_2\n                \\]\n                <p>\n                    Zwróćmy uwagę, żę logarytmy z lewej strony nie mają zapisanej podstawy. Oznacza to, że są to logaytmy o podstawie 10. Możemy przekształcić różnicę logarytmów w jeden logarytm, ale wówczas uzyskalibyśmy stosunek odwrotny, \\(\\frac{I_1}{I_2}\\). Najpierw pomnóżmy więc równanie przez \\(-1\\):\n                </p>\n<p>\n<span class=\"myequation\">\n                        \\(\\log I_2 - \\log I_1 = M_2 - M_1\\)\n                    </span>\n</p>\n<p>\n                    I teraz odejmijmy logarytmy:\n                </p>\n<p>\n<span class=\"myequation\">\n                        \\(\\log \\left(\\frac{I_2}{I_1}\\right)=M_2-M_1\\)\n                    </span>\n</p>\n<p>\n                    Podstawmy znane nam wartości \\(M_1=8,0\\) i \\(M_2=9,5\\)\n                </p>\n<p>\n<span class=\"myequation\">\n                        \\(\\log \\left(\\frac{I_2}{I_1}\\right)=9,2-8,0\\)\n                    </span>\n</p>\n<p>\n                    Otrzymaliśmy:\n                </p>\n<p>\n<span class=\"myequation\">\n                        \\(\\log \\left(\\frac{I_2}{I_1}\\right)=1,5\\)\n                    </span>\n</p>\n<p>\n                    więc z definicji logarytmu:\n                </p>\n<p>\n<span class=\"myequation\">\n                        \\(\\frac{I_2}{I_1}=10^{1,5}=10^1\\cdot 10^{0,5}=10\\cdot \\sqrt{10}\\)\n                    </span>\n</p>\n<p>\n                    Jak łatwo zauważyć \\(\\sqrt{10}\\gt 3\\), więc trzęsienie ziemi w Chile było\n                    <strong>\n                        ponad 30-krotnie\n                    </strong>\n                    intensywniejsze od tego w Peru.\n                </p>\n</div>",
-      "reason": "unmapped <div> in lesson body"
-    },
-    {
-      "type": "spoiler",
-      "label": "Porównanie intensywności - zobacz",
-      "body": "\n<p>\n                    Ciągle przyjmujemy, że trzęsienie ziemi w Peru w 2007 roku to trzęsienie\n                    <strong>\n                        pierwsze\n                    </strong>\n                    , czyli \\(M_1=8,0\\). Szukamy magnitudy \\(M_2\\) trzęsienia ziemi o intenywności 100-krotnie mniejszej, czyli:\n                </p>\n<p>\n<span class=\"myequation\">\n                        \\(I_2=\\frac{1}{100}\\cdot I_1\\)\n                    </span>\n</p>\n                albo:\n                <p>\n<span class=\"myequation\">\n                        \\(\\frac{I_2}{I_1}=\\frac{1}{100}\\)\n                    </span>\n</p>\n<p>\n                    Dane równanie:\n                </p>\n                \\[\n                \\log I_1 - \\log I_2 = M_1 - M_2\n                \\]\n                <p>\n                    już wcześniej przedstawiliśmy w postaci:\n                </p>\n<p>\n<span class=\"myequation\">\n                        \\(\\log \\left(\\frac{I_2}{I_1}\\right)=M_2-M_1\\)\n                    </span>\n</p>\n<p>\n                    Do tej postaci możemy podstawić \\(\\frac{I_2}{I_1}=\\frac{1}{100}\\) oraz \\(M_1=8,0\\):\n                </p>\n<p>\n<span class=\"myequation\">\n                        \\(\\log \\left(\\frac{1}{100}\\right)=M_2-8\\)\n                    </span>\n</p>\n<p>\n                    Zauważmy, że\n                    <span class=\"myequation\">\n                        \\(\\log \\left(\\frac{1}{100}\\right)=\\log 10^{-2}=-2\\)\n                    </span>\n                    , a stąd:\n                </p>\n<p>\n<span class=\"myequation\">\n                        \\(-2=M_2-8\\)\n                    </span>\n</p>\n<p>\n                    czyli:\n                </p>\n<p>\n<span class=\"myequation\">\n                        \\(M_2=6\\)\n                    </span>\n</p>\n<p>\n                    Trzęsienie ziemi o 100-krotnie niższej intensywności miałoby magnitudę równą 6.\n                </p>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n                Wyliczenie magnitudy - zobacz\n            </div>",
-      "reason": "show_solution button without solution"
-    },
-    {
-      "type": "text",
-      "body": "\n"
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                Porównanie intensywności - co jest dane, czego szukamy:\n            </p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/logarytmiczna_zastosowania_1.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Porównanie intensywności - obliczenia:\n            </p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/logarytmiczna_zastosowania_2.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                Magnituda trzęsienia ziemi o 100-krotnie mniejszej intensywności:\n            </p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/logarytmiczna_zastosowania_3.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "spoiler",
+              "label": "Porównanie intensywności - zobacz",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "<p>\n                    Ciągle przyjmujemy, że trzęsienie ziemi w Peru w 2007 roku to trzęsienie\n                    <strong>\n                        pierwsze\n                    </strong>\n                    , czyli \\(M_1=8,0\\). Szukamy magnitudy \\(M_2\\) trzęsienia ziemi o intenywności 100-krotnie mniejszej, czyli:\n                </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n<span class=\"myequation\">\n                        \\(I_2=\\frac{1}{100}\\cdot I_1\\)\n                    </span>\n</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>albo:</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n<span class=\"myequation\">\n                        \\(\\frac{I_2}{I_1}=\\frac{1}{100}\\)\n                    </span>\n</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    Dane równanie:\n                </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "\n                \\log I_1 - \\log I_2 = M_1 - M_2\n                "
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    już wcześniej przedstawiliśmy w postaci:\n                </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n<span class=\"myequation\">\n                        \\(\\log \\left(\\frac{I_2}{I_1}\\right)=M_2-M_1\\)\n                    </span>\n</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    Do tej postaci możemy podstawić \\(\\frac{I_2}{I_1}=\\frac{1}{100}\\) oraz \\(M_1=8,0\\):\n                </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n<span class=\"myequation\">\n                        \\(\\log \\left(\\frac{1}{100}\\right)=M_2-8\\)\n                    </span>\n</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    Zauważmy, że\n                    <span class=\"myequation\">\n                        \\(\\log \\left(\\frac{1}{100}\\right)=\\log 10^{-2}=-2\\)\n                    </span>\n                    , a stąd:\n                </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n<span class=\"myequation\">\n                        \\(-2=M_2-8\\)\n                    </span>\n</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    czyli:\n                </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n<span class=\"myequation\">\n                        \\(M_2=6\\)\n                    </span>\n</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    Trzęsienie ziemi o 100-krotnie niższej intensywności miałoby magnitudę równą 6.\n                </p>"
+                }
+              ]
+            },
+            {
+              "type": "spoiler",
+              "label": "Wyliczenie magnitudy - zobacz",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "<p>\n                    Przyjmijmy dla uproszczenia, że trzęsienie ziemi w Peru w 2007 roku to trzęsienie\n                    <strong>\n                        pierwsze\n                    </strong>\n                    , a wielkie trzęsienie chilijskie w 1960 roku to trzęsienie\n                    <strong>\n                        drugie\n                    </strong>\n                    . Oznacza to, że:\n                </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "\n                M_1=8,0\\quad\\text{ oraz }\\quad M_2 = 9,5\n                "
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    Czego szukamy? Szukamy odpowiedzi w rodzaju:\n                </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<ul>\n<li>\n                        Drugie trzęsienie ziemi było 2 razy bardziej intensywne niż pierwsze.\n                    </li>\n<li>\n                        Drugie trzęsienie ziemi było 5 razy bardziej intensywne niż pierwsze.\n                    </li>\n</ul>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>czyli:</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<ul>\n<li>\n                        \\(I_2=2\\cdot I_1\\)\n                    </li>\n<li>\n                        \\(I_2=5\\cdot I_1\\)\n                    </li>\n</ul>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>albo</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<ul>\n<li>\n                        \\(\\frac{I_2}{I_1}=2\\)\n                    </li>\n<li>\n                        \\(\\frac{I_2}{I_1}=5\\)\n                    </li>\n</ul>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    Szukamy więc stosunku \\(\\frac{I_2}{I_1}\\).\n                </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    Przyjrzyjmy się teraz danemu równaniu:\n                </p>"
+                },
+                {
+                  "type": "math",
+                  "latex": "\n                \\log I_1 - \\log I_2 = M_1 - M_2\n                "
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    Zwróćmy uwagę, żę logarytmy z lewej strony nie mają zapisanej podstawy. Oznacza to, że są to logaytmy o podstawie 10. Możemy przekształcić różnicę logarytmów w jeden logarytm, ale wówczas uzyskalibyśmy stosunek odwrotny, \\(\\frac{I_1}{I_2}\\). Najpierw pomnóżmy więc równanie przez \\(-1\\):\n                </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n<span class=\"myequation\">\n                        \\(\\log I_2 - \\log I_1 = M_2 - M_1\\)\n                    </span>\n</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    I teraz odejmijmy logarytmy:\n                </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n<span class=\"myequation\">\n                        \\(\\log \\left(\\frac{I_2}{I_1}\\right)=M_2-M_1\\)\n                    </span>\n</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    Podstawmy znane nam wartości \\(M_1=8,0\\) i \\(M_2=9,5\\)\n                </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n<span class=\"myequation\">\n                        \\(\\log \\left(\\frac{I_2}{I_1}\\right)=9,2-8,0\\)\n                    </span>\n</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    Otrzymaliśmy:\n                </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n<span class=\"myequation\">\n                        \\(\\log \\left(\\frac{I_2}{I_1}\\right)=1,5\\)\n                    </span>\n</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    więc z definicji logarytmu:\n                </p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n<span class=\"myequation\">\n                        \\(\\frac{I_2}{I_1}=10^{1,5}=10^1\\cdot 10^{0,5}=10\\cdot \\sqrt{10}\\)\n                    </span>\n</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>\n                    Jak łatwo zauważyć \\(\\sqrt{10}\\gt 3\\), więc trzęsienie ziemi w Chile było\n                    <strong>\n                        ponad 30-krotnie\n                    </strong>\n                    intensywniejsze od tego w Peru.\n                </p>"
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "ecda0dfe3d3840388d3d27b33c6384f8ff0d11a230c65c79c910dab8026b2b27"
+  "fully_mapped": true,
+  "seed_hash": "8f0fb27d946bd4cbcbb6f21640fbeadae882919dac3d2eaa7247d43098d7b075"
 }

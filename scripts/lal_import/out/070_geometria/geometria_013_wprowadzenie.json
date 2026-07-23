@@ -6,145 +6,200 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie widzisz prostą \\(p\\), którą przecinają dwie kolejne proste: \\(k\\) i \\(m\\).\n        </p>\n<p>\n            Proste \\(k\\) i \\(m\\) mogą być równoległe, ale nie muszą.\n        </p>\n<p>\n            Możesz kliknąć na którykolwiek z ośmiu kątów, by zobaczyć jakie są nazwy innych kątów w odniesieniu do tego, który wybierzesz.\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"748px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/zkbyp6dv/width/820/height/748/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"klasyfikacja kątów ze względu na wzajemne położenie\" width=\"820px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n<p>\n            Przyjrzyj się dokładnie wszystkim nazwom rodzajów kątów, zastanów się, jak je zdefiniować i sprawdź swoje odpowiedzi poniżej.\n        </p>\n<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n                            kąty wierzchołkowe\n                        </td>\n<td>\n<div class=\"show_solution ks_button\">\n                                zobacz\n                            </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n<p>\n                                    Kąty\n                                    <strong>\n                                        wierzchołkowe\n                                    </strong>\n                                    powstają z przecięcia dwóch prostych.\n                                </p>\n<p>\n                                    Mają wspólny wierzchołek, a ich ramiona są swoimi przedłużeniami.\n                                </p>\n<p>\n                                    Kąty wierzchołkowe mają\n                                    <strong>\n                                        taką samą miarę\n                                    </strong>\n                                    .\n                                </p>\n<p>\n                                    Na rysunku poniżej zarówno kąty oznaczone na czerwono jak i te oznaczone na niebiesko są wierzchołkowe.\n                                </p>\n<p>\n<img alt=\"kąty wierzchołkowe\" height=\"301\" src=\"static/katy_wierzcholkowe.png\" style=\"width: 500px; height: 301px;\" width=\"500\"/>\n</p>\n</div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n                            kąty przyległe\n                        </td>\n<td>\n<div class=\"show_solution ks_button\">\n                                zobacz\n                            </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n<p>\n                                    Kąty\n                                    <strong>\n                                        przyległe\n                                    </strong>\n                                    tworzą razem kąt półpełny - dzielą go wspólnym ramieniem.\n                                </p>\n<p>\n                                    Miary kątów przyległych\n                                    <strong>\n                                        sumują się do 180°\n                                    </strong>\n</p>\n<p>\n                                    Na rysunku poniżej zarówno zaznaczone kąty (czerwony i niebieski) są przyległe.\n                                </p>\n<p>\n<img alt=\"kąty przyległe\" height=\"288\" src=\"static/katy_przylegle.png\" style=\"width: 500px; height: 288px;\" width=\"500\"/>\n</p>\n</div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n                            kąty odpowiadające\n                        </td>\n<td>\n<div class=\"show_solution ks_button\">\n                                zobacz\n                            </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n<p>\n                                    Katy\n                                    <strong>\n                                        odpowiadające\n                                    </strong>\n                                    powstają z przecięcia dwóch prostych trzecią, po tej samej stronie tej trzeciej.\n                                </p>\n<p>\n                                    Gdy dwie pierwsze proste są\n                                    <strong>\n                                        równoległe\n                                    </strong>\n                                    , kąty odpowiadające mają\n                                    <strong>\n                                        tę samą miarę\n                                    </strong>\n                                    .\n                                </p>\n<p>\n                                    Na rysunku poniżej zarówno kąty oznaczone na czerwono jak i te oznaczone na niebiesko są odpowiadające.\n                                </p>\n<p>\n<img alt=\"kąty odpowiadające\" height=\"434\" src=\"static/katy_odpowiadajace.png\" style=\"width: 500px; height: 434px;\" width=\"500\"/>\n</p>\n</div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n                            kąty naprzemianległe\n                        </td>\n<td>\n<div class=\"show_solution ks_button\">\n                                zobacz\n                            </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n<p>\n                                    Katy\n                                    <strong>\n                                        naprzemianległe\n                                    </strong>\n                                    powstają z przecięcia dwóch prostych trzecią, po przeciwnych stronach tej trzeciej i po przeciwnych stronach dwóch pierwszych prostych (tj. np. jeden \"nad\" a drugi \"pod\").\n                                </p>\n<p>\n                                    Gdy dwie pierwsze proste są\n                                    <strong>\n                                        równoległe\n                                    </strong>\n                                    , kąty naprzemianległe mają\n                                    <strong>\n                                        tę samą miarę\n                                    </strong>\n                                    .\n                                </p>\n<p>\n                                    Na rysunku poniżej zarówno kąty oznaczone na czerwono jak i te oznaczone na niebiesko są naprzemianległe.\n                                </p>\n<p>\n<img alt=\"kąty naprzemianległe\" height=\"395\" src=\"static/katy_naprzemianlegle.png\" style=\"width: 500px; height: 395px;\" width=\"500\"/>\n</p>\n</div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n</div>\n"
+      "body": "<p>\n            W poniższym aplecie widzisz prostą \\(p\\), którą przecinają dwie kolejne proste: \\(k\\) i \\(m\\).\n        </p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p>\n            Proste \\(k\\) i \\(m\\) mogą być równoległe, ale nie muszą.\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Na rysunku poniżej proste \\(k\\) i \\(m\\) są równoległe.\n        </p>\n<p>\n            Dla każdego z podanych kątów wybierz jego miarę.\n        </p>\n<p>\n<img alt=\"klasyfikacja kątów zwn położenie - zadanie\" height=\"559\" src=\"static/katy_polozenie_zad.png\" style=\"width: 558px; height: 559px;\" width=\"558\"/>\n</p>\n"
+      "body": "<p>\n            Możesz kliknąć na którykolwiek z ośmiu kątów, by zobaczyć jakie są nazwy innych kątów w odniesieniu do tego, który wybierzesz.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/zkbyp6dv/width/820/height/748/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
     },
     {
       "type": "text",
-      "body": "\n            \\(\\alpha\\) (alfa)\n        "
+      "body": "<p>\n            Przyjrzyj się dokładnie wszystkim nazwom rodzajów kątów, zastanów się, jak je zdefiniować i sprawdź swoje odpowiedzi poniżej.\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "kąty wierzchołkowe",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                                    Kąty\n                                    <strong>\n                                        wierzchołkowe\n                                    </strong>\n                                    powstają z przecięcia dwóch prostych.\n                                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                    Mają wspólny wierzchołek, a ich ramiona są swoimi przedłużeniami.\n                                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                    Kąty wierzchołkowe mają\n                                    <strong>\n                                        taką samą miarę\n                                    </strong>\n                                    .\n                                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                    Na rysunku poniżej zarówno kąty oznaczone na czerwono jak i te oznaczone na niebiesko są wierzchołkowe.\n                                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/katy_wierzcholkowe.png",
+          "alt": "kąty wierzchołkowe",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "kąty przyległe",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                                    Kąty\n                                    <strong>\n                                        przyległe\n                                    </strong>\n                                    tworzą razem kąt półpełny - dzielą go wspólnym ramieniem.\n                                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                    Miary kątów przyległych\n                                    <strong>\n                                        sumują się do 180°\n                                    </strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                    Na rysunku poniżej zarówno zaznaczone kąty (czerwony i niebieski) są przyległe.\n                                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/katy_przylegle.png",
+          "alt": "kąty przyległe",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "kąty odpowiadające",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                                    Katy\n                                    <strong>\n                                        odpowiadające\n                                    </strong>\n                                    powstają z przecięcia dwóch prostych trzecią, po tej samej stronie tej trzeciej.\n                                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                    Gdy dwie pierwsze proste są\n                                    <strong>\n                                        równoległe\n                                    </strong>\n                                    , kąty odpowiadające mają\n                                    <strong>\n                                        tę samą miarę\n                                    </strong>\n                                    .\n                                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                    Na rysunku poniżej zarówno kąty oznaczone na czerwono jak i te oznaczone na niebiesko są odpowiadające.\n                                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/katy_odpowiadajace.png",
+          "alt": "kąty odpowiadające",
+          "figcaption": ""
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "kąty naprzemianległe",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                                    Katy\n                                    <strong>\n                                        naprzemianległe\n                                    </strong>\n                                    powstają z przecięcia dwóch prostych trzecią, po przeciwnych stronach tej trzeciej i po przeciwnych stronach dwóch pierwszych prostych (tj. np. jeden \"nad\" a drugi \"pod\").\n                                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                    Gdy dwie pierwsze proste są\n                                    <strong>\n                                        równoległe\n                                    </strong>\n                                    , kąty naprzemianległe mają\n                                    <strong>\n                                        tę samą miarę\n                                    </strong>\n                                    .\n                                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                    Na rysunku poniżej zarówno kąty oznaczone na czerwono jak i te oznaczone na niebiesko są naprzemianległe.\n                                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/katy_naprzemianlegle.png",
+          "alt": "kąty naprzemianległe",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "\n            \\(20^{\\circ}\\)\n        "
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n            \\(70^{\\circ}\\)\n        "
+      "body": "<p>\n            Na rysunku poniżej proste \\(k\\) i \\(m\\) są równoległe.\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n            \\(110^{\\circ}\\)\n        "
+      "body": "<p>\n            Dla każdego z podanych kątów wybierz jego miarę.\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n            \\(\\beta\\) (beta)\n        "
+      "type": "image",
+      "media_src": "static/katy_polozenie_zad.png",
+      "alt": "klasyfikacja kątów zwn położenie - zadanie",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n            \\(20^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(70^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(110^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(\\gamma\\) (gamma)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(20^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(70^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(110^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(\\delta\\) (delta)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(20^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(70^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(110^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(\\epsilon\\) (epsilon)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(20^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(70^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(110^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(\\phi\\) (fi)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(20^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(70^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(110^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(\\eta\\) (eta)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(20^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(70^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(110^{\\circ}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawne odpowiedzi zaznaczone są na zielono.\n    "
+      "type": "multi_grid",
+      "columns": [
+        "\\(20^{\\circ}\\)",
+        "\\(70^{\\circ}\\)",
+        "\\(110^{\\circ}\\)"
+      ],
+      "rows": [
+        {
+          "statement": "\\(\\alpha\\) (alfa)",
+          "correct": [
+            2
+          ]
+        },
+        {
+          "statement": "\\(\\beta\\) (beta)",
+          "correct": [
+            1
+          ]
+        },
+        {
+          "statement": "\\(\\gamma\\) (gamma)",
+          "correct": [
+            2
+          ]
+        },
+        {
+          "statement": "\\(\\delta\\) (delta)",
+          "correct": [
+            2
+          ]
+        },
+        {
+          "statement": "\\(\\epsilon\\) (epsilon)",
+          "correct": [
+            1
+          ]
+        },
+        {
+          "statement": "\\(\\phi\\) (fi)",
+          "correct": [
+            2
+          ]
+        },
+        {
+          "statement": "\\(\\eta\\) (eta)",
+          "correct": [
+            1
+          ]
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "f4ef669867253fc83626db4a51aaef166e9a97103ec023f0eaf1b0a1e6c4f0e3"
+  "seed_hash": "526b91861675c5ed7b0197af9a017db7ffab0639b482f2a04a60d0014a77d988"
 }

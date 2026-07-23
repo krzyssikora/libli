@@ -112,12 +112,10 @@
       ]
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>f_lin_29_quiz_pyt5.png</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>f_lin_29_quiz_pyt5.png</p>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "9120d82b3a25674400a8d7a1b416cb569c0e40a5f92c1425f4d37f3c1594ad4a"
+  "fully_mapped": true,
+  "seed_hash": "4a9499b2e4534379aeda0f4365628fde164de780f2e638272f2b4599d02555d9"
 }

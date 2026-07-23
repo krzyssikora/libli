@@ -5,8 +5,14 @@
       "body": "<p>\n    Wiemy już,  że prosta i okrąg mogą mieć \\(0\\), \\(1\\) lub \\(2\\) punkty wspólne. Jeśli mają \\(1\\) punkt wspólny,  mówimy,  że są  <strong>styczne</strong>.\n</p>"
     },
     {
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_styczna_do_okregu_definicja.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
       "type": "text",
-      "body": "\n<img src=\"static/geometria_analityczna_2_styczna_do_okregu_definicja.png\" style=\"height: 200px; float: right; margin: 0 0 0 15px;\"/>\n<strong>Styczna</strong> do okręgu to prosta, która ma z nim dokładnie jeden punkt wspólny.\n"
+      "body": "<p><strong>Styczna</strong> do okręgu to prosta, która ma z nim dokładnie jeden punkt wspólny.</p>"
     },
     {
       "type": "text",
@@ -38,7 +44,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -52,7 +58,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -66,7 +72,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -88,5 +94,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "023e093d1334ea693b042e3fe6b2ad8198bf296ba6a2ffb4b78d5ae81ddb4e51"
+  "seed_hash": "b49cb7897f8fecd9ca6d3a09f4eb69e51de7edeffc50061083f0e73ae1d96c72"
 }

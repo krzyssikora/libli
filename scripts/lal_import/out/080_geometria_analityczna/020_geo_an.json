@@ -6,10 +6,6 @@
     },
     {
       "type": "text",
-      "body": "<p>\n</p>"
-    },
-    {
-      "type": "text",
       "body": "<p>Aby obliczyć długość odcinka \\(AB\\), gdzie\n    \\[\n    A=(x_A, y_A),\\quad\\quad B=(x_B,y_B)\n    \\]\n    potrzebujemy:</p>"
     },
     {
@@ -17,8 +13,10 @@
       "body": "<ul>\n<li>\n            odległości w\n            <strong>\n                poziomie\n            </strong>\n            między \\(A\\) i \\(B\\), czyli \\(x_B-x_A\\) (oznaczmy ją \\(\\Delta x\\))\n        </li>\n<li>\n            odległości w\n            <strong>\n                pionie\n            </strong>\n            między \\(A\\) i \\(B\\), czyli \\(y_B-y_A\\) (oznaczmy ją \\(\\Delta y\\))\n        </li>\n</ul>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"długość odcinka\" src=\"static/dlugosc_odcinka.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/dlugosc_odcinka.png",
+      "alt": "długość odcinka",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -34,5 +32,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "151b1c4af3f38304ba603abc79d0071f6c9b6d26bc48225b5d7e3185faa09b24"
+  "seed_hash": "3766de2883052c39b53b0ad1445421a57d1dc8c3f6cbe82f8ae13774653f4b64"
 }

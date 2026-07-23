@@ -2,20 +2,29 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n    Rozłóżmy na czynniki wyrażenie\n    <div class=\"table_wrapper\">\\[\n    -6x^2+x+15\n    \\]</div>\n"
+      "body": "<p>Rozłóżmy na czynniki wyrażenie</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n    -6x^2+x+15\n    \\]"
     },
     {
       "type": "spoiler",
       "label": "kliknij, jeśli nie pamiętasz wzorów",
-      "body": "\n\n<div class=\"centered\">\n                wyróżnik (\"delta\"): \\(\\Delta=b^2-4ac\\)\n                <br/>\n<br/>\n                \\(x_1=\\frac{-b-\\sqrt{\\Delta}}{2a}\\quad\\) oraz \\(\\quad x_2=\\frac{-b+\\sqrt{\\Delta}}{2a}\\)\n            </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n                wyróżnik (\"delta\"): \\(\\Delta=b^2-4ac\\)\n                <br/>\n<br/>\n                \\(x_1=\\frac{-b-\\sqrt{\\Delta}}{2a}\\quad\\) oraz \\(\\quad x_2=\\frac{-b+\\sqrt{\\Delta}}{2a}\\)\n            "
+        }
+      ]
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -26,8 +35,8 @@
       "body": "\\[\n            \\Delta=b^2-4ac=1^2-4(-6)\\cdot 15=\n            \\]"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -38,8 +47,8 @@
       "body": "<p>\n                a \\(\\sqrt{\\Delta}=\\sqrt{361}=19\\).\n            </p>"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -58,8 +67,8 @@
       "body": "\\[\n            x=\\frac{-1-19}{2(-6)},\\quad\\quad x=\\frac{-1+19}{2(-6)}\n            \\]"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -78,8 +87,8 @@
       "body": "<p>\n                a skoro \\(a=-6\\), \\(x_1=\\frac{5}{3}\\) i \\(x_2=-\\frac{3}{2}\\), to\n            </p>"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -98,8 +107,8 @@
       "body": "\\[\n            -6x^2+x+15=-6\\left(x-\\frac{5}{3}\\right)\\left(x+\\frac{3}{2}\\right)=-3\\cdot 2\\left(x-\\frac{5}{3}\\right)\\left(x+\\frac{3}{2}\\right)\n            \\]"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -110,8 +119,8 @@
       "body": "\\[\n            \\begin{align*}\n            -3\\cdot 2\\left(x-\\frac{5}{3}\\right)\\left(x+\\frac{3}{2}\\right)\n            &amp;=-\\color{red}{3}\\cdot \\color{blue}{2}\\color{red}{\\left(x-\\frac{5}{3}\\right)}\\color{blue}{\\left(x+\\frac{3}{2}\\right)}=\\\\\n            &amp;=-\\color{red}{3}\\cdot \\color{red}{\\left(x-\\frac{5}{3}\\right)}\\cdot \\color{blue}{2}\\cdot \\color{blue}{\\left(x+\\frac{3}{2}\\right)}=\\\\\n            &amp;=-\\color{red}{(3-5)}\\cdot \\color{blue}{(2x+3)}\\\\\n            \\end{align*}\n            \\]"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -155,5 +164,5 @@
     }
   ],
   "fully_mapped": false,
-  "seed_hash": "481feebe7648d7bb08445f96fe4d92b6a802c06fb5db7dcebcdc15d1d847d22c"
+  "seed_hash": "416d46ad015eac7c324d70a8d543ca3a50d1b3b4d40e6cc5ae1bbeaaa4800564"
 }

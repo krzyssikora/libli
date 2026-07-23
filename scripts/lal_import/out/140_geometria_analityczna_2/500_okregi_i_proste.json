@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -11,11 +11,22 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n<p>\n            \\(y=-\\frac{2}{3}x+\\frac{10}{3}\\)\n        </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1200.png\" style=\"max-height: 250px;\"/>\n</figure>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            \\(y=-\\frac{2}{3}x+\\frac{10}{3}\\)\n        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1200.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -24,61 +35,128 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n<p>\n            \\(m=\\frac{1}{2}\\) lub \\(m=2\\)\n        </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1210.png\" style=\"max-height: 250px;\"/>\n</figure>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            \\(m=\\frac{1}{2}\\) lub \\(m=2\\)\n        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1210.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Prosta o współczynniku kierunkowym \\(2\\) jest styczna do okręgu o równaniu \\((x+2)^2+(y+2)^2=20\\).\n        </p>\n<p>\n            Znajdź dwa możliwe równania tej prostej.\n        </p>\n"
+      "body": "<p>\n            Prosta o współczynniku kierunkowym \\(2\\) jest styczna do okręgu o równaniu \\((x+2)^2+(y+2)^2=20\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź dwa możliwe równania tej prostej.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n<p>\n            \\(y=2x-8\\), \\(y=2x+12\\)\n        </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1220.png\" style=\"max-height: 250px;\"/>\n</figure>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            \\(y=2x-8\\), \\(y=2x+12\\)\n        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1220.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Prosta \\(x+3y-13=0\\) jest styczna do okręgu o równaniu \\((x-1)^2+(y+6)^2=r^2\\).\n        </p>\n<p>\n            Znajdź wartość \\(r\\), długość promienia okręgu.\n        </p>\n"
+      "body": "<p>\n            Prosta \\(x+3y-13=0\\) jest styczna do okręgu o równaniu \\((x-1)^2+(y+6)^2=r^2\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź wartość \\(r\\), długość promienia okręgu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n<p>\n            \\(r=3\\sqrt{10}\\)\n        </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1230.png\" style=\"max-height: 250px;\"/>\n</figure>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            \\(r=3\\sqrt{10}\\)\n        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1230.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Prosta \\(y=2x-4\\) jest styczna do okręgu o równaniu \\((x-a)^2+y^2=20\\).\n        </p>\n<p>\n            Znajdź wartość parametru \\(a\\).\n        </p>\n"
+      "body": "<p>\n            Prosta \\(y=2x-4\\) jest styczna do okręgu o równaniu \\((x-a)^2+y^2=20\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź wartość parametru \\(a\\).\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n<p>\n            \\(a=-3\\) lub \\(a=7\\)\n        </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1240.png\" style=\"max-height: 250px;\"/>\n</figure>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            \\(a=-3\\) lub \\(a=7\\)\n        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1240.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Znajdź współrzędne punktów, w których prosta \\(y=2x-5\\) jest styczna do okręgu o równaniu \\((x+4)^2+(y+3)^2=40\\).\n        </p>\n"
+      "body": "<p>\n            Znajdź współrzędne punktów, w których prosta \\(y=2x-5\\) jest styczna do okręgu o równaniu \\((x+4)^2+(y+3)^2=40\\).\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n<p>\n            \\((-2,-9)\\), \\((2,-1)\\)\n        </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1250.png\" style=\"max-height: 250px;\"/>\n</figure>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            \\((-2,-9)\\), \\((2,-1)\\)\n        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_1250.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "0bd8dc317b1b789dae97968f7d8744c293ac8d919b9dda19e1eb6f16ff59fc86"
+  "seed_hash": "74724e3ca4cf71b458a09dbea50ab0f7c4ffc6cdc4f2283cea1a7b2b98cd616c"
 }

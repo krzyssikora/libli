@@ -1,10 +1,5 @@
 {
-  "elements": [
-    {
-      "type": "text",
-      "body": "\n"
-    }
-  ],
+  "elements": [],
   "fully_mapped": true,
-  "seed_hash": "f62e0e03bcd8add6cf15ae7e4d1813461f8d82455ec3388718be0bcdbf9f817c"
+  "seed_hash": "a91d7cc1eff74cb5a904d6073dd7724daedc69c4d432de62a1630a2e51bf94a6"
 }

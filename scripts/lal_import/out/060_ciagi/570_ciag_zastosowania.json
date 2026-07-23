@@ -34,44 +34,292 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Na lokatę na procent złożony wpłacono \\(5000\\) złotych. Oprocentowanie lokaty w skali rocznej to \\(3,5\\%\\), a kapitalizacja następuje po roku. Lokata była odnawiana aż do zamknięcia po sześciu latach od jej otwarcia.\n        <p>\n            Jaki kapitał zgromadzono na końcu?\n        </p>\n"
+      "body": "<p>Na lokatę na procent złożony wpłacono \\(5000\\) złotych. Oprocentowanie lokaty w skali rocznej to \\(3,5\\%\\), a kapitalizacja następuje po roku. Lokata była odnawiana aż do zamknięcia po sześciu latach od jej otwarcia.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaki kapitał zgromadzono na końcu?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Skorzystamy, oczywiście, ze wzoru\n                </p>\n                \\[\n                K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\n                \\]\n                <blockquote>\n                    \"wpłacono \\(5000\\) złotych\"\n                </blockquote>\n<div class=\"switch_line\">\n                    co oznacza, że \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(K_n=5000\\)</div>\n<div class=\"switch_value\">\\(K_0=5000\\)</div>\n<div class=\"switch_value\">\\(p=5000\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<blockquote>\n                    \"Oprocentowanie lokaty w skali rocznej to \\(3,5\\%\\)\"\n                </blockquote>\n<div class=\"switch_line\">\n                    czyli\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(n=3,5\\)</div>\n<div class=\"switch_value\">\\(p=3,5\\%\\)</div>\n<div class=\"switch_value\">\\(p=3,5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<blockquote>\n                    \"Lokata była odnawiana aż do zamknięcia po sześciu latach od jej otwarcia\"\n                </blockquote>\n<div class=\"switch_line\">\n                    czyli\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(n=6\\)</div>\n<div class=\"switch_value\">\\(K_n=6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                I możemy podstawić \\(K_0=5000\\), \\(p=3,5\\) i \\(n=6\\) do wzoru\n                \\[\n                K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\n                \\]\n                otrzymując\n                \\[\n                K_6=5000\\left(1+\\frac{3,5}{100}\\right)^6\n                \\]\n                <div class=\"switch_line\">\n                    Używając kalkulatora otrzymujemy kapitał zgromadzony po sześciu latach równy (z dokładnością do 1 grosza)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(6146,27\\) zł</div>\n<div class=\"switch_value\">\\(6146,28\\) zł</div>\n<div class=\"switch_value\">\\(6146\\) zł</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Po sześciu latach zgromadzono \\(6\\,146\\) złotych \\(28\\) groszy.\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Skorzystamy, oczywiście, ze wzoru\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\n                "
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"wpłacono \\(5000\\) złotych\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    co oznacza, że \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(K_n=5000\\)",
+            "\\(K_0=5000\\)",
+            "\\(p=5000\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Oprocentowanie lokaty w skali rocznej to \\(3,5\\%\\)\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    czyli\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(n=3,5\\)",
+            "\\(p=3,5\\%\\)",
+            "\\(p=3,5\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Lokata była odnawiana aż do zamknięcia po sześciu latach od jej otwarcia\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    czyli\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(n=6\\)",
+            "\\(K_n=6\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>I możemy podstawić \\(K_0=5000\\), \\(p=3,5\\) i \\(n=6\\) do wzoru\n                \\[\n                K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\n                \\]\n                otrzymując\n                \\[\n                K_6=5000\\left(1+\\frac{3,5}{100}\\right)^6\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Używając kalkulatora otrzymujemy kapitał zgromadzony po sześciu latach równy (z dokładnością do 1 grosza)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(6146,27\\) zł",
+            "\\(6146,28\\) zł",
+            "\\(6146\\) zł"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Po sześciu latach zgromadzono \\(6\\,146\\) złotych \\(28\\) groszy.</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Na lokatę na procent złożony wpłacono \\(5000\\) złotych. Lokata jest odnawialna, a kapitalizacja następuje po roku. Lokata była odnawiana aż do zamknięcia po trzech latach od jej otwarcia. Po tym czasie całkowite odsetki wyniosły \\(624,32\\) zł.\n        <p>\n            Jakie było oprocentowanie lokaty w skali roku?\n        </p>\n"
+      "body": "<p>Na lokatę na procent złożony wpłacono \\(5000\\) złotych. Lokata jest odnawialna, a kapitalizacja następuje po roku. Lokata była odnawiana aż do zamknięcia po trzech latach od jej otwarcia. Po tym czasie całkowite odsetki wyniosły \\(624,32\\) zł.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jakie było oprocentowanie lokaty w skali roku?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Ponownie skorzystamy ze wzoru\n                </p>\n                \\[\n                K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\n                \\]\n                <blockquote>\n                    \"wpłacono \\(5000\\) złotych\"\n                </blockquote>\n<div class=\"switch_line\">\n                    co oznacza, że \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(K_n=5000\\)</div>\n<div class=\"switch_value\">\\(K_0=5000\\)</div>\n<div class=\"switch_value\">\\(p=5000\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<blockquote>\n                    \"Lokata była odnawiana aż do zamknięcia po trzech latach od jej otwarcia\"\n                </blockquote>\n<div class=\"switch_line\">\n                    czyli\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(p=3\\)</div>\n<div class=\"switch_value\">\\(n=3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<blockquote>\n                    \"Po tym czasie całkowite odsetki wyniosły \\(624,32\\) zł\"\n                </blockquote>\n<div class=\"switch_line\">\n                    więc (uważaj!)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(K_3=624,32\\)</div>\n<div class=\"switch_value\">\\(K_3=5624,32\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Podstawiamy \\(K_0=5000\\), \\(K_3=5624,32\\) i \\(n=3\\) do wzoru\n                \\[\n                K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\n                \\]\n                i dostajemy\n                \\[\n                5624,31=5000\\left(1+\\frac{p}{100}\\right)^3\n                \\]\n                <p>\n                    Od teraz przyda się kalkulator.\n                </p>\n<div class=\"switch_line\">\n                    Dzielimy obie strony przez \\(5000\\), by uzyskać\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\left(1+\\frac{p}{100}\\right)^3=624,31\\)</div>\n<div class=\"switch_value\">\\(\\left(1+\\frac{p}{100}\\right)^3=1,124864\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Aby z równania \\(\\left(1+\\frac{p}{100}\\right)^3=1,124864\\) wyliczyć \\(1+\\frac{p}{100}\\), z obu stron obliczamy pierwiastek trzeciego stopnia (czyli inaczej podnosimy do potęgi \\(\\tfrac{1}{3}\\)).\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    \\left(1+\\frac{p}{100}\\right)^3&amp;=1,124864\\\\\n                    1+\\frac{p}{100}&amp;=\\sqrt[3]{1,124864}\\\\\n                    1+\\frac{p}{100}&amp;=1,04\\\\\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Stąd wyliczamy, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(p=4\\)</div>\n<div class=\"switch_value\">\\(p=0,4\\)</div>\n<div class=\"switch_value\">\\(p=0,04\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Oprocentowanie lokaty w skali roku było równe \\(4\\%\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Ponownie skorzystamy ze wzoru\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\n                "
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"wpłacono \\(5000\\) złotych\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    co oznacza, że \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(K_n=5000\\)",
+            "\\(K_0=5000\\)",
+            "\\(p=5000\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Lokata była odnawiana aż do zamknięcia po trzech latach od jej otwarcia\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    czyli\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(p=3\\)",
+            "\\(n=3\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Po tym czasie całkowite odsetki wyniosły \\(624,32\\) zł\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    więc (uważaj!)\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(K_3=624,32\\)",
+            "\\(K_3=5624,32\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawiamy \\(K_0=5000\\), \\(K_3=5624,32\\) i \\(n=3\\) do wzoru\n                \\[\n                K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\n                \\]\n                i dostajemy\n                \\[\n                5624,31=5000\\left(1+\\frac{p}{100}\\right)^3\n                \\]</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Od teraz przyda się kalkulator.\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Dzielimy obie strony przez \\(5000\\), by uzyskać\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\left(1+\\frac{p}{100}\\right)^3=624,31\\)",
+            "\\(\\left(1+\\frac{p}{100}\\right)^3=1,124864\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Aby z równania \\(\\left(1+\\frac{p}{100}\\right)^3=1,124864\\) wyliczyć \\(1+\\frac{p}{100}\\), z obu stron obliczamy pierwiastek trzeciego stopnia (czyli inaczej podnosimy do potęgi \\(\\tfrac{1}{3}\\)).</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    \\left(1+\\frac{p}{100}\\right)^3&amp;=1,124864\\\\\n                    1+\\frac{p}{100}&amp;=\\sqrt[3]{1,124864}\\\\\n                    1+\\frac{p}{100}&amp;=1,04\\\\\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd wyliczamy, że\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(p=4\\)",
+            "\\(p=0,4\\)",
+            "\\(p=0,04\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Oprocentowanie lokaty w skali roku było równe \\(4\\%\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Na lokatę na procent złożony wpłacono \\(2000\\) złotych. Oprocentowanie lokaty w skali rocznej to \\(5\\%\\), a kapitalizacja następuje po roku. Po kilku latach zgromadzony kapitał wyniósł \\(2205\\) złotych.\n        <p>\n            Po ilu latach?\n        </p>\n"
+      "body": "<p>Na lokatę na procent złożony wpłacono \\(2000\\) złotych. Oprocentowanie lokaty w skali rocznej to \\(5\\%\\), a kapitalizacja następuje po roku. Po kilku latach zgromadzony kapitał wyniósł \\(2205\\) złotych.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Po ilu latach?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Jeszcze raz skorzystamy ze wzoru\n                </p>\n                \\[\n                K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\n                \\]\n                <blockquote>\n                    \"wpłacono \\(2000\\) złotych\"\n                </blockquote>\n<div class=\"switch_line\">\n                    co oznacza, że \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(K_n=2000\\)</div>\n<div class=\"switch_value\">\\(K_0=2000\\)</div>\n<div class=\"switch_value\">\\(p=2000\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<blockquote>\n                    \"Oprocentowanie lokaty w skali rocznej to \\(5\\%\\)\"\n                </blockquote>\n<div class=\"switch_line\">\n                    czyli\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(n=5\\)</div>\n<div class=\"switch_value\">\\(p=5\\)</div>\n<div class=\"switch_value\">\\(p=5\\%\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<blockquote>\n                    \"Po kilku latach zgromadzony kapitał wyniósł \\(2205\\) złotych\"\n                </blockquote>\n<div class=\"switch_line\">\n                    czyli\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(K_n=2205\\)</div>\n<div class=\"switch_value\">\\(K_0=2205\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Podstawiamy \\(K_0=2000\\), \\(K_n=2205\\) i \\(p=5\\) do wzoru\n                \\[\n                K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\n                \\]\n                i dostajemy\n                \\[\n                2205=2000\\left(1+\\frac{5}{100}\\right)^n\n                \\]\n                A gdy podzielimy obie strony przez \\(2000\\):\n                \\[\n                \\left(1+\\frac{5}{100}\\right)^n=\\frac{2205}{2000}\n                \\]\n                <div class=\"switch_line\">\n                    Możemy teraz dodać \\(1+\\frac{5}{100}\\) w nawiasie i skrócić ułamek przez \\(5\\), by dostać\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\tfrac{21}{20}\\)</div>\n<div class=\"switch_value\">\\(\\tfrac{26}{25}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                A gdy jeszcze skrócimy ułamek z drugiej strony przez \\(5\\), dostaniemy:\n                \\[\n                \\left(\\frac{21}{20}\\right)^n=\\frac{441}{400}\n                \\]\n                <div class=\"switch_line\">\n                    A stąd możemy dostrzec, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(n=2\\)</div>\n<div class=\"switch_value\">\\(n=3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Lokata funkcjonowała przez dwa lata.\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Jeszcze raz skorzystamy ze wzoru\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\n                "
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"wpłacono \\(2000\\) złotych\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    co oznacza, że \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(K_n=2000\\)",
+            "\\(K_0=2000\\)",
+            "\\(p=2000\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Oprocentowanie lokaty w skali rocznej to \\(5\\%\\)\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    czyli\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(n=5\\)",
+            "\\(p=5\\)",
+            "\\(p=5\\%\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Po kilku latach zgromadzony kapitał wyniósł \\(2205\\) złotych\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    czyli\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(K_n=2205\\)",
+            "\\(K_0=2205\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Podstawiamy \\(K_0=2000\\), \\(K_n=2205\\) i \\(p=5\\) do wzoru\n                \\[\n                K_n=K_0\\left(1+\\frac{p}{100}\\right)^n\n                \\]\n                i dostajemy\n                \\[\n                2205=2000\\left(1+\\frac{5}{100}\\right)^n\n                \\]\n                A gdy podzielimy obie strony przez \\(2000\\):\n                \\[\n                \\left(1+\\frac{5}{100}\\right)^n=\\frac{2205}{2000}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Możemy teraz dodać \\(1+\\frac{5}{100}\\) w nawiasie i skrócić ułamek przez \\(5\\), by dostać\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\tfrac{21}{20}\\)",
+            "\\(\\tfrac{26}{25}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>A gdy jeszcze skrócimy ułamek z drugiej strony przez \\(5\\), dostaniemy:\n                \\[\n                \\left(\\frac{21}{20}\\right)^n=\\frac{441}{400}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    A stąd możemy dostrzec, że\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(n=2\\)",
+            "\\(n=3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Lokata funkcjonowała przez dwa lata.</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "4a09f4a0b87e2ea94bda8b0d26e9fb7a8341797e660474cbdfd4de3e3438f11c"
+  "seed_hash": "755c44063e3a611925c92f595dc0cd6b12647298a1a697e22b43c4f7d95272af"
 }

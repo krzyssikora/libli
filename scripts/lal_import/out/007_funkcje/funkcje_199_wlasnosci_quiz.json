@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "choice",
-      "stem": "<p>Miejsca zerowe funkcji</p><p>\\[</p><p>f(x)=x^2-16, \\text{ gdzie }x\\in\\mathbb{R}</p><p>\\]</p><p>to</p>",
+      "stem": "<p>Miejsca zerowe funkcji</p><p>\\[\nf(x)=x^2-16, \\text{ gdzie }x\\in\\mathbb{R}\n\\]</p><p>to</p>",
       "multiple": false,
       "choices": [
         {
@@ -24,7 +24,7 @@
     },
     {
       "type": "numeric",
-      "stem": "<p>Wpisz miejsce zerowe funkcji</p><p>\\[</p><p>g(x)=\\sqrt{7-x}</p><p>\\]</p>",
+      "stem": "<p>Wpisz miejsce zerowe funkcji</p><p>\\[\ng(x)=\\sqrt{7-x}\n\\]</p>",
       "value": "7",
       "tolerance": "0"
     },
@@ -209,5 +209,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "31c1568f9a9807bb7196e3911787dc79b117931b75787e613a9211ad41bab9a4"
+  "seed_hash": "2da77c9ee2f34beeda7eea07d7f06123c212f3e57f1631490345a5dfe2b68955"
 }

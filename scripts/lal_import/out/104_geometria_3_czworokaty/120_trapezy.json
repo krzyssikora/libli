@@ -11,7 +11,48 @@
     {
       "type": "spoiler",
       "label": "Dlaczego \"co najmniej\" jest w nawiasie?",
-      "body": "\n\n    Powyższa definicja mogłaby brzmieć:\n    <blockquote>\n<strong>Trapezem</strong> nazwiemy czworokąt, który ma parę boków równoległych.\n    </blockquote>\n<p>\n        Mówiąc, że czworokąt ma parę boków równoległych niw wykluczamy, że ma więcej (czyli dwie).\n    </p>\n<div style=\"background-color: rgb(240, 240, 240);\">\n<p>\n<i>Można to rozumieć w taki sposób:</i>\n</p>\n        Jeśli masz dwa jabłka i ktoś Cię pyta:\n        <ul class=\"nolist\">\n<li>- Czy masz jabłko?</li>\n</ul>\n        To odpowiadasz:\n        <ul class=\"nolist\">\n<li>- Mam.</li>\n</ul>\n<p>\n            Bo rzeczywiście masz jabłko, a nawet dwa. Fałszem byłoby powiedzieć, że nie masz jabłka.\n        </p>\n</div>\n    Tak więc w powyższej definicji \"co najmniej\" zostało umieszczone w nawiasie, bo nie jest w niej konieczne.\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Powyższa definicja mogłaby brzmieć:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n<strong>Trapezem</strong> nazwiemy czworokąt, który ma parę boków równoległych.\n    </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Mówiąc, że czworokąt ma parę boków równoległych niw wykluczamy, że ma więcej (czyli dwie).\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<i>Można to rozumieć w taki sposób:</i>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Jeśli masz dwa jabłka i ktoś Cię pyta:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>- Czy masz jabłko?</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>To odpowiadasz:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>- Mam.</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Bo rzeczywiście masz jabłko, a nawet dwa. Fałszem byłoby powiedzieć, że nie masz jabłka.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Tak więc w powyższej definicji \"co najmniej\" zostało umieszczone w nawiasie, bo nie jest w niej konieczne.</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -34,7 +75,24 @@
     {
       "type": "spoiler",
       "label": "a jeśli trapez ma dwie pary boków równoległych...",
-      "body": "\n\n    wtedy, zależnie od sytuacji, jedna para boków równoległych to podstawy, a druga to ramiona.\n    <div class=\"table_wrapper\">\n<table class=\"my_table_noborder narrow_table\">\n<tr>\n<td>\n<img src=\"static/trapez_podstawy_ramiona_2.png\" style=\"max-height: 200px;\"/>\n</td>\n<td>\n<img src=\"static/trapez_podstawy_ramiona_3.png\" style=\"max-height: 200px;\"/>\n</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>wtedy, zależnie od sytuacji, jedna para boków równoległych to podstawy, a druga to ramiona.</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_podstawy_ramiona_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/trapez_podstawy_ramiona_3.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "text",
@@ -58,7 +116,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -117,5 +175,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "1691fa76bcc8ad6bfd4756c4ea30c109dde7f6e1909f0085c15e825bf6f30a43"
+  "seed_hash": "411ccc6a84c714d7032949f0ae0823eb6dbf92984a552d5a330cc5dc0c9a3840"
 }

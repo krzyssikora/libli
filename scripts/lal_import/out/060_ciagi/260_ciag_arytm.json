@@ -7,35 +7,861 @@
     {
       "type": "spoiler",
       "label": "uzasadnienie wzoru",
-      "body": "\n\n<div id=\"question310\">\n<div class=\"steps\">\n            Zapiszmy sumę \\(S_n\\):\n            <div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\\(S_n=\\)</td>\n<td>\\(a_1\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_2\\)</td>\n<td>\\(+\\)</td>\n<td>\\(\\dots\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_{n-1}\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_n\\)</td>\n</tr>\n</table>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Pod nią zapiszmy tę samą sumę, ale w odwrotnej kolejności:\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\\(S_n=\\)</td>\n<td>\\(a_1\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_2\\)</td>\n<td>\\(+\\)</td>\n<td>\\(\\dots\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_{n-1}\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_n\\)</td>\n</tr>\n<tr>\n<td>\\(S_n=\\)</td>\n<td>\\(a_n\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_{n-1}\\)</td>\n<td>\\(+\\)</td>\n<td>\\(\\dots\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_2\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_1\\)</td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Dodajmy obie sumy, wyraz po wyrazie:\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\\(S_n=\\)</td>\n<td>\\(a_1\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_2\\)</td>\n<td>\\(+\\)</td>\n<td>\\(\\dots\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_{n-1}\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_n\\)</td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\\(S_n=\\)</td>\n<td>\\(a_n\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_{n-1}\\)</td>\n<td>\\(+\\)</td>\n<td>\\(\\dots\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_2\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_1\\)</td>\n</tr>\n<tr>\n<td>\\(2S_n=\\)</td>\n<td>\\((a_1+a_n)\\)</td>\n<td>\\(+\\)</td>\n<td>\\((a_1+a_n)\\)</td>\n<td>\\(+\\)</td>\n<td>\\(\\dots\\)</td>\n<td>\\(+\\)</td>\n<td>\\((a_1+a_n)\\)</td>\n<td>\\(+\\)</td>\n<td>\\((a_1+a_n)\\)</td>\n</tr>\n</table>\n</div>\n                Jeśli masz wątpliwości co do tego, że wszystkie pary wyrazów sumują się do \\((a_1+a_n)\\)\n                <details>\n<summary>obejrzyj animację</summary>\n                    Animacja pokazuje graficzną interpretację dwóch sum dwudziestu wyrazów ciągu arytmetycznego.\n                    <figure>\n<div class=\"iframe_small hidden\">\n<small>\n                                Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                            </small>\n<br/>\n<small>\n                                Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                            </small>\n</div>\n<iframe height=\"690px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/aa2vdpfk/width/610/height/690/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"suma ciągu arytmetycznego - animacja\" width=\"610px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                                    aplet nie działa poprawnie?\n                                </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                                    Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                                    <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                        ten email\n                                    </a>\n                                    .\n                                </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</details>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Jak widać, podwojona suma \\(2S_n\\) składa się z \\(n\\) składników postaci \\((a_1+a_n)\\):\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\\(S_n=\\)</td>\n<td>\\(a_1\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_2\\)</td>\n<td>\\(+\\)</td>\n<td>\\(\\dots\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_{n-1}\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_n\\)</td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\\(S_n=\\)</td>\n<td>\\(a_n\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_{n-1}\\)</td>\n<td>\\(+\\)</td>\n<td>\\(\\dots\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_2\\)</td>\n<td>\\(+\\)</td>\n<td>\\(a_1\\)</td>\n</tr>\n<tr>\n<td>\\(2S_n=\\)</td>\n<td>\\((a_1+a_n)\\)</td>\n<td>\\(+\\)</td>\n<td>\\((a_1+a_n)\\)</td>\n<td>\\(+\\)</td>\n<td>\\(\\dots\\)</td>\n<td>\\(+\\)</td>\n<td>\\((a_1+a_n)\\)</td>\n<td>\\(+\\)</td>\n<td>\\((a_1+a_n)\\)</td>\n</tr>\n<tr>\n<td></td>\n<td>\\(\\uparrow\\)</td>\n<td>\\(+\\)</td>\n<td>\\(\\uparrow\\)</td>\n<td>\\(+\\)</td>\n<td>\\(\\dots\\)</td>\n<td>\\(+\\)</td>\n<td>\\(\\uparrow\\)</td>\n<td>\\(+\\)</td>\n<td>\\(\\uparrow\\)</td>\n</tr>\n<tr>\n<td></td>\n<td>\\(1\\)</td>\n<td></td>\n<td>\\(2\\)</td>\n<td></td>\n<td>\\(\\dots\\)</td>\n<td></td>\n<td>\\(n-1\\)</td>\n<td></td>\n<td>\\(n\\)</td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n                czyli:\n                <div class=\"table_wrapper\">\n                    \\[\n                    2S_n=(a_1+a_n)\\cdot n\n                    \\]\n                </div>\n                więc\n                <div class=\"table_wrapper\">\n                    \\[\n                    S_n=\\frac{(a_1+a_n)\\cdot n}{2}\n                    \\]\n                </div>\n                albo\n                <div class=\"table_wrapper\">\n                    \\[\n                    S_n=\\frac{(a_1+a_n)}{2}\\cdot n\n                    \\]\n                </div>\n</div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Zapiszmy sumę \\(S_n\\):</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(S_n=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{n-1}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Pod nią zapiszmy tę samą sumę, ale w odwrotnej kolejności:\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(S_n=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{n-1}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(S_n=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{n-1}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dodajmy obie sumy, wyraz po wyrazie:\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(S_n=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{n-1}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(S_n=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{n-1}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(2S_n=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\((a_1+a_n)\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\((a_1+a_n)\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\((a_1+a_n)\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\((a_1+a_n)\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Jeśli masz wątpliwości co do tego, że wszystkie pary wyrazów sumują się do \\((a_1+a_n)\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>obejrzyj animację</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Animacja pokazuje graficzną interpretację dwóch sum dwudziestu wyrazów ciągu arytmetycznego.</p>"
+        },
+        {
+          "type": "iframe",
+          "url": "https://www.geogebra.org/material/iframe/id/aa2vdpfk/width/610/height/690/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+          "title": ""
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Jak widać, podwojona suma \\(2S_n\\) składa się z \\(n\\) składników postaci \\((a_1+a_n)\\):\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(S_n=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{n-1}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(S_n=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{n-1}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(2S_n=\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\((a_1+a_n)\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\((a_1+a_n)\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\((a_1+a_n)\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\((a_1+a_n)\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\uparrow\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\uparrow\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\uparrow\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\uparrow\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\dots\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(n-1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>czyli:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    2S_n=(a_1+a_n)\\cdot n\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>więc</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    S_n=\\frac{(a_1+a_n)\\cdot n}{2}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>albo</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    S_n=\\frac{(a_1+a_n)}{2}\\cdot n\n                    \\]\n                "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<div>\n<p>\n                W pierwszym, najniższym rzędzie amfiteatru jest 60 miejsc, a w każdym kolejnym o 2 miejsca więcej, niż w poprzednim. W ostatnim, najwyższym rzędzie jest 120 miejsc.\n            </p>\n<ol class=\"bold\">\n<li>\n                    Ile jest rzędów?\n                </li>\n<li>\n                    Ile jest miejsc na widowni amfiteatru?\n                </li>\n</ol>\n</div>\n"
+      "body": "<p>\n                W pierwszym, najniższym rzędzie amfiteatru jest 60 miejsc, a w każdym kolejnym o 2 miejsca więcej, niż w poprzednim. W ostatnim, najwyższym rzędzie jest 120 miejsc.\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                    Ile jest rzędów?\n                </li>\n<li>\n                    Ile jest miejsc na widowni amfiteatru?\n                </li>\n</ol>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Na <strong>pytanie 1</strong> odpowiedzieliśmy już wcześniej: w amfiteatrze jest 31 rzędów.\n                </p>\n<p>\n                    By odpowiedzieć na <strong>pytanie 2</strong>, ponownie zdefiniujmy ciąg arytmetyczny \\((a_n)\\), którego wyrazy to liczby miejsc w kolejnych rzędach:\n                </p>\n                \\[\n                \\begin{cases}\n                a_1=60\\\\\n                r=2\n                \\end{cases}\n                \\]\n                <div class=\"switch_line\">\n                    Z rozwiązania <strong>pytania 1</strong> wiemy, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_{31}=120\\)</div>\n<div class=\"switch_value\">\\(a_{31}=60\\)</div>\n<div class=\"switch_value\">\\(a_{n}=31\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Aby znaleźć liczbę wszystkich miejsc na widowni, obliczymy sumę 31 wyrazów ciągu (czyli zsumujemy liczby miejsc we wszystkich 31 rzędach). Użyjemy wzoru\n                \\[\n                S_n=\\frac{a_1+a_n}{2}\\cdot n\n                \\]\n                dla \\(n=31\\).\n                <div class=\"switch_line\">\n                    Po podstawieniu wartości otrzymamy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(S_{31}=\\frac{60+31}{2}\\cdot 31\\)</div>\n<div class=\"switch_value\">\\(S_{31}=\\frac{31+120}{2}\\cdot 31\\)</div>\n<div class=\"switch_value\">\\(S_{31}=\\frac{60+120}{2}\\cdot 31\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Po obliczeniu dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(S_{31}=2\\,790\\)</div>\n<div class=\"switch_value\">\\(S_{31}=2\\,700\\)</div>\n<div class=\"switch_value\">\\(S_{31}=5\\,580\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                W amifiteatrze jest \\(2\\,790\\) miejsc.\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Na <strong>pytanie 1</strong> odpowiedzieliśmy już wcześniej: w amfiteatrze jest 31 rzędów.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    By odpowiedzieć na <strong>pytanie 2</strong>, ponownie zdefiniujmy ciąg arytmetyczny \\((a_n)\\), którego wyrazy to liczby miejsc w kolejnych rzędach:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\begin{cases}\n                a_1=60\\\\\n                r=2\n                \\end{cases}\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Z rozwiązania pytania 1 wiemy, że\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_{31}=120\\)",
+            "\\(a_{31}=60\\)",
+            "\\(a_{n}=31\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Aby znaleźć liczbę wszystkich miejsc na widowni, obliczymy sumę 31 wyrazów ciągu (czyli zsumujemy liczby miejsc we wszystkich 31 rzędach). Użyjemy wzoru\n                \\[\n                S_n=\\frac{a_1+a_n}{2}\\cdot n\n                \\]\n                dla \\(n=31\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po podstawieniu wartości otrzymamy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(S_{31}=\\frac{60+31}{2}\\cdot 31\\)",
+            "\\(S_{31}=\\frac{31+120}{2}\\cdot 31\\)",
+            "\\(S_{31}=\\frac{60+120}{2}\\cdot 31\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po obliczeniu dostajemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(S_{31}=2\\,790\\)",
+            "\\(S_{31}=2\\,700\\)",
+            "\\(S_{31}=5\\,580\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>W amifiteatrze jest \\(2\\,790\\) miejsc.</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Pan Tadeusz postanowił zacząć oszczędzać i odkładać coraz większe kwoty na swoje konto oszczędnościowe.\n        </p>\n<p>\n            W pierwszym miesiącu odłożył \\(1\\,000\\) złotych, a w każdym kolejnym o \\(100\\) złotych więcej, niż w poprzednim - aż do miesiąca, w którym odłożył \\(2\\,500\\) złotych.\n        </p>\n<ol class=\"bold\">\n<li>W którym miesiącu odkładana kwota osiągnęła wysokość \\(2,500\\) złotych?</li>\n<li>Jaka była cała kwota oszczędności odłożonych do tego miesiąca (włącznie)?</li>\n</ol>\n"
+      "body": "<p>\n            Pan Tadeusz postanowił zacząć oszczędzać i odkładać coraz większe kwoty na swoje konto oszczędnościowe.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W pierwszym miesiącu odłożył \\(1\\,000\\) złotych, a w każdym kolejnym o \\(100\\) złotych więcej, niż w poprzednim - aż do miesiąca, w którym odłożył \\(2\\,500\\) złotych.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>W którym miesiącu odkładana kwota osiągnęła wysokość \\(2,500\\) złotych?</li>\n<li>Jaka była cała kwota oszczędności odłożonych do tego miesiąca (włącznie)?</li>\n</ol>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Zauważmy, że skoro kwoty odkładane co miesiąc rosną o stałą wartość (\\(100\\) zł), to tworzą ciąg arytmetyczny. Oznaczmy go \\((a_n)\\):\n                </p>\n                \\[\n                \\begin{cases}\n                a_1=1\\,000\\\\\n                r=100\n                \\end{cases}\n                \\]\n                <p>\n<strong>Pytanie 1</strong>: w którym miesiącu odkładana kwota osiągnęła wysokość \\(2,500\\) złotych?\n                </p>\n<div class=\"switch_line\">\n                    Szukamy takiego \\(n\\), że \\(a_n=2\\,500\\). Używając wzoru \\(a_n=a_1+(n-1)\\cdot r\\) otrzymujemy:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2\\,500=100+(n-1)\\cdot 1\\,000\\)</div>\n<div class=\"switch_value\">\\(2\\,500=1\\,000+(n-1)\\cdot 100\\)</div>\n<div class=\"switch_value\">\\(2\\,500=1\\,000+n\\cdot 100\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Rozwiązując równanie \\(2\\,500=1\\,000+(n-1)\\cdot 100\\) otrzymujemy:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(n=15\\)</div>\n<div class=\"switch_value\">\\(n=16\\)</div>\n<div class=\"switch_value\">\\(n=17\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    W szesnastym miesiącu odkładana kwota osiągnęła \\(2\\,500\\) złotych.\n                </p>\n<p>\n<strong>Pytanie 2</strong>: jaka była cała kwota oszczędności odłożonych do szesnastego miesiąca włącznie?\n                </p>\n<p>\n                    To jest pytanie o sumę kwot odłożonych od miesiąca pierwszego do szesnastego, czyli o sumę pierwszych szesnastu wyrazów ciągu.\n                </p>\n<p>\n                    Korzystając ze wzoru:\n                </p>\n                \\[\n                S_n=\\frac{a_1+a_n}{2}\\cdot n\n                \\]\n                <div class=\"switch_line\">\n                    dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(S_{16}=\\frac{1\\,000+2\\,500}{2}\\cdot 15\\)</div>\n<div class=\"switch_value\">\\(S_{16}=\\left(\\frac{1\\,000}{2}+2\\,500\\right)\\cdot 16\\)</div>\n<div class=\"switch_value\">\\(S_{16}=\\frac{1\\,000+2\\,500}{2}\\cdot 16\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Obliczamy, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(S_{16}=28\\,000\\)</div>\n<div class=\"switch_value\">\\(S_{16}=56\\,000\\)</div>\n<div class=\"switch_value\">\\(S_{16}=14\\,000\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Przez pierwsze szesnaście miesięcy pan Tadeusz odłożył \\(28\\,000\\) złotych.\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zauważmy, że skoro kwoty odkładane co miesiąc rosną o stałą wartość (\\(100\\) zł), to tworzą ciąg arytmetyczny. Oznaczmy go \\((a_n)\\):\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\begin{cases}\n                a_1=1\\,000\\\\\n                r=100\n                \\end{cases}\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Pytanie 1</strong>: w którym miesiącu odkładana kwota osiągnęła wysokość \\(2,500\\) złotych?\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Szukamy takiego \\(n\\), że \\(a_n=2\\,500\\). Używając wzoru \\(a_n=a_1+(n-1)\\cdot r\\) otrzymujemy:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2\\,500=100+(n-1)\\cdot 1\\,000\\)",
+            "\\(2\\,500=1\\,000+(n-1)\\cdot 100\\)",
+            "\\(2\\,500=1\\,000+n\\cdot 100\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Rozwiązując równanie \\(2\\,500=1\\,000+(n-1)\\cdot 100\\) otrzymujemy:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(n=15\\)",
+            "\\(n=16\\)",
+            "\\(n=17\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    W szesnastym miesiącu odkładana kwota osiągnęła \\(2\\,500\\) złotych.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Pytanie 2</strong>: jaka była cała kwota oszczędności odłożonych do szesnastego miesiąca włącznie?\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    To jest pytanie o sumę kwot odłożonych od miesiąca pierwszego do szesnastego, czyli o sumę pierwszych szesnastu wyrazów ciągu.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Korzystając ze wzoru:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                S_n=\\frac{a_1+a_n}{2}\\cdot n\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    dostajemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(S_{16}=\\frac{1\\,000+2\\,500}{2}\\cdot 15\\)",
+            "\\(S_{16}=\\left(\\frac{1\\,000}{2}+2\\,500\\right)\\cdot 16\\)",
+            "\\(S_{16}=\\frac{1\\,000+2\\,500}{2}\\cdot 16\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Obliczamy, że\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(S_{16}=28\\,000\\)",
+            "\\(S_{16}=56\\,000\\)",
+            "\\(S_{16}=14\\,000\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Przez pierwsze szesnaście miesięcy pan Tadeusz odłożył \\(28\\,000\\) złotych.</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "0d41e627b61743637eb9797ad2b7db06e37ed20521fa3d21863ac976553d0d12"
+  "seed_hash": "b6a420e6864e6b7730418dfb164806abb0a2647bbb73def47f8c82e5b5a37b0b"
 }

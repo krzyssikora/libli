@@ -2,15 +2,29 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/trzy_okregi_1.png",
+      "alt": "zadanie 2",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "\n<img alt=\"zadanie 2\" height=\"400\" src=\"static/trzy_okregi_1.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n            Rysunek przedstawia styczne zewnętrznie okręgi o środkach \\(S_2\\) i \\(S_3\\). Oba są też styczne wewnętrznie do większego okręgu o środku \\(S_1\\).\n        </p>\n<p>\n            Obwód trójkąta \\(S_1S_2S_3\\) jest równy \\(20\\).\n        </p>\n<p>\n            Znajdź długość promienia największego okręgu.\n        </p>\n"
+      "body": "<p>\n            Rysunek przedstawia styczne zewnętrznie okręgi o środkach \\(S_2\\) i \\(S_3\\). Oba są też styczne wewnętrznie do większego okręgu o środku \\(S_1\\).\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n            zacznij rozwiązanie\n        "
+      "body": "<p>\n            Obwód trójkąta \\(S_1S_2S_3\\) jest równy \\(20\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długość promienia największego okręgu.\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "zacznij rozwiązanie"
     },
     {
       "type": "text",
@@ -21,16 +35,20 @@
       "body": "<blockquote>\n                        Jeśli dwa okręgi są styczne, to ich środki oraz punkt styczności leżą na jednej prostej.\n                    </blockquote>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"promień i styczna\" src=\"static/tw_promien_styczna_2.png\" width=\"320\"/>\n"
+      "type": "image",
+      "media_src": "static/tw_promien_styczna_2.png",
+      "alt": "promień i styczna",
+      "figcaption": ""
     },
     {
       "type": "text",
       "body": "<p>\n                        Dorysujmy więc promienie łączące środki okręgów z punktami styczności:\n                    </p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"zadanie 2\" src=\"static/trzy_okregi_2.png\" width=\"500\"/>\n"
+      "type": "image",
+      "media_src": "static/trzy_okregi_2.png",
+      "alt": "zadanie 2",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -45,88 +63,37 @@
       "body": "<p>\n                        Teraz możemy wyrazić długości odcinków \\(S_1S_2\\), \\(S_2S_3\\) i \\(S_3S_1) za pomocą \\(r_1\\), \\(r_2\\) i \\(r_3\\).\n                    </p>"
     },
     {
-      "type": "text",
-      "body": "<p>\\(S_1S_2=\\)</p>"
+      "type": "switch_gate",
+      "stem": "\n                        \\(S_1S_2=\\)\n                        \n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\(r_1-r_2\\)",
+        "\\(r_1-r_3\\)",
+        "\\(r_2-r_3\\)",
+        "\\(r_2+r_3\\)"
+      ],
+      "answer": 0
     },
     {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
+      "type": "switch_gate",
+      "stem": "\n                        \\(S_1S_3=\\)\n                        \n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\(r_1-r_2\\)",
+        "\\(r_1-r_3\\)",
+        "\\(r_2-r_3\\)",
+        "\\(r_2+r_3\\)"
+      ],
+      "answer": 1
     },
     {
-      "type": "text",
-      "body": "\n                            \\(r_1-r_2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(r_1-r_3\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(r_2-r_3\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(r_2+r_3\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\\(S_1S_3=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(r_1-r_2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(r_1-r_3\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(r_2-r_3\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(r_2+r_3\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\\(S_2S_3=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(r_1-r_2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(r_1-r_3\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(r_2-r_3\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(r_2+r_3\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
+      "type": "switch_gate",
+      "stem": "\n                        \\(S_2S_3=\\)\n                        \n\n\n\n\n\n￿0￿",
+      "options": [
+        "\\(r_1-r_2\\)",
+        "\\(r_1-r_3\\)",
+        "\\(r_2-r_3\\)",
+        "\\(r_2+r_3\\)"
+      ],
+      "answer": 3
     },
     {
       "type": "text",
@@ -137,34 +104,20 @@
       "latex": "\n                                                                                                        \\begin{align*}\n                                                                                                        S_1S_2+S_1S_3+S_2S_3&=20\\\\\n                                                                                                        (r_1-r_2)+(r_1-r_3)+(r_2+r_3)&=20\n                                                                                                        \\end{align*}\n                                                                                                        "
     },
     {
-      "type": "text",
-      "body": "<p>Upraszczając wyrażenie po lewej stronie równania, a następnie dzieląc jego obie strony przez \\(2\\) otrzymujemy</p>"
+      "type": "switch_gate",
+      "stem": "\n                        Upraszczając wyrażenie po lewej stronie równania, a następnie dzieląc jego obie strony przez \\(2\\) otrzymujemy\n                        \n\n\n\n\n￿0￿",
+      "options": [
+        "\\(r_1+r_2+r_3=10\\)",
+        "\\(r_1=10\\)",
+        "\\(r_1=20\\)"
+      ],
+      "answer": 1
     },
     {
       "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(r_1+r_2+r_3=10\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(r_1=10\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(r_1=20\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                    Promie największego okręgu ma długość \\(10\\). Zauważmy, że dwa mniejsze okręgi mogą mieć różne promienie, ale promień największego okręgu będzie zawsze połową obwodu trójkąta o wierzchołkach w środkach okręgów.\n                "
+      "body": "<p>Promie największego okręgu ma długość \\(10\\). Zauważmy, że dwa mniejsze okręgi mogą mieć różne promienie, ale promień największego okręgu będzie zawsze połową obwodu trójkąta o wierzchołkach w środkach okręgów.</p>"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "f8a18c825c6dab818eecbe7d74926165b1f358a4fd0373b4ed527cf9701a4906"
+  "seed_hash": "6c4d24ced71183c352689664b6cdc340493713c3ba275d2b64089337bc34fdc1"
 }

@@ -14,599 +14,336 @@
     },
     {
       "type": "text",
-      "body": "<ol>\n<li>\n<details>\n<summary>\n                współrzędne wierzchołka\n            </summary>\n            Współrzędne wierzchołka paraboli, \\(W=(p,q)\\), są następujące:\n                                                                                                \\[\n                                                                                                \\begin{align*}\n                                                                                                p&amp;=-\\frac{b}{2a}\\\\\n                                                                                                q&amp;=-\\frac{\\Delta}{4a}\n                                                                                                \\end{align*}\n                                                                                                \\]\n            <small>\n                gdzie \\(\\Delta=b^2-4ac\\).\n            </small>\n</details>\n</li>\n<li>\n<details>\n<summary>\n                oś symetrii\n            </summary>\n<p>\n                Oś symetrii paraboli jest prostą pionową przechodzącą przez wierzchołek.\n            </p>\n<p>\n                Są to więc wszystkie punkty o współrzędnej \\(x\\)-owej takiej, jak współrzędna \\(x\\)-owa wierzchołka. Równanie tej prostej to:\n            </p>\n            \\[\n                                                                                                x=-\\frac{b}{2a}\n                                                                                                \\]\n        </details>\n</li>\n<li>\n<details>\n<summary>\n                miejsca zerowe\n            </summary>\n<div style=\"min-height: 300px;\">\n<img alt=\"symetria miejsc zerowych\" src=\"static/symetria_miejsc_zerowych.png\" style=\"height: 300px; float: right; margin: 0 15px 0 15px;\"/>\n                Miejsca zerowe, \\(x_1\\) i \\(x_2\\), dane są wzorami:\n                <div class=\"centered\">\n                    \\(x_1=\\frac{-b-\\sqrt{\\Delta}}{2a}\\quad\\quad\\) i \\(\\quad\\quad x_2=\\frac{-b+\\sqrt{\\Delta}}{2a}\\)\n                </div>\n<small>\n                    gdzie \\(\\Delta=b^2-4ac\\) oraz\n                    <ul class=\"nolist\">\n<li>\n                            jeśli \\(\\Delta\\gt 0\\) istnieją 2 różne miejsca zerowe,\n                        </li>\n<li>\n                            jeśli \\(\\Delta= 0\\) istnieje 1 miejsce zerowe,\n                        </li>\n<li>\n                            jeśli \\(\\Delta\\lt 0\\) nie ma miejsc zerowych.\n                        </li>\n</ul>\n</small>\n                Zauważmy, że jeśli funkcja kwadratowa ma dwa miejsca zerowe, są one w jednakowej odległości od osi symetrii.\n            </div>\n</details>\n</li>\n<li>\n<details>\n<summary>\n                punkt na osi OY\n            </summary>\n            Otrzymujemy go podstawiając \\(x=0\\) do równania paraboli \\(y=ax^2+bx+c\\):\n                                                                                                \\[\n                                                                                                \\begin{align*}\n                                                                                                y&amp;=a\\cdot 0^2+b\\cdot 0+c\\\\\n                                                                                                y&amp;=c\n                                                                                                \\end{align*}\n                                                                                                \\]\n                                                                                                czyli współrzędne punktu na osi OY to \\((0,c)\\).\n        </details>\n</li>\n<li>\n<details>\n<summary>\n                kierunek ramion\n            </summary>\n            Kiedy już mamy wyliczone wszystkie elementy, warto sprawdzić, czy pasują one do kształtu paraboli.\n            <ul class=\"nolist\">\n<li>\n                    jeśli \\(a\\gt 0\\) ramiona są skierowane do góry (\\(\\cup\\)),\n                </li>\n<li>\n                    jeśli \\(a\\lt 0\\) ramiona są skierowane do dołu (\\(\\cap\\)).\n                </li>\n</ul>\n</details>\n</li>\n</ol>"
+      "body": "<p><li>\n<details>\n<summary>\n                współrzędne wierzchołka\n            </summary>\n            Współrzędne wierzchołka paraboli, \\(W=(p,q)\\), są następujące:\n                                                                                                \\[\n                                                                                                \\begin{align*}\n                                                                                                p&amp;=-\\frac{b}{2a}\\\\\n                                                                                                q&amp;=-\\frac{\\Delta}{4a}\n                                                                                                \\end{align*}\n                                                                                                \\]\n            <small>\n                gdzie \\(\\Delta=b^2-4ac\\).\n            </small>\n</details>\n</li>\n<li>\n<details>\n<summary>\n                oś symetrii\n            </summary>\n<p>\n                Oś symetrii paraboli jest prostą pionową przechodzącą przez wierzchołek.\n            </p>\n<p>\n                Są to więc wszystkie punkty o współrzędnej \\(x\\)-owej takiej, jak współrzędna \\(x\\)-owa wierzchołka. Równanie tej prostej to:\n            </p>\n            \\[\n                                                                                                x=-\\frac{b}{2a}\n                                                                                                \\]\n        </details>\n</li></p>"
     },
     {
       "type": "text",
-      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                \\(y=2x^2-4x-6\\)\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                \\(y=-\\tfrac{1}{2}x^2-2x-3\\)\n            </a>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<strong>\n<u>\n                                współrzędne wierzchołka\n                            </u>\n</strong>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Dla pewności zapiszmy wartości współczynników równania:\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                        \\(a=2\\), \\(\\quad\\quad b=-4\\), \\(\\quad\\quad c=-6\\)\n                    "
-    },
-    {
-      "type": "text",
-      "body": "<p>Zacznijmy od współrzędnej \\(x\\)-owej wierzchołka zdefiniowanej wyrażeniem \\(-\\frac{b}{2a}\\). Współrzędna ta ma wartość</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-1\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(1\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>Do dalszych obliczeń potrzebujemy znać wartość wyróżnika równania kwadratowego, czyli \"delty\". Liczymy ją ze wzoru \\(\\Delta=b^2-4ac\\) i otrzymujemy</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-32\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(8\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(64\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(40\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>I teraz możemy obliczyć współrzędną \\(y\\)-ową wierzchołka, równą \\(-\\frac{\\Delta}{4a}\\). Otrzymujemy wartość</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-8\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(32\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(8\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-32\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
+      "body": "<p><summary>\n                miejsca zerowe\n            </summary></p>"
     },
     {
       "type": "image",
-      "media_src": "static/parabola_1_1.png",
-      "alt": "parabola 1 1",
+      "media_src": "static/symetria_miejsc_zerowych.png",
+      "alt": "symetria miejsc zerowych",
       "figcaption": ""
     },
     {
       "type": "text",
-      "body": "<p>Tym samym współrzędne wierzchołka to \\((1, -8)\\).</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<strong>\n<u>\n                                oś symetrii\n                            </u>\n</strong>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Znając wierzchołek wiemy, że równanie osi symetrii paraboli to</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(y=-8\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(x=-8\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(y=1\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(x=1\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>Pamiętając, że \\(\\Delta=64\\) obliczmy</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<strong>\n<u>\n                                miejsca zerowe\n                            </u>\n</strong>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Zacznijmy od tego danego wzorem \\(x=\\frac{-b-\\sqrt{\\Delta}}{2a}=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-1\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(1\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(3\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(2,5\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>A teraz to ze wzoru \\(x=\\frac{-b+\\sqrt{\\Delta}}{2a}=\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-1\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(1\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(3\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(2,5\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "image",
-      "media_src": "static/parabola_1_2.png",
-      "alt": "parabola 1 2",
-      "figcaption": ""
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<strong>\n<u>\n                                punkt na osi OY\n                            </u>\n</strong>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Aby znaleźć współrzędne punktu na osi OY, podstawiamy \\(x=0\\) do równania paraboli i otrzymujemy \\((0,\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-6\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-4\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\\()\\).</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Możemy też dorysować punkt symetryczny do punktu na osi OY, jak widać niżej.\n                    </p>"
-    },
-    {
-      "type": "image",
-      "media_src": "static/parabola_1_3.png",
-      "alt": "parabola 1 3",
-      "figcaption": ""
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<strong>\n<u>\n                                kierunek ramion\n                            </u>\n</strong>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Dla tej paraboli \\(a=2\\) więc ramiona paraboli skierowane są</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            do góry\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            do dołu\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        A parabola wygląda tak:\n                    </p>"
-    },
-    {
-      "type": "image",
-      "media_src": "static/parabola_1_4.png",
-      "alt": "parabola 1 4",
-      "figcaption": ""
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<strong>\n<u>\n                                współrzędne wierzchołka\n                            </u>\n</strong>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Dla pewności zapiszmy wartości współczynników równania:\n                    </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                        \\(a=-\\frac{1}{2}\\), \\(\\quad\\quad b=-2\\), \\(\\quad\\quad c=-3\\)\n                    "
-    },
-    {
-      "type": "text",
-      "body": "<p>Zacznijmy od współrzędnej \\(x\\)-owej wierzchołka zdefiniowanej wyrażeniem \\(-\\frac{b}{2a}\\). Współrzędna ta ma wartość</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(1\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-\\tfrac{1}{2}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>Do dalszych obliczeń potrzebujemy znać wartość wyróżnika równania kwadratowego, czyli \"delty\". Liczymy ją ze wzoru \\(\\Delta=b^2-4ac\\) i otrzymujemy</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(10\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(4\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>I teraz możemy obliczyć współrzędną \\(y\\)-ową wierzchołka, równą \\(-\\frac{\\Delta}{4a}\\). Otrzymujemy wartość</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(1\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-1\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(\\tfrac{1}{2}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-\\tfrac{1}{2}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "image",
-      "media_src": "static/parabola_2_1.png",
-      "alt": "parabola 2 1",
-      "figcaption": ""
-    },
-    {
-      "type": "text",
-      "body": "<p>Tym samym współrzędne wierzchołka to \\((-2, -1)\\).</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<strong>\n<u>\n                                oś symetrii\n                            </u>\n</strong>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Znając wierzchołek wiemy, że równanie osi symetrii paraboli to</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(x=-2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(y=-2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(x=-1\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(y=-1\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>Czas na</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<strong>\n<u>\n                                miejsca zerowe\n                            </u>\n</strong>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Pamiętamy, że \\(\\Delta=-2\\), a to oznacza, że</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            są dwa różne miejsca zerowe\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            jest jedno miejsce zerowe\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            nie ma miejsc zerowych\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>Nie ma miejsc zerowych, więc nie możemy niczym wzbogacić wykresu. Czas na</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<strong>\n<u>\n                                punkt na osi OY\n                            </u>\n</strong>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Aby znaleźć współrzędne punktu na osi OY, podstawiamy \\(x=0\\) do równania paraboli i otrzymujemy \\((0,\\)</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-3\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-2\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            \\(-\\tfrac{1}{2}\\)\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\\()\\).</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        Możemy też dorysować punkt symetryczny do punktu na osi OY, jak widać niżej.\n                    </p>"
-    },
-    {
-      "type": "image",
-      "media_src": "static/parabola_2_2.png",
-      "alt": "parabola 2 2",
-      "figcaption": ""
-    },
-    {
-      "type": "text",
-      "body": "<p>\n<strong>\n<u>\n                                kierunek ramion\n                            </u>\n</strong>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Dla tej paraboli \\(a=-\\frac{1}{2}\\) więc ramiona paraboli skierowane są</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            &gt;&gt; wybierz &gt;&gt;\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            do góry\n                        "
-    },
-    {
-      "type": "text",
-      "body": "\n                            do dołu\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                            zatwierdź\n                        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n                        A parabola wygląda tak:\n                    </p>"
-    },
-    {
-      "type": "image",
-      "media_src": "static/parabola_2_3.png",
-      "alt": "parabola 2 3",
-      "figcaption": ""
+      "body": "<p>Miejsca zerowe, \\(x_1\\) i \\(x_2\\), dane są wzorami:\n                <div class=\"centered\">\n                    \\(x_1=\\frac{-b-\\sqrt{\\Delta}}{2a}\\quad\\quad\\) i \\(\\quad\\quad x_2=\\frac{-b+\\sqrt{\\Delta}}{2a}\\)\n                </div>\n<small>\n                    gdzie \\(\\Delta=b^2-4ac\\) oraz\n                    <ul class=\"nolist\">\n<li>\n                            jeśli \\(\\Delta\\gt 0\\) istnieją 2 różne miejsca zerowe,\n                        </li>\n<li>\n                            jeśli \\(\\Delta= 0\\) istnieje 1 miejsce zerowe,\n                        </li>\n<li>\n                            jeśli \\(\\Delta\\lt 0\\) nie ma miejsc zerowych.\n                        </li>\n</ul>\n</small>\n                Zauważmy, że jeśli funkcja kwadratowa ma dwa miejsca zerowe, są one w jednakowej odległości od osi symetrii.</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><li>\n<details>\n<summary>\n                punkt na osi OY\n            </summary>\n            Otrzymujemy go podstawiając \\(x=0\\) do równania paraboli \\(y=ax^2+bx+c\\):\n                                                                                                \\[\n                                                                                                \\begin{align*}\n                                                                                                y&amp;=a\\cdot 0^2+b\\cdot 0+c\\\\\n                                                                                                y&amp;=c\n                                                                                                \\end{align*}\n                                                                                                \\]\n                                                                                                czyli współrzędne punktu na osi OY to \\((0,c)\\).\n        </details>\n</li>\n<li>\n<details>\n<summary>\n                kierunek ramion\n            </summary>\n            Kiedy już mamy wyliczone wszystkie elementy, warto sprawdzić, czy pasują one do kształtu paraboli.\n            <ul class=\"nolist\">\n<li>\n                    jeśli \\(a\\gt 0\\) ramiona są skierowane do góry (\\(\\cup\\)),\n                </li>\n<li>\n                    jeśli \\(a\\lt 0\\) ramiona są skierowane do dołu (\\(\\cap\\)).\n                </li>\n</ul>\n</details>\n</li></p>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "\\(y=2x^2-4x-6\\)",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n<strong>\n<u>\n                                współrzędne wierzchołka\n                            </u>\n</strong>\n</p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Dla pewności zapiszmy wartości współczynników równania:\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                        \\(a=2\\), \\(\\quad\\quad b=-4\\), \\(\\quad\\quad c=-6\\)\n                    "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Zacznijmy od współrzędnej \\(x\\)-owej wierzchołka zdefiniowanej wyrażeniem \\(-\\frac{b}{2a}\\). Współrzędna ta ma wartość\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(-1\\)",
+                "\\(1\\)",
+                "\\(-2\\)",
+                "\\(2\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Do dalszych obliczeń potrzebujemy znać wartość wyróżnika równania kwadratowego, czyli \"delty\". Liczymy ją ze wzoru \\(\\Delta=b^2-4ac\\) i otrzymujemy\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(-32\\)",
+                "\\(8\\)",
+                "\\(64\\)",
+                "\\(40\\)"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        I teraz możemy obliczyć współrzędną \\(y\\)-ową wierzchołka, równą \\(-\\frac{\\Delta}{4a}\\). Otrzymujemy wartość\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(-8\\)",
+                "\\(32\\)",
+                "\\(8\\)",
+                "\\(-32\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "image",
+              "media_src": "static/parabola_1_1.png",
+              "alt": "parabola 1 1",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>Tym samym współrzędne wierzchołka to \\((1, -8)\\).</p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>\n<u>\n                                oś symetrii\n                            </u>\n</strong>\n</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Znając wierzchołek wiemy, że równanie osi symetrii paraboli to\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(y=-8\\)",
+                "\\(x=-8\\)",
+                "\\(y=1\\)",
+                "\\(x=1\\)"
+              ],
+              "answer": 3
+            },
+            {
+              "type": "text",
+              "body": "<p>Pamiętając, że \\(\\Delta=64\\) obliczmy</p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>\n<u>\n                                miejsca zerowe\n                            </u>\n</strong>\n</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Zacznijmy od tego danego wzorem \\(x=\\frac{-b-\\sqrt{\\Delta}}{2a}=\\)\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(-1\\)",
+                "\\(1\\)",
+                "\\(3\\)",
+                "\\(2,5\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        A teraz to ze wzoru \\(x=\\frac{-b+\\sqrt{\\Delta}}{2a}=\\)\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(-1\\)",
+                "\\(1\\)",
+                "\\(3\\)",
+                "\\(2,5\\)"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "image",
+              "media_src": "static/parabola_1_2.png",
+              "alt": "parabola 1 2",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>\n<u>\n                                punkt na osi OY\n                            </u>\n</strong>\n</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Aby znaleźć współrzędne punktu na osi OY, podstawiamy \\(x=0\\) do równania paraboli i otrzymujemy \\((0,\\)\n                        \n\n\n￿0￿\n                        \\()\\).\n                        \n",
+              "options": [
+                "\\(-6\\)",
+                "\\(-4\\)",
+                "\\(2\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Możemy też dorysować punkt symetryczny do punktu na osi OY, jak widać niżej.\n                    </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/parabola_1_3.png",
+              "alt": "parabola 1 3",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>\n<u>\n                                kierunek ramion\n                            </u>\n</strong>\n</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Dla tej paraboli \\(a=2\\) więc ramiona paraboli skierowane są\n                        \n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "do góry",
+                "do dołu"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        A parabola wygląda tak:\n                    </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/parabola_1_4.png",
+              "alt": "parabola 1 4",
+              "figcaption": ""
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "\\(y=-\\tfrac{1}{2}x^2-2x-3\\)",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n<strong>\n<u>\n                                współrzędne wierzchołka\n                            </u>\n</strong>\n</p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Dla pewności zapiszmy wartości współczynników równania:\n                    </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                        \\(a=-\\frac{1}{2}\\), \\(\\quad\\quad b=-2\\), \\(\\quad\\quad c=-3\\)\n                    "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Zacznijmy od współrzędnej \\(x\\)-owej wierzchołka zdefiniowanej wyrażeniem \\(-\\frac{b}{2a}\\). Współrzędna ta ma wartość\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(2\\)",
+                "\\(1\\)",
+                "\\(-2\\)",
+                "\\(-\\tfrac{1}{2}\\)"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Do dalszych obliczeń potrzebujemy znać wartość wyróżnika równania kwadratowego, czyli \"delty\". Liczymy ją ze wzoru \\(\\Delta=b^2-4ac\\) i otrzymujemy\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(-2\\)",
+                "\\(2\\)",
+                "\\(10\\)",
+                "\\(4\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        I teraz możemy obliczyć współrzędną \\(y\\)-ową wierzchołka, równą \\(-\\frac{\\Delta}{4a}\\). Otrzymujemy wartość\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(1\\)",
+                "\\(-1\\)",
+                "\\(\\tfrac{1}{2}\\)",
+                "\\(-\\tfrac{1}{2}\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "image",
+              "media_src": "static/parabola_2_1.png",
+              "alt": "parabola 2 1",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>Tym samym współrzędne wierzchołka to \\((-2, -1)\\).</p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>\n<u>\n                                oś symetrii\n                            </u>\n</strong>\n</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Znając wierzchołek wiemy, że równanie osi symetrii paraboli to\n                        \n\n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "\\(x=-2\\)",
+                "\\(y=-2\\)",
+                "\\(x=-1\\)",
+                "\\(y=-1\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>Czas na</p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>\n<u>\n                                miejsca zerowe\n                            </u>\n</strong>\n</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Pamiętamy, że \\(\\Delta=-2\\), a to oznacza, że\n                        \n\n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "są dwa różne miejsca zerowe",
+                "jest jedno miejsce zerowe",
+                "nie ma miejsc zerowych"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "text",
+              "body": "<p>Nie ma miejsc zerowych, więc nie możemy niczym wzbogacić wykresu. Czas na</p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>\n<u>\n                                punkt na osi OY\n                            </u>\n</strong>\n</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Aby znaleźć współrzędne punktu na osi OY, podstawiamy \\(x=0\\) do równania paraboli i otrzymujemy \\((0,\\)\n                        \n\n\n￿0￿\n                        \\()\\).\n                        \n",
+              "options": [
+                "\\(-3\\)",
+                "\\(-2\\)",
+                "\\(-\\tfrac{1}{2}\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        Możemy też dorysować punkt symetryczny do punktu na osi OY, jak widać niżej.\n                    </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/parabola_2_2.png",
+              "alt": "parabola 2 2",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>\n<u>\n                                kierunek ramion\n                            </u>\n</strong>\n</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                        Dla tej paraboli \\(a=-\\frac{1}{2}\\) więc ramiona paraboli skierowane są\n                        \n\n￿0￿\n                        .\n                        \n",
+              "options": [
+                "do góry",
+                "do dołu"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                        A parabola wygląda tak:\n                    </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/parabola_2_3.png",
+              "alt": "parabola 2 3",
+              "figcaption": ""
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "b29413b7d1ec9fcd1cec4b1932d2b637498fea72476967c3512761ba4c59bb8b"
+  "fully_mapped": true,
+  "seed_hash": "bf0dd4e338eae079721025c6880e09a8850f3cbd8471d168ea9d20e3ab8c7869"
 }

@@ -10,11 +10,24 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Czy pamiętasz, czym są:\n        <ul class=\"nolist\">\n<li>\n                łuk,\n            </li>\n<li>\n                wycinek koła,\n            </li>\n<li>\n                odcinek koła?\n            </li>\n</ul>\n        Jeśli nie, spójrz poniżej i kliknij odpowiednie pojęcia - to wspomniane wyżej i inne, których znaczenia nie pamiętasz.\n        <div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"500px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/rx6mxmqg/width/600/height/500/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"okrąg i koło - podstawowe pojęcia\" width=\"600px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n"
+      "body": "<p>Czy pamiętasz, czym są:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                łuk,\n            </li>\n<li>\n                wycinek koła,\n            </li>\n<li>\n                odcinek koła?\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Jeśli nie, spójrz poniżej i kliknij odpowiednie pojęcia - to wspomniane wyżej i inne, których znaczenia nie pamiętasz.</p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/rx6mxmqg/width/600/height/500/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
     },
     {
       "type": "text",
@@ -22,87 +35,35 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Długość promienia koła to \\(5\\) cm.\n    "
     },
     {
-      "type": "text",
-      "body": "<p>Wówczas pole koła jest równe</p>"
+      "type": "switch_gate",
+      "stem": "\n                Wówczas pole koła jest równe\n                \n\n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(25\\) cm\\(^2\\)",
+        "\\(10\\pi\\) cm\\(^2\\)",
+        "\\(25\\pi\\) cm\\(^2\\)",
+        "\\(10\\pi\\) cm",
+        "\\(10\\) cm"
+      ],
+      "answer": 2
     },
     {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(25\\) cm\\(^2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(10\\pi\\) cm\\(^2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(25\\pi\\) cm\\(^2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(10\\pi\\) cm\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(10\\) cm\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
-    },
-    {
-      "type": "text",
-      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
-    },
-    {
-      "type": "text",
-      "body": "<p>Obwód koła jest natomiast równy</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    &gt;&gt; wybierz &gt;&gt;\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(25\\) cm\\(^2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(10\\pi\\) cm\\(^2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(25\\pi\\) cm\\(^2\\)\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(10\\pi\\) cm\n                "
-    },
-    {
-      "type": "text",
-      "body": "\n                    \\(10\\) cm\n                "
-    },
-    {
-      "type": "text",
-      "body": "<p>.</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                    zatwierdź\n                "
+      "type": "switch_gate",
+      "stem": "\n\n\n                Obwód koła jest natomiast równy\n                \n\n\n\n\n￿0￿\n                .\n                \n",
+      "options": [
+        "\\(25\\) cm\\(^2\\)",
+        "\\(10\\pi\\) cm\\(^2\\)",
+        "\\(25\\pi\\) cm\\(^2\\)",
+        "\\(10\\pi\\) cm",
+        "\\(10\\) cm"
+      ],
+      "answer": 3
     },
     {
       "type": "image",
@@ -145,10 +106,6 @@
     {
       "type": "text",
       "body": "\n                        zatwierdź\n                    "
-    },
-    {
-      "type": "text",
-      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
     },
     {
       "type": "text",
@@ -230,10 +187,6 @@
     },
     {
       "type": "text",
-      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
-    },
-    {
-      "type": "text",
       "body": "<p>Długość</p>"
     },
     {
@@ -284,10 +237,6 @@
     },
     {
       "type": "text",
-      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
-    },
-    {
-      "type": "text",
       "body": "<p>Długość połowy okręgu to po prostu \\(\\frac{1}{2}\\cdot O_{\\circ}\\).</p>"
     },
     {
@@ -307,10 +256,6 @@
     {
       "type": "text",
       "body": "<p>Pole ćwiartki koła to po prostu \\(\\frac{1}{4}\\cdot P_{\\circ}\\).</p>"
-    },
-    {
-      "type": "text",
-      "body": "<span style=\"display: inline-block; width: 50px;\">\n</span>"
     },
     {
       "type": "text",
@@ -376,13 +321,26 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Jeśli \\(r\\) to promień koła, a \\(d\\) to długość łuku na brzegu wycinka tego koła, to pole wycinka\n        \\[\n        P=\\frac{d}{2}\\cdot r\n        \\]\n        Zauważmy, że ten wzór jest identyczny z wzorem na pole trójkąta o podstawie \\(d\\) i wysokości \\(r\\).\n        <p>\n            W poniższym aplecie do wycinka dorysowany jest trójkąt o podstawie długości \\(d\\) stycznej do łuku wycinka i trzecim wierzchołku w środku okręgu, dzięki czemu wysokość trójkąta to \\(r\\).\n        </p>\n<p>\n            Przesuwaj zaznaczonym na pomarańczowo punktem kończącym łuk, by zmieniać wielkość wycinka i trójkąta. Zwróć uwagę, że oba jednocześnie rosną lub maleją, a ich pola są sobie równe.\n        </p>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"600px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/kqk2ury2/width/700/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"pole wycinka\" width=\"700px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n"
+      "body": "<p>Jeśli \\(r\\) to promień koła, a \\(d\\) to długość łuku na brzegu wycinka tego koła, to pole wycinka\n        \\[\n        P=\\frac{d}{2}\\cdot r\n        \\]\n        Zauważmy, że ten wzór jest identyczny z wzorem na pole trójkąta o podstawie \\(d\\) i wysokości \\(r\\).</p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie do wycinka dorysowany jest trójkąt o podstawie długości \\(d\\) stycznej do łuku wycinka i trzecim wierzchołku w środku okręgu, dzięki czemu wysokość trójkąta to \\(r\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuwaj zaznaczonym na pomarańczowo punktem kończącym łuk, by zmieniać wielkość wycinka i trójkąta. Zwróć uwagę, że oba jednocześnie rosną lub maleją, a ich pola są sobie równe.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/kqk2ury2/width/700/height/600/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "40b7bc6a4594ac6b59b3f33ea27f22e837befdd82ddf4080293462064fbd60c7"
+  "seed_hash": "232f9a04af1eb3d408a4fa6881cd0fb72a94b12ddf2b9d6aeddb3575c1379c4d"
 }

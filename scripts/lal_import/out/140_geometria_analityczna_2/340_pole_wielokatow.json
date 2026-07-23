@@ -60,7 +60,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -69,24 +69,96 @@
     {
       "type": "spoiler",
       "label": "długość podstawy \\(KM\\)",
-      "body": "\n\n<details>\n<summary>metoda</summary>\n<div class=\"table_wrapper\">\n                \\[\n                \\begin{align}\n                KM&amp;=\\sqrt{(x_M-x_K)^2+(y_M-y_K)^2}=\\\\\n                &amp;=\\sqrt{(6-(-4))^2+(1-(-2))^2}\\\n                \\end{align}\n                \\]\n            </div>\n</details>\n<details>\n<summary>odpowiedź</summary>\n            \\(\\sqrt{109}\\)\n        </details>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>metoda</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\begin{align}\n                KM&amp;=\\sqrt{(x_M-x_K)^2+(y_M-y_K)^2}=\\\\\n                &amp;=\\sqrt{(6-(-4))^2+(1-(-2))^2}\\\n                \\end{align}\n                \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "<h4>odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\sqrt{109}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "równanie prostej przechodzącej przez \\(K\\) i \\(M\\)",
-      "body": "\n\n<details>\n<summary>metoda</summary>\n            Na przykład wzór:\n            <div class=\"table_wrapper\">\n                \\[\n                \\begin{align}\n                (y-y_K)(x_M-x_K)-(y_M-y_K)(x-x_K)&amp;=0\\\\\n                (y-(-2))(6-(-4))-(1-(-2))(x-(-4))&amp;=0\n                \\end{align}\n                \\]\n            </div>\n</details>\n<details>\n<summary>odpowiedź</summary>\n            \\(3x-10y-8=0\\)\n        </details>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>metoda</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Na przykład wzór:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\begin{align}\n                (y-y_K)(x_M-x_K)-(y_M-y_K)(x-x_K)&amp;=0\\\\\n                (y-(-2))(6-(-4))-(1-(-2))(x-(-4))&amp;=0\n                \\end{align}\n                \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "<h4>odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(3x-10y-8=0\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "wysokość - odległość punktu \\(N\\) od prostej",
-      "body": "\n\n<details>\n<summary>metoda</summary>\n<div class=\"table_wrapper\">\n                \\[\n                \\begin{align}\n                h&amp;=\\frac{|A\\cdot x_N+B\\cdot y_N+C|}{\\sqrt{A^2+B^2}}=\\\\\n                &amp;=\\frac{|3\\cdot (-2)-10\\cdot 4-8|}{\\sqrt{3^2+(-10)^2}}\n                \\end{align}\n                \\]\n            </div>\n</details>\n<details>\n<summary>odpowiedź</summary>\n            \\(\\frac{54}{\\sqrt{109}}\\) lub \\(\\frac{54\\sqrt{109}}{\\sqrt{109}}\\)\n        </details>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>metoda</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\begin{align}\n                h&amp;=\\frac{|A\\cdot x_N+B\\cdot y_N+C|}{\\sqrt{A^2+B^2}}=\\\\\n                &amp;=\\frac{|3\\cdot (-2)-10\\cdot 4-8|}{\\sqrt{3^2+(-10)^2}}\n                \\end{align}\n                \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "<h4>odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{54}{\\sqrt{109}}\\) lub \\(\\frac{54\\sqrt{109}}{\\sqrt{109}}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "pole trójkąta",
-      "body": "\n\n<details>\n<summary>metoda</summary>\n<div class=\"table_wrapper\">\n                \\[\n                \\begin{align}\n                P&amp;=\\frac{1}{2}\\cdot KM\\cdot h=\\\\\n                &amp;=\\frac{1}{2}\\cdot \\sqrt{109}\\cdot \\frac{54}{\\sqrt{109}}\n                \\end{align}\n                \\]\n            </div>\n</details>\n<details>\n<summary>odpowiedź</summary>\n            \\(27\\)\n        </details>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>metoda</h4>"
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\n                \\begin{align}\n                P&amp;=\\frac{1}{2}\\cdot KM\\cdot h=\\\\\n                &amp;=\\frac{1}{2}\\cdot \\sqrt{109}\\cdot \\frac{54}{\\sqrt{109}}\n                \\end{align}\n                \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "<h4>odpowiedź</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(27\\)</p>"
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "c9b98876f58992851cf467f0b79986c6ae19ee1a5550fb37be81d932b762ce16"
+  "fully_mapped": true,
+  "seed_hash": "599ecfd2192ce05071e5c4b9d274c8e3c4aae69b049fe4c18dc9d16bc36c6141"
 }

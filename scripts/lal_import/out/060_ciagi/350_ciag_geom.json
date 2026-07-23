@@ -38,16 +38,77 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Ustal związek między trzema kolejnymi wyrazami ciągu geometrycznego \\((a_n)\\).\n        <figure>\n<video autoplay=\"\" loop=\"\" muted=\"\" width=\"100%\">\n<source src=\"static/geometryczny_qq.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n        W tym celu:\n        <ol class=\"bold\">\n<li>\n                zapisz równania łączące\n                <ul>\n<li>\n                        wyraz \\(a_n\\) z wyrazem poprzednim, \\(a_{n-1}\\) oraz \n                    </li>\n<li>\n                        wyraz \\(a_n\\) z wyrazem kolejnym, \\(a_{n+1}\\). \n                    </li>\n</ul>\n</li>\n<li>\n                wyeliminuj \\(q\\) z obu równań.\n            </li>\n</ol>\n"
+      "body": "<p>Ustal związek między trzema kolejnymi wyrazami ciągu geometrycznego \\((a_n)\\).</p>"
+    },
+    {
+      "type": "video",
+      "media_src": "static/geometryczny_qq.mp4"
+    },
+    {
+      "type": "text",
+      "body": "<p>W tym celu:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                zapisz równania łączące\n                <ul>\n<li>\n                        wyraz \\(a_n\\) z wyrazem poprzednim, \\(a_{n-1}\\) oraz \n                    </li>\n<li>\n                        wyraz \\(a_n\\) z wyrazem kolejnym, \\(a_{n+1}\\). \n                    </li>\n</ul>\n</li>\n<li>\n                wyeliminuj \\(q\\) z obu równań.\n            </li>\n</ol>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<p>\n                Jak widzisz w animacji, równania łączące wyraz \\(a_n\\) z wyrazem poprzednim i kolejnym wyglądają tak:\n            </p>\n            \\[\n            \\begin{cases}\n            \\begin{align}\n            a_{n-1}\\cdot q&amp;=a_n\\\\\n            a_n\\cdot q&amp;=a_{n+1}\n            \\end{align}\n            \\end{cases}\n            \\]\n            <div class=\"switch_step\">\n                Wyliczmy \\(q\\) z pierwszego równania (\\(q=\\frac{a_n}{a_{n-1}}\\)) i podstawmy do drugiego.\n                <div class=\"switch_line\">\n                    Otrzymamy:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((a_n)^2 a_{n-1}=a_{n+1}\\)</div>\n<div class=\"switch_value\">\\(\\frac{a_n}{a_n a_{n-1}}=a_{n+1}\\)</div>\n<div class=\"switch_value\">\\(\\frac{(a_n)^2}{a_{n-1}}=a_{n+1}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                I teraz obie strony równania\n                \\[\n                \\frac{(a_n)^2}{a_{n-1}}=a_{n+1}\n                \\]\n                <div class=\"switch_line\">\n                    mnożymy przez \\(a_{n-1}\\) i dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2a_n=a_{n-1}a_{n+1}\\)</div>\n<div class=\"switch_value\">\\((a_n)^2=a_{n-1}a_{n+1}\\)</div>\n<div class=\"switch_value\">\\(a_n=a_{n-1}a_{n+1}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Związek między trzema kolejnymi wyrazami ciągu geometrycznego:\n                \\[\n                (a_n)^2=a_{n-1}a_{n+1}\n                \\]\n                <p>\n                    Gdyby wyrazy ciągu były dodatnie, moglibyśmy to zapisać jako:\n                </p>\n                \\[\n                a_n=\\sqrt{a_{n-1}a_{n+1}}\n                \\]\n                Pamiętasz, jak nazywa się tak wyliczona wartość?\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Jak widzisz w animacji, równania łączące wyraz \\(a_n\\) z wyrazem poprzednim i kolejnym wyglądają tak:\n            </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n            \\begin{cases}\n            \\begin{align}\n            a_{n-1}\\cdot q&=a_n\\\\\n            a_n\\cdot q&=a_{n+1}\n            \\end{align}\n            \\end{cases}\n            "
+        },
+        {
+          "type": "text",
+          "body": "<p>Wyliczmy \\(q\\) z pierwszego równania (\\(q=\\frac{a_n}{a_{n-1}}\\)) i podstawmy do drugiego.</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymamy:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((a_n)^2 a_{n-1}=a_{n+1}\\)",
+            "\\(\\frac{a_n}{a_n a_{n-1}}=a_{n+1}\\)",
+            "\\(\\frac{(a_n)^2}{a_{n-1}}=a_{n+1}\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>I teraz obie strony równania\n                \\[\n                \\frac{(a_n)^2}{a_{n-1}}=a_{n+1}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    mnożymy przez \\(a_{n-1}\\) i dostajemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2a_n=a_{n-1}a_{n+1}\\)",
+            "\\((a_n)^2=a_{n-1}a_{n+1}\\)",
+            "\\(a_n=a_{n-1}a_{n+1}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Związek między trzema kolejnymi wyrazami ciągu geometrycznego:\n                \\[\n                (a_n)^2=a_{n-1}a_{n+1}\n                \\]</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Gdyby wyrazy ciągu były dodatnie, moglibyśmy to zapisać jako:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n                a_n=\\sqrt{a_{n-1}a_{n+1}}\n                \\]\n                Pamiętasz, jak nazywa się tak wyliczona wartość?</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -62,10 +123,8 @@
       "body": "<p>każdego</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<sup>(*)</sup>",
-      "reason": "unmapped <sup> in lesson body"
+      "type": "text",
+      "body": "<sup>(*)</sup>"
     },
     {
       "type": "text",
@@ -88,10 +147,8 @@
       "body": "<p>\\[\n    a_n=\\sqrt{a_{n-1}a_{n+1}}\n    \\]\n    i w takiej sytuacji każdy</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<sup>(*)</sup>",
-      "reason": "unmapped <sup> in lesson body"
+      "type": "text",
+      "body": "<sup>(*)</sup>"
     },
     {
       "type": "text",
@@ -115,31 +172,123 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Czternasty wyraz ciągu geometrycznego to \\(8\\).\n        </p>\n<p>\n            Szesnasty wyraz tego ciągu to \\(18\\).\n        </p>\n<p>\n            Znajdź wartość piętnastego wyrazu.\n        </p>\n"
+      "body": "<p>\n            Czternasty wyraz ciągu geometrycznego to \\(8\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Szesnasty wyraz tego ciągu to \\(18\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź wartość piętnastego wyrazu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Skorzystamy z wzoru\n                \\[\n                (a_n)^2=a_{n-1}a_{n+1}\n                \\]\n                dla \\(n=15\\)\n                <div class=\"switch_line\">\n                    Podstawiwszy wartości otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_{15}=144\\)</div>\n<div class=\"switch_value\">\\((a_{15})^2=26\\)</div>\n<div class=\"switch_value\">\\((a_{15})^2=144\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I stąd \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_{15}=-12\\) lub \\(a_{15}=12\\)</div>\n<div class=\"switch_value\">\\(a_{15}=-12\\)</div>\n<div class=\"switch_value\">\\(a_{15}=12\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Piętnasty wyraz to albo \\(-12\\), albo \\(12\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skorzystamy z wzoru\n                \\[\n                (a_n)^2=a_{n-1}a_{n+1}\n                \\]\n                dla \\(n=15\\)</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Podstawiwszy wartości otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_{15}=144\\)",
+            "\\((a_{15})^2=26\\)",
+            "\\((a_{15})^2=144\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I stąd \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_{15}=-12\\) lub \\(a_{15}=12\\)",
+            "\\(a_{15}=-12\\)",
+            "\\(a_{15}=12\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Piętnasty wyraz to albo \\(-12\\), albo \\(12\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Jedenasty wyraz ciągu geometrycznego to \\(45\\).\n        </p>\n<p>\n            Dwunasty wyraz tego ciągu to \\(75\\).\n        </p>\n<p>\n            Znajdź wartość dziesiątego wyrazu.\n        </p>\n"
+      "body": "<p>\n            Jedenasty wyraz ciągu geometrycznego to \\(45\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dwunasty wyraz tego ciągu to \\(75\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź wartość dziesiątego wyrazu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                W zadaniu jest mowa o wyrazach o numerach \\(10\\), \\(11\\) i \\(12\\), więc\n                skorzystamy z wzoru\n                \\[\n                (a_n)^2=a_{n-1}a_{n+1}\n                \\]\n                <div class=\"switch_line\">\n                    dla\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(n=10\\)</div>\n<div class=\"switch_value\">\\(n=11\\)</div>\n<div class=\"switch_value\">\\(n=12\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dzięki temu użyjemy trzech wspomnianych wyrazów ciągu:\n                \\[\n                (a_{11})^2=a_{10}a_{12}\n                \\]\n                <div class=\"switch_line\">\n                    Podstawiając dane otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((a_{10})^2=45\\cdot 75\\)</div>\n<div class=\"switch_value\">\\(45^2=a_{10}\\cdot 75\\)</div>\n<div class=\"switch_value\">\\(75^2=a_{10}\\cdot 45\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Rozwiązując równanie\n                \\[\n                45^2=a_{10}\\cdot 75\n                \\]\n                <div class=\"switch_line\">\n                    dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_{10}=27\\)</div>\n<div class=\"switch_value\">\\(a_{10}=0,6\\)</div>\n<div class=\"switch_value\">\\(a_{10}=\\tfrac{5}{3}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Dziesiąty wyraz ciągu ma wartość \\(27\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>W zadaniu jest mowa o wyrazach o numerach \\(10\\), \\(11\\) i \\(12\\), więc\n                skorzystamy z wzoru\n                \\[\n                (a_n)^2=a_{n-1}a_{n+1}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    dla\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(n=10\\)",
+            "\\(n=11\\)",
+            "\\(n=12\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Dzięki temu użyjemy trzech wspomnianych wyrazów ciągu:\n                \\[\n                (a_{11})^2=a_{10}a_{12}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Podstawiając dane otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((a_{10})^2=45\\cdot 75\\)",
+            "\\(45^2=a_{10}\\cdot 75\\)",
+            "\\(75^2=a_{10}\\cdot 45\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Rozwiązując równanie\n                \\[\n                45^2=a_{10}\\cdot 75\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    dostajemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_{10}=27\\)",
+            "\\(a_{10}=0,6\\)",
+            "\\(a_{10}=\\tfrac{5}{3}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Dziesiąty wyraz ciągu ma wartość \\(27\\).</p>"
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "d2bb0110df22ac8a3ffa4af313d1514c9c04774ba12b00af24fd8ce1e53b6c91"
+  "fully_mapped": true,
+  "seed_hash": "9eb623505b6e70bd6614cd42c69b47217bf6a4da644c4968641d780f957f427b"
 }

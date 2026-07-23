@@ -14,7 +14,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "image",
@@ -36,7 +36,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "image",
@@ -60,7 +60,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -81,18 +81,192 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Kartka papieru <a href=\"https://pl.wikipedia.org/wiki/Format_arkusza\">formatu A4 lub podobnych</a> ma tę własność, że jeśli złożymy ją na pół (dzieląc na pół dłuższy bok), to otrzymamy prostokąt podobny (w bardzo dobrym przybliżeniu) do całej kartki.\n        </p>\n<p>\n            Dokładniej: stosunek dlugości boków większego prostokąta (całej kartki) jest równy stosunkowi dlugości boków mniejszego prostokąta (połowy kartki).\n        </p>\n<p>\n            Jaki jest stosunek dlugości boków (dłuższego do krótszego) kartki papieru?\n        </p>\n"
+      "body": "<p>\n            Kartka papieru <a href=\"https://pl.wikipedia.org/wiki/Format_arkusza\">formatu A4 lub podobnych</a> ma tę własność, że jeśli złożymy ją na pół (dzieląc na pół dłuższy bok), to otrzymamy prostokąt podobny (w bardzo dobrym przybliżeniu) do całej kartki.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Dokładniej: stosunek dlugości boków większego prostokąta (całej kartki) jest równy stosunkowi dlugości boków mniejszego prostokąta (połowy kartki).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaki jest stosunek dlugości boków (dłuższego do krótszego) kartki papieru?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Oznaczmy dłuższy bok kartki przez \\(a\\), a krótszy przez \\(b\\).\n                </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_1110.png\" style=\"max-height: 300px;\"/>\n</figure>\n<p>\n                    Chcemy znaleźć stosunek \\(a:b\\).\n                </p>\n<div class=\"switch_line\">\n                    Pomyślmy o prostokącie kartki złożonej na pół. Jego dłuższy bok to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a\\)</div>\n<div class=\"switch_value\">\\(b\\)</div>\n<div class=\"switch_value\">\\(\\tfrac{1}{2}a\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Jego krótszy bok to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a\\)</div>\n<div class=\"switch_value\">\\(b\\)</div>\n<div class=\"switch_value\">\\(\\tfrac{1}{2}a\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Podsumowując:\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td></td>\n<td>dłuższy bok</td>\n<td>krótszy bok</td>\n<td>stosunek</td>\n</tr>\n<tr>\n<td>cała kartka</td>\n<td>\\(a\\)</td>\n<td>\\(b\\)</td>\n<td>\\(\\frac{a}{b}\\)</td>\n</tr>\n<tr>\n<td>pół kartki</td>\n<td>\\(b\\)</td>\n<td>\\(\\tfrac{1}{2}a\\)</td>\n<td>\\(\\frac{b}{\\tfrac{1}{2}a}\\)</td>\n</tr>\n</table>\n</div>\n<p>\n                    Stosunki długości boków obu prostokątów muszą być równe, czyli:\n                </p>\n                \\[\n                \\frac{a}{b}=\\frac{b}{\\tfrac{1}{2}a}\n                \\]\n                <div class=\"switch_line\">\n                    Mnożąc równanie na skos, a następnie obie strony przez \\(2\\) otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a^2=2b^2\\)</div>\n<div class=\"switch_value\">\\(2a^2=b^2\\)</div>\n<div class=\"switch_value\">\\(a^2=b^4\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Z równania \\(a^2=2b^2\\) wynika, że\n                \\[\n                \\frac{a^2}{b^2}=2\n                \\]\n                <div class=\"switch_line\">\n                    a stąd (pierwiastkując) otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{a}{b}=\\sqrt{2}\\)</div>\n<div class=\"switch_value\">\\(\\frac{a}{b}=2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Stosunek długości dłuższego do krótszego boku kartki papieru jest równy \\(\\sqrt{2}\\).\n                </p>\n<hr/>\n<div class=\"ks_example\">\n<p class=\"example\"></p>\n<div>\n<p>\n                            \\(\\sqrt{2}\\) to w przybliżeniu \\(1,414213562\\).\n                        </p>\n<p>\n                            Wymiary kartki A4 to \\(297\\) na \\(210\\) milimetrów. Stosunek tych długości to w przybliżeniu \\(1,414285714\\).\n                        </p>\n<p>\n                            Błąd względny to zaledwie \\(0,0051\\%\\)!\n                        </p>\n</div>\n</div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Oznaczmy dłuższy bok kartki przez \\(a\\), a krótszy przez \\(b\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_1110.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Chcemy znaleźć stosunek \\(a:b\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Pomyślmy o prostokącie kartki złożonej na pół. Jego dłuższy bok to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a\\)",
+            "\\(b\\)",
+            "\\(\\tfrac{1}{2}a\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jego krótszy bok to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a\\)",
+            "\\(b\\)",
+            "\\(\\tfrac{1}{2}a\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Podsumowując:\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "dłuższy bok",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "krótszy bok",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "stosunek",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "cała kartka",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(b\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\frac{a}{b}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "pół kartki",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(b\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\tfrac{1}{2}a\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\frac{b}{\\tfrac{1}{2}a}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Stosunki długości boków obu prostokątów muszą być równe, czyli:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\frac{a}{b}=\\frac{b}{\\tfrac{1}{2}a}\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Mnożąc równanie na skos, a następnie obie strony przez \\(2\\) otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a^2=2b^2\\)",
+            "\\(2a^2=b^2\\)",
+            "\\(a^2=b^4\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Z równania \\(a^2=2b^2\\) wynika, że\n                \\[\n                \\frac{a^2}{b^2}=2\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    a stąd (pierwiastkując) otrzymujemy\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{a}{b}=\\sqrt{2}\\)",
+            "\\(\\frac{a}{b}=2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Stosunek długości dłuższego do krótszego boku kartki papieru jest równy \\(\\sqrt{2}\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p><strong>Przykład</strong></p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            \\(\\sqrt{2}\\) to w przybliżeniu \\(1,414213562\\).\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Wymiary kartki A4 to \\(297\\) na \\(210\\) milimetrów. Stosunek tych długości to w przybliżeniu \\(1,414285714\\).\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Błąd względny to zaledwie \\(0,0051\\%\\)!\n                        </p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "a67ebc5e05d35157b023ebf96d723d070170c9de0f7ccbd17fbd5028d396dfa0"
+  "seed_hash": "82b0c779afe45970d6167a8d72b5e79f1189ee8008a03c2dc30026c2b9f2c5a2"
 }

@@ -26,16 +26,118 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Przedstaw równanie funkcji\n        <div class=\"table_wrapper\">\\[\n        y=\\frac{(\\tfrac{2}{3})}{x-1}+2\n        \\]</div>\n        w postaci\n        <div class=\"table_wrapper\">\\[\n        y=\\frac{ax+b}{cx+d}\n        \\]</div>\n        gdzie wszystkie współczynniki \\(a\\), \\(b\\), \\(c\\) i \\(d\\) są całkowite.\n    "
+      "body": "<p>Przedstaw równanie funkcji</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        y=\\frac{(\\tfrac{2}{3})}{x-1}+2\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>w postaci</p>"
+    },
+    {
+      "type": "text",
+      "body": "\\[\n        y=\\frac{ax+b}{cx+d}\n        \\]"
+    },
+    {
+      "type": "text",
+      "body": "<p>gdzie wszystkie współczynniki \\(a\\), \\(b\\), \\(c\\) i \\(d\\) są całkowite.</p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Aby dodać \\(2\\) do \\(\\frac{(\\tfrac{2}{3})}{x-1}\\), zamienimy \\(2\\) na ułamek o mianowniku \\(x-1\\).\n                <div class=\"switch_line\">\n                    \\(2=\\) \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{2}{x-1}\\)</div>\n<div class=\"switch_value\">\\(\\frac{2x-2}{x-1}\\)</div>\n<div class=\"switch_value\">\\(\\frac{2x-1}{x-1}\\)</div>\n<div class=\"switch_value\">\\(\\frac{x-1}{x-1}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Otrzymamy:\n                <div class=\"table_wrapper\">\\[\n                y=\\frac{(\\tfrac{2}{3})}{x-1}+2=\\frac{(\\tfrac{2}{3})}{x-1}+\\frac{2x-2}{x-1}=\\frac{\\tfrac{2}{3}+2x-2}{x-1}\n                \\]</div>\n<div class=\"switch_line\">\n                    Po uproszczeniu, licznik ułamka to\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2x-\\tfrac{4}{3}\\)</div>\n<div class=\"switch_value\">\\(2x-\\tfrac{7}{3}\\)</div>\n<div class=\"switch_value\">\\(x+\\tfrac{2}{3}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Otrzymany ułamek:\n                <div class=\"table_wrapper\">\\[\n                \\frac{2x-\\tfrac{4}{3}}{x-1}\n                \\]</div>\n                uprościmy dalej rozszerzając trzykrotnie (tj. pomnożymy licznik i mianownik przez \\(3\\)):\n                <div class=\"table_wrapper\">\\[\n                \\frac{2x-\\tfrac{4}{3}}{x-1}\\cdot\\frac{3}{3}\n                \\]</div>\n<div class=\"switch_line\">\n                    W liczniku otrzymamy:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2x-4\\)</div>\n<div class=\"switch_value\">\\(6x-4\\)</div>\n<div class=\"switch_value\">\\(6x+4\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>,\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    a w mianowniku:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3x-3\\)</div>\n<div class=\"switch_value\">\\(3x-1\\)</div>\n<div class=\"switch_value\">\\(3x+3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Ostatecznie przekształciliśmy\n                <div class=\"table_wrapper\">\\[\n                y=\\frac{(\\tfrac{2}{3})}{x-1}+2\n                \\]</div>\n                w\n                <div class=\"table_wrapper\">\\[\n                \\frac{6x-4}{3x-3}\n                \\]</div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Aby dodać \\(2\\) do \\(\\frac{(\\tfrac{2}{3})}{x-1}\\), zamienimy \\(2\\) na ułamek o mianowniku \\(x-1\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(2=\\) \n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\frac{2}{x-1}\\)",
+            "\\(\\frac{2x-2}{x-1}\\)",
+            "\\(\\frac{2x-1}{x-1}\\)",
+            "\\(\\frac{x-1}{x-1}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Otrzymamy:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                y=\\frac{(\\tfrac{2}{3})}{x-1}+2=\\frac{(\\tfrac{2}{3})}{x-1}+\\frac{2x-2}{x-1}=\\frac{\\tfrac{2}{3}+2x-2}{x-1}\n                \\]"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Po uproszczeniu, licznik ułamka to\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2x-\\tfrac{4}{3}\\)",
+            "\\(2x-\\tfrac{7}{3}\\)",
+            "\\(x+\\tfrac{2}{3}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Otrzymany ułamek:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                \\frac{2x-\\tfrac{4}{3}}{x-1}\n                \\]"
+        },
+        {
+          "type": "text",
+          "body": "<p>uprościmy dalej rozszerzając trzykrotnie (tj. pomnożymy licznik i mianownik przez \\(3\\)):</p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                \\frac{2x-\\tfrac{4}{3}}{x-1}\\cdot\\frac{3}{3}\n                \\]"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    W liczniku otrzymamy:\n                    \n\n\n\n￿0￿,\n                ",
+          "options": [
+            "\\(2x-4\\)",
+            "\\(6x-4\\)",
+            "\\(6x+4\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    a w mianowniku:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3x-3\\)",
+            "\\(3x-1\\)",
+            "\\(3x+3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Ostatecznie przekształciliśmy</p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                y=\\frac{(\\tfrac{2}{3})}{x-1}+2\n                \\]"
+        },
+        {
+          "type": "text",
+          "body": "<p>w</p>"
+        },
+        {
+          "type": "text",
+          "body": "\\[\n                \\frac{6x-4}{3x-3}\n                \\]"
+        }
+      ]
     },
     {
       "type": "text",
@@ -71,5 +173,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "6670d48c9ed98065e90f3d9468118c3fa31795f6a57848171897137f56fae299"
+  "seed_hash": "d95c2ca2dfd22331c548aa99f1a390af2c4a0d032937e53dd8e2fa299232c92a"
 }

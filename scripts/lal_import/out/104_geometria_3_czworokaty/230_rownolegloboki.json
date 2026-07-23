@@ -90,13 +90,30 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Przeczytaj jeszcze raz powyższe twierdzenia. Zastanów się, czy dobrze je rozumiesz.\n        </p>\n<p>\n            Następnie użyj poniższego apletu, żeby upewnić się, że dobrze je rozumiesz.\n        </p>\n<p>\n            W aplecie możesz przesuwać trzy zaznaczone na żółto wierzchołki, żeby zmienić położenie, kształt i wielkość równoległoboku.\n        </p>\n<p>\n            Gdy zaznaczysz jedno z czterech pól wyboru, zobaczysz ilustrację odpowiedniego twierdzenia. \n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"578px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/ww29wfsd/width/675/height/578/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"równoległobok - definicje równoważne\" width=\"675px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+      "body": "<p>\n            Przeczytaj jeszcze raz powyższe twierdzenia. Zastanów się, czy dobrze je rozumiesz.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Następnie użyj poniższego apletu, żeby upewnić się, że dobrze je rozumiesz.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W aplecie możesz przesuwać trzy zaznaczone na żółto wierzchołki, żeby zmienić położenie, kształt i wielkość równoległoboku.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Gdy zaznaczysz jedno z czterech pól wyboru, zobaczysz ilustrację odpowiedniego twierdzenia. \n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/ww29wfsd/width/675/height/578/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "e0dfb85e5c8d697c39ce39e207e9d254f719d164b86c1e5d1e9953ac08101619"
+  "seed_hash": "ed3a2c09afad4198ddc0a88a026a6d70d2fd6073109bd69838d311a360d2e743"
 }

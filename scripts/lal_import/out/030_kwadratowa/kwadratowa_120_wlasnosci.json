@@ -2,21 +2,69 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Przeczytaj następujące zadania.\n        <ol>\n<li>\n                Znajdź równanie funkcji kwadratowej, której wykres ma wierzchołek w punkcie \\((2,-3)\\) i przechodzi przez punkt \\((4,-1)\\).\n            </li>\n<li>\n                Znajdź równanie funkcji kwadratowej o miejscach zerowych \\(-3\\) i \\(-1\\), której wykres przechodzi przez punkt \\((-4,9)\\).\n            </li>\n<li>\n                Znajdź równanie funkcji kwadratowej, której wykres jest symetryczny względem prostej \\(x=3\\) i przechodzi przez punkty \\((1,0)\\) i \\((6,-2\\frac{1}{2})\\).\n            </li>\n</ol>\n"
+      "body": "<p>Przeczytaj następujące zadania.</p>"
     },
     {
       "type": "text",
-      "body": "<p>\n</p>"
+      "body": "<ol>\n<li>\n                Znajdź równanie funkcji kwadratowej, której wykres ma wierzchołek w punkcie \\((2,-3)\\) i przechodzi przez punkt \\((4,-1)\\).\n            </li>\n<li>\n                Znajdź równanie funkcji kwadratowej o miejscach zerowych \\(-3\\) i \\(-1\\), której wykres przechodzi przez punkt \\((-4,9)\\).\n            </li>\n<li>\n                Znajdź równanie funkcji kwadratowej, której wykres jest symetryczny względem prostej \\(x=3\\) i przechodzi przez punkty \\((1,0)\\) i \\((6,-2\\frac{1}{2})\\).\n            </li>\n</ol>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<table class=\"my_table_TL\">\n<tr>\n<td colspan=\"2\">\n                Jak pamiętamy funkcję kwadratową zapisujemy w jednej z trzech postaci:\n            </td>\n</tr>\n<tr>\n<td>\n                ogólna\n            </td>\n<td>\n                \\(y=ax^2+bx+c\\)\n            </td>\n</tr>\n<tr>\n<td>\n                kanoniczna\n            </td>\n<td>\n                \\(y=a(x-p)^2+q\\)\n            </td>\n</tr>\n<tr>\n<td>\n                iloczynowa\n            </td>\n<td>\n                \\(y=a(x-x_1)(x-x_2)\\)\n            </td>\n</tr>\n</table>",
-      "reason": "table uses rowspan/colspan"
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "Jak pamiętamy funkcję kwadratową zapisujemy w jednej z trzech postaci:",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "ogólna",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=ax^2+bx+c\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "kanoniczna",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=a(x-p)^2+q\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "iloczynowa",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(y=a(x-x_1)(x-x_2)\\)",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "text",
@@ -55,6 +103,6 @@
       "media_src": "static/kwadratowa_wlasnosci_rownanie_4.mp4"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "425006665dbc0fb8e6e943e3816ada023a14a5c01575d23e024a416cec30b0e6"
+  "fully_mapped": true,
+  "seed_hash": "49114615cd7a6e2ca3ffe971ba60bd17a4f86133eb5a4c8c2aabd03a2dfe4461"
 }

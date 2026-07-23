@@ -38,7 +38,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -80,5 +80,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "3bf3035b5bbd048b82d3322e0dea344b1f1105360424bfddf5ef9437f1dd68c3"
+  "seed_hash": "3308c48bc343857a9c2a571d60713cf812f0c8527251c12f4c229d35b09cbd93"
 }

@@ -18,29 +18,35 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Odpowiedz na każde z pytań, a potem sprawdź swoje odpowiedzi.\n    "
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Ile miejsc zerowych ma prosta o równaniu \\(y=-\\frac{2}{3}x+6\\)?\n            </div>\n<div class=\"one_choice ks_button\">\n                wcale\n            </div>\n<div class=\"one_choice ks_button\">\n                jedno\n            </div>\n<div class=\"one_choice ks_button\">\n                nieskończenie wiele\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Ile miejsc zerowych ma prosta o równaniu \\(y=-3\\)?\n            </div>\n<div class=\"one_choice ks_button\">\n                wcale\n            </div>\n<div class=\"one_choice ks_button\">\n                jedno\n            </div>\n<div class=\"one_choice ks_button\">\n                nieskończenie wiele\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"400px\">\n                Ile miejsc zerowych ma prosta o równaniu \\(y=0\\)?\n            </div>\n<div class=\"one_choice ks_button\">\n                wcale\n            </div>\n<div class=\"one_choice ks_button\">\n                jedno\n            </div>\n<div class=\"one_choice ks_button\">\n                nieskończenie wiele\n            </div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi:\n    "
+      "type": "choice_grid",
+      "columns": [
+        "wcale",
+        "jedno",
+        "nieskończenie wiele"
+      ],
+      "rows": [
+        {
+          "statement": "Ile miejsc zerowych ma prosta o równaniu \\(y=-\\frac{2}{3}x+6\\)?",
+          "correct": 1
+        },
+        {
+          "statement": "Ile miejsc zerowych ma prosta o równaniu \\(y=-3\\)?",
+          "correct": 0
+        },
+        {
+          "statement": "Ile miejsc zerowych ma prosta o równaniu \\(y=0\\)?",
+          "correct": 2
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "1aface01aafbb99340c5eedf24ef381bd1f7dccc2bc5a0a6cac19f51b28e7723"
+  "seed_hash": "ce28d2f7af8eb5fd253c5d383b840328d27b35dd0fbad6d88475d71788d7e3ef"
 }

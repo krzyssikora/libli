@@ -10,45 +10,75 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p>\n            Przyjrzyj się poniższym parom trójkątów i zaznacz, które z nich\n            <u>\n                muszą\n            </u>\n            być przystające.\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Przyjrzyj się poniższym parom trójkątów i zaznacz, które z nich\n            <u>\n                muszą\n            </u>\n            być przystające.\n        </p>\n<p>\n            Uwaga! Rysunki są pomocnicze, nie zachowują skali.\n        </p>\n<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n<strong>\n                                1\n                            </strong>\n</td>\n<td>\n<strong>\n                                2\n                            </strong>\n</td>\n</tr>\n<tr>\n<td>\n<img alt=\"\" src=\"static/przystawanie_1.png\" style=\"width: 500px;\" width=\"500\"/>\n</td>\n<td>\n<img alt=\"\" src=\"static/przystawanie_2.png\" style=\"width: 500px;\" width=\"500\"/>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                                3\n                            </strong>\n</td>\n<td>\n<strong>\n                                4\n                            </strong>\n</td>\n</tr>\n<tr>\n<td>\n<img alt=\"\" src=\"static/przystawanie_3.png\" style=\"width: 500px;\" width=\"500\"/>\n</td>\n<td>\n<img alt=\"\" src=\"static/przystawanie_4.png\" style=\"width: 500px;\" width=\"500\"/>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                                5\n                            </strong>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td>\n<img alt=\"\" src=\"static/przystawanie_5.png\" style=\"width: 500px;\" width=\"500\"/>\n</td>\n<td>\n</td>\n</tr>\n</table>\n</div>\n</div>\n"
+      "body": "<p>\n            Uwaga! Rysunki są pomocnicze, nie zachowują skali.\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n            para 1\n        "
+      "type": "image",
+      "media_src": "static/przystawanie_1.png",
+      "alt": "",
+      "figcaption": "1"
     },
     {
-      "type": "text",
-      "body": "\n            para 2\n        "
+      "type": "image",
+      "media_src": "static/przystawanie_2.png",
+      "alt": "",
+      "figcaption": "2"
     },
     {
-      "type": "text",
-      "body": "\n            para 3\n        "
+      "type": "image",
+      "media_src": "static/przystawanie_3.png",
+      "alt": "",
+      "figcaption": "3"
     },
     {
-      "type": "text",
-      "body": "\n            para 4\n        "
+      "type": "image",
+      "media_src": "static/przystawanie_4.png",
+      "alt": "",
+      "figcaption": "4"
     },
     {
-      "type": "text",
-      "body": "\n            para 5\n        "
+      "type": "image",
+      "media_src": "static/przystawanie_5.png",
+      "alt": "",
+      "figcaption": "5"
     },
     {
-      "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
+      "type": "choice",
+      "stem": "",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "para 1",
+          "is_correct": false,
+          "feedback": "- w zasadzie kąt-bok-kąt oba kąty muszą być przyległe do boku"
+        },
+        {
+          "text": "para 2",
+          "is_correct": true,
+          "feedback": "- gdy dane są dwa kąty, można łatwo obliczyć trzeci"
+        },
+        {
+          "text": "para 3",
+          "is_correct": false,
+          "feedback": "- w obu trójkątach kąty powinny być w tym samym położeniu względem boków"
+        },
+        {
+          "text": "para 4",
+          "is_correct": true,
+          "feedback": "- w zasadzie bok-kąt-bok kąt musi być między bokami, ale położenie trójkąta jest dowolne"
+        },
+        {
+          "text": "para 5",
+          "is_correct": false,
+          "feedback": "- zasada bok-kąt-bok nie obowiązuje, jeśli kąt nie jest między bokami"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "251bb5a3175bea78454952638b62ea737ddec38fab5593fa80960b27fd2935d0"
+  "seed_hash": "80fd5fe3f013fcebc5a795b903895e20df66813af7ea3c579ed69623c5361d9d"
 }

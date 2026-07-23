@@ -14,11 +14,58 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dany jest trójkąt \\(ABC\\) o wierzchołkach:\n        </p>\n<ul class=\"nolist\">\n<li>\n                \\(A=(x_A, y_A)\\),\n            </li>\n<li>\n                \\(B=(x_B, y_B)\\),\n            </li>\n<li>\n                \\(C=(x_C, y_C)\\).\n            </li>\n</ul>\n<p>\n            Punkt \\(S\\) jest zdefiniowany:\n        </p>\n        \\[\n        S=\\left(\\frac{x_A+x_B+x_C}{3},\\frac{y_A+y_B+y_C}{3}\\right)\n        \\]\n        <p>\n            W poniższym aplecie widzisz niebieski trójkąt \\(ABC\\) oraz zaznaczony na czerwono punkt \\(S\\). Zmieniaj położenie wierzchołków trójkąta i skorzystaj z dwóch wskazówek, i zastanów się, czym jest punkt \\(S\\) w trójkącie \\(ABC\\).\n        </p>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"841px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/drdkb5pq/width/800/height/841/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"środek ciężkości\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<details>\n<summary>\n                Czym jest punkt \\(S\\)?\n            </summary>\n<div class=\"important\">\n<p>\n                    Dla trójkąta \\(ABC\\) o wierzchołkach:\n                </p>\n<ul class=\"nolist\">\n<li>\n                        \\(A=(x_A, y_A)\\),\n                    </li>\n<li>\n                        \\(B=(x_B, y_B)\\),\n                    </li>\n<li>\n                        \\(C=(x_C, y_C)\\)\n                    </li>\n</ul>\n<p>\n                    punkt \\(S\\) zdefiniowany\n                </p>\n                \\[\n                S=\\left(\\frac{x_A+x_B+x_C}{3},\\frac{y_A+y_B+y_C}{3}\\right)\n                \\]\n                <p>\n                    jest punktem przecięcia środkowych, czyli\n                    <strong>\n                        środkiem ciężkości\n                    </strong>\n                    .\n                </p>\n</div>\n</details>\n"
+      "body": "<p>\n            Dany jest trójkąt \\(ABC\\) o wierzchołkach:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                \\(A=(x_A, y_A)\\),\n            </li>\n<li>\n                \\(B=(x_B, y_B)\\),\n            </li>\n<li>\n                \\(C=(x_C, y_C)\\).\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Punkt \\(S\\) jest zdefiniowany:\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\n        S=\\left(\\frac{x_A+x_B+x_C}{3},\\frac{y_A+y_B+y_C}{3}\\right)\n        "
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie widzisz niebieski trójkąt \\(ABC\\) oraz zaznaczony na czerwono punkt \\(S\\). Zmieniaj położenie wierzchołków trójkąta i skorzystaj z dwóch wskazówek, i zastanów się, czym jest punkt \\(S\\) w trójkącie \\(ABC\\).\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/drdkb5pq/width/800/height/841/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "spoiler",
+      "label": "Czym jest punkt \\(S\\)?",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Dla trójkąta \\(ABC\\) o wierzchołkach:\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                        \\(A=(x_A, y_A)\\),\n                    </li>\n<li>\n                        \\(B=(x_B, y_B)\\),\n                    </li>\n<li>\n                        \\(C=(x_C, y_C)\\)\n                    </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    punkt \\(S\\) zdefiniowany\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                S=\\left(\\frac{x_A+x_B+x_C}{3},\\frac{y_A+y_B+y_C}{3}\\right)\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    jest punktem przecięcia środkowych, czyli\n                    <strong>\n                        środkiem ciężkości\n                    </strong>\n                    .\n                </p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -45,26 +92,34 @@
       "body": "<p>\n    Na zdjęciach poniżej widzisz trójkąt podwieszony w środku ciężkości.\n</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"Podwieszony trójkąt\" src=\"static/podwieczony_trojkat_1.jpg\" width=\"100%\"/>\n"
+      "type": "image",
+      "media_src": "static/podwieczony_trojkat_1.jpg",
+      "alt": "Podwieszony trójkąt",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"Podwieszony trójkąt\" src=\"static/podwieczony_trojkat_2.jpg\" width=\"100%\"/>\n"
+      "type": "image",
+      "media_src": "static/podwieczony_trojkat_2.jpg",
+      "alt": "Podwieszony trójkąt",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"Podwieszony trójkąt\" src=\"static/podwieczony_trojkat_3.jpg\" width=\"100%\"/>\n"
+      "type": "image",
+      "media_src": "static/podwieczony_trojkat_3.jpg",
+      "alt": "Podwieszony trójkąt",
+      "figcaption": ""
     },
     {
       "type": "text",
       "body": "<p>\n    A na ostatnim: trójkąt podwieszony trochę obok środka ciężkości. Teraz trójkąt nie wisi w poziomie, lecz opadł do pionu.\n</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"Podwieszony trójkąt\" src=\"static/podwieczony_trojkat_4.jpg\" width=\"40%\"/>\n"
+      "type": "image",
+      "media_src": "static/podwieczony_trojkat_4.jpg",
+      "alt": "Podwieszony trójkąt",
+      "figcaption": ""
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "2dbb9e56b1db98618c80f5dc9e96415dc9bad7e5578081e971060b0144fd7523"
+  "seed_hash": "6ec480bef3b41aaaa994525878d5431945e6f594f636b50abcf710af4981a7da"
 }

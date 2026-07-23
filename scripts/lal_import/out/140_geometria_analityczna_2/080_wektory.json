@@ -14,16 +14,141 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Na odcinku \\(AB\\), w którym \\(A=(-4,5)\\) zaś \\(B=(5, 2)\\) znajdź takie punkty \\(C\\) i \\(D\\), by odcinki \\(AC\\), \\(CD\\) i \\(DB\\) były równej długości.\n        </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_170_1.png\" style=\"max-height: 150px;\"/>\n</figure>\n"
+      "body": "<p>\n            Na odcinku \\(AB\\), w którym \\(A=(-4,5)\\) zaś \\(B=(5, 2)\\) znajdź takie punkty \\(C\\) i \\(D\\), by odcinki \\(AC\\), \\(CD\\) i \\(DB\\) były równej długości.\n        </p>"
     },
     {
-      "type": "spoiler",
-      "label": "rozwiązanie (nagranie i krok po kroku)",
-      "body": "\n\n<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li><a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a></li>\n<li><a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a></li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-1-1\">\n<p>\n<strong>wektor \\(\\vec{AB}\\)</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/140_geometria_analityczna_2_zadanie170_1.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<strong>\\(\\frac{1}{3}\\) wektora \\(\\vec{AB}\\)</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/140_geometria_analityczna_2_zadanie170_2.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<strong>punkty \\(C\\) i \\(D\\)</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/140_geometria_analityczna_2_zadanie170_3.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-1-2\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                        Zacznijmy od znalezienia wektora \\(\\vec{AB}\\).\n                        <div class=\"switch_line\">\n                            Jego współrzędne to \n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\([-9,3]\\)</div>\n<div class=\"switch_value\">\\([9,-3]\\)</div>\n<div class=\"switch_value\">\\([1,7]\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n                        Aby znaleźć współrzędne punktu \\(C\\), znajdźmy najpierw wektor \\(\\vec{AC}\\).\n                        <div class=\"switch_line\">\n                            Jest on równy\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">jednej trzeciej</div>\n<div class=\"switch_value\">połowie</div>\n<div class=\"switch_value\">dwóm trzecim</div> wektora \\(\\vec{AB}\\).\n                            <div class=\"switch_show_next ks_button\">zatwierdź</div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                            Współrzędne wektora \\(\\vec{AC}\\) to \n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\([3,-3]\\)</div>\n<div class=\"switch_value\">\\([3,-1]\\)</div>\n<div class=\"switch_value\">\\([3,1]\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                            Teraz, by znaleźć współrzęne punktu \\(C\\), wystarczy\n                        </p>\n<ul class=\"nolist\">\n<li>punkt \\(A\\) przesunąć o wektor \\(\\vec{AC}\\), czyli</li>\n<li>do współrzędnych punktu \\(A\\) dodać współrzędne wektora \\(\\vec{AC}\\).</li>\n</ul>\n<div class=\"switch_line\">\n                            Otrzymujemy \\(A=\\)\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((-1,4)\\)</div>\n<div class=\"switch_value\">\\((-7,6)\\)</div>\n<div class=\"switch_value\">\\((1,4)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                            Na zakończenie, aby obliczyć współrzędne punktu \\(D\\) możemy albo:\n                        </p>\n<ul>\n<li>\n                                do punktu \\(A\\) dodać dwukrotność wektora \\(\\vec{AC}\\), albo\n                            </li>\n<li>\n                                do punktu \\(C\\) dodać wektor \\(\\vec{AC}\\).\n                            </li>\n</ul>\n<div class=\"switch_line\">\n                            Niezależnie od wybranej metody otrzymujemy\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((2,3)\\)</div>\n<div class=\"switch_value\">\\((2,5)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_170_2.png\" style=\"max-height: 150px;\"/>\n</figure>\n</div>\n</div>\n</div>\n</div>\n"
+      "type": "image",
+      "media_src": "static/geometria_analityczna_2_zadanie_170_1.png",
+      "alt": "",
+      "figcaption": ""
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie (nagranie i krok po kroku)</h4>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n<strong>wektor \\(\\vec{AB}\\)</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/140_geometria_analityczna_2_zadanie170_1.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>\\(\\frac{1}{3}\\) wektora \\(\\vec{AB}\\)</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/140_geometria_analityczna_2_zadanie170_2.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>punkty \\(C\\) i \\(D\\)</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/140_geometria_analityczna_2_zadanie170_3.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>Zacznijmy od znalezienia wektora \\(\\vec{AB}\\).</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Jego współrzędne to \n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\([-9,3]\\)",
+                "\\([9,-3]\\)",
+                "\\([1,7]\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>Aby znaleźć współrzędne punktu \\(C\\), znajdźmy najpierw wektor \\(\\vec{AC}\\).</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Jest on równy\n                            \n\n\n￿0￿ wektora \\(\\vec{AB}\\).\n                            \n",
+              "options": [
+                "jednej trzeciej",
+                "połowie",
+                "dwóm trzecim"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Współrzędne wektora \\(\\vec{AC}\\) to \n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\([3,-3]\\)",
+                "\\([3,-1]\\)",
+                "\\([3,1]\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Teraz, by znaleźć współrzęne punktu \\(C\\), wystarczy\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul class=\"nolist\">\n<li>punkt \\(A\\) przesunąć o wektor \\(\\vec{AC}\\), czyli</li>\n<li>do współrzędnych punktu \\(A\\) dodać współrzędne wektora \\(\\vec{AC}\\).</li>\n</ul>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Otrzymujemy \\(A=\\)\n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\((-1,4)\\)",
+                "\\((-7,6)\\)",
+                "\\((1,4)\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Na zakończenie, aby obliczyć współrzędne punktu \\(D\\) możemy albo:\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul>\n<li>\n                                do punktu \\(A\\) dodać dwukrotność wektora \\(\\vec{AC}\\), albo\n                            </li>\n<li>\n                                do punktu \\(C\\) dodać wektor \\(\\vec{AC}\\).\n                            </li>\n</ul>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Niezależnie od wybranej metody otrzymujemy\n                            \n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\((2,3)\\)",
+                "\\((2,5)\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometria_analityczna_2_zadanie_170_2.png",
+              "alt": "",
+              "figcaption": ""
+            }
+          ]
+        }
+      ]
     },
     {
       "type": "text",
@@ -31,7 +156,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -40,22 +165,170 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Chcemy, by stosunek długości odcinków \\(AP\\) do \\(BP\\) był jak \\(2\\) do \\(3\\).\n                </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_180_1.png\" style=\"max-height: 300px\"/>\n</figure>\n<div class=\"switch_line\">\n                    Oznacza to, że długość odcinka \\(AP\\) ma być równa \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{2}{3}\\)</div>\n<div class=\"switch_value\">\\(\\frac{2}{5}\\)</div>\n<div class=\"switch_value\">\\(\\frac{3}{5}\\)</div>\n                    długości odcinka \\(AB\\).\n                    <div class=\"switch_show_next ks_button\">zatwierdź</div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Stąd wnioskujemy, że \\(\\vec{AP}=\\frac{2}{5}\\cdot \\vec{AB}\\).\n                </p>\n<div class=\"switch_line\">\n                    Znając współrzędne punktów \\(A\\) i \\(B\\) możemy ustalić współrzędne wektora \\(\\vec{AB}\\): \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\([9,-3]\\)</div>\n<div class=\"switch_value\">\\([-9,3]\\)</div>\n<div class=\"switch_value\">\\([1,7]\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Teraz możemy obliczyć \\(\\vec{AP}=\\frac{2}{5}\\cdot\\vec{AB}=\\frac{2}{5}\\cdot[9, -3]=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\left[1\\tfrac{4}{5}, -\\tfrac{3}{5}\\right]\\)</div>\n<div class=\"switch_value\">\\(\\left[3\\tfrac{3}{5}, -1\\tfrac{1}{5}\\right]\\)</div>\n<div class=\"switch_value\">\\(\\left[3\\tfrac{3}{5}, -3\\right]\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_180_2.png\" style=\"max-height: 300px\"/>\n</figure>\n<p>\n                    Aby znaleźć współrzędne punktu \\(P\\) wystarczy teraz\n                </p>\n<ul class=\"nolist\">\n<li>przesunąć punkt \\(A\\) o wektor \\(\\vec{AP}\\), czyli</li>\n<li>do współrzędnych punktu \\(A\\) dodać współrzędne wektora \\(\\vec{AP}\\).</li>\n</ul>\n<div class=\"switch_line\">\n                    Otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(P=\\left(-\\tfrac{2}{5},3\\tfrac{4}{5}\\right)\\)</div>\n<div class=\"switch_value\">\\(P=\\left(\\tfrac{2}{5},3\\tfrac{4}{5}\\right)\\)</div>\n<div class=\"switch_value\">\\(P=\\left(\\tfrac{2}{5},4\\tfrac{1}{5}\\right)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_180_3.png\" style=\"max-height: 300px\"/>\n</figure>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Chcemy, by stosunek długości odcinków \\(AP\\) do \\(BP\\) był jak \\(2\\) do \\(3\\).\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_180_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Oznacza to, że długość odcinka \\(AP\\) ma być równa \n                    \n\n\n￿0￿\n                    długości odcinka \\(AB\\).\n                    \n",
+          "options": [
+            "\\(\\frac{2}{3}\\)",
+            "\\(\\frac{2}{5}\\)",
+            "\\(\\frac{3}{5}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Stąd wnioskujemy, że \\(\\vec{AP}=\\frac{2}{5}\\cdot \\vec{AB}\\).\n                </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Znając współrzędne punktów \\(A\\) i \\(B\\) możemy ustalić współrzędne wektora \\(\\vec{AB}\\): \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\([9,-3]\\)",
+            "\\([-9,3]\\)",
+            "\\([1,7]\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Teraz możemy obliczyć \\(\\vec{AP}=\\frac{2}{5}\\cdot\\vec{AB}=\\frac{2}{5}\\cdot[9, -3]=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(\\left[1\\tfrac{4}{5}, -\\tfrac{3}{5}\\right]\\)",
+            "\\(\\left[3\\tfrac{3}{5}, -1\\tfrac{1}{5}\\right]\\)",
+            "\\(\\left[3\\tfrac{3}{5}, -3\\right]\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_180_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Aby znaleźć współrzędne punktu \\(P\\) wystarczy teraz\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>przesunąć punkt \\(A\\) o wektor \\(\\vec{AP}\\), czyli</li>\n<li>do współrzędnych punktu \\(A\\) dodać współrzędne wektora \\(\\vec{AP}\\).</li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(P=\\left(-\\tfrac{2}{5},3\\tfrac{4}{5}\\right)\\)",
+            "\\(P=\\left(\\tfrac{2}{5},3\\tfrac{4}{5}\\right)\\)",
+            "\\(P=\\left(\\tfrac{2}{5},4\\tfrac{1}{5}\\right)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_180_3.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Na odcinku \\(PR\\) leży punkt \\(S\\) taki, że \\(|PS|:|SR|=2:1\\).\n        </p>\n<p>\n            Wiedząc, że \\(P=(-5,-3)\\) i \\(S=(1,1)\\) znajdź współrzędne punktu \\(R\\).\n        </p>\n"
+      "body": "<p>\n            Na odcinku \\(PR\\) leży punkt \\(S\\) taki, że \\(|PS|:|SR|=2:1\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wiedząc, że \\(P=(-5,-3)\\) i \\(S=(1,1)\\) znajdź współrzędne punktu \\(R\\).\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Odcinek \\(PS\\) jest dwukrotnie dłuższy od odcinka \\(SR\\).\n                <div class=\"switch_line\">\n                    Jeśli długość odcinka \\(SR\\) oznaczymy jako \\(x\\), to długość odcinka \\(PS\\) jest równa \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(2x\\)</div>\n<div class=\"switch_value\">\\(3x\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_190_1.png\" style=\"max-height: 300px\"/>\n</figure>\n<div class=\"switch_line\">\n                    Oznacza to, że długość odcinka \\(PR\\) stanowi\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(200\\%\\)</div>\n<div class=\"switch_value\">\\(\\frac{3}{2}\\)</div>\n<div class=\"switch_value\">\\(\\frac{2}{3}\\)</div> długości odcinka \\(PS\\)\n                    <div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Odejmując współrzędne punktu \\(P\\) od współrzędnych punktu \\(S\\) obliczamy współrzędne wektora \\(\\vec{PS}\\): \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\([6, 4]\\)</div>\n<div class=\"switch_value\">\\([-6, -4]\\)</div>\n<div class=\"switch_value\">\\([-4, -2]\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Ustaliliśmy, że długość odcinka \\(PR\\) stanowi \\(\\frac{3}{2}\\) długości odcinka \\(PR\\), więc też \\(\\vec{PR}=\\frac{3}{2}\\cdot\\vec{PS}\\).\n                <div class=\"switch_line\">\n                    Stąd \\(\\vec{PR}=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\([3,2]\\)</div>\n<div class=\"switch_value\">\\([9,6]\\)</div>\n<div class=\"switch_value\">\\(\\left[6,2\\tfrac{2}{3}\\right]\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Na zakończenie, dodając współrzędne tego wektora do punktu \\(S\\) otrzymujemy współrzędne punktu \\(R\\): \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((4, 3)\\)</div>\n<div class=\"switch_value\">\\((7, 5)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_190_2.png\" style=\"max-height: 300px\"/>\n</figure>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Odcinek \\(PS\\) jest dwukrotnie dłuższy od odcinka \\(SR\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Jeśli długość odcinka \\(SR\\) oznaczymy jako \\(x\\), to długość odcinka \\(PS\\) jest równa \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(2x\\)",
+            "\\(3x\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_190_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Oznacza to, że długość odcinka \\(PR\\) stanowi\n                    \n\n\n￿0￿ długości odcinka \\(PS\\)\n                    .\n                ",
+          "options": [
+            "\\(200\\%\\)",
+            "\\(\\frac{3}{2}\\)",
+            "\\(\\frac{2}{3}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Odejmując współrzędne punktu \\(P\\) od współrzędnych punktu \\(S\\) obliczamy współrzędne wektora \\(\\vec{PS}\\): \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\([6, 4]\\)",
+            "\\([-6, -4]\\)",
+            "\\([-4, -2]\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Ustaliliśmy, że długość odcinka \\(PR\\) stanowi \\(\\frac{3}{2}\\) długości odcinka \\(PR\\), więc też \\(\\vec{PR}=\\frac{3}{2}\\cdot\\vec{PS}\\).</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd \\(\\vec{PR}=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\([3,2]\\)",
+            "\\([9,6]\\)",
+            "\\(\\left[6,2\\tfrac{2}{3}\\right]\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Na zakończenie, dodając współrzędne tego wektora do punktu \\(S\\) otrzymujemy współrzędne punktu \\(R\\): \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\((4, 3)\\)",
+            "\\((7, 5)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_190_2.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "01a19834da29f18cc36a29bc01b7535ef6c493c7adfcfab54722301bdbe3405c"
+  "fully_mapped": true,
+  "seed_hash": "56478a180ba74b09294ec1c4d56ff77febad60b9bd1be2f55b698180f7a49805"
 }

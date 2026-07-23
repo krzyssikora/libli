@@ -26,16 +26,147 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Piąty wyraz ciągu geometrycznego to \\(6\\), a ósmy wyraz tego ciągu jest równy \\(-162\\).\n        <p>\n            Znajdź <u>iloraz</u> i <u>pierwszy wyraz</u> tego ciągu.\n        </p>\n"
+      "body": "<p>Piąty wyraz ciągu geometrycznego to \\(6\\), a ósmy wyraz tego ciągu jest równy \\(-162\\).</p>"
     },
     {
-      "type": "spoiler",
-      "label": "rozwiązanie",
-      "body": "\n\n<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li><a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a></li>\n<li><a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a></li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-1-1\">\n<p>\n<u>równania</u>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometryczny_an_ak_1.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<u>nowy wzór</u>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometryczny_an_ak_2.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<u>rozwiązanie</u>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometryczny_an_ak_3.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-1-2\">\n<div class=\"switch_steps\">\n                    Skorzystamy teraz dwukrotnie ze wzoru:\n                    \\[\n                    a_n=a_1\\cdot q^{n-1}\n                    \\]\n                    <div class=\"switch_step\">\n                        Dla \\(a_5=6\\) mamy: \\(6=a_1\\cdot q^4\\).\n                        <div class=\"switch_line\">\n                            Dla \\(a_8=-162\\) mamy: \n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(-162=a_1\\cdot q^8\\)</div>\n<div class=\"switch_value\">\\(-162=a_1\\cdot q^7\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n                        Otrzymaliśmy dwa równania\n                        \\[\n                        \\begin{cases}\n                        \\begin{align}\n                        a_1\\cdot q^7&amp;=-162\\\\\n                        a_1\\cdot q^4&amp;=6\n                        \\end{align}\n                        \\end{cases}\n                        \\]\n                        Aby rozwiązać taki układ równań, podzielimy równania stronami:\n                        \\[\n                        \\frac{a_1\\cdot q^7}{a_1\\cdot q^4}=\\frac{-162}{6}\n                        \\]\n                        <div class=\"switch_line\">\n                            i dostajemy\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(q^{1,75}=-27\\)</div>\n<div class=\"switch_value\">\\(q^3=-27\\)</div>\n<div class=\"switch_value\">\\(q^3=27\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                            Wyliczenie \\(q\\) jest teraz bardzo proste: \\(q^4=-27\\), więc \\(q=-3\\), bo \\((-3)^2=-27\\).\n                        </p>\n<p>\n                            Ciekawsze jest samo równanie \\(q^3=-27\\). Przeanalizujmy, skąd je wzieliśmy.\n                        </p>\n<ul class=\"nolist\">\n<li>\n                                Lewa strona: \\(q^3=q^{7-4}=q^{(8-1)-(5-1)}\\) albo inaczej \\(q^3=\\frac{q^8}{q^5}\\)\n                            </li>\n<li>\n                                Prawa strone: \\(-27=\\frac{-162}{6}\\), czyli \\(-27=\\frac{a_{8}}{a_5}\\)\n                            </li>\n</ul>\n                        Podsumowując:\n                        \\[\n                        \\frac{a_8}{a_5}=\\frac{q^8}{q^5}=q^{8-5}=q^3\n                        \\]\n                        <figure>\n<img src=\"static/geometryczny_an_ak.png\" style=\"max-width: 100%\"/>\n</figure>\n                        Czyli <strong>różnica między indeksami wyrazów</strong> wskazuje na to, ile jest ilorazów ciągu między wyrazami, a dokładniej, ile razy trzeba pomnożyć jeden wyraz przez iloraz, by uzyskać drugi.\n                        <div class=\"important\">\n                            \\[\n                            \\frac{a_n}{a_k}=q^{n-k}\n                            \\]\n                        </div>\n                        Do tego równania wrócimy, a teraz, wiedząc, że \\(q=-3\\) i korzystając z któregokolwiek z równań:\n                        \\[\n                        \\begin{cases}\n                        \\begin{align}\n                        a_1\\cdot q^7&amp;=-162\\\\\n                        a_1\\cdot q^4&amp;=6\n                        \\end{align}\n                        \\end{cases}\n                        \\]\n                        <div class=\"switch_line\">\n                            możemy znaleźć pierwszy wyraz ciągu\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_1=-13,5\\)</div>\n<div class=\"switch_value\">\\(a_1=-\\frac{2}{27}\\)</div>\n<div class=\"switch_value\">\\(a_1=\\frac{2}{27}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n                        Iloraz ciągu to \\(q=-3\\), a pierwszy wyraz \\(a_1=\\frac{2}{27}\\).\n                    </div>\n</div>\n</div>\n</div>\n"
+      "type": "text",
+      "body": "<p>\n            Znajdź <u>iloraz</u> i <u>pierwszy wyraz</u> tego ciągu.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n<u>równania</u>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometryczny_an_ak_1.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<u>nowy wzór</u>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometryczny_an_ak_2.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<u>rozwiązanie</u>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometryczny_an_ak_3.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>Skorzystamy teraz dwukrotnie ze wzoru:\n                    \\[\n                    a_n=a_1\\cdot q^{n-1}\n                    \\]</p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>Dla \\(a_5=6\\) mamy: \\(6=a_1\\cdot q^4\\).</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            Dla \\(a_8=-162\\) mamy: \n                            \n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(-162=a_1\\cdot q^8\\)",
+                "\\(-162=a_1\\cdot q^7\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>Otrzymaliśmy dwa równania\n                        \\[\n                        \\begin{cases}\n                        \\begin{align}\n                        a_1\\cdot q^7&=-162\\\\\n                        a_1\\cdot q^4&=6\n                        \\end{align}\n                        \\end{cases}\n                        \\]\n                        Aby rozwiązać taki układ równań, podzielimy równania stronami:\n                        \\[\n                        \\frac{a_1\\cdot q^7}{a_1\\cdot q^4}=\\frac{-162}{6}\n                        \\]</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            i dostajemy\n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(q^{1,75}=-27\\)",
+                "\\(q^3=-27\\)",
+                "\\(q^3=27\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Wyliczenie \\(q\\) jest teraz bardzo proste: \\(q^4=-27\\), więc \\(q=-3\\), bo \\((-3)^2=-27\\).\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            Ciekawsze jest samo równanie \\(q^3=-27\\). Przeanalizujmy, skąd je wzieliśmy.\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul class=\"nolist\">\n<li>\n                                Lewa strona: \\(q^3=q^{7-4}=q^{(8-1)-(5-1)}\\) albo inaczej \\(q^3=\\frac{q^8}{q^5}\\)\n                            </li>\n<li>\n                                Prawa strone: \\(-27=\\frac{-162}{6}\\), czyli \\(-27=\\frac{a_{8}}{a_5}\\)\n                            </li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "body": "<p>Podsumowując:\n                        \\[\n                        \\frac{a_8}{a_5}=\\frac{q^8}{q^5}=q^{8-5}=q^3\n                        \\]</p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometryczny_an_ak.png",
+              "alt": "",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>Czyli</p>"
+            },
+            {
+              "type": "text",
+              "body": "<strong>różnica między indeksami wyrazów</strong>"
+            },
+            {
+              "type": "text",
+              "body": "<p>wskazuje na to, ile jest ilorazów ciągu między wyrazami, a dokładniej, ile razy trzeba pomnożyć jeden wyraz przez iloraz, by uzyskać drugi.</p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                            \\[\n                            \\frac{a_n}{a_k}=q^{n-k}\n                            \\]\n                        "
+            },
+            {
+              "type": "text",
+              "body": "<p>Do tego równania wrócimy, a teraz, wiedząc, że \\(q=-3\\) i korzystając z któregokolwiek z równań:\n                        \\[\n                        \\begin{cases}\n                        \\begin{align}\n                        a_1\\cdot q^7&=-162\\\\\n                        a_1\\cdot q^4&=6\n                        \\end{align}\n                        \\end{cases}\n                        \\]</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                            możemy znaleźć pierwszy wyraz ciągu\n                            \n\n\n\n￿0￿.\n                        ",
+              "options": [
+                "\\(a_1=-13,5\\)",
+                "\\(a_1=-\\frac{2}{27}\\)",
+                "\\(a_1=\\frac{2}{27}\\)"
+              ],
+              "answer": 2
+            },
+            {
+              "type": "text",
+              "body": "<p>Iloraz ciągu to \\(q=-3\\), a pierwszy wyraz \\(a_1=\\frac{2}{27}\\).</p>"
+            }
+          ]
+        }
+      ]
     },
     {
       "type": "text",
@@ -51,7 +182,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -62,6 +193,6 @@
       "body": "\n        Mając dane \\(a_5=48\\) i \\(a_{10}=\\frac{3}{2}\\), użyjemy wzoru\n        \\[\n        \\frac{a_n}{a_k}=q^{n-k}\n        \\]\n        dla \\(n=10\\) i \\(k=5\\):\n        \\[\n        \\begin{align}\n        \\frac{a_{10}}{a_5}&amp;=q^{10-5}\\\\\n        \\frac{\\left(\\tfrac{3}{2}\\right)}{48}&amp;=q^5\\\\\n        \\frac{3}{2\\cdot 48}&amp;=q^5\\\\\n        \\frac{1}{32}&amp;=q^5\\\\\n        q&amp;=\\frac{1}{2}\n        \\end{align}\n        \\]\n        A skoro \\(q=\\frac{1}{2}\\), to wiedząc, że \\(a_5=48\\) możemy użyć wzoru:\n        \\[\n        \\begin{align}\n        a_5&amp;=a_1\\cdot q^4\\\\\n        48&amp;=a_1\\cdot \\left(\\frac{1}{2}\\right)^4\\\\\n        48&amp;=a_1\\cdot \\frac{1}{16}\\\\\n        a_1&amp;=48\\cdot 16\\\\\n        a_1&amp;=768\n        \\end{align}\n        \\]\n        Ostatecznie \\(a_1=768\\) i \\(q=\\frac{1}{2}\\).\n    "
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "303f2920fe378d14782808fcccaa6ad7eff05c2d5133308309a2f56da3edbaaa"
+  "fully_mapped": true,
+  "seed_hash": "2bab50621aa15dad71d122518f953fd4dd5ead7c69f8e04969631ff5647d0faa"
 }

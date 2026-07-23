@@ -23,37 +23,41 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Znajdź współrzędne punktu przecięcia prostej\n            \\[y=-\\frac{3}{2}x+\\frac{5}{2}\\]\n            z osią \\(x\\).\n        </p>\n<p>\n            Spróbuj rozwiązać to zadanie samodzielnie, używając w razie potrzeby poniższych wskazówek.\n        </p>\n"
+      "body": "<p>\n            Znajdź współrzędne punktu przecięcia prostej\n            \\[y=-\\frac{3}{2}x+\\frac{5}{2}\\]\n            z osią \\(x\\).\n        </p>"
     },
     {
       "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "body": "<p>\n            Spróbuj rozwiązać to zadanie samodzielnie, używając w razie potrzeby poniższych wskazówek.\n        </p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
-      "body": "<p class=\"show_step\">\n            Skoro wszystkie punkty na osi \\(x\\) mają współrzędną \\(y=0\\), podstawmy \\(y=0\\) do równania prostej.\n        </p>"
+      "body": "<p>Skoro wszystkie punkty na osi \\(x\\) mają współrzędną \\(y=0\\), podstawmy \\(y=0\\) do równania prostej.</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
-      "body": "\n            pokaż dalej\n        "
+      "body": "<p>\\[0=-\\frac{3}{2}x+\\frac{5}{2}\\]\n            i obliczmy wartość \\(x\\).</p>"
+    },
+    {
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
-      "body": "<p class=\"show_step\">\n            \\[0=-\\frac{3}{2}x+\\frac{5}{2}\\]\n            i obliczmy wartość \\(x\\).\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n            pokaż dalej\n        "
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"show_step\">\n            \\[\\frac{3}{2}x=\\frac{5}{2}\\]\n            czyli\n            \\[x=\\frac{5}{2}:\\frac{3}{2}=\\frac{5}{2}\\cdot \\frac{2}{3}=\\frac{5}{3}\\]\n            co oznacza, że punkt przecięcia prostej z osią \\(x\\) ma współrzędne \\(\\color{blue}{(\\frac{5}{3}, 0)}\\).\n        </p>"
+      "body": "<p>\\[\\frac{3}{2}x=\\frac{5}{2}\\]\n            czyli\n            \\[x=\\frac{5}{2}:\\frac{3}{2}=\\frac{5}{2}\\cdot \\frac{2}{3}=\\frac{5}{3}\\]\n            co oznacza, że punkt przecięcia prostej z osią \\(x\\) ma współrzędne \\(\\color{blue}{(\\frac{5}{3}, 0)}\\).</p>"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "860f3f4f59af80c6cb81eb79f84b269dbed014b02f0ae42c3340431d1d14fea9"
+  "seed_hash": "1da1bfbe2497716d6fab280247b71dff5dd381edae34587bcae6e1d5e304dc5b"
 }

@@ -64,19 +64,359 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Uzupełnij kilka pierwszych rzędów trójkąta Pascala.\n        <p>\n<small>W razie probleów - zerknij poniżej</small>\n</p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder narrow_table\">\n<tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>\n<tr data-row-number=\"0\"><td colspan=\"7\"></td><td colspan=\"2\">1</td><td colspan=\"7\"></td></tr>\n<tr data-row-number=\"1\"><td colspan=\"6\"></td><td colspan=\"2\">1</td><td colspan=\"2\">1</td><td colspan=\"6\"></td></tr>\n<tr data-row-number=\"2\"><td colspan=\"5\"></td><td colspan=\"2\">1</td><td colspan=\"2\">2</td><td colspan=\"2\">1</td><td colspan=\"5\"></td></tr>\n<tr data-row-number=\"3\"><td colspan=\"4\"></td><td colspan=\"2\">1</td><td colspan=\"2\">3</td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\">1</td><td colspan=\"4\"></td></tr>\n<tr data-row-number=\"4\"><td colspan=\"3\"></td><td colspan=\"2\">1</td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\">1</td><td colspan=\"3\"></td></tr>\n<tr data-row-number=\"5\"><td colspan=\"2\"></td><td colspan=\"2\">1</td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\">10</td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\">1</td><td colspan=\"2\"></td></tr>\n<tr data-row-number=\"6\"><td colspan=\"1\"></td><td colspan=\"2\">1</td><td colspan=\"2\">6</td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\">15</td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\">1</td><td colspan=\"1\"></td></tr>\n<tr data-row-number=\"7\"><td colspan=\"2\">1</td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\"><input class=\"table_input table_input_30\" placeholder=\"?\" type=\"text\"/></td><td colspan=\"2\">1</td></tr>\n</table>\n</div>\n"
+      "body": "<p>Uzupełnij kilka pierwszych rzędów trójkąta Pascala.</p>"
     },
     {
       "type": "text",
-      "body": "\n        Świetnie!\n    "
+      "body": "<p>\n<small>W razie probleów - zerknij poniżej</small>\n</p>"
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "",
+              "colspan": 7
+            },
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "",
+              "colspan": 7
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "",
+              "colspan": 6
+            },
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "",
+              "colspan": 6
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "",
+              "colspan": 5
+            },
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "2",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "",
+              "colspan": 5
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "",
+              "colspan": 4
+            },
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "3",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "3",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "",
+              "colspan": 4
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "",
+              "colspan": 3
+            },
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "4",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "6",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "4",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "",
+              "colspan": 3
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "5",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "10",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "10",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "5",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "6",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "15",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "20",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "15",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "6",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": ""
+            }
+          ],
+          [
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "7",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "21",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "35",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "35",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "21",
+              "colspan": 2
+            },
+            {
+              "kind": "answer",
+              "answer": "7",
+              "colspan": 2
+            },
+            {
+              "kind": "static",
+              "html": "1",
+              "colspan": 2
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -87,10 +427,860 @@
       "body": "\n<input class=\"slider\" id=\"pascal_slider\" max=\"12\" min=\"1\" type=\"range\" value=\"1\"/>\n        \\(n=\\)<span id=\"pascal_slider_value\"></span>\n"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<table class=\"my_table_noborder narrow_table\" id=\"pascal_triangle_table\" style=\"font-size: x-small;\">\n<tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>\n<tr class=\"hidden\" data-row-number=\"0\"><td colspan=\"12\"></td><td colspan=\"2\">1</td><td colspan=\"12\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"1\"><td colspan=\"11\"></td><td colspan=\"2\">1</td><td colspan=\"2\">1</td><td colspan=\"11\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"2\"><td colspan=\"10\"></td><td colspan=\"2\">1</td><td colspan=\"2\">2</td><td colspan=\"2\">1</td><td colspan=\"10\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"3\"><td colspan=\"9\"></td><td colspan=\"2\">1</td><td colspan=\"2\">3</td><td colspan=\"2\">3</td><td colspan=\"2\">1</td><td colspan=\"9\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"4\"><td colspan=\"8\"></td><td colspan=\"2\">1</td><td colspan=\"2\">4</td><td colspan=\"2\">6</td><td colspan=\"2\">4</td><td colspan=\"2\">1</td><td colspan=\"8\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"5\"><td colspan=\"7\"></td><td colspan=\"2\">1</td><td colspan=\"2\">5</td><td colspan=\"2\">10</td><td colspan=\"2\">10</td><td colspan=\"2\">5</td><td colspan=\"2\">1</td><td colspan=\"7\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"6\"><td colspan=\"6\"></td><td colspan=\"2\">1</td><td colspan=\"2\">6</td><td colspan=\"2\">15</td><td colspan=\"2\">20</td><td colspan=\"2\">15</td><td colspan=\"2\">6</td><td colspan=\"2\">1</td><td colspan=\"6\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"7\"><td colspan=\"5\"></td><td colspan=\"2\">1</td><td colspan=\"2\">7</td><td colspan=\"2\">21</td><td colspan=\"2\">35</td><td colspan=\"2\">35</td><td colspan=\"2\">21</td><td colspan=\"2\">7</td><td colspan=\"2\">1</td><td colspan=\"5\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"8\"><td colspan=\"4\"></td><td colspan=\"2\">1</td><td colspan=\"2\">8</td><td colspan=\"2\">28</td><td colspan=\"2\">56</td><td colspan=\"2\">70</td><td colspan=\"2\">56</td><td colspan=\"2\">28</td><td colspan=\"2\">8</td><td colspan=\"2\">1</td><td colspan=\"4\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"9\"><td colspan=\"3\"></td><td colspan=\"2\">1</td><td colspan=\"2\">9</td><td colspan=\"2\">36</td><td colspan=\"2\">84</td><td colspan=\"2\">126</td><td colspan=\"2\">126</td><td colspan=\"2\">84</td><td colspan=\"2\">36</td><td colspan=\"2\">9</td><td colspan=\"2\">1</td><td colspan=\"3\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"10\"><td colspan=\"2\"></td><td colspan=\"2\">1</td><td colspan=\"2\">10</td><td colspan=\"2\">45</td><td colspan=\"2\">120</td><td colspan=\"2\">210</td><td colspan=\"2\">252</td><td colspan=\"2\">210</td><td colspan=\"2\">120</td><td colspan=\"2\">45</td><td colspan=\"2\">10</td><td colspan=\"2\">1</td><td colspan=\"2\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"11\"><td colspan=\"1\"></td><td colspan=\"2\">1</td><td colspan=\"2\">11</td><td colspan=\"2\">55</td><td colspan=\"2\">165</td><td colspan=\"2\">330</td><td colspan=\"2\">462</td><td colspan=\"2\">462</td><td colspan=\"2\">330</td><td colspan=\"2\">165</td><td colspan=\"2\">55</td><td colspan=\"2\">11</td><td colspan=\"2\">1</td><td colspan=\"1\"></td></tr>\n<tr class=\"hidden\" data-row-number=\"12\"><td colspan=\"2\">1</td><td colspan=\"2\">12</td><td colspan=\"2\">66</td><td colspan=\"2\">220</td><td colspan=\"2\">495</td><td colspan=\"2\">792</td><td colspan=\"2\">924</td><td colspan=\"2\">792</td><td colspan=\"2\">495</td><td colspan=\"2\">220</td><td colspan=\"2\">66</td><td colspan=\"2\">12</td><td colspan=\"2\">1</td></tr>\n</table>",
-      "reason": "table uses rowspan/colspan"
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 12
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 12
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 11
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 11
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 10
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "2",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 10
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 9
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "3",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "3",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 9
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 8
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "4",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "6",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "4",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 8
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 7
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "5",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "10",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "10",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "5",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 7
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 6
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "6",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "15",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "20",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "15",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "6",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 6
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 5
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "7",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "21",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "35",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "35",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "21",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "7",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 5
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 4
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "8",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "28",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "56",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "70",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "56",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "28",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "8",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 4
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 3
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "9",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "36",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "84",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "126",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "126",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "84",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "36",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "9",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 3
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "10",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "45",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "120",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "210",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "252",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "210",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "120",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "45",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "10",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "11",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "55",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "165",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "330",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "462",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "462",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "330",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "165",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "55",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "11",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "12",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "66",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "220",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "495",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "792",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "924",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "792",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "495",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "220",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "66",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "12",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            },
+            {
+              "html": "1",
+              "halign": "left",
+              "valign": "top",
+              "colspan": 2
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "text",
@@ -105,6 +1295,6 @@
       "body": "<p>\n    Przejdź dalej.\n</p>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "b1aa9f837e932583e9839e83ce266d960ddd42184f18c83ff9efaa83f9730ed3"
+  "fully_mapped": true,
+  "seed_hash": "7bb154283601bcc143fb4f79cbbcf0e23d0f04694550db5748ecc12172e0d4d4"
 }

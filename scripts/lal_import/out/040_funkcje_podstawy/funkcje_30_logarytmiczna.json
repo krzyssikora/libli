@@ -10,87 +10,139 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Przyjrzyj się poznanym wcześniej wzorom i uzupełnij brakujące pola.\n    "
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
-        "border": "grid",
+        "border": "rows",
         "cells": [
           [
             {
-              "html": "\\(\\log_{a}b=c\\quad\\Leftrightarrow\\quad a^c=b\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\log_{a}b=c\\quad\\Leftrightarrow\\quad a^c=b\\)"
             },
             {
-              "html": "<span class=\"myequation\">\n                            \\(\\log_{2}16=\\)\n                            <input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
             }
           ],
           [
             {
-              "html": "\\(\\log_{a}b+\\log_{a}c=\\log_{a}(bc)\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\log_{a}b+\\log_{a}c=\\log_{a}(bc)\\)"
             },
             {
-              "html": "<span class=\"myequation\">\n                            \\(\\log_{6}4+\\log_{6}9=\\log_{6}\\)\n                            <input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n                            \\(=\\)\n                            <input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "<span class=\"myequation\">\n                            \\(\\log_{6}4+\\log_{6}9=\\log_{6}\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "36"
+            },
+            {
+              "kind": "static",
+              "html": "\\(=\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
             }
           ],
           [
             {
-              "html": "\\(\\log_{a}b-\\log_{a}c=\\log_{a}\\left(\\frac{b}{c}\\right)\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\log_{a}b-\\log_{a}c=\\log_{a}\\left(\\frac{b}{c}\\right)\\)"
             },
             {
-              "html": "<span class=\"myequation\">\n                            \\(\\log_{6}12-\\log_{6}2=\\log_{6}\\)\n                            <input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n                            \\(=\\)\n                            <input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "<span class=\"myequation\">\n                            \\(\\log_{6}12-\\log_{6}2=\\log_{6}\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "6"
+            },
+            {
+              "kind": "static",
+              "html": "\\(=\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "1"
             }
           ],
           [
             {
-              "html": "\\(\\log_{a}n^s=s\\cdot\\log_{a}n\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\log_{a}n^s=s\\cdot\\log_{a}n\\)"
             },
             {
-              "html": "<span class=\"myequation\">\n                            \\(\\log_{3}9^{11}=11\\cdot\\)\n                            <input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n                            \\(=\\)\n                            <input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "<span class=\"myequation\">\n                            \\(\\log_{3}9^{11}=11\\cdot\\)",
+              "halign": "right"
+            },
+            {
+              "kind": "answer",
+              "answer": "2"
+            },
+            {
+              "kind": "static",
+              "html": "\\(=\\)",
+              "halign": "center"
+            },
+            {
+              "kind": "answer",
+              "answer": "22"
             }
           ],
           [
             {
-              "html": "\\(\\log_{a}b=\\frac{\\log_c b}{\\log_c a}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\log_{a}b=\\frac{\\log_c b}{\\log_c a}\\)"
             },
             {
-              "html": "<span class=\"myequation\">\n                            \\(\\log_{16}8=\\frac{\\log_2 8}{\\log_2 16}=\\)\n                            <input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "3/4"
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
+            },
+            {
+              "kind": "static",
+              "html": ""
             }
           ]
         ]
       }
-    },
-    {
-      "type": "text",
-      "body": "\n    Doskonale!\n"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "77968fd947b49484968e224d811869821c16a82b1af0743d7d5b30a3e9d8ce54"
+  "seed_hash": "cc337a6705d6d6d108b8198ad65c6ba009334c58598a7181c76ecb50f2abd910"
 }

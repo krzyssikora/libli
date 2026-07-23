@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -11,7 +11,40 @@
     {
       "type": "spoiler",
       "label": "czego nie będziemy robić?",
-      "body": "\n\n        Nie warto zaczynać od kanonicznego równania okręgu:\n        \\[\n        (x-a)^2+(y-b)^2=r^2\n        \\]\n        i podstawiać do niego współrzędnych punktów \\(A\\), \\(B\\), \\(C\\). Dlaczego?\n        <p>\n            Oto, co byśmy otrzymali:\n        </p>\n        \\[\n        \\begin{cases}\n        (-11-a)^2+(1-b)^2&amp;=r^2\\\\\n        (-11-a)^2+(11-b)^2&amp;=r^2\\\\\n        (1-a)^2+(7-b)^2&amp;=r^2\n        \\end{cases}\n        \\]\n        Trzy równania z trzema niewiadomymi (\\(a\\), \\(b\\) i \\(c)), które można rozwiązać. Jednak nie jest to standardowy układ równań i nie będziemy się takimi teraz zajmować.  (Choć jeśli masz ochotę, zachęcam - spróbuj samodzielnie!)\n    &lt;/details&gt;\n    &lt;details&gt;\n        &lt;summary&gt;\n            rozwiązanie\n        &lt;/summary&gt;\n        Rozwiążemy to zadanie geometrycznie, czyli będziemy myśleć w taki sposób, jakbyśmy chcieli skonstruować okrąg opisany na trójkącie. A w tym celu musimy najpierw znaleźć środek okręgu.\n        &lt;div class=\"switch_steps\"&gt;\n            &lt;div class=\"switch_step\"&gt;\n                &lt;div class=\"switch_line\"&gt;\n                    Środek okręgu opisanego na trójkącie to punkt przecięcia\n                    &lt;div class=\"switch_value\"&gt;\n                        &gt;&gt; wybierz &gt;&gt;\n                    &lt;/div&gt;\n                    &lt;div class=\"switch_value\"&gt;\n                        dwusiecznych kątów\n                    &lt;/div&gt;\n                    &lt;div class=\"switch_value\"&gt;\n                        symetralnych boków\n                    &lt;/div&gt;\n                    &lt;div class=\"switch_value\"&gt;\n                        środkowych\n                    &lt;/div&gt;\n                    &lt;div class=\"switch_value\"&gt;\n                        wysokości\n                    &lt;/div&gt;\n                    trójkąta.\n                    &lt;div class=\"switch_show_next ks_button\"&gt;\n                        zatwierdź\n                    &lt;/div&gt;\n                &lt;/div&gt;\n            &lt;/div&gt;\n            &lt;div class=\"switch_step hidden\"&gt;\n                &lt;p&gt;\n                    Wystarczą nam dwie symetralne. Jedną z nich można znaleźć bardzo łatwo, i od tej zaczniemy.\n                &lt;/p&gt;\n                &lt;div class=\"switch_line\"&gt;\n                    Przyjrzyjmy się współrzędnym wierzchołków \\(A=(-11, 11)\\) i \\(B=(-11, 1)\\), i zwróćmy uwagę, że bok \\(AB\\) jest\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        pionowy\n                    </div>\n<div class=\"switch_value\">\n                        poziomy\n                    </div>\n                    .\n                    <div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Nie warto zaczynać od kanonicznego równania okręgu:\n        \\[\n        (x-a)^2+(y-b)^2=r^2\n        \\]\n        i podstawiać do niego współrzędnych punktów \\(A\\), \\(B\\), \\(C\\). Dlaczego?</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Oto, co byśmy otrzymali:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n        \\begin{cases}\n        (-11-a)^2+(1-b)^2&=r^2\\\\\n        (-11-a)^2+(11-b)^2&=r^2\\\\\n        (1-a)^2+(7-b)^2&=r^2\n        \\end{cases}\n        \\]\n        Trzy równania z trzema niewiadomymi (\\(a\\), \\(b\\) i \\(c)), które można rozwiązać. Jednak nie jest to standardowy układ równań i nie będziemy się takimi teraz zajmować.  (Choć jeśli masz ochotę, zachęcam - spróbuj samodzielnie!)\n    &lt;/details&gt;\n    &lt;details&gt;\n        &lt;summary&gt;\n            rozwiązanie\n        &lt;/summary&gt;\n        Rozwiążemy to zadanie geometrycznie, czyli będziemy myśleć w taki sposób, jakbyśmy chcieli skonstruować okrąg opisany na trójkącie. A w tym celu musimy najpierw znaleźć środek okręgu.\n        &lt;div class=\"switch_steps\"&gt;\n            &lt;div class=\"switch_step\"&gt;\n                &lt;div class=\"switch_line\"&gt;\n                    Środek okręgu opisanego na trójkącie to punkt przecięcia\n                    &lt;div class=\"switch_value\"&gt;\n                        &gt;&gt; wybierz &gt;&gt;\n                    &lt;/div&gt;\n                    &lt;div class=\"switch_value\"&gt;\n                        dwusiecznych kątów\n                    &lt;/div&gt;\n                    &lt;div class=\"switch_value\"&gt;\n                        symetralnych boków\n                    &lt;/div&gt;\n                    &lt;div class=\"switch_value\"&gt;\n                        środkowych\n                    &lt;/div&gt;\n                    &lt;div class=\"switch_value\"&gt;\n                        wysokości\n                    &lt;/div&gt;\n                    trójkąta.\n                    &lt;div class=\"switch_show_next ks_button\"&gt;\n                        zatwierdź\n                    &lt;/div&gt;\n                &lt;/div&gt;\n            &lt;/div&gt;\n            &lt;div class=\"switch_step hidden\"&gt;\n                &lt;p&gt;\n                    Wystarczą nam dwie symetralne. Jedną z nich można znaleźć bardzo łatwo, i od tej zaczniemy.\n                &lt;/p&gt;\n                &lt;div class=\"switch_line\"&gt;\n                    Przyjrzyjmy się współrzędnym wierzchołków \\(A=(-11, 11)\\) i \\(B=(-11, 1)\\), i zwróćmy uwagę, że bok \\(AB\\) jest</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        &gt;&gt; wybierz &gt;&gt;\n                    "
+        },
+        {
+          "type": "text",
+          "body": "\n                        pionowy\n                    "
+        },
+        {
+          "type": "text",
+          "body": "\n                        poziomy\n                    "
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                        zatwierdź\n                    "
+        }
+      ]
     },
     {
       "type": "text",
@@ -28,7 +61,16 @@
     {
       "type": "spoiler",
       "label": "środek odcinka - przypomnienie",
-      "body": "\n\n<div class=\"important\">\n<p>\n                            Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:\n                        </p>\n                        \\[\n                        S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n                        \\]\n                    </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                            Jeśli \\(A=\\left(x_A, y_A\\right)\\) i \\(B=\\left(x_B, y_B\\right)\\) to środek odcinka \\(AB\\) jest dany wzorem:\n                        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                        S=\\left(\\frac{x_A+x_B}{2}, \\frac{y_A+y_B}{2}\\right)\n                        "
+        }
+      ]
     },
     {
       "type": "text",
@@ -95,8 +137,10 @@
       "body": "<p>Jak na razie wszystko świetnie:</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"okrąg opisany na trójkącie - pierwsza symetralna\" height=\"400\" src=\"static/okrag_na_trojkacie_1.png\"/>\n"
+      "type": "image",
+      "media_src": "static/okrag_na_trojkacie_1.png",
+      "alt": "okrąg opisany na trójkącie - pierwsza symetralna",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -137,7 +181,12 @@
     {
       "type": "spoiler",
       "label": "nachylenie odcinka - przypomnienie",
-      "body": "\n\n<div class=\"important\">\n                        Nachylenie odcinka / prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(C=(x_C, y_C)\\) to liczba\n                        \\[\n                        \\frac{\\text{SKOK}}{\\text{KROK}}=\\frac{y_C-y_A}{x_C-x_A}\n                        \\]\n                    </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n                        Nachylenie odcinka / prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(C=(x_C, y_C)\\) to liczba\n                        \\[\n                        \\frac{\\text{SKOK}}{\\text{KROK}}=\\frac{y_C-y_A}{x_C-x_A}\n                        \\]\n                    "
+        }
+      ]
     },
     {
       "type": "text",
@@ -178,7 +227,16 @@
     {
       "type": "spoiler",
       "label": "nachylenie odcinków prostopadłych - przypomnienie",
-      "body": "\n\n<div class=\"important\">\n                        Liczby \\(a_1\\) i \\(a_2\\) są nachyleniami odcinków (współczynnikami kierunkowymi prostych) prostopadłych, jeśli\n                        <ul class=\"nolist\">\n<li>\n                                \\(a_1\\cdot a_2=-1\\)\n                            </li>\n<li>\n                                lub równoważnie \\(a_2=-\\frac{1}{a_1}\\).\n                            </li>\n</ul>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Liczby \\(a_1\\) i \\(a_2\\) są nachyleniami odcinków (współczynnikami kierunkowymi prostych) prostopadłych, jeśli</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                                \\(a_1\\cdot a_2=-1\\)\n                            </li>\n<li>\n                                lub równoważnie \\(a_2=-\\frac{1}{a_1}\\).\n                            </li>\n</ul>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -249,8 +307,10 @@
       "body": "<p>Symetralna boku \\(AC\\) ma równanie \\(y=3x+24\\).</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"okrąg opisany na trójkącie - druga symetralna\" height=\"400\" src=\"static/okrag_na_trojkacie_2.png\"/>\n"
+      "type": "image",
+      "media_src": "static/okrag_na_trojkacie_2.png",
+      "alt": "okrąg opisany na trójkącie - druga symetralna",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -291,7 +351,12 @@
     {
       "type": "spoiler",
       "label": "odległość między punktami - przypomnienie",
-      "body": "\n\n<div class=\"important\">\n                        Długość odcinka \\(AS\\), gdzie\n                        \\[\n                        A=(x_A, y_A),\\quad\\quad S=(x_S,y_S)\n                        \\]\n                        jest dana wzorem\n                        \\[\n                        AS=\\sqrt{(x_S-x_A)^2+(y_S-y_A)^2}\n                        \\]\n                    </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n                        Długość odcinka \\(AS\\), gdzie\n                        \\[\n                        A=(x_A, y_A),\\quad\\quad S=(x_S,y_S)\n                        \\]\n                        jest dana wzorem\n                        \\[\n                        AS=\\sqrt{(x_S-x_A)^2+(y_S-y_A)^2}\n                        \\]\n                    "
+        }
+      ]
     },
     {
       "type": "text",
@@ -362,12 +427,10 @@
       "body": "<p>Równanie okręgu to \\((x+6)^2+(y-6)^2=50\\), a okrąg i trójkąt wyglądają tak:</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"okrąg opisany na trójkącie prostokątnym\" height=\"400\" src=\"static/okrag_na_trojkacie_3.png\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n</p>"
+      "type": "image",
+      "media_src": "static/okrag_na_trojkacie_3.png",
+      "alt": "okrąg opisany na trójkącie prostokątnym",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -375,53 +438,41 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Znajdź równanie okręgu opisanego na trójkącie \\(ABC\\), gdzie \\(A=(-1, -2)\\), \\(B=(1, 6)\\), a \\(C=(-7, -2)\\).\n    "
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n        \\( (x + 4)^2 + (y - 3)^2 = 34\\)\n    </div>",
-      "reason": "unmapped <div> in lesson body"
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\( (x + 4)^2 + (y - 3)^2 = 34\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
-      "reason": "show_solution button without solution"
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Znajdź równanie okręgu opisanego na trójkącie \\(ABC\\), gdzie \\(A=(0, -4)\\), \\(B=(4, 2)\\), a \\(C=(-11, 7)\\).\n    "
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"question_solution hidden\">\n        \\((x + 4)^2 + (y - 3)^2=65\\)\n    </div>",
-      "reason": "unmapped <div> in lesson body"
-    },
-    {
-      "type": "text",
-      "body": "\n"
-    },
-    {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"show_solution ks_button\">\n        zobacz\n    </div>",
-      "reason": "show_solution button without solution"
+      "type": "spoiler",
+      "label": "zobacz",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\((x + 4)^2 + (y - 3)^2=65\\)</p>"
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "5293b110d230db79dadbd790de37f3acb69c7574d97b613dd4f887d0e454199d"
+  "fully_mapped": true,
+  "seed_hash": "6ab933ada6e328064e6308ebae913fbdd8b091305ade3791a45852f3ed5c8148"
 }

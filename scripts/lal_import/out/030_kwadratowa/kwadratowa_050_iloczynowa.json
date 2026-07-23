@@ -2,19 +2,26 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Wymnóż nawiasy i uprość wyrazy podobne.\n    "
     },
     {
-      "type": "text",
-      "body": "<p>\n        \\((x+1)(x-3)=\\)\n        <span class=\"myequation\">\n            \\(x^2-3x+x\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n        \\(=\\)\n        <span class=\"myequation\">\n            \\(x^2\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n            \\(x\\)\n            <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "\n    Dobrze, teraz obejrzyj nagranie.\n"
+      "type": "fillblank",
+      "stem": "\n        \\((x+1)(x-3)=\\)\n        <span class=\"myequation\">\n            \\(x^2-3x+x\\)\n            ￿0￿\n</span>\n        \\(=\\)\n        <span class=\"myequation\">\n            \\(x^2\\)\n            ￿1￿\n            \\(x\\)\n            ￿2￿\n</span>\n",
+      "blanks": [
+        [
+          "-3"
+        ],
+        [
+          "-2"
+        ],
+        [
+          "-3"
+        ]
+      ]
     },
     {
       "type": "video",
@@ -66,5 +73,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "4d8fb6b589f8179229c9630829c360104e05fe384a836b16f874f37686b3442c"
+  "seed_hash": "c31e477bd660bd2b6c37b2628c756230654b64a541e939410219326ed156b044"
 }

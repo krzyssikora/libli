@@ -2,17 +2,77 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Przyjrzyj się poniższym figurom i pomyśl, jakie jest ich pole.\n        <p>\n            Jednoską jest pole jednego małego kwadratu o szarych bokach.\n        </p>\n<div class=\"centered\">\n<img alt=\"pola fiur\" height=\"400\" src=\"static/pole_zad.png\"/>\n</div>\n<div class=\"centered\">\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n<strong>\n                                A\n                            </strong>\n</td>\n<td>\n<strong>\n                                B\n                            </strong>\n</td>\n<td>\n<strong>\n                                C\n                            </strong>\n</td>\n<td>\n<strong>\n                                D\n                            </strong>\n</td>\n<td>\n<strong>\n                                E\n                            </strong>\n</td>\n</tr>\n<tr>\n<td>\n<input class=\"table_input\" placeholder=\"pole\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"pole\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"pole\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"pole\" type=\"text\"/>\n</td>\n<td>\n<input class=\"table_input\" placeholder=\"pole\" type=\"text\"/>\n</td>\n</tr>\n</table>\n</div>\n</div>\n"
+      "body": "<p>Przyjrzyj się poniższym figurom i pomyśl, jakie jest ich pole.</p>"
     },
     {
       "type": "text",
-      "body": "\n    Świetnie!\n"
+      "body": "<p>\n            Jednoską jest pole jednego małego kwadratu o szarych bokach.\n        </p>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pole_zad.png",
+      "alt": "pola fiur",
+      "figcaption": ""
+    },
+    {
+      "type": "fill_table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "kind": "static",
+              "html": "<strong>\n                                A\n                            </strong>"
+            },
+            {
+              "kind": "static",
+              "html": "<strong>\n                                B\n                            </strong>"
+            },
+            {
+              "kind": "static",
+              "html": "<strong>\n                                C\n                            </strong>"
+            },
+            {
+              "kind": "static",
+              "html": "<strong>\n                                D\n                            </strong>"
+            },
+            {
+              "kind": "static",
+              "html": "<strong>\n                                E\n                            </strong>"
+            }
+          ],
+          [
+            {
+              "kind": "answer",
+              "answer": "5"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "3.5|3,5"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            },
+            {
+              "kind": "answer",
+              "answer": "4"
+            }
+          ]
+        ]
+      }
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "1a1da03396540828ceabbf8ba5fc36e504fa90916d54d6b6f68be64281438053"
+  "seed_hash": "dca79f9a9b7855b19b853f01188521a6db6a7e7087be31fd458ec8062a799560"
 }

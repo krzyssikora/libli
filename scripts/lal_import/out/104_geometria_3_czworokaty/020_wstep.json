@@ -6,44 +6,381 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Miary kątów wewnętrznych czworokąta są w stosunku \\(2:3:5:8\\).\n        </p>\n<p>\n            Jakie są te miary? Czy czworokąt jest wypukły?\n        </p>\n"
+      "body": "<p>\n            Miary kątów wewnętrznych czworokąta są w stosunku \\(2:3:5:8\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jakie są te miary? Czy czworokąt jest wypukły?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                    Skorzystamy oczywiście z faktu, że miara kątów w czworokącie jest równa \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(180^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(360^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(540^{\\circ}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Skoro miary kątów są w stosunku \\(2:3:5:8\\), to kąty możemy zapisać jako \\(2x\\), \\(3x\\), \\(5x\\) i \\(8x\\), gdzie \\(x\\) jest stałą, którą chcemy znaleźć.\n                </p>\n                Z sumy kątów w czworokącie możemy ułożyć równanie:\n                \\[\n                2x+3x+5x+8x=360^{\\circ}\n                \\]\n                <div class=\"switch_line\">\n                    Rozwiązując to równanie otrzymujemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(x=20^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(x=10^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(x=40^{\\circ}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    I teraz możemy już obliczyć miary kątów wewnętrznych w czworokącie:\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(40^{\\circ}, 60^{\\circ}, 100^{\\circ}, 160^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(20^{\\circ}, 30^{\\circ}, 50^{\\circ}, 80^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(40^{\\circ}, 60^{\\circ}, 80^{\\circ}, 100^{\\circ}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Miary kątów wewnętrznych to\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    2\\cdot 20^{\\circ}&amp;=40^{\\circ}\\\\\n                    3\\cdot 20^{\\circ}&amp;=60^{\\circ}\\\\\n                    5\\cdot 20^{\\circ}&amp;=100^{\\circ}\\\\\n                    8\\cdot 20^{\\circ}&amp;=160^{\\circ}\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Skorzystamy oczywiście z faktu, że miara kątów w czworokącie jest równa \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(180^{\\circ}\\)",
+            "\\(360^{\\circ}\\)",
+            "\\(540^{\\circ}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Skoro miary kątów są w stosunku \\(2:3:5:8\\), to kąty możemy zapisać jako \\(2x\\), \\(3x\\), \\(5x\\) i \\(8x\\), gdzie \\(x\\) jest stałą, którą chcemy znaleźć.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Z sumy kątów w czworokącie możemy ułożyć równanie:\n                \\[\n                2x+3x+5x+8x=360^{\\circ}\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Rozwiązując to równanie otrzymujemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(x=20^{\\circ}\\)",
+            "\\(x=10^{\\circ}\\)",
+            "\\(x=40^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    I teraz możemy już obliczyć miary kątów wewnętrznych w czworokącie:\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(40^{\\circ}, 60^{\\circ}, 100^{\\circ}, 160^{\\circ}\\)",
+            "\\(20^{\\circ}, 30^{\\circ}, 50^{\\circ}, 80^{\\circ}\\)",
+            "\\(40^{\\circ}, 60^{\\circ}, 80^{\\circ}, 100^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Miary kątów wewnętrznych to</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    2\\cdot 20^{\\circ}&amp;=40^{\\circ}\\\\\n                    3\\cdot 20^{\\circ}&amp;=60^{\\circ}\\\\\n                    5\\cdot 20^{\\circ}&amp;=100^{\\circ}\\\\\n                    8\\cdot 20^{\\circ}&amp;=160^{\\circ}\n                    \\end{align}\n                    \\]\n                "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Czworokąt \\(ABCD\\) jest wpisany w koło. Przekątna \\(AC\\) jest średnicą koła, a kąt \\(BAD\\) ma miarę \\(99^{\\circ}\\).\n        </p>\n<p>\n            Jaka jest miara kąta \\(BCD\\)?\n        </p>\n"
+      "body": "<p>\n            Czworokąt \\(ABCD\\) jest wpisany w koło. Przekątna \\(AC\\) jest średnicą koła, a kąt \\(BAD\\) ma miarę \\(99^{\\circ}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jaka jest miara kąta \\(BCD\\)?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n <div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                    Naszkicujmy sytuację z zadania.\n                </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_30.png\" style=\"max-width: 90%;\"/>\n</figure>\n<p>\n                    Do rozwiązania zadania musimy pamiętać, jak jest z kątem wpisanym w koło opartym na jego średnicy.\n                </p>\n<details>\n<summary>pamiętasz?</summary>\n<div class=\"important\" style=\"min-height: 410px;\">\n<img alt=\"Kąt wpisany oparty na średnicy\" height=\"400\" src=\"static/tw_katy_2_polkole.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n<u>\n                                Kąt wpisany oparty na średnicy\n                            </u>\n</p>\n<p>\n                            Kąt wpisany oparty na połowie okręgu jest prosty.\n                        </p>\n</div>\n</details>\n<div class=\"switch_line\">\n                    Stąd wiemy, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">kąt \\(ADC\\) jest prosty, a kąt \\(ABC\\) rozwarty</div>\n<div class=\"switch_value\">kąt \\(ADC\\) jest prosty, a kąt \\(ABC\\) ostry</div>\n<div class=\"switch_value\">kąty \\(ADC\\) i \\(ABC\\) są proste</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Wiemy więc, że\n                <div class=\"table_wrapper\">\n                    \\[ADC=90^{\\circ},\\quad\\quad ABC=90^{\\circ},\\quad\\quad BAD=99^{\\circ}\\]\n                </div>\n<div class=\"switch_line\">\n                    Miarę czwartego kąta, \\(BCD\\), wyliczymy z \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">sumy kątów w trójkącie</div>\n<div class=\"switch_value\">sumy kątów w czworokącie</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    \\(BCD=360^{\\circ}-(90^{\\circ}+90^{\\circ}+99^{\\circ})=\\)\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(81^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(89^{\\circ}\\)</div>\n<div class=\"switch_value\">\\(91^{\\circ}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Miary kątów w czworokącie to:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    BAD&amp;=99^{\\circ}\\\\\n                    ABC&amp;=90^{\\circ}\\\\\n                    BCD&amp;=81^{\\circ}\\\\\n                    ADC&amp;=90^{\\circ}\n                    \\end{align}\n                    \\]\n                </div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Naszkicujmy sytuację z zadania.\n                </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_30.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Do rozwiązania zadania musimy pamiętać, jak jest z kątem wpisanym w koło opartym na jego średnicy.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>pamiętasz?</h4>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/tw_katy_2_polkole.png",
+          "alt": "Kąt wpisany oparty na średnicy",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                                Kąt wpisany oparty na średnicy\n                            </u>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Kąt wpisany oparty na połowie okręgu jest prosty.\n                        </p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd wiemy, że\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "kąt \\(ADC\\) jest prosty, a kąt \\(ABC\\) rozwarty",
+            "kąt \\(ADC\\) jest prosty, a kąt \\(ABC\\) ostry",
+            "kąty \\(ADC\\) i \\(ABC\\) są proste"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Wiemy więc, że</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[ADC=90^{\\circ},\\quad\\quad ABC=90^{\\circ},\\quad\\quad BAD=99^{\\circ}\\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Miarę czwartego kąta, \\(BCD\\), wyliczymy z \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "sumy kątów w trójkącie",
+            "sumy kątów w czworokącie"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(BCD=360^{\\circ}-(90^{\\circ}+90^{\\circ}+99^{\\circ})=\\)\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(81^{\\circ}\\)",
+            "\\(89^{\\circ}\\)",
+            "\\(91^{\\circ}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Miary kątów w czworokącie to:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    BAD&amp;=99^{\\circ}\\\\\n                    ABC&amp;=90^{\\circ}\\\\\n                    BCD&amp;=81^{\\circ}\\\\\n                    ADC&amp;=90^{\\circ}\n                    \\end{align}\n                    \\]\n                "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Miary kątów wewnętrznych przy wierzchołkach \\(A\\) i \\(B\\) są równe \\(135^{\\circ}\\) i  \\(60^{\\circ}\\) odpowiednio.\n        </p>\n<p>\n            Boki \\(AD\\), \\(AB\\) i \\(BC\\) mają odpowiednio długości \\(6\\sqrt{2}\\), \\(6\\) i \\(4\\).\n        </p>\n<p>\n            Znajdź długości przekątnych \\(AC\\) i \\(BD\\).\n        </p>\n"
+      "body": "<p>\n            Miary kątów wewnętrznych przy wierzchołkach \\(A\\) i \\(B\\) są równe \\(135^{\\circ}\\) i  \\(60^{\\circ}\\) odpowiednio.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Boki \\(AD\\), \\(AB\\) i \\(BC\\) mają odpowiednio długości \\(6\\sqrt{2}\\), \\(6\\) i \\(4\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź długości przekątnych \\(AC\\) i \\(BD\\).\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<details>\n<summary>wstęp do rozwiązania</summary>\n<p>\n                Naszkicujmy sytuację opisaną w zadaniu.\n            </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_40_1.png\" style=\"max-height: 350px;\"/>\n</figure>\n<p>\n                Zauważmy, że każda z przekątnych jest bokiem trójkąta, w którym dane są pozostałe boki i jeden kąt.\n            </p>\n<div class=\"table_wrapper\">\n<div style=\"height: 300px; white-space:nowrap;\">\n<img src=\"static/geometria_3_zadanie_40_2.png\" style=\"height: 100%;\"/>\n<img src=\"static/geometria_3_zadanie_40_3.png\" style=\"height: 100%;\"/>\n</div>\n</div>\n<p>\n                Długości obu przekątnych obliczymy w bardzo podobny sposób.\n            </p>\n</details>\n<details>\n<summary>przekątna \\(BD\\)</summary>\n<div id=\"question42\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<figure>\n<img src=\"static/geometria_3_zadanie_40_2.png\" style=\"max-height: 300px;\"/>\n</figure>\n<div class=\"switch_line\">\n                            Aby znaleźć długość przekątnej \\(BD\\) skupmy się na trójkącie \\(ABD\\) i skorzystajmy z \n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">twierdzenia sinusów</div>\n<div class=\"switch_value\">twierdzenia cosinusów</div>\n<div class=\"switch_value\">twierdzenia Pitagorasa</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<details>\n<summary>twierdzenie cosinusów - przypomnienie</summary>\n<div class=\"important\" style=\"min-height: 215px;\">\n<img alt=\"trojkat ABC\" height=\"200\" src=\"static/trojkat_ABC.png\" style=\"float: right; margin: 0 0 0 15px;\"/>\n<p>\n<strong>\n                                        Twierdzenie cosinusów\n                                    </strong>\n</p>\n<p>\n                                    Jeśli \\(a\\), \\(b\\), \\(c\\) to długości boków trójkąta, a \\(A\\), \\(B\\) i \\(C\\) to miary kątów przeciwległych do tych boków, to prawdziwe są następujące równania:\n                                </p>\n<ul class=\"nolist\">\n<li>\n                                        \\(a^2=b^2+c^2-2bc\\cos A\\)\n                                    </li>\n<li>\n                                        \\(b^2=a^2+c^2-2ac\\cos B\\)\n                                    </li>\n<li>\n                                        \\(c^2=a^2+b^2-2ab\\cos C\\)\n                                    </li>\n</ul>\n</div>\n</details>\n<div class=\"switch_line\">\n                            Dana jest miara kąta \\(BAD\\), więc po lewej stronie równania będzie kwadrat boku\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(BD\\)</div>\n<div class=\"switch_value\">\\(AD\\)</div>\n<div class=\"switch_value\">\\(AB\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"table_wrapper\">\n                            \\[\n                            \\begin{align}\n                            BD^2&amp;=AB^2+AD^2-2\\cdot AB\\cdot AD\\cdot \\cos BAD\\\\\n                            BD^2&amp;=6^2+(6\\sqrt{2})^2-2\\cdot 6\\cdot 6\\sqrt{2}\\cdot \\cos 135^{\\circ}\n                            \\end{align}\n                            \\]\n                        </div>\n<div class=\"switch_line\">\n                            Wiedząc, że\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\cos 135^{\\circ}=\\frac{\\sqrt{2}}{2}\\)</div>\n<div class=\"switch_value\">\\(\\cos 135^{\\circ}=-\\frac{\\sqrt{2}}{2}\\)</div>\n<div class=\"switch_value\">\\(\\cos 135^{\\circ}=\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(\\cos 135^{\\circ}=-\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(\\cos 135^{\\circ}=\\frac{\\sqrt{3}}{2}\\)</div>\n<div class=\"switch_value\">\\(\\cos 135^{\\circ}=-\\frac{\\sqrt{3}}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n                        Możemy policzyć\n                        <div class=\"table_wrapper\">\n                            \\[\n                            \\begin{align}\n                            BD^2&amp;=AB^2+AD^2-2\\cdot AB\\cdot AD\\cdot \\cos BAD\\\\\n                            BD^2&amp;=6^2+(6\\sqrt{2})^2-2\\cdot 6\\cdot 6\\sqrt{2}\\cdot \\cos 135^{\\circ}\\\\\n                            BD^2&amp;=36+72-72\\sqrt{2}\\cdot \\left(-\\frac{\\sqrt{2}}{2}\\right)\n                            \\end{align}\n                            \\]\n                        </div>\n<div class=\"switch_line\">\n                            i stąd\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(BD^2=180\\)</div>\n<div class=\"switch_value\">\\(BD^2=36\\)</div>\n<div class=\"switch_value\">\\(BD^2=108\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                            I ostatecznie\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(BD=6\\sqrt{5}\\)</div>\n<div class=\"switch_value\">\\(BD=3\\sqrt{10}\\)</div>\n<div class=\"switch_value\">\\(BD=3\\sqrt{20}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n                        \\(BD=\\sqrt{180}=\\sqrt{36\\cdot 5}=6\\sqrt{5}\\)\n                    </div>\n</div>\n</div>\n</details>\n<details>\n<summary>przekątna \\(AC\\)</summary>\n<div id=\"question44\">\n<div class=\"switch_steps\">\n                    Tu też użyjemy twierdzenia cosinusów, tym razem dla trójkąta \\(ABC\\).\n                    <figure>\n<img src=\"static/geometria_3_zadanie_40_3.png\" style=\"max-height: 300px;\"/>\n</figure>\n<div class=\"switch_step\">\n<div class=\"switch_line\">\n                            Otrzymamy:\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(AC^2=AB^2+BC^2-2\\cdot AB\\cdot BC \\cos ABC\\)</div>\n<div class=\"switch_value\">\\(BC^2=AB^2+AC^2-2\\cdot AB\\cdot AC \\cos ABC\\)</div>\n<div class=\"switch_value\">\\(AB^2=AC^2+BC^2-2\\cdot AC\\cdot BC \\cos ABC\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n                        Po podstawieniu danych wartości:\n                        \\[\n                        AC^2=6^2+4^2-2\\cdot 6\\cdot 4 \\cos 60^{\\circ}\n                        \\]\n                        <div class=\"switch_line\">\n                            Możemy to obliczyć wiedząc, że\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\cos 60^{\\circ}=\\frac{1}{2}\\)</div>\n<div class=\"switch_value\">\\(\\cos 60^{\\circ}=\\frac{\\sqrt{2}}{2}\\)</div>\n<div class=\"switch_value\">\\(\\cos 60^{\\circ}=\\frac{\\sqrt{3}}{2}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n                        I otrzymujemy:\n                        <div class=\"table_wrapper\">\n                            \\[\n                            \\begin{align}\n                            AC^2&amp;=36+16-48 \\cdot \\frac{1}{2}\\\\\n                            AC^2&amp;=36+16-24\\\\\n                            AC^2&amp;=28\n                            \\end{align}\n                            \\]\n                        </div>\n<div class=\"switch_line\">\n                            A stąd\n                            <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(AC=2\\sqrt{7}\\)</div>\n<div class=\"switch_value\">\\(AC=7\\sqrt{2}\\)</div>\n<div class=\"switch_value\">\\(AC=7\\sqrt{4}\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                        </div>\n</div>\n<div class=\"switch_step hidden\">\n                        \\[\n                        AC=\\sqrt{28}=\\sqrt{4\\cdot 7}=2\\sqrt{7}\n                        \\]\n                    </div>\n</div>\n</div>\n</details>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>wstęp do rozwiązania</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Naszkicujmy sytuację opisaną w zadaniu.\n            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_40_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Zauważmy, że każda z przekątnych jest bokiem trójkąta, w którym dane są pozostałe boki i jeden kąt.\n            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_40_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_40_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                Długości obu przekątnych obliczymy w bardzo podobny sposób.\n            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>przekątna \\(BD\\)</h4>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_40_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                            Aby znaleźć długość przekątnej \\(BD\\) skupmy się na trójkącie \\(ABD\\) i skorzystajmy z \n                            \n\n\n\n￿0￿.\n                        ",
+          "options": [
+            "twierdzenia sinusów",
+            "twierdzenia cosinusów",
+            "twierdzenia Pitagorasa"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<h4>twierdzenie cosinusów - przypomnienie</h4>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trojkat_ABC.png",
+          "alt": "trojkat ABC",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>\n                                        Twierdzenie cosinusów\n                                    </strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                    Jeśli \\(a\\), \\(b\\), \\(c\\) to długości boków trójkąta, a \\(A\\), \\(B\\) i \\(C\\) to miary kątów przeciwległych do tych boków, to prawdziwe są następujące równania:\n                                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                                        \\(a^2=b^2+c^2-2bc\\cos A\\)\n                                    </li>\n<li>\n                                        \\(b^2=a^2+c^2-2ac\\cos B\\)\n                                    </li>\n<li>\n                                        \\(c^2=a^2+b^2-2ab\\cos C\\)\n                                    </li>\n</ul>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                            Dana jest miara kąta \\(BAD\\), więc po lewej stronie równania będzie kwadrat boku\n                            \n\n\n\n￿0￿.\n                        ",
+          "options": [
+            "\\(BD\\)",
+            "\\(AD\\)",
+            "\\(AB\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "\n                            \\[\n                            \\begin{align}\n                            BD^2&amp;=AB^2+AD^2-2\\cdot AB\\cdot AD\\cdot \\cos BAD\\\\\n                            BD^2&amp;=6^2+(6\\sqrt{2})^2-2\\cdot 6\\cdot 6\\sqrt{2}\\cdot \\cos 135^{\\circ}\n                            \\end{align}\n                            \\]\n                        "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                            Wiedząc, że\n                            \n\n\n\n\n\n\n￿0￿.\n                        ",
+          "options": [
+            "\\(\\cos 135^{\\circ}=\\frac{\\sqrt{2}}{2}\\)",
+            "\\(\\cos 135^{\\circ}=-\\frac{\\sqrt{2}}{2}\\)",
+            "\\(\\cos 135^{\\circ}=\\frac{1}{2}\\)",
+            "\\(\\cos 135^{\\circ}=-\\frac{1}{2}\\)",
+            "\\(\\cos 135^{\\circ}=\\frac{\\sqrt{3}}{2}\\)",
+            "\\(\\cos 135^{\\circ}=-\\frac{\\sqrt{3}}{2}\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Możemy policzyć</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                            \\[\n                            \\begin{align}\n                            BD^2&amp;=AB^2+AD^2-2\\cdot AB\\cdot AD\\cdot \\cos BAD\\\\\n                            BD^2&amp;=6^2+(6\\sqrt{2})^2-2\\cdot 6\\cdot 6\\sqrt{2}\\cdot \\cos 135^{\\circ}\\\\\n                            BD^2&amp;=36+72-72\\sqrt{2}\\cdot \\left(-\\frac{\\sqrt{2}}{2}\\right)\n                            \\end{align}\n                            \\]\n                        "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                            i stąd\n                            \n\n\n\n￿0￿.\n                        ",
+          "options": [
+            "\\(BD^2=180\\)",
+            "\\(BD^2=36\\)",
+            "\\(BD^2=108\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                            I ostatecznie\n                            \n\n\n\n￿0￿.\n                        ",
+          "options": [
+            "\\(BD=6\\sqrt{5}\\)",
+            "\\(BD=3\\sqrt{10}\\)",
+            "\\(BD=3\\sqrt{20}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(BD=\\sqrt{180}=\\sqrt{36\\cdot 5}=6\\sqrt{5}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>przekątna \\(AC\\)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Tu też użyjemy twierdzenia cosinusów, tym razem dla trójkąta \\(ABC\\).</p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_3_zadanie_40_3.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                            Otrzymamy:\n                            \n\n\n\n￿0￿.\n                        ",
+          "options": [
+            "\\(AC^2=AB^2+BC^2-2\\cdot AB\\cdot BC \\cos ABC\\)",
+            "\\(BC^2=AB^2+AC^2-2\\cdot AB\\cdot AC \\cos ABC\\)",
+            "\\(AB^2=AC^2+BC^2-2\\cdot AC\\cdot BC \\cos ABC\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Po podstawieniu danych wartości:\n                        \\[\n                        AC^2=6^2+4^2-2\\cdot 6\\cdot 4 \\cos 60^{\\circ}\n                        \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                            Możemy to obliczyć wiedząc, że\n                            \n\n\n\n￿0￿.\n                        ",
+          "options": [
+            "\\(\\cos 60^{\\circ}=\\frac{1}{2}\\)",
+            "\\(\\cos 60^{\\circ}=\\frac{\\sqrt{2}}{2}\\)",
+            "\\(\\cos 60^{\\circ}=\\frac{\\sqrt{3}}{2}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>I otrzymujemy:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                            \\[\n                            \\begin{align}\n                            AC^2&amp;=36+16-48 \\cdot \\frac{1}{2}\\\\\n                            AC^2&amp;=36+16-24\\\\\n                            AC^2&amp;=28\n                            \\end{align}\n                            \\]\n                        "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                            A stąd\n                            \n\n\n\n￿0￿.\n                        ",
+          "options": [
+            "\\(AC=2\\sqrt{7}\\)",
+            "\\(AC=7\\sqrt{2}\\)",
+            "\\(AC=7\\sqrt{4}\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "math",
+          "latex": "\n                        AC=\\sqrt{28}=\\sqrt{4\\cdot 7}=2\\sqrt{7}\n                        "
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "b113bf8aaa204eb93fda9e9e165393d4da7764894a1190b4ba32d72b94976076"
+  "seed_hash": "27543247afaa0dfa112f87357e6267e614cb25c6839390aba9382f37e46e3907"
 }

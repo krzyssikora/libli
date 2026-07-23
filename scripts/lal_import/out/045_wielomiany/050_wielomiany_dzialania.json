@@ -10,19 +10,29 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Wpisz odpowiednie wykładniki.\n        <p>\n</p>\n"
+      "body": "<p>Wpisz odpowiednie wykładniki.</p>"
     },
     {
-      "type": "text",
-      "body": "<ol class=\"bold list15\">\n<li>\n            \\(5x^3\\cdot 2x^3=10x\\)\n            <sup>\n<input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n</sup>\n<details>\n<summary>\n                    wskazówka\n                </summary>\n                \\(x^{\\color{red}{3}}\\cdot x^{\\color{red}{3}}=x^{\\color{red}{3+3}}\\)\n            </details>\n</li>\n<li>\n            \\(4x^5\\cdot 3x^2=12x\\)\n            <sup>\n<input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n</sup>\n<details>\n<summary>\n                    wskazówka\n                </summary>\n                \\(x^{\\color{red}{5}}\\cdot x^{\\color{red}{2}}=x^{\\color{red}{5+2}}\\)\n            </details>\n</li>\n<li>\n            \\(3x^4\\cdot(-2x)=-6x\\)\n            <sup>\n<input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n</sup>\n<details>\n<summary>\n                    wskazówka\n                </summary>\n                \\(x^4\\cdot x=x^{\\color{red}{4}}\\cdot x^{\\color{red}{1}}=x^{\\color{red}{4+1}}\\)\n            </details>\n</li>\n<li>\n            \\(-7x\\cdot 4x=-28x\\)\n            <sup>\n<input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n</sup>\n<details>\n<summary>\n                    wskazówka\n                </summary>\n                \\(x\\cdot x=x^{\\color{red}{1}}\\cdot x^{\\color{red}{1}}=x^{\\color{red}{1+1}}\\)\n            </details>\n</li>\n</ol>"
-    },
-    {
-      "type": "text",
-      "body": "\n    Doskonale!\n"
+      "type": "fillblank",
+      "stem": "\n<li>\n            \\(5x^3\\cdot 2x^3=10x\\)\n            <sup>\n￿0￿\n</sup>\n<details>\n<summary>\n                    wskazówka\n                </summary>\n                \\(x^{\\color{red}{3}}\\cdot x^{\\color{red}{3}}=x^{\\color{red}{3+3}}\\)\n            </details>\n</li>\n<li>\n            \\(4x^5\\cdot 3x^2=12x\\)\n            <sup>\n￿1￿\n</sup>\n<details>\n<summary>\n                    wskazówka\n                </summary>\n                \\(x^{\\color{red}{5}}\\cdot x^{\\color{red}{2}}=x^{\\color{red}{5+2}}\\)\n            </details>\n</li>\n<li>\n            \\(3x^4\\cdot(-2x)=-6x\\)\n            <sup>\n￿2￿\n</sup>\n<details>\n<summary>\n                    wskazówka\n                </summary>\n                \\(x^4\\cdot x=x^{\\color{red}{4}}\\cdot x^{\\color{red}{1}}=x^{\\color{red}{4+1}}\\)\n            </details>\n</li>\n<li>\n            \\(-7x\\cdot 4x=-28x\\)\n            <sup>\n￿3￿\n</sup>\n<details>\n<summary>\n                    wskazówka\n                </summary>\n                \\(x\\cdot x=x^{\\color{red}{1}}\\cdot x^{\\color{red}{1}}=x^{\\color{red}{1+1}}\\)\n            </details>\n</li>\n",
+      "blanks": [
+        [
+          "6"
+        ],
+        [
+          "7"
+        ],
+        [
+          "5"
+        ],
+        [
+          "2"
+        ]
+      ]
     },
     {
       "type": "text",
@@ -30,7 +40,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -39,11 +49,154 @@
     {
       "type": "spoiler",
       "label": "zobacz",
-      "body": "\n\n        \\[\n        \\begin{align*}\n        (x^3-3x+2)&amp;(4x^2+7x-5)=&amp;&amp;\\\\\n        =(\\color{red}{x^3}\\color{orange}{-3x}\\color{green}{+2})&amp;(4x^2+7x-5)=&amp;&amp;\\\\\n        =\\color{red}{x^3}&amp;(4x^2+7x-5)+&amp;\\color{red}{\\rightarrow\\quad}&amp;\\color{red}{4x^5+7x^4-5x^3}\\\\\n        \\color{orange}{-3x}&amp;(4x^2+7x-5)+&amp;\\color{orange}{\\rightarrow\\quad}&amp;\\color{orange}{-12x^3-21x^2+15x}\\\\\n        \\color{green}{+2}&amp;(4x^2+7x-5)=&amp;\\color{green}{\\rightarrow\\quad}&amp;\\color{green}{8x^2+14x-10}\\\\\n        \\end{align*}\n        \\]\n        Pozostaje zsumować:\n        <div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                        \\(\\color{red}{4x^5}\\)\n                    </td>\n<td>\n                        \\(\\color{red}{+7x^4}\\)\n                    </td>\n<td>\n                        \\(\\color{red}{-5x^3}\\)\n                    </td>\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n</tr>\n<tr>\n<td>\n</td>\n<td>\n</td>\n<td>\n                        \\(\\color{orange}{-12x^3}\\)\n                    </td>\n<td>\n                        \\(\\color{orange}{-21x^2}\\)\n                    </td>\n<td>\n                        \\(\\color{orange}{+15x}\\)\n                    </td>\n<td>\n</td>\n</tr>\n<tr style=\"border-bottom: 1px solid black;\">\n<td>\n</td>\n<td>\n</td>\n<td>\n</td>\n<td>\n                        \\(\\color{green}{+8x^2}\\)\n                    </td>\n<td>\n                        \\(\\color{green}{+14x}\\)\n                    </td>\n<td>\n                        \\(\\color{green}{-10}\\)\n                    </td>\n</tr>\n<tr>\n<td>\n                        \\(4x^5\\)\n                    </td>\n<td>\n                        \\(+7x^4\\)\n                    </td>\n<td>\n                        \\(-17x^3\\)\n                    </td>\n<td>\n                        \\(-13x^2\\)\n                    </td>\n<td>\n                        \\(+29x\\)\n                    </td>\n<td>\n                        \\(-10\\)\n                    </td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\[\n        \\begin{align*}\n        (x^3-3x+2)&(4x^2+7x-5)=&&\\\\\n        =(\\color{red}{x^3}\\color{orange}{-3x}\\color{green}{+2})&(4x^2+7x-5)=&&\\\\\n        =\\color{red}{x^3}&(4x^2+7x-5)+&\\color{red}{\\rightarrow\\quad}&\\color{red}{4x^5+7x^4-5x^3}\\\\\n        \\color{orange}{-3x}&(4x^2+7x-5)+&\\color{orange}{\\rightarrow\\quad}&\\color{orange}{-12x^3-21x^2+15x}\\\\\n        \\color{green}{+2}&(4x^2+7x-5)=&\\color{green}{\\rightarrow\\quad}&\\color{green}{8x^2+14x-10}\\\\\n        \\end{align*}\n        \\]\n        Pozostaje zsumować:</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(\\color{red}{4x^5}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{red}{+7x^4}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{red}{-5x^3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{orange}{-12x^3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{orange}{-21x^2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{orange}{+15x}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{green}{+8x^2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{green}{+14x}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{green}{-10}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(4x^5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+7x^4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-17x^3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-13x^2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(+29x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(-10\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -52,9 +205,137 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                Mamy obliczyć\n                \\[\n                \\begin{align*}\n                W_1(x)\\cdot W_2(x)=(\\color{red}{-2x^3}\\color{green}{+3x})&amp;\\cdot(5x^3-x^2-2x+4)=\\\\\n                =\\color{red}{-2x^3}&amp;\\cdot(5x^3-x^2-2x+4)+\\\\\n                \\color{green}{+3x}&amp;\\cdot(5x^3-x^2-2x+4)=\\dots\n                \\end{align*}\n                \\]\n                Zacznimy od wymnożenia:\n                \\[\n                \\color{red}{-2x^3}\\cdot(5x^3-x^2-2x+4)\n                \\]\n                <div class=\"switch_line\">\n                    \\(-2x^3\\cdot 5x^3=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(-10x^6\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-10x^9\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(3x^6\\)\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    \\(-2x^3\\cdot (-x^2)=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(-2x^5\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-2x^6\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(2x^5\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(2x^6\\)\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    \\(-2x^3\\cdot (-2x)=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(4x^3\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(4x^4\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-4x^3\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-4x^4\\)\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    \\(-2x^3\\cdot 4=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(-8x^3\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-8x^{12}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-2x^{12}\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(8x^3\\)\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Mamy już fragment wyniku:\n                <div style=\"min-height: 2em;\">\n<span style=\"float: right;\">\n                        \\(\\color{red}{-2x^3}\\cdot(5x^3-x^2-2x+4)=\\color{red}{-10x^6+2x^5+4x^4-8x^3}\\)\n                    </span>\n</div>\n                Teraz wymnożymy:\n                \\[\n                \\color{green}{+3x}\\cdot(5x^3-x^2-2x+4)\n                \\]\n                <div class=\"switch_line\">\n                    \\(3x\\cdot 5x^3=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(15x^4\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(8x^4\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(15x^3\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(8x^3\\)\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    \\(3x\\cdot (-x^2)=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(3x^3\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-3x^3\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(3x^2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-3x^2\\)\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    \\(3x\\cdot (-2x)=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(-6x\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(6x\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(-6x^2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(6x^2\\)\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    \\(3x\\cdot 4=\\)\n                    <div class=\"switch_value\">\n                        &gt;&gt; wybierz &gt;&gt;\n                    </div>\n<div class=\"switch_value\">\n                        \\(12x\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(7x\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(7x^2\\)\n                    </div>\n<div class=\"switch_value\">\n                        \\(12x^2\\)\n                    </div>\n<div class=\"switch_show_next ks_button\">\n                        zatwierdź\n                    </div>\n</div>\n</div>\n<div class=\"switch_step hidden\">\n                Mamy drugą część wyniku:\n                <div style=\"min-height: 2em;\">\n<span style=\"float: right;\">\n                        \\(\\color{green}{+3x}\\cdot(5x^3-x^2-2x+4)=\\color{green}{15x^4-3x^3-6x^2+12x}\\)\n                    </span>\n</div>\n                Teraz wystarczy zsumować obie części:\n                \\[\n                \\color{red}{-10x^6+2x^5+4x^4-8x^3}+\\color{green}{15x^4-3x^3-6x^2+12x}=\n                \\]\n                (uzupełnij brakujące współczynniki)\n                <div id=\"question71\">\n                    \\(=10x^6+2x^5+\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(x^4-\\)\n                    <input class=\"table_input\" placeholder=\"wpisz\" type=\"text\"/>\n                    \\(x^3-6x^2+12x\\)\n                </div>\n<div class=\"success hidden\" id=\"success_question71\">\n                    Ostatecznie więc\n                    <div style=\"min-height: 2em;\">\n<span style=\"float: right;\">\n                            \\(W_1(x)\\cdot W_2(x)=-10x^6+2x^5+19x^4-11x^3-6x^2+12x\\)\n                        </span>\n</div>\n</div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Mamy obliczyć\n                \\[\n                \\begin{align*}\n                W_1(x)\\cdot W_2(x)=(\\color{red}{-2x^3}\\color{green}{+3x})&\\cdot(5x^3-x^2-2x+4)=\\\\\n                =\\color{red}{-2x^3}&\\cdot(5x^3-x^2-2x+4)+\\\\\n                \\color{green}{+3x}&\\cdot(5x^3-x^2-2x+4)=\\dots\n                \\end{align*}\n                \\]\n                Zacznimy od wymnożenia:\n                \\[\n                \\color{red}{-2x^3}\\cdot(5x^3-x^2-2x+4)\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(-2x^3\\cdot 5x^3=\\)\n                    \n\n\n\n\n￿0￿",
+          "options": [
+            "\\(-10x^6\\)",
+            "\\(-10x^9\\)",
+            "\\(3x^6\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(-2x^3\\cdot (-x^2)=\\)\n                    \n\n\n\n\n\n￿0￿",
+          "options": [
+            "\\(-2x^5\\)",
+            "\\(-2x^6\\)",
+            "\\(2x^5\\)",
+            "\\(2x^6\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(-2x^3\\cdot (-2x)=\\)\n                    \n\n\n\n\n\n￿0￿",
+          "options": [
+            "\\(4x^3\\)",
+            "\\(4x^4\\)",
+            "\\(-4x^3\\)",
+            "\\(-4x^4\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(-2x^3\\cdot 4=\\)\n                    \n\n\n\n\n\n￿0￿",
+          "options": [
+            "\\(-8x^3\\)",
+            "\\(-8x^{12}\\)",
+            "\\(-2x^{12}\\)",
+            "\\(8x^3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Mamy już fragment wyniku:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n<span style=\"float: right;\">\n                        \\(\\color{red}{-2x^3}\\cdot(5x^3-x^2-2x+4)=\\color{red}{-10x^6+2x^5+4x^4-8x^3}\\)\n                    </span>\n"
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz wymnożymy:\n                \\[\n                \\color{green}{+3x}\\cdot(5x^3-x^2-2x+4)\n                \\]</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(3x\\cdot 5x^3=\\)\n                    \n\n\n\n\n\n￿0￿",
+          "options": [
+            "\\(15x^4\\)",
+            "\\(8x^4\\)",
+            "\\(15x^3\\)",
+            "\\(8x^3\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(3x\\cdot (-x^2)=\\)\n                    \n\n\n\n\n\n￿0￿",
+          "options": [
+            "\\(3x^3\\)",
+            "\\(-3x^3\\)",
+            "\\(3x^2\\)",
+            "\\(-3x^2\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(3x\\cdot (-2x)=\\)\n                    \n\n\n\n\n\n￿0￿",
+          "options": [
+            "\\(-6x\\)",
+            "\\(6x\\)",
+            "\\(-6x^2\\)",
+            "\\(6x^2\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(3x\\cdot 4=\\)\n                    \n\n\n\n\n\n￿0￿",
+          "options": [
+            "\\(12x\\)",
+            "\\(7x\\)",
+            "\\(7x^2\\)",
+            "\\(12x^2\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Mamy drugą część wyniku:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n<span style=\"float: right;\">\n                        \\(\\color{green}{+3x}\\cdot(5x^3-x^2-2x+4)=\\color{green}{15x^4-3x^3-6x^2+12x}\\)\n                    </span>\n"
+        },
+        {
+          "type": "text",
+          "body": "<p>Teraz wystarczy zsumować obie części:\n                \\[\n                \\color{red}{-10x^6+2x^5+4x^4-8x^3}+\\color{green}{15x^4-3x^3-6x^2+12x}=\n                \\]\n                (uzupełnij brakujące współczynniki)</p>"
+        },
+        {
+          "type": "fillblank",
+          "stem": "\n                    \\(=10x^6+2x^5+\\)\n                    ￿0￿\n                    \\(x^4-\\)\n                    ￿1￿\n                    \\(x^3-6x^2+12x\\)\n                ",
+          "blanks": [
+            [
+              "19"
+            ],
+            [
+              "11"
+            ]
+          ]
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "c02e5e60aabe884f65464a31adc144b03fedd81be1059f0df4c92fae59bbb68d"
+  "seed_hash": "e4e3e2dfde83501e2854b7b9d647a57a2b1fad3430ce2357c57ec19f6056b035"
 }

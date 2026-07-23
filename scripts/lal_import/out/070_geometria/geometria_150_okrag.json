@@ -2,29 +2,49 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Okręgi o promieniach \\(r_1\\) i \\(r_2\\) mają środki w odległości \\(d\\).\n        </p>\n<p>\n            Jakie jest wzajemne położenie tych okręgów przy wskazanych wartościach \\(r_1\\), \\(r_2\\) i \\(d\\)?\n        </p>\n"
+      "body": "<p>\n            Okręgi o promieniach \\(r_1\\) i \\(r_2\\) mają środki w odległości \\(d\\).\n        </p>"
     },
     {
       "type": "text",
-      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\(r_1=2\\), \\(r_2=4\\), \\(d=6\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                rozłączne\n                <br/>\n                zewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                styczne\n                <br/>\n                zewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                przecinające\n                <br/>\n                się\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                styczne\n                <br/>\n                wewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                rozłączne\n                <br/>\n                wewnętrznie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\(r_1=8\\), \\(r_2=11\\), \\(d=3\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                rozłączne\n                <br/>\n                zewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                styczne\n                <br/>\n                zewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                przecinające\n                <br/>\n                się\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                styczne\n                <br/>\n                wewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                rozłączne\n                <br/>\n                wewnętrznie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\(r_1=8\\), \\(r_2=4\\), \\(d=13\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                rozłączne\n                <br/>\n                zewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                styczne\n                <br/>\n                zewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                przecinające\n                <br/>\n                się\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                styczne\n                <br/>\n                wewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                rozłączne\n                <br/>\n                wewnętrznie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\(r_1=5\\), \\(r_2=6\\), \\(d=4\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                rozłączne\n                <br/>\n                zewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                styczne\n                <br/>\n                zewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                przecinające\n                <br/>\n                się\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                styczne\n                <br/>\n                wewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                rozłączne\n                <br/>\n                wewnętrznie\n            </div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"200px\">\n                \\(r_1=3\\), \\(r_2=8\\), \\(d=4\\)\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                rozłączne\n                <br/>\n                zewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                styczne\n                <br/>\n                zewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                przecinające\n                <br/>\n                się\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                styczne\n                <br/>\n                wewnętrznie\n            </div>\n<div class=\"one_choice ks_button fixed_width\" data-width=\"100px\">\n                rozłączne\n                <br/>\n                wewnętrznie\n            </div>\n</li>\n</ul>"
+      "body": "<p>\n            Jakie jest wzajemne położenie tych okręgów przy wskazanych wartościach \\(r_1\\), \\(r_2\\) i \\(d\\)?\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi:\n    "
+      "type": "choice_grid",
+      "columns": [
+        "rozłączne zewnętrznie",
+        "styczne zewnętrznie",
+        "przecinające się",
+        "styczne wewnętrznie",
+        "rozłączne wewnętrznie"
+      ],
+      "rows": [
+        {
+          "statement": "\\(r_1=2\\), \\(r_2=4\\), \\(d=6\\)",
+          "correct": 1
+        },
+        {
+          "statement": "\\(r_1=8\\), \\(r_2=11\\), \\(d=3\\)",
+          "correct": 3
+        },
+        {
+          "statement": "\\(r_1=8\\), \\(r_2=4\\), \\(d=13\\)",
+          "correct": 0
+        },
+        {
+          "statement": "\\(r_1=5\\), \\(r_2=6\\), \\(d=4\\)",
+          "correct": 2
+        },
+        {
+          "statement": "\\(r_1=3\\), \\(r_2=8\\), \\(d=4\\)",
+          "correct": 4
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "262e6fee2465e789f363dc7fa8d76eae57afffd318a105e51fcc4370b3f3a00f"
+  "seed_hash": "d71e446fa9291c90d731c45366af4857880a177c781ec4e67d706af53b5f1f13"
 }

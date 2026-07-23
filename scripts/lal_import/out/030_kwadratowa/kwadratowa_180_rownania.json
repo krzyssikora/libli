@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -11,44 +11,84 @@
     {
       "type": "spoiler",
       "label": "(1)",
-      "body": "\n                        \\(0\\), \\(3\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(0\\), \\(3\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(2)",
-      "body": "\n                        \\(0\\), \\(-\\tfrac{5}{4}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(0\\), \\(-\\tfrac{5}{4}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(3)",
-      "body": "\n                        \\(0\\), \\(\\tfrac{3}{2}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(0\\), \\(\\tfrac{3}{2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(4)",
-      "body": "\n                        \\(-\\sqrt{3}\\), \\(\\sqrt{3}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-\\sqrt{3}\\), \\(\\sqrt{3}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(5)",
-      "body": "\n                        \\(-\\frac{\\sqrt{10}}{2}\\), \\(\\frac{\\sqrt{10}}{2}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-\\frac{\\sqrt{10}}{2}\\), \\(\\frac{\\sqrt{10}}{2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(6)",
-      "body": "\n                        brak rozwiązań\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>brak rozwiązań</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(7)",
-      "body": "\n                        \\(\\tfrac{2}{3}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\tfrac{2}{3}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "(8)",
-      "body": "\n                        \\(-\\tfrac{4}{5}\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(-\\tfrac{4}{5}\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "2c6dc2ac6fba4d7d7596cf89b4695c275ef9c6d02e1a424e3541562b411c1e75"
+  "seed_hash": "a6f64300c003a2fc30617b702aa6859548524c07d1101ac9e6dc9a7077f19520"
 }

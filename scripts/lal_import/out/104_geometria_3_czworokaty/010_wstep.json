@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -27,5 +27,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "50e0012180b09ee44f2f51f5afea486fc588aa3ade2e5fb96daca0dda26db24f"
+  "seed_hash": "f5a666e04271aded085f1233d4f4ae1783a3044b42e77f046b98d888a7c9a60f"
 }

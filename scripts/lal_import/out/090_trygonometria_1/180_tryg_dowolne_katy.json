@@ -11,22 +11,133 @@
     {
       "type": "spoiler",
       "label": "Wybrane wzory redukcyjne",
-      "body": "\n\n<div class=\"important\">\n<div class=\"border_red_thin two_columns\">\n<div class=\"left_column\">\n                \\[\\sin(90^{\\circ}-\\alpha)=\\cos\\alpha \\]\n                \\[\\cos(90^{\\circ}-\\alpha)=\\sin\\alpha \\]\n                \\[\\text{tg }(90^{\\circ}-\\alpha)=\\text{ctg }\\alpha \\]\n                \\[\\text{ctg }(90^{\\circ}-\\alpha)=\\text{tg }\\alpha \\]\n            </div>\n<div class=\"right_column\">\n                \\[\\sin(90^{\\circ}+\\alpha)=\\cos\\alpha \\]\n                \\[\\cos(90^{\\circ}+\\alpha)=-\\sin\\alpha \\]\n                \\[\\text{tg }(90^{\\circ}+\\alpha)=-\\text{ctg }\\alpha \\]\n                \\[\\text{ctg }(90^{\\circ}+\\alpha)=-\\text{tg }\\alpha \\]\n            </div>\n<div class=\"after_columns\">\n</div>\n</div>\n<p>\n</p>\n<div class=\"border_blue_thin two_columns\">\n<div class=\"left_column\">\n                \\[\\sin(180^{\\circ}-\\alpha)=\\sin\\alpha \\]\n                \\[\\cos(180^{\\circ}-\\alpha)=-\\cos\\alpha \\]\n                \\[\\text{tg }(180^{\\circ}-\\alpha)=-\\text{tg }\\alpha \\]\n                \\[\\text{ctg }(180^{\\circ}-\\alpha)=-\\text{ctg }\\alpha \\]\n            </div>\n<div class=\"right_column\">\n                \\[\\sin(180^{\\circ}+\\alpha)=-\\sin\\alpha \\]\n                \\[\\cos(180^{\\circ}+\\alpha)=-\\cos\\alpha \\]\n                \\[\\text{tg }(180^{\\circ}+\\alpha)=\\text{tg }\\alpha \\]\n                \\[\\text{ctg }(180^{\\circ}+\\alpha)=\\text{ctg }\\alpha \\]\n            </div>\n<div class=\"after_columns\">\n</div>\n</div>\n<p>\n</p>\n<div class=\"border_red_thin two_columns\">\n<div class=\"left_column\">\n                \\[\\sin(270^{\\circ}-\\alpha)=-\\cos\\alpha \\]\n                \\[\\cos(270^{\\circ}-\\alpha)=-\\sin\\alpha \\]\n                \\[\\text{tg }(270^{\\circ}-\\alpha)=\\text{ctg }\\alpha \\]\n                \\[\\text{ctg }(270^{\\circ}-\\alpha)=\\text{tg }\\alpha \\]\n            </div>\n<div class=\"right_column\">\n                \\[\\sin(270^{\\circ}+\\alpha)=-\\cos\\alpha \\]\n                \\[\\cos(270^{\\circ}+\\alpha)=\\sin\\alpha \\]\n                \\[\\text{tg }(270^{\\circ}+\\alpha)=-\\text{ctg }\\alpha \\]\n                \\[\\text{ctg }(270^{\\circ}+\\alpha)=-\\text{tg }\\alpha \\]\n            </div>\n<div class=\"after_columns\">\n</div>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n                \\[\\sin(90^{\\circ}-\\alpha)=\\cos\\alpha \\]\n                \\[\\cos(90^{\\circ}-\\alpha)=\\sin\\alpha \\]\n                \\[\\text{tg }(90^{\\circ}-\\alpha)=\\text{ctg }\\alpha \\]\n                \\[\\text{ctg }(90^{\\circ}-\\alpha)=\\text{tg }\\alpha \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\\sin(90^{\\circ}+\\alpha)=\\cos\\alpha \\]\n                \\[\\cos(90^{\\circ}+\\alpha)=-\\sin\\alpha \\]\n                \\[\\text{tg }(90^{\\circ}+\\alpha)=-\\text{ctg }\\alpha \\]\n                \\[\\text{ctg }(90^{\\circ}+\\alpha)=-\\text{tg }\\alpha \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\\sin(180^{\\circ}-\\alpha)=\\sin\\alpha \\]\n                \\[\\cos(180^{\\circ}-\\alpha)=-\\cos\\alpha \\]\n                \\[\\text{tg }(180^{\\circ}-\\alpha)=-\\text{tg }\\alpha \\]\n                \\[\\text{ctg }(180^{\\circ}-\\alpha)=-\\text{ctg }\\alpha \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\\sin(180^{\\circ}+\\alpha)=-\\sin\\alpha \\]\n                \\[\\cos(180^{\\circ}+\\alpha)=-\\cos\\alpha \\]\n                \\[\\text{tg }(180^{\\circ}+\\alpha)=\\text{tg }\\alpha \\]\n                \\[\\text{ctg }(180^{\\circ}+\\alpha)=\\text{ctg }\\alpha \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\\sin(270^{\\circ}-\\alpha)=-\\cos\\alpha \\]\n                \\[\\cos(270^{\\circ}-\\alpha)=-\\sin\\alpha \\]\n                \\[\\text{tg }(270^{\\circ}-\\alpha)=\\text{ctg }\\alpha \\]\n                \\[\\text{ctg }(270^{\\circ}-\\alpha)=\\text{tg }\\alpha \\]\n            "
+        },
+        {
+          "type": "text",
+          "body": "\n                \\[\\sin(270^{\\circ}+\\alpha)=-\\cos\\alpha \\]\n                \\[\\cos(270^{\\circ}+\\alpha)=\\sin\\alpha \\]\n                \\[\\text{tg }(270^{\\circ}+\\alpha)=-\\text{ctg }\\alpha \\]\n                \\[\\text{ctg }(270^{\\circ}+\\alpha)=-\\text{tg }\\alpha \\]\n            "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie możesz przesuwać czerwony punkt wyznaczający kąt \\(\\alpha\\).\n        </p>\n<p>\n            Klikając na szare przyciski poniżej, zobaczysz też kąty o miarach opisanych na przyciskach.\n        </p>\n<strong>\n            Uwaga!\n        </strong>\n        Wszystkie kąty są wskazane w zakresie od \\(0^{\\circ}\\) do \\(360^{\\circ}\\). Co oznacza, że (na przykład):\n        <ul class=\"nolist\">\n<li>\n                jeśli \\(\\alpha=150^{\\circ}\\)\n            </li>\n<li>\n                to \\(90^{\\circ}-\\alpha = 90^{\\circ}-150^{\\circ}=-60^{\\circ}\\).\n            </li>\n</ul>\n        Aby taki wynik zmienić na wynik w zakresie od \\(0^{\\circ}\\) do \\(360^{\\circ}\\), \"robimy pełny obrót\", czyli dodajemy do wyniku \\(360^{\\circ}\\)\n        <ul class=\"nolist\">\n<li>\n                i wówczas \\(90^{\\circ}-\\alpha\\) wskazuje na \\(-60^{\\circ}+360^{\\circ}=300^{\\circ}\\).\n            </li>\n</ul>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"739px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/cbbk4vs4/width/596/height/739/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"redukcyjne\" width=\"596px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n<ul class=\"nolist\">\n<li>\n                Współrzędna \\(x\\)-owa punktu wskazującego kąt \\(\\alpha\\) zaznaczona jest na\n                <span style=\"color: green;\">\n                    zielono\n                </span>\n                .\n            </li>\n<li>\n                Współrzędna \\(y\\)-owa punktu wskazującego kąt \\(\\alpha\\) zaznaczona jest na\n                <span style=\"color: orange; background-color: white;\">\n                    pomarańczowo\n                </span>\n                .\n            </li>\n</ul>\n<p>\n            Przyjrzyj się, jak zmieniają się współrzędne punktów wyznaczających kąty \\((90^{\\circ}\\pm \\alpha)\\), \\((180^{\\circ}\\pm \\alpha)\\), \\((270^{\\circ}\\pm \\alpha)\\) w porównaniu z punktem kąta \\(\\alpha\\).\n        </p>\n<p>\n            Nie zastanawiaj się, czy są dodatnie, czy ujemne (to możemy ustalić na przykład z użyciem reguły\n            <strong>\n                WSTeCz\n            </strong>\n            ). Zastanów się tylko, czy (z dokładnością do znaku) są takie same jak dla kąta \\(\\alpha\\), czy są zamienione.\n        </p>\n"
+      "body": "<p>\n            W poniższym aplecie możesz przesuwać czerwony punkt wyznaczający kąt \\(\\alpha\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Klikając na szare przyciski poniżej, zobaczysz też kąty o miarach opisanych na przyciskach.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<strong>\n            Uwaga!\n        </strong>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Wszystkie kąty są wskazane w zakresie od \\(0^{\\circ}\\) do \\(360^{\\circ}\\). Co oznacza, że (na przykład):</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                jeśli \\(\\alpha=150^{\\circ}\\)\n            </li>\n<li>\n                to \\(90^{\\circ}-\\alpha = 90^{\\circ}-150^{\\circ}=-60^{\\circ}\\).\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>Aby taki wynik zmienić na wynik w zakresie od \\(0^{\\circ}\\) do \\(360^{\\circ}\\), \"robimy pełny obrót\", czyli dodajemy do wyniku \\(360^{\\circ}\\)</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                i wówczas \\(90^{\\circ}-\\alpha\\) wskazuje na \\(-60^{\\circ}+360^{\\circ}=300^{\\circ}\\).\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/cbbk4vs4/width/596/height/739/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n                Współrzędna \\(x\\)-owa punktu wskazującego kąt \\(\\alpha\\) zaznaczona jest na\n                <span style=\"color: green;\">\n                    zielono\n                </span>\n                .\n            </li>\n<li>\n                Współrzędna \\(y\\)-owa punktu wskazującego kąt \\(\\alpha\\) zaznaczona jest na\n                <span style=\"color: orange; background-color: white;\">\n                    pomarańczowo\n                </span>\n                .\n            </li>\n</ul>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przyjrzyj się, jak zmieniają się współrzędne punktów wyznaczających kąty \\((90^{\\circ}\\pm \\alpha)\\), \\((180^{\\circ}\\pm \\alpha)\\), \\((270^{\\circ}\\pm \\alpha)\\) w porównaniu z punktem kąta \\(\\alpha\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Nie zastanawiaj się, czy są dodatnie, czy ujemne (to możemy ustalić na przykład z użyciem reguły\n            <strong>\n                WSTeCz\n            </strong>\n            ). Zastanów się tylko, czy (z dokładnością do znaku) są takie same jak dla kąta \\(\\alpha\\), czy są zamienione.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "Gdy już to zrobisz, sprawdź moje podsumowanie.",
-      "body": "\n\n<div class=\"important\">\n<ol class=\"bold\">\n<li>\n                Jeśli kąt \\(\\alpha\\) odejmujemy lub dodajemy do \\(180^{\\circ}\\), współrzędne pozostają takie same (z dokładnością do znaku).\n            </li>\n<li>\n                Jeśli kąt \\(\\alpha\\) odejmujemy lub dodajemy do \\(90^{\\circ}\\) lub \\(270^{\\circ}\\), współrzędne zamieniają się miejscami.\n            </li>\n</ol>\n<p>\n<u>\n                lub bardziej ogólnie\n            </u>\n            :\n        </p>\n<ol class=\"bold\">\n<li>\n                Jeśli kąt \\(\\alpha\\) odejmujemy lub dodajemy do\n                <strong>\n                    parzystej wielokrotności\n                </strong>\n                \\(90^{\\circ}\\), współrzędne pozostają takie same (z dokładnością do znaku).\n            </li>\n<li>\n                Jeśli kąt \\(\\alpha\\) odejmujemy lub dodajemy do\n                <strong>\n                    nieparzystej wielokrotności\n                </strong>\n                \\(90^{\\circ}\\), współrzędne zamieniają się miejscami.\n            </li>\n</ol>\n<p>\n<u>\n                Co to oznacza\n            </u>\n            ? Pamiętajmy o definicjach funkcji trygonometrycznych:\n        </p>\n<div class=\"centered\">\n            \\(\\sin\\alpha= \\frac{y}{r}\\)\n            <span style=\"display: inline-block; width: 100px;\">\n</span>\n            \\(\\cos\\alpha= \\frac{x}{r}\\)\n            <span style=\"display: inline-block; width: 100px;\">\n</span>\n            \\(\\text{tg}\\alpha= \\frac{y}{x}\\)\n            <span style=\"display: inline-block; width: 100px;\">\n</span>\n            \\(\\text{ctg}\\alpha= \\frac{x}{y}\\)\n            <span style=\"display: inline-block; width: 100px;\">\n</span>\n            gdzie \\(r=\\sqrt{x^2+y^2}\\)\n        </div>\n<p>\n<u>\n                i dlatego\n            </u>\n            :\n        </p>\n<ol class=\"bold\">\n<li>\n<p>\n                    Jeśli \\(k\\) jest liczbą\n                    <strong>\n                        parzystą\n                    </strong>\n</p>\n                \\[\n                \\begin{align*}\n                \\sin(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\sin\\alpha\\\\\n                \\cos(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\cos\\alpha\\\\\n                \\text{tg }(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\text{tg }\\alpha\\\\\n                \\text{ctg }(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\text{ctg }\\alpha\n                \\end{align*}\n                \\]\n            </li>\n<li>\n<p>\n                    Jeśli \\(k\\) jest liczbą\n                    <strong>\n                        nieparzystą\n                    </strong>\n</p>\n                \\[\n                \\begin{align*}\n                \\sin(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\cos\\alpha\\\\\n                \\cos(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\sin\\alpha\\\\\n                \\text{tg }(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\text{ctg }\\alpha\\\\\n                \\text{ctg }(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\text{tg }\\alpha\n                \\end{align*}\n                \\]\n                <p>\n                    W miejscu kwadratów (\\(\\square\\)) należy wpisać \"\\(+\\)\" lub \"\\(-\\)\" zależnie od ćwiartki, w której znajduje się kąt \\((k\\cdot 90^{\\circ}\\pm\\alpha)\\).\n                </p>\n</li>\n</ol>\n<p>\n<u>\n                Zwróć uwagę\n            </u>\n            , że\n        </p>\n<ul class=\"bold\">\n<li>\n                w pierwszym przypadku funkcje po obu stronach równania są takie same,\n            </li>\n<li>\n                w drugim przypadku każda funkcja zmienia się w swoją tak zwaną\n                <strong>\n                    kofunkcję\n                </strong>\n                :\n            </li>\n</ul>\n<ul class=\"nolist\">\n<li>\n                kofunkcją sinusa jest cosinus,\n            </li>\n<li>\n                kofunkcją cosinusa jest sinus,\n            </li>\n<li>\n                kofunkcją tangensa jest cotangens,\n            </li>\n<li>\n                kofunkcją cotangensa jest tangens.\n            </li>\n</ul>\n</div>\n<p>\n        No to teraz czas sprawdzić, że w praktyce jest to znacznie łatwiejsze.\n    </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                Jeśli kąt \\(\\alpha\\) odejmujemy lub dodajemy do \\(180^{\\circ}\\), współrzędne pozostają takie same (z dokładnością do znaku).\n            </li>\n<li>\n                Jeśli kąt \\(\\alpha\\) odejmujemy lub dodajemy do \\(90^{\\circ}\\) lub \\(270^{\\circ}\\), współrzędne zamieniają się miejscami.\n            </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                lub bardziej ogólnie\n            </u>\n            :\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n                Jeśli kąt \\(\\alpha\\) odejmujemy lub dodajemy do\n                <strong>\n                    parzystej wielokrotności\n                </strong>\n                \\(90^{\\circ}\\), współrzędne pozostają takie same (z dokładnością do znaku).\n            </li>\n<li>\n                Jeśli kąt \\(\\alpha\\) odejmujemy lub dodajemy do\n                <strong>\n                    nieparzystej wielokrotności\n                </strong>\n                \\(90^{\\circ}\\), współrzędne zamieniają się miejscami.\n            </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                Co to oznacza\n            </u>\n            ? Pamiętajmy o definicjach funkcji trygonometrycznych:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(\\sin\\alpha= \\frac{y}{r}\\)\n            <span style=\"display: inline-block; width: 100px;\">\n</span>\n            \\(\\cos\\alpha= \\frac{x}{r}\\)\n            <span style=\"display: inline-block; width: 100px;\">\n</span>\n            \\(\\text{tg}\\alpha= \\frac{y}{x}\\)\n            <span style=\"display: inline-block; width: 100px;\">\n</span>\n            \\(\\text{ctg}\\alpha= \\frac{x}{y}\\)\n            <span style=\"display: inline-block; width: 100px;\">\n</span>\n            gdzie \\(r=\\sqrt{x^2+y^2}\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                i dlatego\n            </u>\n            :\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"bold\">\n<li>\n<p>\n                    Jeśli \\(k\\) jest liczbą\n                    <strong>\n                        parzystą\n                    </strong>\n</p>\n                \\[\n                \\begin{align*}\n                \\sin(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\sin\\alpha\\\\\n                \\cos(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\cos\\alpha\\\\\n                \\text{tg }(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\text{tg }\\alpha\\\\\n                \\text{ctg }(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\text{ctg }\\alpha\n                \\end{align*}\n                \\]\n            </li>\n<li>\n<p>\n                    Jeśli \\(k\\) jest liczbą\n                    <strong>\n                        nieparzystą\n                    </strong>\n</p>\n                \\[\n                \\begin{align*}\n                \\sin(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\cos\\alpha\\\\\n                \\cos(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\sin\\alpha\\\\\n                \\text{tg }(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\text{ctg }\\alpha\\\\\n                \\text{ctg }(k\\cdot 90^{\\circ}\\pm\\alpha)&amp;=\\square\\,\\text{tg }\\alpha\n                \\end{align*}\n                \\]\n                <p>\n                    W miejscu kwadratów (\\(\\square\\)) należy wpisać \"\\(+\\)\" lub \"\\(-\\)\" zależnie od ćwiartki, w której znajduje się kąt \\((k\\cdot 90^{\\circ}\\pm\\alpha)\\).\n                </p>\n</li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<u>\n                Zwróć uwagę\n            </u>\n            , że\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"bold\">\n<li>\n                w pierwszym przypadku funkcje po obu stronach równania są takie same,\n            </li>\n<li>\n                w drugim przypadku każda funkcja zmienia się w swoją tak zwaną\n                <strong>\n                    kofunkcję\n                </strong>\n                :\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\n                kofunkcją sinusa jest cosinus,\n            </li>\n<li>\n                kofunkcją cosinusa jest sinus,\n            </li>\n<li>\n                kofunkcją tangensa jest cotangens,\n            </li>\n<li>\n                kofunkcją cotangensa jest tangens.\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        No to teraz czas sprawdzić, że w praktyce jest to znacznie łatwiejsze.\n    </p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "ad80403147e8e5b41a2e33ab6b2379da4fc580178525ba24bbcff0a1463eec24"
+  "seed_hash": "de30378504a332bec0cbeb7111880c2073552cc71b520b49279dce7f596d253e"
 }

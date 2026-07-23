@@ -6,19 +6,29 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Zredukuj wyrazy podobne.\n    "
     },
     {
-      "type": "text",
-      "body": "<ol class=\"bold list15\">\n<li>\n            \\(4x^3-6x^3=\\)\n            <input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n            \\(x^3\\)\n        </li>\n<li>\n            \\(5x^2+2x^2=\\)\n            <input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n            \\(x^2\\)\n        </li>\n<li>\n            \\(-2x+5x=\\)\n            <input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n            \\(x\\)\n        </li>\n<li>\n            \\(1-4=\\)\n            <input class=\"table_input\" placeholder=\"...\" type=\"text\"/>\n</li>\n</ol>"
-    },
-    {
-      "type": "text",
-      "body": "\n    Świetnie!\n"
+      "type": "fillblank",
+      "stem": "\n<li>\n            \\(4x^3-6x^3=\\)\n            ￿0￿\n            \\(x^3\\)\n        </li>\n<li>\n            \\(5x^2+2x^2=\\)\n            ￿1￿\n            \\(x^2\\)\n        </li>\n<li>\n            \\(-2x+5x=\\)\n            ￿2￿\n            \\(x\\)\n        </li>\n<li>\n            \\(1-4=\\)\n            ￿3￿\n</li>\n",
+      "blanks": [
+        [
+          "-2"
+        ],
+        [
+          "7"
+        ],
+        [
+          "3"
+        ],
+        [
+          "-3"
+        ]
+      ]
     },
     {
       "type": "text",
@@ -26,7 +36,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -38,7 +48,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "math",
@@ -50,7 +60,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "math",
@@ -58,7 +68,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "math",
@@ -66,5 +76,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "49dc24d5ab12e11844d5cf2373bcb3a2732803a330d6f786b9d28db66eaf8226"
+  "seed_hash": "c6e1420bea0f8f12cc506d7a7f8b450a86af3f9c4683be27064ef691dc6397a3"
 }

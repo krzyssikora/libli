@@ -202,7 +202,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -211,17 +211,89 @@
     {
       "type": "spoiler",
       "label": "szkic dowodu",
-      "body": "\n\n        Monotoniczność takiego ciągu możemy zbadać za pomocą różnicy kolejnych wyrazów, \\(a_{n+1}-a_n\\).\n        <div class=\"table_wrapper\">\n            \\[\n            \\begin{align}\n            \\color{blue}{a_{n+1}}-a_n&amp;=&amp;\\text{z definicji ciągu, }\\color{blue}{a_{n+1}=a_n + r}\\\\\n            &amp;=(\\color{blue}{a_n + r})-a_n=&amp;\\text{uprośćmy wyrażenie}\\\\\n            &amp;=a_n+r-a_n=\\\\\n            &amp;=r\n            \\end{align}\n            \\]\n        </div>\n        I teraz wyciągamy wnioski z metody badania monotoniczności za pomocą takiej różnicy:\n        <div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\\(r\\gt 0\\)</td>\n<td>\\(a_{n+1}-a_n\\gt 0\\)</td>\n<td>\\((a_n)\\) jest rosnący</td>\n</tr>\n<tr>\n<td>\\(r = 0\\)</td>\n<td>\\(a_{n+1}-a_n = 0\\)</td>\n<td>\\((a_n)\\) jest stały</td>\n</tr>\n<tr>\n<td>\\(r\\lt 0\\)</td>\n<td>\\(a_{n+1}-a_n\\lt 0\\)</td>\n<td>\\((a_n)\\) jest malejący</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Monotoniczność takiego ciągu możemy zbadać za pomocą różnicy kolejnych wyrazów, \\(a_{n+1}-a_n\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\[\n            \\begin{align}\n            \\color{blue}{a_{n+1}}-a_n&amp;=&amp;\\text{z definicji ciągu, }\\color{blue}{a_{n+1}=a_n + r}\\\\\n            &amp;=(\\color{blue}{a_n + r})-a_n=&amp;\\text{uprośćmy wyrażenie}\\\\\n            &amp;=a_n+r-a_n=\\\\\n            &amp;=r\n            \\end{align}\n            \\]\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>I teraz wyciągamy wnioski z metody badania monotoniczności za pomocą takiej różnicy:</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(r\\gt 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{n+1}-a_n\\gt 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\((a_n)\\) jest rosnący",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(r = 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{n+1}-a_n = 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\((a_n)\\) jest stały",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(r\\lt 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_{n+1}-a_n\\lt 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\((a_n)\\) jest malejący",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
     },
     {
       "type": "text",
       "body": "<p>Rozpatrzmy ciąg \\((a_n)\\), którego</p>"
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<stron>wszystkie</stron>",
-      "reason": "unmapped <stron> in lesson body"
+      "type": "text",
+      "body": "<stron>wszystkie</stron>"
     },
     {
       "type": "text",
@@ -261,7 +333,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -270,145 +342,215 @@
     {
       "type": "spoiler",
       "label": "szkic dowodu",
-      "body": "\n\n        Skoro wszystkie wyrazy ciągu są dodatnie, jego monotoniczność możemy zbadać za pomocą ilorazu kolejnych wyrazów, \\(\\frac{a_{n+1}}{a_n}\\).\n        <div class=\"table_wrapper\">\n            \\[\n            \\begin{align}\n            \\frac{\\color{blue}{a_{n+1}}}{a_n}&amp;=&amp;\\text{z definicji ciągu, }\\color{blue}{a_{n+1}=a_n \\cdot q}\\\\\n            &amp;=\\frac{\\color{blue}{a_n \\cdot q}}{a_n}=&amp;\\text{skróćmy ułamek}\\\\\n            &amp;=q\n            \\end{align}\n            \\]\n        </div>\n        I teraz wyciągamy wnioski z metody badania monotoniczności za pomocą takiego ilorazu:\n        <div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\\(q\\gt 1\\)</td>\n<td>\\(\\frac{a_{n+1}}{a_n}\\gt 1\\)</td>\n<td>\\((a_n)\\) jest rosnący</td>\n</tr>\n<tr>\n<td>\\(q = 1\\)</td>\n<td>\\(\\frac{a_{n+1}}{a_n} = 1\\)</td>\n<td>\\((a_n)\\) jest stały</td>\n</tr>\n<tr>\n<td>\\(q\\lt 1\\)</td>\n<td>\\(\\frac{a_{n+1}}{a_n}\\lt 1\\)</td>\n<td>\\((a_n)\\) jest malejący</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Skoro wszystkie wyrazy ciągu są dodatnie, jego monotoniczność możemy zbadać za pomocą ilorazu kolejnych wyrazów, \\(\\frac{a_{n+1}}{a_n}\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\[\n            \\begin{align}\n            \\frac{\\color{blue}{a_{n+1}}}{a_n}&amp;=&amp;\\text{z definicji ciągu, }\\color{blue}{a_{n+1}=a_n \\cdot q}\\\\\n            &amp;=\\frac{\\color{blue}{a_n \\cdot q}}{a_n}=&amp;\\text{skróćmy ułamek}\\\\\n            &amp;=q\n            \\end{align}\n            \\]\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>I teraz wyciągamy wnioski z metody badania monotoniczności za pomocą takiego ilorazu:</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(q\\gt 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\frac{a_{n+1}}{a_n}\\gt 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\((a_n)\\) jest rosnący",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(q = 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\frac{a_{n+1}}{a_n} = 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\((a_n)\\) jest stały",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(q\\lt 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\frac{a_{n+1}}{a_n}\\lt 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\((a_n)\\) jest malejący",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Wskaż, co wiemy na temat monotoniczności podanych ciągów.\n        </p>\n"
+      "body": "<p>\n            Wskaż, co wiemy na temat monotoniczności podanych ciągów.\n        </p>"
     },
     {
       "type": "math",
       "latex": "\n    \\begin{cases}\n    \\begin{align}\n    a_1&=12\\\\\n    a_n&=a_{n-1} - 3&\\text{ dla }n\\ge 2\n    \\end{align}\n    \\end{cases}\n    "
     },
     {
-      "type": "text",
-      "body": "rosnący"
-    },
-    {
-      "type": "text",
-      "body": "stały"
-    },
-    {
-      "type": "text",
-      "body": "malejący"
-    },
-    {
-      "type": "text",
-      "body": "nie monotoniczny"
-    },
-    {
-      "type": "text",
-      "body": ""
-    },
-    {
-      "type": "text",
-      "body": "potwierdź "
-    },
-    {
-      "type": "text",
-      "body": "\n            Brawo! To jest poprawna odpowiedź.\n        "
+      "type": "choice",
+      "stem": "",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "rosnący",
+          "is_correct": false,
+          "feedback": "różnica między kolejnymi wyrazami nie jest dodatnia, więc ciąg nie jest rosnący"
+        },
+        {
+          "text": "stały",
+          "is_correct": false,
+          "feedback": "różnica między kolejnymi wyrazami nie jest równa 0, więc ciąg nie jest stały"
+        },
+        {
+          "text": "malejący",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "nie monotoniczny",
+          "is_correct": false,
+          "feedback": "jaka jest różnica między kolejnymi wyrazami?"
+        }
+      ]
     },
     {
       "type": "math",
       "latex": "\n    \\begin{cases}\n    \\begin{align}\n    b_1&=-17\\\\\n    b_{n+1}&=b_n + 2&\\text{ dla }n\\ge 1\n    \\end{align}\n    \\end{cases}\n    "
     },
     {
-      "type": "text",
-      "body": "rosnący"
-    },
-    {
-      "type": "text",
-      "body": "stały"
-    },
-    {
-      "type": "text",
-      "body": "malejący"
-    },
-    {
-      "type": "text",
-      "body": "nie monotoniczny"
-    },
-    {
-      "type": "text",
-      "body": ""
-    },
-    {
-      "type": "text",
-      "body": "potwierdź "
-    },
-    {
-      "type": "text",
-      "body": "\n            Brawo! To jest poprawna odpowiedź.\n        "
+      "type": "choice",
+      "stem": "",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "rosnący",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "stały",
+          "is_correct": false,
+          "feedback": "różnica między kolejnymi wyrazami nie jest równa 0, więc ciąg nie jest stały"
+        },
+        {
+          "text": "malejący",
+          "is_correct": false,
+          "feedback": "różnica między kolejnymi wyrazami nie jest ujemna, więc ciąg nie jest malejący"
+        },
+        {
+          "text": "nie monotoniczny",
+          "is_correct": false,
+          "feedback": "jaka jest różnica między kolejnymi wyrazami?"
+        }
+      ]
     },
     {
       "type": "math",
       "latex": "\n    \\begin{cases}\n    \\begin{align}\n    c_1&=12\\\\\n    c_n&=c_{n-1} \\cdot \\tfrac{1}{2}&\\text{ dla }n\\ge 2\n    \\end{align}\n    \\end{cases}\n    "
     },
     {
-      "type": "text",
-      "body": "rosnący"
-    },
-    {
-      "type": "text",
-      "body": "stały"
-    },
-    {
-      "type": "text",
-      "body": "malejący"
-    },
-    {
-      "type": "text",
-      "body": "nie monotoniczny"
-    },
-    {
-      "type": "text",
-      "body": ""
-    },
-    {
-      "type": "text",
-      "body": "potwierdź "
-    },
-    {
-      "type": "text",
-      "body": "\n            Brawo! To jest poprawna odpowiedź.\n        "
+      "type": "choice",
+      "stem": "",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "rosnący",
+          "is_correct": false,
+          "feedback": "iloraz kolejnych wyrazów nie jest większy od 1, więc ciąg nie jest rosnący"
+        },
+        {
+          "text": "stały",
+          "is_correct": false,
+          "feedback": "iloraz kolejnych wyrazów nie jest równy 1, więc ciąg nie jest stały"
+        },
+        {
+          "text": "malejący",
+          "is_correct": true,
+          "feedback": ""
+        },
+        {
+          "text": "nie monotoniczny",
+          "is_correct": false,
+          "feedback": "jaki jest iloraz kolejnych wyrazów?"
+        }
+      ]
     },
     {
       "type": "math",
       "latex": "\n    \\begin{cases}\n    \\begin{align}\n    d_1&=5\\\\\n    d_{n+1}&=d_n \\cdot (-2)&\\text{ dla }n\\ge 1\n    \\end{align}\n    \\end{cases}\n    "
     },
     {
-      "type": "text",
-      "body": "rosnący"
-    },
-    {
-      "type": "text",
-      "body": "stały"
-    },
-    {
-      "type": "text",
-      "body": "malejący"
-    },
-    {
-      "type": "text",
-      "body": "nie monotoniczny"
-    },
-    {
-      "type": "text",
-      "body": ""
-    },
-    {
-      "type": "text",
-      "body": "potwierdź "
-    },
-    {
-      "type": "text",
-      "body": "\n            Brawo! To jest poprawna odpowiedź.\n        "
+      "type": "choice",
+      "stem": "",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "rosnący",
+          "is_correct": false,
+          "feedback": "iloraz kolejnych wyrazów nie jest większy od 1, więc ciąg nie jest rosnący"
+        },
+        {
+          "text": "stały",
+          "is_correct": false,
+          "feedback": "iloraz kolejnych wyrazów nie jest równy 1, więc ciąg nie jest stały"
+        },
+        {
+          "text": "malejący",
+          "is_correct": false,
+          "feedback": "iloraz kolejnych wyrazów jest co prawda mniejszy od 1, ale jest też ujemny, więc ciąg nie jest malejący"
+        },
+        {
+          "text": "nie monotoniczny",
+          "is_correct": true,
+          "feedback": ""
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "200d4b82a231e01eb97f23e2350ad2176b23465562ba416a6b7cabd62047141e"
+  "fully_mapped": true,
+  "seed_hash": "0e5c363cfcb65279c00c9a6709fb8971cc0becff030964b7fb511d6da69115e1"
 }

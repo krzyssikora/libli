@@ -2,11 +2,15 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Suma pierwszych dwóch wyrazów ciagu geometrycznego jest równa \\(2\\). Suma pierwszych czterech wyrazów tego ciągu jest równa \\(10\\).\n        </p>\n<p>\n            Znajdź pierwszy wyraz i iloraz tego ciągu wiedząc, że wszystkie jego wyrazy są dodatnie.\n        </p>\n"
+      "body": "<p>\n            Suma pierwszych dwóch wyrazów ciagu geometrycznego jest równa \\(2\\). Suma pierwszych czterech wyrazów tego ciągu jest równa \\(10\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź pierwszy wyraz i iloraz tego ciągu wiedząc, że wszystkie jego wyrazy są dodatnie.\n        </p>"
     },
     {
       "type": "text",
@@ -17,22 +21,269 @@
       "body": "<ol class=\"bold\">\n<li>rozpisać sumy wyraz po wyrazie</li>\n<li>użyć wzorów na sumy</li>\n</ol>"
     },
     {
-      "type": "spoiler",
-      "label": "rozwiązanie",
-      "body": "\n\n<p>\n            Niech \\(a_1\\) oznacza pierwszy wyraz ciągu, a \\(q\\) jego iloraz.\n        </p>\n<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li><a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">1.</a></li>\n<li><a href=\"#tabcontent-1-2\" id=\"tab-1-2\">2.</a></li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-1-1\">\n<div id=\"question943\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                            Rozpisujemy obie sumy:\n                            \\[\n                            \\begin{align}\n                            S_2&amp;=a_1+a_2\\\\\n                            S_4&amp;=a_1+a_2+a_3+a_4\n                            \\end{align}\n                            \\]\n                            czyli\n                            \\[\n                            \\begin{align}\n                            S_2&amp;=a_1+a_1q\\\\\n                            S_4&amp;=a_1+a_1q+a_1q^2+a_1q^3\n                            \\end{align}\n                            \\]\n                            Skupmy się na sumie \\(S_4\\), a dokładniej rozpatrzmy oddzielnie pierwsze dwa wyrazy (\\(a_1+a_1q)\\), i oddzielnie dwa ostatnie (\\(a_1q^2+a_1q^3)\\).\n                            <div class=\"switch_line\">\n                                Te pierwsze dwa wyrazy (\\(a_1+a_1q)\\) to po prostu\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_2\\)</div>\n<div class=\"switch_value\">\\(S_2\\)</div>\n<div class=\"switch_value\">\\(S_2\\cdot q\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Z dwóch ostatnich wyrazów (\\(a_1q^2+a_1q^3)\\) możemy wyłączyć wspólny czynik przed nawias. Maksymalny taki czynnik to\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(q\\)</div>\n<div class=\"switch_value\">\\(q^2\\)</div>\n<div class=\"switch_value\">\\(q^3\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Te dwa ostatnie czynniki możemy więc zapisać jako \\(a_1q^2+a_1q^3=q^2(a_1+a_1q)=\\)\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(q^2\\cdot S_2\\)</div>\n<div class=\"switch_value\">\\(q^2\\cdot S_1\\)</div>\n<div class=\"switch_value\">\\(q^2\\cdot a_2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            Tak więc cała suma:\n                            <div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                S_4&amp;=a_1+a_1q+a_1q^2+a_1q^3=\\\\\n                                &amp;=(a_1+a_1q)+q^2(a_1+a_1q)=\\\\\n                                &amp;=S_2+q^2S_2\n                                \\end{align}\n                                \\]\n                            </div>\n                            Wiedząc, że \\(S_2=2\\) i \\(S_4=10\\) możemy podstawić:\n                            <div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                S_4&amp;=S_2+q^2S_2\\\\\n                                10&amp;=2+q^2\\cdot 2\n                                \\end{align}\n                                \\]\n                            </div>\n<div class=\"switch_line\">\n                                Rozwiązując to równanie otrzymujemy\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(q=4\\)</div>\n<div class=\"switch_value\">\\(q^2=4\\)</div>\n<div class=\"switch_value\">\\(q^2=6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            \\(q^2=4\\), a wszystkie wyrazy ciągu są dodatnie, więc \\(q=2\\). \n                            <div class=\"switch_line\">\n                                Podstawiamy \\(q=2\\) i \\(S_2=2\\) do równania \\(S_2=a_1+a_1q\\) i wyliczamy, że`\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_1=\\frac{2}{3}\\)</div>\n<div class=\"switch_value\">\\(a_1=1\\)</div>\n<div class=\"switch_value\">\\(a_1=1,5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            Pierwszy wyraz ciągu to \\(a_1=\\frac{2}{3}\\), a iloraz to \\(q=2\\).\n                        </div>\n</div>\n</div>\n</div>\n<div id=\"tabcontent-1-2\">\n<div id=\"question946\">\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                            Zgodnie z wzorem na sumę \\(n\\) wyrazów ciągu geometrycznego:\n                            \\[\n                            S_n=a_1\\cdot \\frac{1-q^n}{1-q}\n                            \\]\n                            obie sumy przyjmują postaci:\n                            \\[\n                            \\begin{align}\n                            S_2&amp;=a_1\\cdot\\frac{1-q^2}{1-q}\\\\\n                            S_4&amp;=a_1\\cdot\\frac{1-q^4}{1-q}\n                            \\end{align}\n                            \\]\n                            <div class=\"switch_line\">\n                                Skupmy się na sumie \\(S_4\\) i zauważmy, że licznik ułamka może zostać przekształcony:\n                                \\(1-q^4=\\)\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\((1-q^2)(1+q^2)\\)</div>\n<div class=\"switch_value\">\\((1-q^2)^2\\)</div>\n<div class=\"switch_value\">\\((1+q^2)^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            I dlatego cała suma:\n                            \\[\n                            \\begin{align}\n                            S_4&amp;=a_1\\cdot\\frac{1-q^4}{1-q}\\\\\n                            &amp;=a_1\\cdot\\frac{(1-q^2)(1+q^2)}{1-q}\\\\\n                            &amp;=\\color{red}{a_1\\cdot\\frac{1-q^2}{1-q}}\\cdot (1+q^2)\\\\\n                            \\end{align}\n                            \\]\n                            <div class=\"switch_line\">\n                                czyli\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(S_4=S_1(1+q^2)\\)</div>\n<div class=\"switch_value\">\\(S_4=S_2(1+q^2)\\)</div>\n<div class=\"switch_value\">\\(S_4=S_3(1+q^2)\\)</div>\n<div class=\"switch_value\">\\(S_4=a_2(1+q^2)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            Podstawiając liczby dostajemy równanie\n                            \\[\n                            10=2(1+q^2)\n                            \\]\n                            <div class=\"switch_line\">\n                                Rozwiązując to równanie otrzymujemy\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(q=4\\)</div>\n<div class=\"switch_value\">\\(q^2=4\\)</div>\n<div class=\"switch_value\">\\(q^2=6\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            \\(q^2=4\\), a wszystkie wyrazy ciągu są dodatnie, więc \\(q=2\\). \n                            <div class=\"switch_line\">\n                                Podstawiamy \\(q=2\\) i \\(S_2=2\\) do równania \\(S_2=a_1\\frac{1-q^2}{1-q}\\) i wyliczamy, że`\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_1=\\frac{2}{3}\\)</div>\n<div class=\"switch_value\">\\(a_1=1\\)</div>\n<div class=\"switch_value\">\\(a_1=1,5\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            Pierwszy wyraz ciągu to \\(a_1=\\frac{2}{3}\\), a iloraz to \\(q=2\\).\n                        </div>\n</div>\n</div>\n</div>\n</div>\n"
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p>\n            Niech \\(a_1\\) oznacza pierwszy wyraz ciągu, a \\(q\\) jego iloraz.\n        </p>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "1.",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>Rozpisujemy obie sumy:\n                            \\[\n                            \\begin{align}\n                            S_2&=a_1+a_2\\\\\n                            S_4&=a_1+a_2+a_3+a_4\n                            \\end{align}\n                            \\]\n                            czyli\n                            \\[\n                            \\begin{align}\n                            S_2&=a_1+a_1q\\\\\n                            S_4&=a_1+a_1q+a_1q^2+a_1q^3\n                            \\end{align}\n                            \\]\n                            Skupmy się na sumie \\(S_4\\), a dokładniej rozpatrzmy oddzielnie pierwsze dwa wyrazy (\\(a_1+a_1q)\\), i oddzielnie dwa ostatnie (\\(a_1q^2+a_1q^3)\\).</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Te pierwsze dwa wyrazy (\\(a_1+a_1q)\\) to po prostu\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(a_2\\)",
+                "\\(S_2\\)",
+                "\\(S_2\\cdot q\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Z dwóch ostatnich wyrazów (\\(a_1q^2+a_1q^3)\\) możemy wyłączyć wspólny czynik przed nawias. Maksymalny taki czynnik to\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(q\\)",
+                "\\(q^2\\)",
+                "\\(q^3\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Te dwa ostatnie czynniki możemy więc zapisać jako \\(a_1q^2+a_1q^3=q^2(a_1+a_1q)=\\)\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(q^2\\cdot S_2\\)",
+                "\\(q^2\\cdot S_1\\)",
+                "\\(q^2\\cdot a_2\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>Tak więc cała suma:</p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                S_4&amp;=a_1+a_1q+a_1q^2+a_1q^3=\\\\\n                                &amp;=(a_1+a_1q)+q^2(a_1+a_1q)=\\\\\n                                &amp;=S_2+q^2S_2\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "text",
+              "body": "<p>Wiedząc, że \\(S_2=2\\) i \\(S_4=10\\) możemy podstawić:</p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                S_4&amp;=S_2+q^2S_2\\\\\n                                10&amp;=2+q^2\\cdot 2\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Rozwiązując to równanie otrzymujemy\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(q=4\\)",
+                "\\(q^2=4\\)",
+                "\\(q^2=6\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\\(q^2=4\\), a wszystkie wyrazy ciągu są dodatnie, więc \\(q=2\\).</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Podstawiamy \\(q=2\\) i \\(S_2=2\\) do równania \\(S_2=a_1+a_1q\\) i wyliczamy, że`\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(a_1=\\frac{2}{3}\\)",
+                "\\(a_1=1\\)",
+                "\\(a_1=1,5\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>Pierwszy wyraz ciągu to \\(a_1=\\frac{2}{3}\\), a iloraz to \\(q=2\\).</p>"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "2.",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>Zgodnie z wzorem na sumę \\(n\\) wyrazów ciągu geometrycznego:\n                            \\[\n                            S_n=a_1\\cdot \\frac{1-q^n}{1-q}\n                            \\]\n                            obie sumy przyjmują postaci:\n                            \\[\n                            \\begin{align}\n                            S_2&=a_1\\cdot\\frac{1-q^2}{1-q}\\\\\n                            S_4&=a_1\\cdot\\frac{1-q^4}{1-q}\n                            \\end{align}\n                            \\]</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Skupmy się na sumie \\(S_4\\) i zauważmy, że licznik ułamka może zostać przekształcony:\n                                \\(1-q^4=\\)\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\((1-q^2)(1+q^2)\\)",
+                "\\((1-q^2)^2\\)",
+                "\\((1+q^2)^2\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>I dlatego cała suma:\n                            \\[\n                            \\begin{align}\n                            S_4&=a_1\\cdot\\frac{1-q^4}{1-q}\\\\\n                            &=a_1\\cdot\\frac{(1-q^2)(1+q^2)}{1-q}\\\\\n                            &=\\color{red}{a_1\\cdot\\frac{1-q^2}{1-q}}\\cdot (1+q^2)\\\\\n                            \\end{align}\n                            \\]</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                czyli\n                                \n\n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(S_4=S_1(1+q^2)\\)",
+                "\\(S_4=S_2(1+q^2)\\)",
+                "\\(S_4=S_3(1+q^2)\\)",
+                "\\(S_4=a_2(1+q^2)\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>Podstawiając liczby dostajemy równanie\n                            \\[\n                            10=2(1+q^2)\n                            \\]</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Rozwiązując to równanie otrzymujemy\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(q=4\\)",
+                "\\(q^2=4\\)",
+                "\\(q^2=6\\)"
+              ],
+              "answer": 1
+            },
+            {
+              "type": "text",
+              "body": "<p>\\(q^2=4\\), a wszystkie wyrazy ciągu są dodatnie, więc \\(q=2\\).</p>"
+            },
+            {
+              "type": "switch_gate",
+              "stem": "\n                                Podstawiamy \\(q=2\\) i \\(S_2=2\\) do równania \\(S_2=a_1\\frac{1-q^2}{1-q}\\) i wyliczamy, że`\n                                \n\n\n\n￿0￿.\n                            ",
+              "options": [
+                "\\(a_1=\\frac{2}{3}\\)",
+                "\\(a_1=1\\)",
+                "\\(a_1=1,5\\)"
+              ],
+              "answer": 0
+            },
+            {
+              "type": "text",
+              "body": "<p>Pierwszy wyraz ciągu to \\(a_1=\\frac{2}{3}\\), a iloraz to \\(q=2\\).</p>"
+            }
+          ]
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Suma pierwszych dziesięciu wyrazów ciągu arytmetycznego to \\(200\\), a suma <strong>kolejnych</strong> dziesięciu wyrazów to \\(400\\).\n        </p>\n<p>\n            Oblicz pierwszy wyraz i różnicę ciągu.\n        </p>\n"
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Suma pierwszych dziesięciu wyrazów ciągu arytmetycznego to \\(200\\), a suma <strong>kolejnych</strong> dziesięciu wyrazów to \\(400\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Oblicz pierwszy wyraz i różnicę ciągu.\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<blockquote>\n                    \"Suma pierwszych dziesięciu wyrazów ciągu arytmetycznego to \\(200\\)...\"\n                </blockquote>\n<p>\n                    czyli \\(S_{10}=200\\).\n                </p>\n                Wiemy też, że\n                <blockquote>\n                    \"suma kolejnych dziesięciu wyrazów to \\(400\\)\"\n                </blockquote>\n<p>\n                    co możesz zaobserwować w poniższej animacji \n                </p>\n<figure>\n<video autoplay=\"\" loop=\"\" muted=\"\" width=\"100%\">\n<source src=\"static/suma_po_sumie.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<div class=\"switch_line\">\n                    co oznacza, że\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(S_{20}=400\\)</div>\n<div class=\"switch_value\">\\(S_{20}=600\\)</div>\n<div class=\"switch_value\">\\(S_{10}=400\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Korzystając ze wzoru na sumę pierwszych \\(n\\) wyrazów: \n                </p>\n                \\[\n                S_n=\\frac{2a_1+(n-1)r}{2}\\cdot n\n                \\]\n                możemy zapisać zarówno \\(S_{10}\\) jak i \\(S_{20}\\):\n                <div class=\"switch_line\">\n                    \\(S_{10}=200=\\frac{2a_1+9r}{2}\\cdot 10\\) \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">oraz \\(S_{20}=600=\\frac{2a_1+19r}{2}\\cdot 20\\)</div>\n<div class=\"switch_value\">oraz \\(S_{20}=600=\\frac{2a_1+20r}{2}\\cdot 20\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Po uproszczeniu:\n                </p>\n                \\[\n                \\begin{align}\n                2a_1+9r&amp;=40\\\\\n                2a_1+19r&amp;=60\n                \\end{align}\n                \\]\n                <div class=\"switch_line\">\n                    Taki układ równań możęmy rozwiązać na przykład odejmując <u>pierwsze równanie od drugiego</u>. Otrzymamy wówczas\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(10r=20\\)</div>\n<div class=\"switch_value\">\\(28r=100\\)</div>\n<div class=\"switch_value\">\\(10r=-20\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                    Stąd oczywiście \\(d=2\\), a podstawiając tę wartość do któregokolwiek z dwóch równań możemy wyliczyć pierwszy wyraz,\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(a_1=9\\)</div>\n<div class=\"switch_value\">\\(a_1=11\\)</div>\n<div class=\"switch_value\">\\(a_1=13\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Pierwszy wyraz ciągu to \\(a_1=11\\), a różnica to \\(r=2\\).\n            </div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Suma pierwszych dziesięciu wyrazów ciągu arytmetycznego to \\(200\\)...\"\n                </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    czyli \\(S_{10}=200\\).\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Wiemy też, że</p>"
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"suma kolejnych dziesięciu wyrazów to \\(400\\)\"\n                </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    co możesz zaobserwować w poniższej animacji \n                </p>"
+        },
+        {
+          "type": "video",
+          "media_src": "static/suma_po_sumie.mp4"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    co oznacza, że\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(S_{20}=400\\)",
+            "\\(S_{20}=600\\)",
+            "\\(S_{10}=400\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Korzystając ze wzoru na sumę pierwszych \\(n\\) wyrazów: \n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\[\n                S_n=\\frac{2a_1+(n-1)r}{2}\\cdot n\n                \\]\n                możemy zapisać zarówno \\(S_{10}\\) jak i \\(S_{20}\\):</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    \\(S_{10}=200=\\frac{2a_1+9r}{2}\\cdot 10\\) \n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "oraz \\(S_{20}=600=\\frac{2a_1+19r}{2}\\cdot 20\\)",
+            "oraz \\(S_{20}=600=\\frac{2a_1+20r}{2}\\cdot 20\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Po uproszczeniu:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                \\begin{align}\n                2a_1+9r&=40\\\\\n                2a_1+19r&=60\n                \\end{align}\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Taki układ równań możęmy rozwiązać na przykład odejmując pierwsze równanie od drugiego. Otrzymamy wówczas\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(10r=20\\)",
+            "\\(28r=100\\)",
+            "\\(10r=-20\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Stąd oczywiście \\(d=2\\), a podstawiając tę wartość do któregokolwiek z dwóch równań możemy wyliczyć pierwszy wyraz,\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(a_1=9\\)",
+            "\\(a_1=11\\)",
+            "\\(a_1=13\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>Pierwszy wyraz ciągu to \\(a_1=11\\), a różnica to \\(r=2\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -52,18 +303,111 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Pierwszy wyraz ciągu arytmetycznego \\((a_n)\\) to \\(7\\), a różnica to \\(2\\).\n        </p>\n<p>\n            Suma wyrazów od \\(a_k\\) do \\(a_{2k}\\) jest równa \\(800\\).\n        </p>\n<p>\n            Znajdź wartość \\(k\\).\n        </p>\n"
+      "body": "<p>\n            Pierwszy wyraz ciągu arytmetycznego \\((a_n)\\) to \\(7\\), a różnica to \\(2\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Suma wyrazów od \\(a_k\\) do \\(a_{2k}\\) jest równa \\(800\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Znajdź wartość \\(k\\).\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<blockquote>\n                    \"Suma wyrazów od \\(a_k\\) do \\(a_{2k}\\) jest równa \\(800\\)\"\n                </blockquote>\n<div class=\"switch_line\">\n                    czyli\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(S_{2k}-S_{k}=800\\)</div>\n<div class=\"switch_value\">\\(S_{2k}-S_{k-1}=800\\)</div>\n<div class=\"switch_value\">\\(S_{2k}-S_{k+1}=800\\)</div>\n<div class=\"switch_value\">\\(S_{2k}=800\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<blockquote>\n                    \"Pierwszy wyraz (...) to \\(7\\), a różnica to \\(2\\)\"\n                </blockquote>\n                skąd z użyciem wzoru na sumę\n                \\[\n                S_n=\\frac{2a_1+(n-1)d}{2}\\cdot n\n                \\]\n                możemy wyznaczyć zarówno \\(S_{2k}=\\frac{14+2(2k-1)}{2}\\cdot 2k\\)\n                <div class=\"switch_line\">\n                    jak i \n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(S_{k-1}=\\frac{14+2(k-2)}{2}\\cdot (k-1)\\)</div>\n<div class=\"switch_value\">\\(S_{k-1}=\\frac{14+2(k-1)}{2}\\cdot k\\)</div>\n<div class=\"switch_value\">\\(S_{k-1}=\\frac{14+2(k-1)}{2}\\cdot (k-1)\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Uprośćmy równania:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\begin{align}\n                    S_{2k}&amp;=\\frac{14+2(2k-1)}{2}\\cdot 2k\\\\\n                    S_{k-1}&amp;=\\frac{14+2(k-2)}{2}\\cdot (k-1)\\\\[20pt]\n                    S_{2k}&amp;=(7+2k-1)\\cdot 2k\\\\\n                    S_{k-1}&amp;=(7+k-2)\\cdot (k-1)\\\\[20pt]\n                    S_{2k}&amp;=(2k+6)\\cdot 2k\\\\\n                    S_{k-1}&amp;=(k+5)\\cdot (k-1)\\\\[20pt]\n                    S_{2k}&amp;=4k^2+12k\\\\\n                    S_{k-1}&amp;=k^2+4k-5\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    Teraz, z równości \\(S_{2k}-S_{k-1}=800\\), dostajemy\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(3k^2+8k=800\\)</div>\n<div class=\"switch_value\">\\(5k^2+16k-5=800\\)</div>\n<div class=\"switch_value\">\\(3k^2+8k+5=800\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n                Aby rozwiązać równanie \\(3k^2+8k+5=800\\), czyli równanie\n                \\[\n                3k^2+8k-795=0\n                \\]\n                liczymy deltę:\n                <div class=\"table_wrapper\">\n                    \\[\n                    \\Delta = 8^2-4\\cdot 3\\cdot (-795)=9604=98^2\n                    \\]\n                </div>\n                i zaraz potem rozwiązania:\n                <div class=\"table_wrapper\">\n                    \\[\n                    k = \\frac{-8-\\sqrt{98^2}}{2\\cdot 3}\\quad\\text{lub}\\quad k = \\frac{-8+\\sqrt{98^2}}{2\\cdot 3}\n                    \\]\n                </div>\n<div class=\"switch_line\">\n                    i wychodzi nam\n                    <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(k=-15\\) lub \\(k=\\tfrac{53}{3}\\)</div>\n<div class=\"switch_value\">\\(k=-\\tfrac{53}{3}\\) lub \\(k=15\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                </div>\n</div>\n<div class=\"switch_step hidden\">\n<p>\n                    Wynik \\(k=-\\frac{53}{3}\\) nie dość, że nie jest całkowity, to jest też ujemny. Nie może być więc numerem wyrazu ciągu.\n                </p>\n<p>\n                    Dlatego jedynym rozwiązaniem zadania jest \\(k=15\\).\n                </p>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Suma wyrazów od \\(a_k\\) do \\(a_{2k}\\) jest równa \\(800\\)\"\n                </blockquote>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    czyli\n                    \n\n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(S_{2k}-S_{k}=800\\)",
+            "\\(S_{2k}-S_{k-1}=800\\)",
+            "\\(S_{2k}-S_{k+1}=800\\)",
+            "\\(S_{2k}=800\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<blockquote>\n                    \"Pierwszy wyraz (...) to \\(7\\), a różnica to \\(2\\)\"\n                </blockquote>"
+        },
+        {
+          "type": "text",
+          "body": "<p>skąd z użyciem wzoru na sumę\n                \\[\n                S_n=\\frac{2a_1+(n-1)d}{2}\\cdot n\n                \\]\n                możemy wyznaczyć zarówno \\(S_{2k}=\\frac{14+2(2k-1)}{2}\\cdot 2k\\)</p>"
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    jak i \n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(S_{k-1}=\\frac{14+2(k-2)}{2}\\cdot (k-1)\\)",
+            "\\(S_{k-1}=\\frac{14+2(k-1)}{2}\\cdot k\\)",
+            "\\(S_{k-1}=\\frac{14+2(k-1)}{2}\\cdot (k-1)\\)"
+          ],
+          "answer": 0
+        },
+        {
+          "type": "text",
+          "body": "<p>Uprośćmy równania:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\begin{align}\n                    S_{2k}&amp;=\\frac{14+2(2k-1)}{2}\\cdot 2k\\\\\n                    S_{k-1}&amp;=\\frac{14+2(k-2)}{2}\\cdot (k-1)\\\\[20pt]\n                    S_{2k}&amp;=(7+2k-1)\\cdot 2k\\\\\n                    S_{k-1}&amp;=(7+k-2)\\cdot (k-1)\\\\[20pt]\n                    S_{2k}&amp;=(2k+6)\\cdot 2k\\\\\n                    S_{k-1}&amp;=(k+5)\\cdot (k-1)\\\\[20pt]\n                    S_{2k}&amp;=4k^2+12k\\\\\n                    S_{k-1}&amp;=k^2+4k-5\n                    \\end{align}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    Teraz, z równości \\(S_{2k}-S_{k-1}=800\\), dostajemy\n                    \n\n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(3k^2+8k=800\\)",
+            "\\(5k^2+16k-5=800\\)",
+            "\\(3k^2+8k+5=800\\)"
+          ],
+          "answer": 2
+        },
+        {
+          "type": "text",
+          "body": "<p>Aby rozwiązać równanie \\(3k^2+8k+5=800\\), czyli równanie\n                \\[\n                3k^2+8k-795=0\n                \\]\n                liczymy deltę:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\Delta = 8^2-4\\cdot 3\\cdot (-795)=9604=98^2\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>i zaraz potem rozwiązania:</p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    k = \\frac{-8-\\sqrt{98^2}}{2\\cdot 3}\\quad\\text{lub}\\quad k = \\frac{-8+\\sqrt{98^2}}{2\\cdot 3}\n                    \\]\n                "
+        },
+        {
+          "type": "switch_gate",
+          "stem": "\n                    i wychodzi nam\n                    \n\n\n￿0￿.\n                ",
+          "options": [
+            "\\(k=-15\\) lub \\(k=\\tfrac{53}{3}\\)",
+            "\\(k=-\\tfrac{53}{3}\\) lub \\(k=15\\)"
+          ],
+          "answer": 1
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Wynik \\(k=-\\frac{53}{3}\\) nie dość, że nie jest całkowity, to jest też ujemny. Nie może być więc numerem wyrazu ciągu.\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Dlatego jedynym rozwiązaniem zadania jest \\(k=15\\).\n                </p>"
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "e6a42c1c368b53f45affa60199c8ec412e572b24d797df728641ae0d1ae8d13e"
+  "fully_mapped": true,
+  "seed_hash": "b1d81af19ae342e2c54db065a9cfbbd4ecee54896ebadd165f709d3c2ec75d2c"
 }

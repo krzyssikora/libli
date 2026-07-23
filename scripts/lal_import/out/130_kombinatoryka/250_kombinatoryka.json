@@ -50,7 +50,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -59,9 +59,24 @@
     {
       "type": "spoiler",
       "label": "sprawdź",
-      "body": "\n\n            Wystarczy, że:\n            <ol>\n<li>\n                    narysujemy trójkąt Pascala do szóstego rzędu (zaczynając liczenie od \\(0\\)),\n                </li>\n<li>\n                    w szóstym rzędzie znajdziemy drugą liczbę od lewej (ponownie zaczynając liczenie od \\(0\\)).\n                </li>\n<li>\n                    I tam odnajudujemy, że \\(\\binom{6}{2}=15\\).\n                </li>\n</ol>\n<figure>\n<img src=\"static/trojkat_pascala_6.png\" style=\"max-height: 350px;\"/>\n</figure>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Wystarczy, że:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol>\n<li>\n                    narysujemy trójkąt Pascala do szóstego rzędu (zaczynając liczenie od \\(0\\)),\n                </li>\n<li>\n                    w szóstym rzędzie znajdziemy drugą liczbę od lewej (ponownie zaczynając liczenie od \\(0\\)).\n                </li>\n<li>\n                    I tam odnajudujemy, że \\(\\binom{6}{2}=15\\).\n                </li>\n</ol>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/trojkat_pascala_6.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "64e1b8c3820a4e583a7a292e19b063294cb5d70e9726dfb3e7185c2fa2439991"
+  "seed_hash": "094850c558caeb464356bc16160a30fc391a69daa70783bdbba26d2d260a1e2c"
 }

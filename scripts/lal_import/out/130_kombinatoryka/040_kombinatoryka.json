@@ -2,46 +2,108 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ],
+          [
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "text",
-      "body": "\n<div style=\"float: right\">\n<table class=\"my_table_noborder\" style=\"border: 1px solid darkgray;\">\n<tr>\n<td style=\"background: red; width: 150px; height: 20px;\"></td>\n</tr>\n<tr>\n<td style=\"background: yellow; width: 150px; height: 20px;\"></td>\n</tr>\n<tr>\n<td style=\"background: red; width: 150px; height: 20px;\"></td>\n</tr>\n</table>\n</div>\n<p>\n            Flaga jest uszyta z trzech poziomych pasków materiału, z których górny i dolny są tego samego koloru, a środkowy - innego.\n        </p>\n<p>\n            Jeśli mamy do dyspozycji 7 kolorów, ile różnych takich flag możemy uszyć?\n        </p>\n"
+      "body": "<p>\n            Flaga jest uszyta z trzech poziomych pasków materiału, z których górny i dolny są tego samego koloru, a środkowy - innego.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jeśli mamy do dyspozycji 7 kolorów, ile różnych takich flag możemy uszyć?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n        \\(7\\cdot 6=42\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(7\\cdot 6=42\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W cukierni deser lodowy składa się z wafelka, lodów i posypki.\n        </p>\n<p>\n            Ile różnych deserów można stworzyć, jeśli do wyboru są:\n        </p>\n<ul class=\"nolist\">\n<li>2 różne wafle,</li>\n<li>12 smaków lodów,</li>\n<li>5 różnych posypek?</li>\n</ul>\n"
+      "body": "<p>\n            W cukierni deser lodowy składa się z wafelka, lodów i posypki.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile różnych deserów można stworzyć, jeśli do wyboru są:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>2 różne wafle,</li>\n<li>12 smaków lodów,</li>\n<li>5 różnych posypek?</li>\n</ul>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n        \\(2\\cdot 12\\cdot 5=120\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(2\\cdot 12\\cdot 5=120\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Rzucamy kością, a następnie dwukrotnie monetą.\n        </p>\n<p>\n            Ile jest możliwych wyników takich rzutów?\n        </p>\n"
+      "body": "<p>\n            Rzucamy kością, a następnie dwukrotnie monetą.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile jest możliwych wyników takich rzutów?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n        \\(6\\cdot 2\\cdot 2=24\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(6\\cdot 2\\cdot 2=24\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -50,11 +112,24 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n        Mamy:\n        <ul class=\"nolist\">\n<li>1 możliwość na ostatnią cyfrę (\\(5\\)),</li>\n<li>6 możliwości na pozostałe cyfry,</li>\n</ul>\n        więc \\(6^4\\cdot 1=1\\,296\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Mamy:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>1 możliwość na ostatnią cyfrę (\\(5\\)),</li>\n<li>6 możliwości na pozostałe cyfry,</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>więc \\(6^4\\cdot 1=1\\,296\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -63,11 +138,24 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n        Mamy:\n        <ul class=\"nolist\">\n<li>2 możliwości na ostatnią cyfrę (\\(0\\), \\(5\\)),</li>\n<li>5 możliwości na pierwszą cyfrę (bez \\(0\\))</li>\n<li>6 możliwości na pozostałe cyfry,</li>\n</ul>\n        więc \\(5\\cdot 6^3\\cdot 2=2\\,160\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Mamy:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>2 możliwości na ostatnią cyfrę (\\(0\\), \\(5\\)),</li>\n<li>5 możliwości na pierwszą cyfrę (bez \\(0\\))</li>\n<li>6 możliwości na pozostałe cyfry,</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>więc \\(5\\cdot 6^3\\cdot 2=2\\,160\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -76,35 +164,151 @@
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n        Mamy:\n        <ul class=\"nolist\">\n<li>2 możliwości na ostatnią cyfrę (\\(1\\), \\(5\\)),</li>\n<li>5 możliwości na pierwszą cyfrę (bez \\(0\\)),</li>\n<li>6 możliwości na pozostałe cyfry,</li>\n</ul>\n        więc \\(5\\cdot 6^2\\cdot 2=360\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Mamy:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>2 możliwości na ostatnią cyfrę (\\(1\\), \\(5\\)),</li>\n<li>5 możliwości na pierwszą cyfrę (bez \\(0\\)),</li>\n<li>6 możliwości na pozostałe cyfry,</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>więc \\(5\\cdot 6^2\\cdot 2=360\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Przed lotem samolotem mama, tata i córka postanowili wybrać po jednej książce, którą wezmą na pokład samolotu.\n        </p>\n<p>\n            Mama zastanawia się, którą z pięciu książek wybrać. Tata rozważa trzy książki, a córka rozmyśla nad wyborem jednej z ośmiu książek.\n        </p>\n<p>\n            Ile możliwych kompletów trzech książek mogą wybrać?\n        </p>\n"
+      "body": "<p>\n            Przed lotem samolotem mama, tata i córka postanowili wybrać po jednej książce, którą wezmą na pokład samolotu.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Mama zastanawia się, którą z pięciu książek wybrać. Tata rozważa trzy książki, a córka rozmyśla nad wyborem jednej z ośmiu książek.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Ile możliwych kompletów trzech książek mogą wybrać?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n        \\(5\\cdot 3\\cdot 8=120\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(5\\cdot 3\\cdot 8=120\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W standardowej talii kart są 52 karty.\n        </p>\n<p>\n            Z takiej talii wyjmujemy, jedna po drugiej, trzy karty. Ile możliwych ciągów trzech kart możemy wybrać?\n        </p>\n<p>\n            Pytamy o ciągi, bo kolejność ma znaczenie, czyli:\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder narrow_table\">\n<tr>\n<td style=\"min-width: 40px; height: 60px; color: black; border: 1px solid black!important; font-size: large;\">A♠</td>\n<td style=\"background-color: rgb(243, 243, 243);\"></td>\n<td style=\"min-width: 40px; height: 60px; color: black; border: 1px solid black!important; font-size: large;\">K♣</td>\n<td style=\"background-color: rgb(243, 243, 243);\"></td>\n<td style=\"min-width: 40px; height: 60px; color: red; border: 1px solid black!important; font-size: large;\">9♥</td>\n<td style=\"background-color: rgb(243, 243, 243);\"></td>\n<td style=\"background-color: rgb(243, 243, 243);\">\\(\\ne\\)</td>\n<td style=\"background-color: rgb(243, 243, 243);\"></td>\n<td style=\"min-width: 40px; height: 60px; color: black; border: 1px solid black!important; font-size: large;\">K♣</td>\n<td style=\"background-color: rgb(243, 243, 243);\"></td>\n<td style=\"min-width: 40px; height: 60px; color: red; border: 1px solid black!important; font-size: large;\">9♥</td>\n<td style=\"background-color: rgb(243, 243, 243);\"></td>\n<td style=\"min-width: 40px; height: 60px; color: black; border: 1px solid black!important; font-size: large;\">A♠</td>\n</tr>\n</table>\n</div>\n"
+      "body": "<p>\n            W standardowej talii kart są 52 karty.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Z takiej talii wyjmujemy, jedna po drugiej, trzy karty. Ile możliwych ciągów trzech kart możemy wybrać?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pytamy o ciągi, bo kolejność ma znaczenie, czyli:\n        </p>"
+    },
+    {
+      "type": "table",
+      "data": {
+        "header_row": false,
+        "header_col": false,
+        "border": "grid",
+        "cells": [
+          [
+            {
+              "html": "A♠",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "K♣",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "9♥",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "\\(\\ne\\)",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "K♣",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "9♥",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "",
+              "halign": "left",
+              "valign": "top"
+            },
+            {
+              "html": "A♠",
+              "halign": "left",
+              "valign": "top"
+            }
+          ]
+        ]
+      }
     },
     {
       "type": "spoiler",
       "label": "rozwiązanie",
-      "body": "\n\n        \\(52\\cdot 51\\cdot 50=132\\,600\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(52\\cdot 51\\cdot 50=132\\,600\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "209fbc43c58e11cd724a6c302000f380d761a1346e817f8ac60e43b0dcbd7098"
+  "seed_hash": "d778afc6b1bb4917c25a34957b07e5eebe866d1a0c33c0d6a1a7b1e64efc84bf"
 }

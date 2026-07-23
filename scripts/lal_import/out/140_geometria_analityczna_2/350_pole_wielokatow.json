@@ -19,7 +19,20 @@
     {
       "type": "spoiler",
       "label": "jak obliczyć długość odcinka?",
-      "body": "\n\n<div class=\"important\">\n<p>\n            Długość odcinka o końcach \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dana jest wzorem\n        </p>\n<div class=\"table_wrapper\">\n            \\[\n            AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n            \\]\n        </div>\n</div>\n<p>\n        Więcej na temat długości odcinka znajdziesz <a href=\"#\">tutaj</a>.\n        <!-- INTERNAL LINK -->\n</p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Długość odcinka o końcach \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dana jest wzorem\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\[\n            AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n            \\]\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Więcej na temat długości odcinka znajdziesz <a href=\"#\">tutaj</a>.\n        <!-- INTERNAL LINK -->\n</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -98,6 +111,6 @@
       "body": "<ul class=\"nolist\">\n<li>\n<p>\n                \\(\\color{blue}{AB}\\), <span style=\"color: blue;\">podstawa dolna</span>, to długość odcinka \\(AB\\).\n            </p>\n<p>\n                \\(\\color{blue}{CD}\\), <span style=\"color: blue;\">podstawa górna</span>, to długość odcinka \\(CD\\).\n            </p>\n<details>\n<summary>jak obliczyć długość odcinka?</summary>\n<div class=\"important\">\n<p>\n                        Długość odcinka o końcach \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) dana jest wzorem\n                    </p>\n<div class=\"table_wrapper\">\n                        \\[\n                        AB=\\sqrt{(x_B-x_A)^2+(y_B-y_A)^2}\n                        \\]\n                    </div>\n</div>\n<p>\n                    Więcej na temat długości odcinka znajdziesz <a href=\"#\">tutaj</a>.\n                    <!-- INTERNAL LINK -->\n</p>\n</details>\n</li>\n<li>\n<p>\n                \\(\\color{red}{h}\\), <span style=\"color: red;\">wysokość</span>, to odległość albo punktu \\(D\\) albo punktu \\(C\\) od <span style=\"color: green\">prostej przechodzącej przez punkty \\(A\\) i \\(B\\)</span>.\n            </p>\n<details>\n<summary>jak znaleźć równanie ogólne prostej?</summary>\n<div class=\"important\">\n<p>\n                        Równanie ogólne prostej przechodzącej przez punkty \\(A=(x_A, y_A)\\) i \\(B=(x_B, y_B)\\) można wyznaczyć ze wzoru\n                    </p>\n<div class=\"table_wrapper\">\n                        \\[\n                        (y-y_A)(x_B-x_A)-(y_B-y_A)(x-x_A)=0\n                        \\]\n                    </div>\n</div>\n<p>\n                    Można też użyć innych sposobów. Więcej na ten znajdziesz <a href=\"#\">tutaj</a>.\n                    <!-- INTERNAL LINK -->\n</p>\n</details>\n<details>\n<summary>jak znaleźć odległość punktu od prostej?</summary>\n<div class=\"important\">\n<p>\n                        Odległość punktu \\(C=(x_C, y_C)\\) od prostej o równaniu ogólnym \\(\\alpha x+\\beta y+\\gamma=0\\) (w naszej sytuacji: od prostej przchodzącej przez punkty \\(A\\) i \\(B\\)) dana jest wzorem\n                    </p>\n<div class=\"table_wrapper\">\n                        \\[\n                        \\frac{|\\alpha\\cdot x_C+\\beta\\cdot y_C+\\gamma|}{\\sqrt{\\alpha^2+\\beta^2}}\n                        \\]\n                    </div>\n<p>\n<small>\n                            Zwróć uwagę, że tym razem użyliśmy greckich liter \\(\\alpha\\), \\(\\beta\\) i \\(\\gamma\\) jako współczynników w równaniu prostej, zamiast zwykłych \\(A\\), \\(B\\) i \\(C\\) - żeby nie pomylić ich z punktami \\(A\\), \\(B\\) i \\(C\\).\n                        </small>\n</p>\n<p>\n<strong>Uwaga</strong>!\n                    </p>\n<p>\n                        Jeśli znane są równania prostych \\(AB\\) i \\(CD\\), do obliczenia wysokości możemy użyć wzoru na odległość między prostymi równoległymi. \n                    </p>\n</div>\n<p>\n                    Więcej o odległości punktu od prostej znajdziesz <a href=\"#\">tutaj</a> a o odległości między prostymi równoległymi <a href=\"#\">tutaj</a>.\n                    <!-- INTERNAL LINK -->\n</p>\n</details>\n</li>\n</ul>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "ab3fb82d9a43c3a44c76f6acdc17fff5ab7c51f77711b4f15c4ec0db46eed177"
+  "fully_mapped": true,
+  "seed_hash": "28156fa3a3be384567bb4344e821fa445c5e3c351ad89e12b49ca1e7e170aecf"
 }

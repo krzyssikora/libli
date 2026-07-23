@@ -2,13 +2,22 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie możesz kliknąć obok każdego z podstawowych pojęć, by zobaczyć jego wizualizację.\n        </p>\n<p>\n            Czy znasz wszystkie te pojącia? Czy umiesz je zdefiniować - wyjaśnić, co oznaczają?\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"500px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/mvzvpdx7/width/800/height/500/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"na prostej\" width=\"800px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n"
+      "body": "<p>\n            W poniższym aplecie możesz kliknąć obok każdego z podstawowych pojęć, by zobaczyć jego wizualizację.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Czy znasz wszystkie te pojącia? Czy umiesz je zdefiniować - wyjaśnić, co oznaczają?\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/mvzvpdx7/width/800/height/500/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "e80fa67c4a833aafc271c029e420664700c663d7dc665cc41b57dd43442b18b5"
+  "seed_hash": "2355491f6f61a969c0b922a0c98c1bb52a7492d12b9672159a6daf36a530e23d"
 }

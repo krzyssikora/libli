@@ -10,405 +10,459 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Rozwiąż nierówności:\n        </p>\n<ol>\n<li>\n<div style=\"display: inline-block; width: 100px;\">\n                    \\(|x|\\gt 5\\)\n                </div>\n                oraz \\(|2x-1|\\gt 5\\)\n            </li>\n<li>\n<div style=\"display: inline-block; width: 100px;\">\n                    \\(|x|\\le 4\\)\n                </div>\n                oraz \\(|2-x|\\le 4\\)\n            </li>\n<li>\n<div style=\"display: inline-block; width: 100px;\">\n                    \\(|x|\\gt -2\\)\n                </div>\n                oraz \\(|x+3|\\gt -2\\)\n            </li>\n<li>\n<div style=\"display: inline-block; width: 100px;\">\n                    \\(|x|\\le -1\\)\n                </div>\n                oraz \\(|4x+2|\\le -1\\)\n            </li>\n<li>\n<div style=\"display: inline-block; width: 100px;\">\n                    \\(|x|\\le 0\\)\n                </div>\n                oraz \\(|2-3x|\\le 0\\)\n            </li>\n<li>\n<div style=\"display: inline-block; width: 100px;\">\n                    \\(|x|\\gt 0\\)\n                </div>\n                oraz \\(|3x+1|\\gt 0\\)\n            </li>\n</ol>\n"
+      "body": "<p>\n            Rozwiąż nierówności:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol>\n<li>\n<div style=\"display: inline-block; width: 100px;\">\n                    \\(|x|\\gt 5\\)\n                </div>\n                oraz \\(|2x-1|\\gt 5\\)\n            </li>\n<li>\n<div style=\"display: inline-block; width: 100px;\">\n                    \\(|x|\\le 4\\)\n                </div>\n                oraz \\(|2-x|\\le 4\\)\n            </li>\n<li>\n<div style=\"display: inline-block; width: 100px;\">\n                    \\(|x|\\gt -2\\)\n                </div>\n                oraz \\(|x+3|\\gt -2\\)\n            </li>\n<li>\n<div style=\"display: inline-block; width: 100px;\">\n                    \\(|x|\\le -1\\)\n                </div>\n                oraz \\(|4x+2|\\le -1\\)\n            </li>\n<li>\n<div style=\"display: inline-block; width: 100px;\">\n                    \\(|x|\\le 0\\)\n                </div>\n                oraz \\(|2-3x|\\le 0\\)\n            </li>\n<li>\n<div style=\"display: inline-block; width: 100px;\">\n                    \\(|x|\\gt 0\\)\n                </div>\n                oraz \\(|3x+1|\\gt 0\\)\n            </li>\n</ol>"
     },
     {
       "type": "text",
       "body": "<p id=\"first_three\">\n    Nierówności (1) - (3): (\n    <a href=\"#last_three\">\n        przejdź do nierówności (4) - (6)\n    </a>\n    )\n</p>"
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">\n                1. \\(|x|\\gt 5\\)\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-2\" id=\"tab-1-2\">\n                2. \\(|x|\\le 4\\)\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-1-3\" id=\"tab-1-3\">\n                3. \\(|x|\\gt -2\\)\n            </a>\n</li>\n</ul>"
-    },
-    {
-      "type": "math",
-      "latex": "|x|\\gt 5"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Szukamy liczb \\(x\\), których odległość od zera jest większa niż 5.\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Gdybyśmy szukali liczb \\(x\\), których odległość od zera jest równa 5, rozwiązaniami byłyby \\(x=-5\\) oraz \\(x=5\\).\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n<img src=\"static/nierownosci_1.png\" width=\"700\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Jednak szukamy liczb \\(x\\), których odległość od zera jest większa niż 5, zarówno w lewo jak i w prawo od zera:\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n<img src=\"static/nierownosci_2.png\" width=\"700\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Rozwiązaniami są liczby \\(x\\) takie, że:\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(\\color{red}{x\\lt -5}\\) lub \\(\\color{red}{x\\gt 5}\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Możemy zapisać rozwiązanie za pomocą przedziałów (a dokładniej: sumy rozłącznych przedziałów):\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "x\\in(-\\infty,-5)\\cup(5,+\\infty)"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Przejdźmy do kolejnej nierówności:\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "|2x-1|\\gt 5"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            W tej nierówności \\(\\color{red}{2x-1}\\) jest jakąś liczbą. Chcemy, by odległość tej liczby od zera była większa niż 5.\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Oznacza to, że liczba \\(\\color{red}{2x-1}\\) (podobnie jak \\(x\\) w poprzednim przykładzie) musi być albo w lewo od \\(-5\\) albo w prawo od \\(5\\) na osi liczbowej:\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n<img src=\"static/nierownosci_3.png\" width=\"700\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Rozwiążmy obie nierówności:\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\n                                    \\begin{aligned}[c]\n                    2x-1&\\lt -5\\\\\n                    2x&\\lt -4\\\\\n                    x&\\lt -2\n                    \\end{aligned}\n                    \\qquad\\text{ oraz }\\qquad\n                    \\begin{aligned}[c]\n                    2x-1&\\gt 5\\\\\n                    2x&\\gt 6\\\\\n                    x&\\gt 3\n                                    \\end{aligned}\n                                    "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Rozwiązaniem nierówności \\(|2x-1|\\gt 5\\) są takie liczby \\(x\\), że\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(x\\lt -2\\) lub \\(x\\gt 3\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            lub w postaci sumy rozłącznych przedziałów:\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(x\\in(-\\infty, -2)\\cup(3,+\\infty)\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Na zakończenie, zaznaczmy rozwiązanie na osi liczbowej:\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n<img src=\"static/nierownosci_4.png\" width=\"700\"/>\n"
-    },
-    {
-      "type": "math",
-      "latex": "|x|\\le 4"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Szukamy liczb \\(x\\), których odległość od zera jest\n            <strong>\n                mniejsza lub równa\n            </strong>\n            \\(4\\). Takie liczby znajdziemy w takim przedziale:\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n<img src=\"static/nierownosci_5.png\" width=\"700\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Zwróć uwagę, że ten przedział jest\n            <strong>\n                obustronnie domknięty\n            </strong>\n            , bo zarówno \\(x=-4\\) jak i \\(x=4\\) są rozwiązaniami nierówności. Cały zbiór rozwiązań możemy zapisać w postaci przedziału:\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "x\\in\\langle-4, 4\\rangle"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Zanim przejdziemy do drugiej nierówności w tym przykładzie, zauważmy, że poprzednio zamieniliśmy każdy z przedziałów nieograniczonych na nierówność, np.\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(x\\in(-\\infty, -5)\\) zamieniliśmy na \\(x\\lt -5\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Przedział \\(x\\in\\langle-4, 4\\rangle\\) jest ograniczony, jednak możemy go przedstawić za pomocą dwóch nierówności, które\n            <strong>\n                muszą być spełnione jednocześnie\n            </strong>\n            .\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(\\color{red}{x\\in\\langle-4, 4\\rangle}\\) oznacza, że \\(\\color{red}{x\\ge -4}\\) i\n            <strong>\n                jednocześnie\n            </strong>\n            \\(\\color{red}{x\\le 4}\\)\n        "
-    },
-    {
-      "type": "math",
-      "latex": "|2-x|\\le 4"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            W tej nierówności \\(\\color{red}{2-x}\\) jest jakąś liczbą. Chcemy, by odległość tej liczby od zera była mniejsza niż lub równa 4.\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Innymi słowy chcemy, by ta liczba była\n            <strong>\n                pomiędzy\n            </strong>\n            \\(-4\\) i \\(4\\) (włącznie), czyli by\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(\\color{red}{2-x}\\ge -4\\) i jednocześnie \\(\\color{red}{2-x}\\le 4\\)\n        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Rozwiążmy obie nierówności:\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\n                                    \\begin{aligned}[c]\n                    2-x&\\ge -4\\\\\n                    -x&\\ge -6\\\\\n                    x&\\le 6\n                    \\end{aligned}\n                    \\qquad\\text{ oraz }\\qquad\n                    \\begin{aligned}[c]\n                    2-x&\\le 4\\\\\n                    -x&\\le 2\\\\\n                    x&\\ge -2\n                                    \\end{aligned}\n                                    "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Obie nierówności muszą być spełnione\n            <strong>\n                jednocześnie\n            </strong>\n            , a skoro\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n            \\(x\\ge -2\\) i jednocześnie \\(x\\le 6\\) to\n        "
-    },
-    {
-      "type": "math",
-      "latex": "x\\in \\langle-2, 6\\rangle"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Na zakończenie, zaznaczmy rozwiązanie na osi liczbowej:\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n<img src=\"static/nierownosci_6.png\" width=\"700\"/>\n"
-    },
-    {
-      "type": "math",
-      "latex": "|x|\\gt -2"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Szukamy liczb \\(x\\), których odległość od zera jest\n            <strong>\n                większa\n            </strong>\n            od \\(-2\\).\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Powtórzmy to:\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n            \"\n            <strong>\n                odległość większa od \\(-2\\)\n            </strong>\n            \"\n        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Pamiętaj, że (zapisaliśmy to na górze tej strony!) odległość jest\n            <strong>\n                zawsze większa lub równa 0\n            </strong>\n            , a liczba większa lub równa 0\n            <strong>\n                musi być\n            </strong>\n            większa od \\(-2\\).\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Tym samym, nierówność jest spełniona przez każdą liczbę rzeczywistą.\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "x\\in\\mathbb{R}"
-    },
-    {
-      "type": "math",
-      "latex": "|x+3|\\gt -2"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            W tej nierówności \\(\\color{red}{x+3}\\) jest jakąś liczbą. Chcemy, by jej odległość od zera była\n            <strong>\n                większa\n            </strong>\n            od \\(-2\\).\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Jak powyżej, ten warunek jest\n            <strong>\n                zawsze\n            </strong>\n            prawdziwy, czyli rozwiązaniem tej nierówności także są wszystkie liczby rzeczywiste:\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "x\\in\\mathbb{R}"
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "1. \\(|x|\\gt 5\\)",
+          "elements": [
+            {
+              "type": "math",
+              "latex": "|x|\\gt 5"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Szukamy liczb \\(x\\), których odległość od zera jest większa niż 5.\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Gdybyśmy szukali liczb \\(x\\), których odległość od zera jest równa 5, rozwiązaniami byłyby \\(x=-5\\) oraz \\(x=5\\).\n        </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/nierownosci_1.png",
+              "alt": "",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Jednak szukamy liczb \\(x\\), których odległość od zera jest większa niż 5, zarówno w lewo jak i w prawo od zera:\n        </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/nierownosci_2.png",
+              "alt": "",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Rozwiązaniami są liczby \\(x\\) takie, że:\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n            \\(\\color{red}{x\\lt -5}\\) lub \\(\\color{red}{x\\gt 5}\\)\n        "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Możemy zapisać rozwiązanie za pomocą przedziałów (a dokładniej: sumy rozłącznych przedziałów):\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "x\\in(-\\infty,-5)\\cup(5,+\\infty)"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Przejdźmy do kolejnej nierówności:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "|2x-1|\\gt 5"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            W tej nierówności \\(\\color{red}{2x-1}\\) jest jakąś liczbą. Chcemy, by odległość tej liczby od zera była większa niż 5.\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Oznacza to, że liczba \\(\\color{red}{2x-1}\\) (podobnie jak \\(x\\) w poprzednim przykładzie) musi być albo w lewo od \\(-5\\) albo w prawo od \\(5\\) na osi liczbowej:\n        </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/nierownosci_3.png",
+              "alt": "",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Rozwiążmy obie nierówności:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                                    \\begin{aligned}[c]\n                    2x-1&\\lt -5\\\\\n                    2x&\\lt -4\\\\\n                    x&\\lt -2\n                    \\end{aligned}\n                    \\qquad\\text{ oraz }\\qquad\n                    \\begin{aligned}[c]\n                    2x-1&\\gt 5\\\\\n                    2x&\\gt 6\\\\\n                    x&\\gt 3\n                                    \\end{aligned}\n                                    "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Rozwiązaniem nierówności \\(|2x-1|\\gt 5\\) są takie liczby \\(x\\), że\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n            \\(x\\lt -2\\) lub \\(x\\gt 3\\)\n        "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            lub w postaci sumy rozłącznych przedziałów:\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n            \\(x\\in(-\\infty, -2)\\cup(3,+\\infty)\\)\n        "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Na zakończenie, zaznaczmy rozwiązanie na osi liczbowej:\n        </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/nierownosci_4.png",
+              "alt": "",
+              "figcaption": ""
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "2. \\(|x|\\le 4\\)",
+          "elements": [
+            {
+              "type": "math",
+              "latex": "|x|\\le 4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Szukamy liczb \\(x\\), których odległość od zera jest\n            <strong>\n                mniejsza lub równa\n            </strong>\n            \\(4\\). Takie liczby znajdziemy w takim przedziale:\n        </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/nierownosci_5.png",
+              "alt": "",
+              "figcaption": ""
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Zwróć uwagę, że ten przedział jest\n            <strong>\n                obustronnie domknięty\n            </strong>\n            , bo zarówno \\(x=-4\\) jak i \\(x=4\\) są rozwiązaniami nierówności. Cały zbiór rozwiązań możemy zapisać w postaci przedziału:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "x\\in\\langle-4, 4\\rangle"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Zanim przejdziemy do drugiej nierówności w tym przykładzie, zauważmy, że poprzednio zamieniliśmy każdy z przedziałów nieograniczonych na nierówność, np.\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n            \\(x\\in(-\\infty, -5)\\) zamieniliśmy na \\(x\\lt -5\\)\n        "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Przedział \\(x\\in\\langle-4, 4\\rangle\\) jest ograniczony, jednak możemy go przedstawić za pomocą dwóch nierówności, które\n            <strong>\n                muszą być spełnione jednocześnie\n            </strong>\n            .\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n            \\(\\color{red}{x\\in\\langle-4, 4\\rangle}\\) oznacza, że \\(\\color{red}{x\\ge -4}\\) i\n            <strong>\n                jednocześnie\n            </strong>\n            \\(\\color{red}{x\\le 4}\\)\n        "
+            },
+            {
+              "type": "math",
+              "latex": "|2-x|\\le 4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            W tej nierówności \\(\\color{red}{2-x}\\) jest jakąś liczbą. Chcemy, by odległość tej liczby od zera była mniejsza niż lub równa 4.\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Innymi słowy chcemy, by ta liczba była\n            <strong>\n                pomiędzy\n            </strong>\n            \\(-4\\) i \\(4\\) (włącznie), czyli by\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n            \\(\\color{red}{2-x}\\ge -4\\) i jednocześnie \\(\\color{red}{2-x}\\le 4\\)\n        "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Rozwiążmy obie nierówności:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                                    \\begin{aligned}[c]\n                    2-x&\\ge -4\\\\\n                    -x&\\ge -6\\\\\n                    x&\\le 6\n                    \\end{aligned}\n                    \\qquad\\text{ oraz }\\qquad\n                    \\begin{aligned}[c]\n                    2-x&\\le 4\\\\\n                    -x&\\le 2\\\\\n                    x&\\ge -2\n                                    \\end{aligned}\n                                    "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Obie nierówności muszą być spełnione\n            <strong>\n                jednocześnie\n            </strong>\n            , a skoro\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n            \\(x\\ge -2\\) i jednocześnie \\(x\\le 6\\) to\n        "
+            },
+            {
+              "type": "math",
+              "latex": "x\\in \\langle-2, 6\\rangle"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Na zakończenie, zaznaczmy rozwiązanie na osi liczbowej:\n        </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/nierownosci_6.png",
+              "alt": "",
+              "figcaption": ""
+            }
+          ]
+        },
+        {
+          "id": "t000002",
+          "label": "3. \\(|x|\\gt -2\\)",
+          "elements": [
+            {
+              "type": "math",
+              "latex": "|x|\\gt -2"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Szukamy liczb \\(x\\), których odległość od zera jest\n            <strong>\n                większa\n            </strong>\n            od \\(-2\\).\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Powtórzmy to:\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n            \"\n            <strong>\n                odległość większa od \\(-2\\)\n            </strong>\n            \"\n        "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Pamiętaj, że (zapisaliśmy to na górze tej strony!) odległość jest\n            <strong>\n                zawsze większa lub równa 0\n            </strong>\n            , a liczba większa lub równa 0\n            <strong>\n                musi być\n            </strong>\n            większa od \\(-2\\).\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Tym samym, nierówność jest spełniona przez każdą liczbę rzeczywistą.\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "x\\in\\mathbb{R}"
+            },
+            {
+              "type": "math",
+              "latex": "|x+3|\\gt -2"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            W tej nierówności \\(\\color{red}{x+3}\\) jest jakąś liczbą. Chcemy, by jej odległość od zera była\n            <strong>\n                większa\n            </strong>\n            od \\(-2\\).\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Jak powyżej, ten warunek jest\n            <strong>\n                zawsze\n            </strong>\n            prawdziwy, czyli rozwiązaniem tej nierówności także są wszystkie liczby rzeczywiste:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "x\\in\\mathbb{R}"
+            }
+          ]
+        }
+      ]
     },
     {
       "type": "text",
       "body": "<p id=\"last_three\">\n    Nierówności (4) - (6): (\n    <a href=\"#first_three\">\n        wróć do nierówności (1) - (3)\n    </a>\n    )\n</p>"
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<a class=\"chosen\" href=\"#tabcontent-2-1\" id=\"tab-2-1\">\n                4. \\(|x|\\le -1\\)\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-2-2\" id=\"tab-2-2\">\n                5. \\(|x|\\le 0\\)\n            </a>\n</li>\n<li>\n<a href=\"#tabcontent-2-3\" id=\"tab-2-3\">\n                6. \\(|x|\\gt 0\\)\n            </a>\n</li>\n</ul>"
-    },
-    {
-      "type": "math",
-      "latex": "|x|\\le -1"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Szukamy liczb \\(x\\), których odległość od zera jest\n            <strong>\n                mniejsza lub równa\n            </strong>\n            \\(-1\\).\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Powtórzmy to:\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n            \"\n            <strong>\n                odległość mniejsza lub równa \\(-1\\)\n            </strong>\n            \"\n        "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Pamiętaj (zerknij na górę tej strony!), że odległość jest\n            <strong>\n                zawsze większa lub równa 0\n            </strong>\n            , a liczba większa lub równa 0\n            <strong>\n                nie może być\n            </strong>\n            mniejsza ani równa \\(-1\\).\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Tym samym, nierówność nigdy nie jest spełniona.\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "x\\in\\emptyset"
-    },
-    {
-      "type": "math",
-      "latex": "|4x+2|\\le -1"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            W tej nierówności \\(\\color{red}{4x+2}\\) jest jakąś liczbą. Chcemy, by jej odległość od zera była\n            <strong>\n                mniejsza lub równa\n            </strong>\n            \\(-1\\).\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Jak powyżej, ten warunek\n            <strong>\n                nigdy\n            </strong>\n            nie jest prawdziwy, czyli ta nierówność także nie ma rozwiązań:\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "x\\in\\emptyset"
-    },
-    {
-      "type": "math",
-      "latex": "|x|\\le 0"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Szukamy liczb \\(x\\), których odległość od zera jest\n            <strong>\n                mniejsza lub równa\n            </strong>\n            \\(0\\).\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Powiedzieliśmy to już kilka razy, że odległość jest\n            <strong>\n                zawsze większa lub równa 0\n            </strong>\n            .\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            W naszym przypadku, chcemy by odległość liczby \\(x\\) od zera była jednocześnie:\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<ul>\n<li>\n                większa\n                <u>\n                    lub równa\n                </u>\n                0 i\n            </li>\n<li>\n                mniejsza\n                <u>\n                    lub równa\n                </u>\n                0.\n            </li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Jest tylko jedna liczba spełniająca oba te warunki, a mianowicie \\(0\\).\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "x=0\\text{ lub }x\\in\\{0\\}"
-    },
-    {
-      "type": "math",
-      "latex": "|2-3x|\\le 0"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            W tej nierówności \\(\\color{red}{2-3x}\\) jest jakąś liczbą. Chcemy, by jej odległość od zera była\n            <strong>\n                mniejsza\n                <u>\n                    lub równa\n                </u>\n</strong>\n            \\(0\\). A ponieważ odległość jest zawsze większa\n            <u>\n                lub równa\n            </u>\n            \\(0\\), liczba \\(\\color{red}{2-3x}\\) musi być równa \\(0\\).\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\n                                    \\begin{align*}\n                                    2-3x&=0\\\\\n                                    -3x&=-2\\\\\n                                    x&=\\frac{2}{3}\n                                    \\end{align*}\n                                    "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Rozwiązaniem nierówności jest jedna liczba:\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "x=\\frac{2}{3} \\text{ lub }x\\in\\{\\frac{2}{3}\\}"
-    },
-    {
-      "type": "math",
-      "latex": "|x|\\gt 0"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Szukamy liczb \\(x\\), których odległość od zera jest\n            <strong>\n                większa\n            </strong>\n            od \\(0\\).\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Powiedzieliśmy to już kilka razy, że odległość jest\n            <strong>\n                zawsze większa lub równa 0\n            </strong>\n            .\n        </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            W naszym przypadku, chcemy by odległość liczby \\(x\\) od zera była większa, ale\n            <strong>\n                nie równa\n            </strong>\n            \\(0\\), stąd nierówność:\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "|x|\\gt 0"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            jest równoważna:\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "|x|\\ne 0"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            a ta oznacza:\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "x\\ne 0"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Nierówność ma więc nieskończenie wiele rozwiązań, które można zapisać:\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "x\\in\\mathbb{R}\\setminus\\{0\\}\\text{ lub }x\\in(-\\infty, 0)\\cup(0, +\\infty)"
-    },
-    {
-      "type": "math",
-      "latex": "|3x+1|\\le 0"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            W tej nierówności \\(\\color{red}{3x+1}\\) jest jakąś liczbą. Chcemy, by jej odległość od zera była\n            <strong>\n                większa\n            </strong>\n            od \\(0\\). A ponieważ odległość jest zawsze większa\n            <u>\n                lub równa\n            </u>\n            \\(0\\), liczba \\(\\color{red}{3x+1}\\) musi być\n            <strong>\n                różna\n            </strong>\n            od \\(0\\).\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "\n                                    \\begin{align*}\n                                    |3x+1|&\\ne 0\\\\\n                                    3x+1&\\ne 0\\\\\n                                    3x&\\ne -1\\\\\n                                    x&\\ne-\\frac{1}{3}\n                                    \\end{align*}\n                                    "
-    },
-    {
-      "type": "text",
-      "body": "<p>\n            Nierówność ma więc nieskończenie wiele rozwiązań, które można zapisać:\n        </p>"
-    },
-    {
-      "type": "math",
-      "latex": "x\\in\\mathbb{R}\\setminus\\{-\\frac{1}{3}\\}\\text{ lub }x\\in(-\\infty, -\\frac{1}{3})\\cup(-\\frac{1}{3}, +\\infty)"
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "4. \\(|x|\\le -1\\)",
+          "elements": [
+            {
+              "type": "math",
+              "latex": "|x|\\le -1"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Szukamy liczb \\(x\\), których odległość od zera jest\n            <strong>\n                mniejsza lub równa\n            </strong>\n            \\(-1\\).\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Powtórzmy to:\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n            \"\n            <strong>\n                odległość mniejsza lub równa \\(-1\\)\n            </strong>\n            \"\n        "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Pamiętaj (zerknij na górę tej strony!), że odległość jest\n            <strong>\n                zawsze większa lub równa 0\n            </strong>\n            , a liczba większa lub równa 0\n            <strong>\n                nie może być\n            </strong>\n            mniejsza ani równa \\(-1\\).\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Tym samym, nierówność nigdy nie jest spełniona.\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "x\\in\\emptyset"
+            },
+            {
+              "type": "math",
+              "latex": "|4x+2|\\le -1"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            W tej nierówności \\(\\color{red}{4x+2}\\) jest jakąś liczbą. Chcemy, by jej odległość od zera była\n            <strong>\n                mniejsza lub równa\n            </strong>\n            \\(-1\\).\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Jak powyżej, ten warunek\n            <strong>\n                nigdy\n            </strong>\n            nie jest prawdziwy, czyli ta nierówność także nie ma rozwiązań:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "x\\in\\emptyset"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "5. \\(|x|\\le 0\\)",
+          "elements": [
+            {
+              "type": "math",
+              "latex": "|x|\\le 0"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Szukamy liczb \\(x\\), których odległość od zera jest\n            <strong>\n                mniejsza lub równa\n            </strong>\n            \\(0\\).\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Powiedzieliśmy to już kilka razy, że odległość jest\n            <strong>\n                zawsze większa lub równa 0\n            </strong>\n            .\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            W naszym przypadku, chcemy by odległość liczby \\(x\\) od zera była jednocześnie:\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul>\n<li>\n                większa\n                <u>\n                    lub równa\n                </u>\n                0 i\n            </li>\n<li>\n                mniejsza\n                <u>\n                    lub równa\n                </u>\n                0.\n            </li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Jest tylko jedna liczba spełniająca oba te warunki, a mianowicie \\(0\\).\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "x=0\\text{ lub }x\\in\\{0\\}"
+            },
+            {
+              "type": "math",
+              "latex": "|2-3x|\\le 0"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            W tej nierówności \\(\\color{red}{2-3x}\\) jest jakąś liczbą. Chcemy, by jej odległość od zera była\n            <strong>\n                mniejsza\n                <u>\n                    lub równa\n                </u>\n</strong>\n            \\(0\\). A ponieważ odległość jest zawsze większa\n            <u>\n                lub równa\n            </u>\n            \\(0\\), liczba \\(\\color{red}{2-3x}\\) musi być równa \\(0\\).\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                                    \\begin{align*}\n                                    2-3x&=0\\\\\n                                    -3x&=-2\\\\\n                                    x&=\\frac{2}{3}\n                                    \\end{align*}\n                                    "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Rozwiązaniem nierówności jest jedna liczba:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "x=\\frac{2}{3} \\text{ lub }x\\in\\{\\frac{2}{3}\\}"
+            }
+          ]
+        },
+        {
+          "id": "t000002",
+          "label": "6. \\(|x|\\gt 0\\)",
+          "elements": [
+            {
+              "type": "math",
+              "latex": "|x|\\gt 0"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Szukamy liczb \\(x\\), których odległość od zera jest\n            <strong>\n                większa\n            </strong>\n            od \\(0\\).\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Powiedzieliśmy to już kilka razy, że odległość jest\n            <strong>\n                zawsze większa lub równa 0\n            </strong>\n            .\n        </p>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            W naszym przypadku, chcemy by odległość liczby \\(x\\) od zera była większa, ale\n            <strong>\n                nie równa\n            </strong>\n            \\(0\\), stąd nierówność:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "|x|\\gt 0"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            jest równoważna:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "|x|\\ne 0"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            a ta oznacza:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "x\\ne 0"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Nierówność ma więc nieskończenie wiele rozwiązań, które można zapisać:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "x\\in\\mathbb{R}\\setminus\\{0\\}\\text{ lub }x\\in(-\\infty, 0)\\cup(0, +\\infty)"
+            },
+            {
+              "type": "math",
+              "latex": "|3x+1|\\le 0"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            W tej nierówności \\(\\color{red}{3x+1}\\) jest jakąś liczbą. Chcemy, by jej odległość od zera była\n            <strong>\n                większa\n            </strong>\n            od \\(0\\). A ponieważ odległość jest zawsze większa\n            <u>\n                lub równa\n            </u>\n            \\(0\\), liczba \\(\\color{red}{3x+1}\\) musi być\n            <strong>\n                różna\n            </strong>\n            od \\(0\\).\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "\n                                    \\begin{align*}\n                                    |3x+1|&\\ne 0\\\\\n                                    3x+1&\\ne 0\\\\\n                                    3x&\\ne -1\\\\\n                                    x&\\ne-\\frac{1}{3}\n                                    \\end{align*}\n                                    "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n            Nierówność ma więc nieskończenie wiele rozwiązań, które można zapisać:\n        </p>"
+            },
+            {
+              "type": "math",
+              "latex": "x\\in\\mathbb{R}\\setminus\\{-\\frac{1}{3}\\}\\text{ lub }x\\in(-\\infty, -\\frac{1}{3})\\cup(-\\frac{1}{3}, +\\infty)"
+            }
+          ]
+        }
+      ]
     },
     {
       "type": "text",
       "body": "<a href=\"#first_three\">\n    wróć do nierówności (1) - (3)\n</a>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "b0816f4c4aa968ebea73112bc42bca8ecd25c72b0fc23723c0eeace5b134e9c9"
+  "fully_mapped": true,
+  "seed_hash": "09a699bc5824ce3939db9c3ccd3720f763dd606dee3b1bced6368498e0b032bd"
 }

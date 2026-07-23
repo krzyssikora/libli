@@ -14,13 +14,25 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie możesz obejrzeć, że punkty na symetralnej leżą w równej odległości od obu końców odcinka.\n        </p>\n<p>\n            Pomarańczowa półprosta to symetralna niebieskiego odcinka.\n        </p>\n<p>\n            Możesz przesuwać niebieski punkt na symetralnej, a gdy naciśniejsz \"start\", zobaczysz, że odległości od niebieskiego punktu do obu końców odcinka są identyczne.\n        </p>\n<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"733px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/snn2sqay/width/685/height/733/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"symetralna\" width=\"685px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>\n"
+      "body": "<p>\n            W poniższym aplecie możesz obejrzeć, że punkty na symetralnej leżą w równej odległości od obu końców odcinka.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Pomarańczowa półprosta to symetralna niebieskiego odcinka.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Możesz przesuwać niebieski punkt na symetralnej, a gdy naciśniejsz \"start\", zobaczysz, że odległości od niebieskiego punktu do obu końców odcinka są identyczne.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"733px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/snn2sqay/width/685/height/733/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"symetralna\" width=\"685px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</p>"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "4b1b534410e39e317bc7d4fc27ce9f40ff3b6d1c28ba3f33f5f511de26fb9954"
+  "seed_hash": "adf11943d31f428243fff04cb834914f62c256daa79fb62458dd3b95b7d9ab42"
 }

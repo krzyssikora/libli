@@ -23,7 +23,36 @@
     {
       "type": "spoiler",
       "label": "Dowódwprosttwierdzenia:Jeśli liczba jest parzysta, to jej kwadrat jest podzielny przez 4.",
-      "body": "\n\n<p>\n            Niech \\(n\\) będzie liczbą całkowitą parzystą.\n        </p>\n<p>\n            Liczba \\(n\\) jest podzielna przez \\(2\\), możemy więc zapisać ją w postaci:\n        </p>\n<div class=\"centered\">\n            \\(n=2k\\), gdzie \\(k\\in\\mathbb{Z}\\)\n        </div>\n<small>\n            Liczba \\(k\\) jest po prostu całkowitym wynikiem dzielenia liczby \\(n\\) przez \\(2\\).\n        </small>\n<p>\n            Kwadrat liczby \\(n\\) ma więc postać:\n        </p>\n        \\[\n                                n^2=\\left(2k\\right)^2=2k\\cdot 2k=4k^2\n                                \\]\n        <p>\n            Zauważmy teraz, że skoro \\(k\\in\\mathbb{Z}\\), to także \\(k^2\\in\\mathbb{Z}\\), co oznacza, że liczba \\(k^2\\) jest\n            <strong>\n                całkowitym\n            </strong>\n            wynikiem dzielenia liczby \\(n^2\\) przez \\(4\\), czyli \\(n^2\\) jest podzielna przez \\(4\\).\n        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Niech \\(n\\) będzie liczbą całkowitą parzystą.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Liczba \\(n\\) jest podzielna przez \\(2\\), możemy więc zapisać ją w postaci:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(n=2k\\), gdzie \\(k\\in\\mathbb{Z}\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<small>\n            Liczba \\(k\\) jest po prostu całkowitym wynikiem dzielenia liczby \\(n\\) przez \\(2\\).\n        </small>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Kwadrat liczby \\(n\\) ma więc postać:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                                n^2=\\left(2k\\right)^2=2k\\cdot 2k=4k^2\n                                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zauważmy teraz, że skoro \\(k\\in\\mathbb{Z}\\), to także \\(k^2\\in\\mathbb{Z}\\), co oznacza, że liczba \\(k^2\\) jest\n            <strong>\n                całkowitym\n            </strong>\n            wynikiem dzielenia liczby \\(n^2\\) przez \\(4\\), czyli \\(n^2\\) jest podzielna przez \\(4\\).\n        </p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -112,9 +141,54 @@
     {
       "type": "spoiler",
       "label": "Dowódnie wprosttwierdzenia:\\(\\sqrt{2}\\) jest liczbą niewymierną.",
-      "body": "\n\n<p>\n            Przypuśćmy przeciwnie, że \\(\\sqrt{2}\\) jest liczbą wymierną.\n        </p>\n<p>\n            Wówczas możemy zapisać go jako\n            <strong>\n                nieskracalny ułamek zwykły\n            </strong>\n            :\n        </p>\n<div class=\"centered\">\n            \\(\\sqrt{2}=\\frac{p}{q}\\), gdzie \\(p, q\\in\\mathbb{Z}\\) oraz \\(NWD(p,q)=1\\)\n        </div>\n<p>\n            Podnieśmy obie stronypowyższego równania do kwadratu:\n        </p>\n        \\[\n        2=\\frac{p^2}{q^2}\n        \\]\n        <p>\n            i pomnóżmy obie strony przez \\(q^2\\):\n        </p>\n        \\[\n        2q^2=p^2\n        \\]\n        <p>\n            Zauważmy teraz, że:\n        </p>\n<ol class=\"red_list\">\n<li>\n                Liczba po lewej stronie równania, \\(2q^2\\) jest równa \\(2\\cdot q\\cdot q\\).\n            </li>\n<li>\n                W rozkładzie tej liczby na czynniki pierwsze mamy pewną liczbę dwójek w liczbie \\(q\\),\n                <strong>\n                    tę samą\n                </strong>\n                liczbę dwójek w drugiej liczbie \\(q\\), i jeszcze jedną dwójkę.\n            </li>\n<li>\n                Stąd, po lewej stronie równiania mamy liczbę, która w rozkładzie na czynniki pierwsze ma\n                <strong style=\"color: red; font-weight: bold;\">\n                    nieparzystą\n                </strong>\n                liczbę dwójek.\n            </li>\n<li>\n                Liczba po lewej stronie równania, \\(p^2\\) jest równa \\(2\\cdot q\\cdot p\\).\n            </li>\n<li>\n                W rozkładzie tej liczby na czynniki pierwsze mamy pewną liczbę dwójek w liczbie \\(p\\) i\n                <strong>\n                    tę samą\n                </strong>\n                liczbę dwójek w drugiej liczbie \\(p\\).\n            </li>\n<li>\n                Stąd, po prawwej stronie równiania mamy liczbę, która w rozkładzie na czynniki pierwsze ma\n                <strong style=\"color: red; font-weight: bold;\">\n                    parzystą\n                </strong>\n                liczbę dwójek.\n            </li>\n</ol>\n<p>\n            Wykorzystajmy obserwacje numer\n            <span style=\"color: red; font-weight: bold;\">\n                3\n            </span>\n            i\n            <span style=\"color: red; font-weight: bold;\">\n                6\n            </span>\n            . Skoro liczba po lewej stronie równania jest tą samą, co po prawej, z obserwacji tych wynika, że ta liczba ma jednocześnie\n            <strong style=\"color: red; font-weight: bold;\">\n                nieparzystą\n            </strong>\n            i\n            <strong style=\"color: red; font-weight: bold;\">\n                parzystą\n            </strong>\n            liczbę dwójek w rozkładzie na czynniki pierwsze.\n        </p>\n<p>\n            To jest jednak niemożliwe, otrzymaliśmy więc sprzeczność, na mocy której prawdziwe jest twierdzenie, że \\(\\sqrt{2}\\) jest liczbą niewymierną.\n        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Przypuśćmy przeciwnie, że \\(\\sqrt{2}\\) jest liczbą wymierną.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Wówczas możemy zapisać go jako\n            <strong>\n                nieskracalny ułamek zwykły\n            </strong>\n            :\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(\\sqrt{2}=\\frac{p}{q}\\), gdzie \\(p, q\\in\\mathbb{Z}\\) oraz \\(NWD(p,q)=1\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Podnieśmy obie stronypowyższego równania do kwadratu:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        2=\\frac{p^2}{q^2}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            i pomnóżmy obie strony przez \\(q^2\\):\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        2q^2=p^2\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zauważmy teraz, że:\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ol class=\"red_list\">\n<li>\n                Liczba po lewej stronie równania, \\(2q^2\\) jest równa \\(2\\cdot q\\cdot q\\).\n            </li>\n<li>\n                W rozkładzie tej liczby na czynniki pierwsze mamy pewną liczbę dwójek w liczbie \\(q\\),\n                <strong>\n                    tę samą\n                </strong>\n                liczbę dwójek w drugiej liczbie \\(q\\), i jeszcze jedną dwójkę.\n            </li>\n<li>\n                Stąd, po lewej stronie równiania mamy liczbę, która w rozkładzie na czynniki pierwsze ma\n                <strong style=\"color: red; font-weight: bold;\">\n                    nieparzystą\n                </strong>\n                liczbę dwójek.\n            </li>\n<li>\n                Liczba po lewej stronie równania, \\(p^2\\) jest równa \\(2\\cdot q\\cdot p\\).\n            </li>\n<li>\n                W rozkładzie tej liczby na czynniki pierwsze mamy pewną liczbę dwójek w liczbie \\(p\\) i\n                <strong>\n                    tę samą\n                </strong>\n                liczbę dwójek w drugiej liczbie \\(p\\).\n            </li>\n<li>\n                Stąd, po prawwej stronie równiania mamy liczbę, która w rozkładzie na czynniki pierwsze ma\n                <strong style=\"color: red; font-weight: bold;\">\n                    parzystą\n                </strong>\n                liczbę dwójek.\n            </li>\n</ol>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Wykorzystajmy obserwacje numer\n            <span style=\"color: red; font-weight: bold;\">\n                3\n            </span>\n            i\n            <span style=\"color: red; font-weight: bold;\">\n                6\n            </span>\n            . Skoro liczba po lewej stronie równania jest tą samą, co po prawej, z obserwacji tych wynika, że ta liczba ma jednocześnie\n            <strong style=\"color: red; font-weight: bold;\">\n                nieparzystą\n            </strong>\n            i\n            <strong style=\"color: red; font-weight: bold;\">\n                parzystą\n            </strong>\n            liczbę dwójek w rozkładzie na czynniki pierwsze.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            To jest jednak niemożliwe, otrzymaliśmy więc sprzeczność, na mocy której prawdziwe jest twierdzenie, że \\(\\sqrt{2}\\) jest liczbą niewymierną.\n        </p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "89cc9cff8e6fffedc2d2ef5ca4915465dec97abc096d89f77c893ce39e954998"
+  "seed_hash": "015112a1f3bd847c948d3f168ecd9dfd7f393f272585558bc27b62cab3784489"
 }

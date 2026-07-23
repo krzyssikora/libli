@@ -55,9 +55,14 @@
     {
       "type": "spoiler",
       "label": "przypomnij sobie metodę obliczania miejsc zerowych",
-      "body": "\n\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/kwadratowa_wzor.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n"
+      "elements": [
+        {
+          "type": "video",
+          "media_src": "static/kwadratowa_wzor.mp4"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "80aef8b56799ac9c19de2045aa633123aba661e0bf1526d767d40e41c98ccf82"
+  "seed_hash": "c99704d40b969c7ab3efc9af2160bdffd1ca3bc2dc8abcfcffba164716fb9ae1"
 }

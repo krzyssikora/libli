@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -13,8 +13,8 @@
       "body": "<p>\n            Nachylenie, czyli współczynnik kierunkowy tej prostej zapisanej w postaci \\(y=ax+b\\).\n        </p>"
     },
     {
-      "type": "text",
-      "body": "pokaż"
+      "type": "reveal_gate",
+      "label": "pokaż"
     },
     {
       "type": "text",
@@ -25,8 +25,8 @@
       "latex": "\n            By=-Ax-C\n            "
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -37,8 +37,8 @@
       "latex": "\n            y=-\\frac{A}{B}x-\\frac{C}{B}\n            "
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -102,7 +102,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -125,7 +125,24 @@
     {
       "type": "spoiler",
       "label": "wyjaśnienie",
-      "body": "\n\n<p>\n            Jeśli równania prostych przedstawimy w postaci kierunkowej, dostaniemy\n        </p>\n<div class=\"table_wrapper centered\">\n            \\(\\color{blue}{y=\\frac{2}{3}x+2}\\quad\\) oraz \\(\\quad \\color{red}{y=\\frac{2}{3}x+\\frac{1}{2}}\\)\n        </div>\n<p>\n            Obie proste mają taki sam współczynnik kierunkowy, \\(\\frac{2}{3}\\), są więc równoległe.\n        </p>\n<p>\n            Dlatego proste o równaniach ogólnych z identycznymi współczynnikami przy \\(x\\)-ach i przy \\(y\\)-ach są równoległe.\n        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Jeśli równania prostych przedstawimy w postaci kierunkowej, dostaniemy\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n            \\(\\color{blue}{y=\\frac{2}{3}x+2}\\quad\\) oraz \\(\\quad \\color{red}{y=\\frac{2}{3}x+\\frac{1}{2}}\\)\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Obie proste mają taki sam współczynnik kierunkowy, \\(\\frac{2}{3}\\), są więc równoległe.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Dlatego proste o równaniach ogólnych z identycznymi współczynnikami przy \\(x\\)-ach i przy \\(y\\)-ach są równoległe.\n        </p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -133,7 +150,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -150,7 +167,121 @@
     {
       "type": "spoiler",
       "label": "wyjaśnienie",
-      "body": "\n\n<div class=\"steps\">\n<p>\n                Dlaczego te proste są równoległe? \n            </p>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Zauważ, że równanie\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\color{red}{4x-6y+3=0}\n                    \\]\n                </div>\n<p>\n                    można uzyskać z równania\n                </p>\n<div class=\"table_wrapper\">\n                    \\[\n                    \\color{red}{2x-3y+1,5=0}\n                    \\]\n                </div>\n<p>\n                    z poprzedniego przykładu przez pomnożenie go przez \\(2\\).\n                </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Są to więc równania równoważne, czyli opisują <strong>tę samą prostą</strong>.\n                </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Zwróć uwagę na współczynniki \\(x\\)-ów i \\(y\\)-ów w obu równaniach.\n                </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TC\">\n<tr>\n<td>równanie</td>\n<td>współczynnik \\(x\\)</td>\n<td>współczynnik \\(y\\)</td>\n</tr>\n<tr>\n<td>\n                                \\(\\color{blue}{2x-3y+6=0}\\)\n                            </td>\n<td>\\(\\color{blue}{2}\\)</td>\n<td>\\(\\color{blue}{-3}\\)</td>\n</tr>\n<tr>\n<td>\n                                \\(\\color{red}{4x-6y+3=0}\\)\n                            </td>\n<td>\\(\\color{red}{4}\\)</td>\n<td>\\(\\color{red}{-6}\\)</td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                    Czy widzisz, jaka jest między nimi relacja?\n                </p>\n</div>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                Dlaczego te proste są równoległe? \n            </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zauważ, że równanie\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\color{red}{4x-6y+3=0}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    można uzyskać z równania\n                </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                    \\[\n                    \\color{red}{2x-3y+1,5=0}\n                    \\]\n                "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    z poprzedniego przykładu przez pomnożenie go przez \\(2\\).\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Są to więc równania równoważne, czyli opisują <strong>tę samą prostą</strong>.\n                </p>"
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Zwróć uwagę na współczynniki \\(x\\)-ów i \\(y\\)-ów w obu równaniach.\n                </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "równanie",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "współczynnik \\(x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "współczynnik \\(y\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\color{blue}{2x-3y+6=0}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{blue}{2}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{blue}{-3}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(\\color{red}{4x-6y+3=0}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{red}{4}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\color{red}{-6}\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                    Czy widzisz, jaka jest między nimi relacja?\n                </p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -186,39 +317,39 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
       "body": "<p>\n                Przykłady równań ogólnych prostych równoległych.\n            </p>"
     },
     {
-      "type": "text",
-      "body": "pokaż"
+      "type": "reveal_gate",
+      "label": "pokaż"
     },
     {
       "type": "text",
       "body": "<ol class=\"bold\">\n<li>\n                        Proste o równaniach\n                        <div class=\"table_wrapper centered\">\n                            \\(3x-4y+1=0\\quad\\) oraz \\(\\quad 6x-8y+5=0\\)\n                        </div>\n                        są równoległe, bo\n                        \\[\n                        \\frac{3}{-4}=\\frac{6}{-8}\\quad=-\\frac{3}{4}\n                        \\]\n                    </li>\n</ol>"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
       "body": "<ol class=\"bold\" start=\"2\">\n<li>\n                        Proste o równaniach\n                        <div class=\"table_wrapper centered\">\n                            \\(6x-9y-5=0\\quad\\) oraz \\(\\quad -10x+15y+7=0\\)\n                        </div>\n                        są równoległe, bo\n                        \\[\n                        \\frac{6}{-9}=\\frac{-10}{15}\\quad=-\\frac{2}{3}\n                        \\]\n                    </li>\n</ol>"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
       "body": "<ol class=\"bold\" start=\"3\">\n<li>\n                        Proste poziome o równaniach\n                        <div class=\"table_wrapper centered\">\n                            \\(-9y+4=0\\quad\\) oraz \\(\\quad 14y-5=0\\)\n                        </div>\n                        są równoległe, bo\n                        \\[\n                        \\frac{0}{-9}=\\frac{0}{14}\\quad =0\n                        \\]\n                        (<small>no i po prostu: bo obie są poziome.</small>)\n                    </li>\n</ol>"
     },
     {
-      "type": "text",
-      "body": "pokaż dalej"
+      "type": "reveal_gate",
+      "label": "pokaż dalej"
     },
     {
       "type": "text",
@@ -226,5 +357,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "a34155c9b445eb3478821459ac4bb2ee3b5b1d8a77d8d87c8963ed113b9d884b"
+  "seed_hash": "094efe291e044c0564a3f75cc57b6b0e2d131060bf91b12efab1da958dfdaced"
 }

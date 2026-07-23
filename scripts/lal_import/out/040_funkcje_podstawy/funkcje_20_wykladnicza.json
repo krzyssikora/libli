@@ -10,14 +10,14 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Przyjrzyj się poznanym wcześniej wzorom i uzupełnij brakujące pola.\n    "
     },
     {
-      "type": "table",
+      "type": "fill_table",
       "data": {
         "header_row": false,
         "header_col": false,
@@ -25,96 +25,78 @@
         "cells": [
           [
             {
-              "html": "\\(a^n\\cdot a^k=a^{n+k}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(a^n\\cdot a^k=a^{n+k}\\)"
             },
             {
-              "html": "<span class=\"myequation\">\n                            \\(2^3\\cdot 2^4=2\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "7"
             }
           ],
           [
             {
-              "html": "\\(a^n: a^k=a^{n-k}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(a^n: a^k=a^{n-k}\\)"
             },
             {
-              "html": "<span class=\"myequation\">\n                            \\(3^{11}: 3^6=3\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "5"
             }
           ],
           [
             {
-              "html": "\\(\\left(a^n\\right)^k=a^{n\\cdot k}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(\\left(a^n\\right)^k=a^{n\\cdot k}\\)"
             },
             {
-              "html": "<span class=\"myequation\">\n                            \\(\\left(3^4\\right)^5=3\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "20"
             }
           ],
           [
             {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": ""
             },
             {
-              "html": "<span class=\"myequation\">\n                            \\(25^6=5\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "12"
             }
           ],
           [
             {
-              "html": "\\(a^{-n}=\\frac{1}{a^n}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(a^{-n}=\\frac{1}{a^n}\\)"
             },
             {
-              "html": "<span class=\"myequation\">\n                            \\(\\frac{1}{8}=2\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "-3"
             }
           ],
           [
             {
-              "html": "\\(a^{\\frac{1}{n}}=\\sqrt[n]{a}\\)",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": "\\(a^{\\frac{1}{n}}=\\sqrt[n]{a}\\)"
             },
             {
-              "html": "<span class=\"myequation\">\n                            \\(\\sqrt[5]{3}=3\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "1/5"
             }
           ],
           [
             {
-              "html": "",
-              "halign": "left",
-              "valign": "top"
+              "kind": "static",
+              "html": ""
             },
             {
-              "html": "<span class=\"myequation\">\n                            \\(\\sqrt[5]{9}=3\\)\n                            <sup>\n<input class=\"table_input\" placeholder=\"???\" type=\"text\"/>\n</sup>\n</span>",
-              "halign": "left",
-              "valign": "top"
+              "kind": "answer",
+              "answer": "2/5"
             }
           ]
         ]
       }
-    },
-    {
-      "type": "text",
-      "body": "\n        Doskonale!\n    "
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "089bacc85c24abb2acaaa876374859881d85dd867154561493dfece7d79c3d34"
+  "seed_hash": "6c79d7e82146afa7d2af93526032d9e2c62d2a249482fcf01a89bed16d767d49"
 }

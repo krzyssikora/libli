@@ -148,7 +148,7 @@
     },
     {
       "type": "choice",
-      "stem": "<p>Wskaż zbiór wartości funkcji</p><p>\\[</p><p>f(x)=-2(x-2)^2-4</p><p>\\]</p><p>określonej dla każdej liczby rzeczywistej \\(x\\).</p><p>\n    Jaki jest zbiór wartości tej funkcji?\n</p>",
+      "stem": "<p>Wskaż zbiór wartości funkcji</p><p>\\[\nf(x)=-2(x-2)^2-4\n\\]</p><p>określonej dla każdej liczby rzeczywistej \\(x\\).</p><p>\n    Jaki jest zbiór wartości tej funkcji?\n</p>",
       "multiple": false,
       "choices": [
         {
@@ -175,7 +175,7 @@
     },
     {
       "type": "choice",
-      "stem": "<p>Wskaż zbiór wartości funkcji</p><p>\\[</p><p>f(x)=\\tfrac{2}{3}(x+3)^2+1</p><p>\\]</p><p>określonej dla każdej liczby rzeczywistej \\(x\\).</p><p>\n    Jaki jest zbiór wartości tej funkcji?\n</p>",
+      "stem": "<p>Wskaż zbiór wartości funkcji</p><p>\\[\nf(x)=\\tfrac{2}{3}(x+3)^2+1\n\\]</p><p>określonej dla każdej liczby rzeczywistej \\(x\\).</p><p>\n    Jaki jest zbiór wartości tej funkcji?\n</p>",
       "multiple": false,
       "choices": [
         {
@@ -202,5 +202,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "fb2d33e26c3c583728df41788ac5ba703a2d86a3065af7b94415bb8ef9bba545"
+  "seed_hash": "39758561fcb8e3297ab07e89a02c841e3d82ccbd4835ce41ef2eeee61af853c5"
 }

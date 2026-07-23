@@ -18,11 +18,19 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Sprawdź, jak wygląda przesunięty wykres funkcji proporcjonalności odwrotnej, i jak wygląda jego równanie.\n        </p>\n<p>\n            W poniższym aplecie możesz:\n        </p>\n<ul>\n<li>\n                zmieniać wartość współczynnika \\(a\\) (pamiętaj, że \\(a\\) nie może być równe \\(0\\)),\n            </li>\n<li>\n                przesuwać żółty punkt przecięcia asymptot wykresu.\n            </li>\n</ul>\n"
+      "body": "<p>\n            Sprawdź, jak wygląda przesunięty wykres funkcji proporcjonalności odwrotnej, i jak wygląda jego równanie.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            W poniższym aplecie możesz:\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                zmieniać wartość współczynnika \\(a\\) (pamiętaj, że \\(a\\) nie może być równe \\(0\\)),\n            </li>\n<li>\n                przesuwać żółty punkt przecięcia asymptot wykresu.\n            </li>\n</ul>"
     },
     {
       "type": "iframe",
@@ -35,43 +43,89 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Jakie są własności funkcji \\(y=\\frac{a}{x-p}+q\\), \\(a\\ne 0\\)?\n        </p>\n"
+      "body": "<p>\n            Jakie są własności funkcji \\(y=\\frac{a}{x-p}+q\\), \\(a\\ne 0\\)?\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "nazwa wykresu",
-      "body": "\n<div>\n                            wykres takiej funkcji nadal nazywamy <strong>hiperbolą</strong>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n                            wykres takiej funkcji nadal nazywamy <strong>hiperbolą</strong>\n"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "dziedzina",
-      "body": "\n<div>\n                            \\(x\\in\\mathbb{R}\\setminus\\{p\\}\\) czyli \\(x\\in (-\\infty,p)\\cup(p,+\\infty)\\)\n                        </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n                            \\(x\\in\\mathbb{R}\\setminus\\{p\\}\\) czyli \\(x\\in (-\\infty,p)\\cup(p,+\\infty)\\)\n                        "
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "zbiór wartości",
-      "body": "\n<div>\n                            \\(x\\in\\mathbb{R}\\setminus\\{q\\}\\) czyli \\(x\\in (-\\infty,q)\\cup(q,+\\infty)\\)\n                        </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "\n                            \\(x\\in\\mathbb{R}\\setminus\\{q\\}\\) czyli \\(x\\in (-\\infty,q)\\cup(q,+\\infty)\\)\n                        "
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "asymptoty",
-      "body": "\n<p>\n                            asymptota <strong>pozioma</strong>: \\(y=q\\)\n                        </p>\n<p>\n                            asymptota <strong>pionowa</strong>: \\(x=p\\)\n                        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                            asymptota <strong>pozioma</strong>: \\(y=q\\)\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            asymptota <strong>pionowa</strong>: \\(x=p\\)\n                        </p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "położenie wykresu",
-      "body": "\n<p>\n                            Położenie wykresu jest analogiczne do wykresu nieprzesuniętego. Tym razem asymptoty dzielą płaszczyznę na cztery obszary.\n                        </p>\n<div>\n                            Jeśli \\(a\\gt 0\\), gałęzie hiperboli znajdują się w obszarze \n                            <span style=\"color: red\">\n                                prawym-górnym (\\(\\nearrow\\)) i w lewym-dolnym (\\(\\swarrow\\))\n                            </span>.\n                        </div>\n<div>\n                            Jeśli \\(a\\lt 0\\), gałęzie hiperboli znajdują się w obszarze \n                            <span style=\"color: red\">\n                                lewym-górnym (\\(\\nwarrow\\)) i w prawym-dolnym (\\(\\searrow\\))\n                            </span>.\n                        </div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                            Położenie wykresu jest analogiczne do wykresu nieprzesuniętego. Tym razem asymptoty dzielą płaszczyznę na cztery obszary.\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "\n                            Jeśli \\(a\\gt 0\\), gałęzie hiperboli znajdują się w obszarze \n                            <span style=\"color: red\">\n                                prawym-górnym (\\(\\nearrow\\)) i w lewym-dolnym (\\(\\swarrow\\))\n                            </span>.\n                        "
+        },
+        {
+          "type": "text",
+          "body": "\n                            Jeśli \\(a\\lt 0\\), gałęzie hiperboli znajdują się w obszarze \n                            <span style=\"color: red\">\n                                lewym-górnym (\\(\\nwarrow\\)) i w prawym-dolnym (\\(\\searrow\\))\n                            </span>.\n                        "
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "monotoniczność",
-      "body": "\n<p>\n                            Jeśli \\(a\\gt 0\\), funkcja\n                            <strong>\n<span style=\"color: red\">\n                                    maleje\n                                </span>\n</strong>\n                            w dwóch przedziałach: \\(x\\in (-\\infty,p)\\) oraz \\(x\\in(p,+\\infty)\\)\n                            <br/>\n                            \\(\\rightarrow\\)\n                            <u>\n                                uwaga\n                            </u>\n                            , funkcja\n                            <strong>\n                                nie maleje\n                            </strong>\n                            w zbiorze \\(\\mathbb{R}\\setminus\\{p\\}\\)\n                        </p>\n<p>\n                            Jeśli \\(a\\lt 0\\), funkcja\n                            <strong>\n<span style=\"color: red\">\n                                    rośnie\n                                </span>\n</strong>\n                            w dwóch przedziałach: \\(x\\in (-\\infty,p)\\) oraz \\(x\\in(p,+\\infty)\\)\n                            <br/>\n                            \\(\\rightarrow\\)\n                            <u>\n                                uwaga\n                            </u>\n                            , funkcja\n                            <strong>\n                                nie rośnie\n                            </strong>\n                            w zbiorze \\(\\mathbb{R}\\setminus\\{p\\}\\)\n                        </p>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                            Jeśli \\(a\\gt 0\\), funkcja\n                            <strong>\n<span style=\"color: red\">\n                                    maleje\n                                </span>\n</strong>\n                            w dwóch przedziałach: \\(x\\in (-\\infty,p)\\) oraz \\(x\\in(p,+\\infty)\\)\n                            <br/>\n                            \\(\\rightarrow\\)\n                            <u>\n                                uwaga\n                            </u>\n                            , funkcja\n                            <strong>\n                                nie maleje\n                            </strong>\n                            w zbiorze \\(\\mathbb{R}\\setminus\\{p\\}\\)\n                        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                            Jeśli \\(a\\lt 0\\), funkcja\n                            <strong>\n<span style=\"color: red\">\n                                    rośnie\n                                </span>\n</strong>\n                            w dwóch przedziałach: \\(x\\in (-\\infty,p)\\) oraz \\(x\\in(p,+\\infty)\\)\n                            <br/>\n                            \\(\\rightarrow\\)\n                            <u>\n                                uwaga\n                            </u>\n                            , funkcja\n                            <strong>\n                                nie rośnie\n                            </strong>\n                            w zbiorze \\(\\mathbb{R}\\setminus\\{p\\}\\)\n                        </p>"
+        }
+      ]
     }
   ],
   "fully_mapped": false,
-  "seed_hash": "e684efb709089e88d65fdb5bb5f78a08d1389685331225cad75ee1c0fcf277a4"
+  "seed_hash": "ced06c51e315ad4f61904d26ea44fa4d5971e96e30815cc6130cf24b952d1d72"
 }

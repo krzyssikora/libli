@@ -48,7 +48,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -66,7 +66,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -84,7 +84,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -102,7 +102,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -120,5 +120,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "d029fd77d3b77d44fbffd24e1ff0260fe6bf98c68555fbacaf72eae95d6fbf92"
+  "seed_hash": "84bab69e1e88215e4744954dac6360b1a94db8f6261ee425307c403779cd9699"
 }

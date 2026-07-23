@@ -10,103 +10,50 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p>\n            Przyjrzyj się ponownie ilustracji klasyfikacji czworokątów, którą wcześniej wprowadziliśmy.\n        </p>"
     },
     {
-      "type": "text",
-      "body": "\n<p>\n            Przyjrzyj się ponownie ilustracji klasyfikacji czworokątów, którą wcześniej wprowadziliśmy.\n        </p>\n<figure>\n<img src=\"static/klasyfikacja_czworokatow.png\" style=\"max-width: 100%;\"/>\n</figure>\n"
+      "type": "image",
+      "media_src": "static/klasyfikacja_czworokatow.png",
+      "alt": "",
+      "figcaption": ""
     },
     {
-      "type": "text",
-      "body": "<p>\n        Wskaż wszystkie poprawne odpowiedzi.\n    </p>"
-    },
-    {
-      "type": "text",
-      "body": "<p>\n        Każdy kwadrat jest też:\n    </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                trapezoidem\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                W trapezoidzie żadne boki nie są równoległe. A w kwadracie?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                deltoidem\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                W deltoidzie mamy dwie pary sąsiednich boków równej długości. A co jeśli boki z obu par są równej długości, a kąty proste?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                trapezem\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                W trapezie mamy <u>przynajmniej</u> jedną parę boków równoległych. A w kwadrarcie?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                równoległobokiem\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                W równoległoboku mamy dwie pary boków równoległych. A w kwadracie?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                prostokątem\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                W prostokącie wszystkie kąty są proste. A w kwadracie?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                rombem\n            "
-    },
-    {
-      "type": "text",
-      "body": "<input class=\"mult_choice\" type=\"checkbox\"/>"
-    },
-    {
-      "type": "text",
-      "body": "\n                W rombie wszystkie boki są równej długości. A w kwadracie?\n            "
-    },
-    {
-      "type": "text",
-      "body": "potwierdź "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! Wybrałaś/-eś poprawnie.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Nie wybrałaś/-eś wszystkich odpowiedzi.\n    "
+      "type": "choice",
+      "stem": "",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "trapezoidem",
+          "is_correct": false,
+          "feedback": "W trapezoidzie żadne boki nie są równoległe. A w kwadracie?"
+        },
+        {
+          "text": "deltoidem",
+          "is_correct": true,
+          "feedback": "W deltoidzie mamy dwie pary sąsiednich boków równej długości. A co jeśli boki z obu par są równej długości, a kąty proste?"
+        },
+        {
+          "text": "trapezem",
+          "is_correct": true,
+          "feedback": "W trapezie mamy przynajmniej jedną parę boków równoległych. A w kwadrarcie?"
+        },
+        {
+          "text": "równoległobokiem",
+          "is_correct": true,
+          "feedback": "W równoległoboku mamy dwie pary boków równoległych. A w kwadracie?"
+        },
+        {
+          "text": "prostokątem",
+          "is_correct": true,
+          "feedback": "W prostokącie wszystkie kąty są proste. A w kwadracie?"
+        },
+        {
+          "text": "rombem",
+          "is_correct": true,
+          "feedback": "W rombie wszystkie boki są równej długości. A w kwadracie?"
+        }
+      ]
     },
     {
       "type": "text",
@@ -114,11 +61,31 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Co wiemy o przekątnych...\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>prostokąta</td>\n<td><div class=\"show_solution ks_button\">zobacz</div></td>\n<td>\n<div class=\"question_solution hidden\">\n                            są równej długości i przecinają się w połowie\n                        </div>\n</td>\n<td><div class=\"question_answer\"></div></td>\n</tr>\n<tr>\n<td>rombu</td>\n<td><div class=\"show_solution ks_button\">zobacz</div></td>\n<td>\n<div class=\"question_solution hidden\">\n                            przecinają się pod kątem prostym\n                        </div>\n</td>\n<td><div class=\"question_answer\"></div></td>\n</tr>\n</table>\n</div>\n"
+      "body": "<p>\n            Co wiemy o przekątnych...\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "prostokąta",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>są równej długości i przecinają się w połowie</p>"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "rombu",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>przecinają się pod kątem prostym</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -143,5 +110,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "c5c8989c77c4374d1816f5a6a136645b71d8115f7ac782a8da44000f4072ff03"
+  "seed_hash": "682a716e4fbc823417deff6af3b966cc0ac8592d47f9a8dba7d85f06898b1cca"
 }

@@ -13,6 +13,6 @@
       "body": "<ol>\n<li>\n<a href=\"#uzywanie_tablic_trygonometrycznych\">\n                Używanie tablic trygonometrycznych\n            </a>\n</li>\n<li>\n<a href=\"#zastosowania_podjazd\">\n                Zastosowania - podjazd dla wózków\n            </a>\n</li>\n<li>\n<a href=\"#zastosowania_pole_trojkata\">\n                Zastosowania - pole trójkąta\n            </a>\n<ul>\n<li>\n<a href=\"#wzor_na_pole_trojkata\">\n                        Wzór na pole trójkąta\n                    </a>\n</li>\n</ul>\n</li>\n</ol>"
     }
   ],
-  "fully_mapped": false,
+  "fully_mapped": true,
   "seed_hash": "4554cde62e1eca0aa789c0753ca1e1882c27d1ddffc5a732e45b9e19a60f2e99"
 }

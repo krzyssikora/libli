@@ -34,11 +34,48 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W poniższym aplecie widzisz dwa wektory. Możesz zmieniać jeden z nich przesuwając jego koniec - punkt oznaczony na pomarańczowo.\n        </p>\n<p>\n            Nieruchomy wektor ma współrzędne \\(\\color{blue}{[2,3]}\\).\n        </p>\n<p>\n            Przesuń <span style=\"color: orange\">pomarańczowy</span> punkt tak, aby wektory były prostopadłe.\n        </p>\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                    Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                </small>\n<br/>\n<small>\n                    Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                </small>\n</div>\n<iframe height=\"537px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/vcgveh9y/width/465/height/537/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"wektory prostopadłe\" width=\"465px\"> </iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                        aplet nie działa poprawnie?\n                    </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                        Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                        <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                            ten email\n                        </a>\n                        .\n                    </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n<ol class=\"bold\">\n<li>\n                Jakie są współrzędne wektora prostopadłego do wektora \\(\\color{blue}{[2,3]}\\) (o tej samej długości)?\n            </li>\n<li>\n                Jakie są współrzędne wektora prostopadłego do wektora \\(\\color{blue}{[A,B]}\\) (o tej samej długości)?\n            </li>\n</ol>\n<details>\n<summary>przeczytaj!</summary>\n<ol class=\"bold\">\n<li>\n<p>\n                        Współrzędne wektora prostopadłego do wektora \\(\\color{blue}{[2,3]}\\) (o tej samej długości) to \\(\\color{blue}{[3, -2]}\\). \n                    </p>\n<p>\n                        Poprawną odpowiedzią jest też wektor przeciwny do \\(\\color{blue}{[3, -2]}\\), czyli \\(\\color{blue}{[-3, 2]}\\). \n                    </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_550_1.png\" style=\"max-height: 400px; background-color: white;\"/>\n</figure>\n</li>\n<li>\n                    Współrzędne wektora prostopadłego do wektora \\(\\color{blue}{[A,B]}\\) (o tej samej długości) to \n                    <ul class=\"nolist\">\n<li>\n                            albo \\(\\color{blue}{[B, -A]}\\)\n                        </li>\n<li>\n                            albo \\(\\color{blue}{[-B, A]}\\).\n                        </li>\n</ul>\n</li>\n</ol>\n</details>\n"
+      "body": "<p>\n            W poniższym aplecie widzisz dwa wektory. Możesz zmieniać jeden z nich przesuwając jego koniec - punkt oznaczony na pomarańczowo.\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Nieruchomy wektor ma współrzędne \\(\\color{blue}{[2,3]}\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Przesuń <span style=\"color: orange\">pomarańczowy</span> punkt tak, aby wektory były prostopadłe.\n        </p>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/vcgveh9y/width/465/height/537/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                Jakie są współrzędne wektora prostopadłego do wektora \\(\\color{blue}{[2,3]}\\) (o tej samej długości)?\n            </li>\n<li>\n                Jakie są współrzędne wektora prostopadłego do wektora \\(\\color{blue}{[A,B]}\\) (o tej samej długości)?\n            </li>\n</ol>"
+    },
+    {
+      "type": "spoiler",
+      "label": "przeczytaj!",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p><p>\n                        Współrzędne wektora prostopadłego do wektora \\(\\color{blue}{[2,3]}\\) (o tej samej długości) to \\(\\color{blue}{[3, -2]}\\). \n                    </p>\n<p>\n                        Poprawną odpowiedzią jest też wektor przeciwny do \\(\\color{blue}{[3, -2]}\\), czyli \\(\\color{blue}{[-3, 2]}\\). \n                    </p></p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_550_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p><li>\n                    Współrzędne wektora prostopadłego do wektora \\(\\color{blue}{[A,B]}\\) (o tej samej długości) to \n                    <ul class=\"nolist\">\n<li>\n                            albo \\(\\color{blue}{[B, -A]}\\)\n                        </li>\n<li>\n                            albo \\(\\color{blue}{[-B, A]}\\).\n                        </li>\n</ul>\n</li></p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -54,7 +91,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -63,11 +100,86 @@
     {
       "type": "spoiler",
       "label": "zobacz rozwiązanie",
-      "body": "\n\n<div class=\"steps\">\n<p>\n                    Zaczynamy od współczynników \\(x\\)-a i \\(y\\)-a danej prostej:\n                </p>\n                \\[\n                2x+5y+\\dots\n                \\]\n                <div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                        Zamieniamy współczynniki miejscami:\n                    </p>\n                    \\[\n                    5x+2y+\\dots\n                    \\]\n                </div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                        I zamieniamy jeden znak na przeciwny.\n                    </p>\n<p>\n                        Dowolny znak. Mi podoba się, że współczynnik \\(x\\)-a jest dodatni, więc go nie ruszam i zmieniam znak współczynnika \\(y\\)-a. Gdyby któryś ze współczynników był ujemny, możnaby go zmienić na dodatni.\n                    </p>\n                    \\[\n                    5x\\color{red}{-}2y+...\n                    \\]\n                </div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                        Brakuje już tylko trzeciego współczynnika, równanie ma postać:\n                    </p>\n                    \\[\n                    5x-2y+C=0\n                    \\]\n                </div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                        Aby znaleźć wartość współczynnika \\(C\\), podstawiamy współrzędne punktu \\((1,3)\\):\n                    </p>\n                    \\[\n                    \\begin{align}\n                    5x-2y+C&amp;=0\\\\\n                    5\\cdot 1-2\\cdot 3+C&amp;=0\\\\\n                    5-6+C&amp;=0\\\\\n                    -1+C&amp;=0\\\\\n                    C&amp;=1\n                    \\end{align}\n                    \\]\n                </div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                        Równanie szukanej prostej prostopadłej to\n                    </p>\n                    \\[\n                    5x-2y+1=0\n                    \\]\n                    <figure>\n<img src=\"static/geometria_analityczna_2_zadanie_560.png\" style=\"max-height: 300px;\"/>\n</figure>\n</div>\n</div>\n"
-    },
-    {
-      "type": "text",
-      "body": "<p></p>"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                    Zaczynamy od współczynników \\(x\\)-a i \\(y\\)-a danej prostej:\n                </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                2x+5y+\\dots\n                "
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Zamieniamy współczynniki miejscami:\n                    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                    5x+2y+\\dots\n                    "
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        I zamieniamy jeden znak na przeciwny.\n                    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Dowolny znak. Mi podoba się, że współczynnik \\(x\\)-a jest dodatni, więc go nie ruszam i zmieniam znak współczynnika \\(y\\)-a. Gdyby któryś ze współczynników był ujemny, możnaby go zmienić na dodatni.\n                    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                    5x\\color{red}{-}2y+...\n                    "
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Brakuje już tylko trzeciego współczynnika, równanie ma postać:\n                    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                    5x-2y+C=0\n                    "
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Aby znaleźć wartość współczynnika \\(C\\), podstawiamy współrzędne punktu \\((1,3)\\):\n                    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                    \\begin{align}\n                    5x-2y+C&=0\\\\\n                    5\\cdot 1-2\\cdot 3+C&=0\\\\\n                    5-6+C&=0\\\\\n                    -1+C&=0\\\\\n                    C&=1\n                    \\end{align}\n                    "
+        },
+        {
+          "type": "reveal_gate",
+          "label": "pokaż dalej"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                        Równanie szukanej prostej prostopadłej to\n                    </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n                    5x-2y+1=0\n                    "
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_560.png",
+          "alt": "",
+          "figcaption": ""
+        }
+      ]
     },
     {
       "type": "text",
@@ -104,11 +216,84 @@
     {
       "type": "spoiler",
       "label": "wyjaśnienie - sposób alternatywny",
-      "body": "\n\n<p>\n            Zamień jedną z prostych na prostopadłą, na przykład drugą.\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TC\">\n<tr>\n<td>bez zmian</td>\n<td>zmieniona</td>\n</tr>\n<tr>\n<td>\\(A_1x+B_1y+C_1=0\\)</td>\n<td>\\(B_2x-A_2y+\\dots=0\\)</td>\n</tr>\n</table>\n</div>\n<p>\n            Dane proste są prostopadłe wtedy i tylko wtedy, gdy te dwie są równoległe.\n        </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_prostopadle_przez_rownolegle.png\" style=\"max-height: 300px;\"/>\n</figure>\n<p>\n            A te dwie są równoległe wtedy i tylko wtedy, gdy współczynniki \\(x\\)-ów i \\(y\\)-ów są proporcjonalne, czyli\n        </p>\n        \\[\n        \\frac{A_1}{B_1}=\\frac{B_2}{-A_2}\n        \\]\n        <p>\n            Wymnażając proporcję na skos otrzymujemy\n        </p>\n        \\[\n        -A_1A_2=B_1B_2\n        \\]\n        <p>\n            A po przeniesieniu wyrazów na jedną stronę otrzymujemy sformułowany wyżej warunek:\n        </p>\n        \\[\n        A_1A_2+B_1B_2=0\n        \\]\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n            Zamień jedną z prostych na prostopadłą, na przykład drugą.\n        </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "bez zmian",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "zmieniona",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(A_1x+B_1y+C_1=0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(B_2x-A_2y+\\dots=0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Dane proste są prostopadłe wtedy i tylko wtedy, gdy te dwie są równoległe.\n        </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_prostopadle_przez_rownolegle.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            A te dwie są równoległe wtedy i tylko wtedy, gdy współczynniki \\(x\\)-ów i \\(y\\)-ów są proporcjonalne, czyli\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        \\frac{A_1}{B_1}=\\frac{B_2}{-A_2}\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Wymnażając proporcję na skos otrzymujemy\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        -A_1A_2=B_1B_2\n        "
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            A po przeniesieniu wyrazów na jedną stronę otrzymujemy sformułowany wyżej warunek:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        A_1A_2+B_1B_2=0\n        "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -120,5 +305,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "449783cdadc9d956f9a5c34f445b883b5c5e3cadf745cc66e33a158b0246f85c"
+  "seed_hash": "7764801d6fc7320acf6e4992c7367f9bfebe053e3c97f72a36121b5abd200522"
 }

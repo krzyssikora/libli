@@ -2,18 +2,504 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
       "body": "\n        Dla jakich wartości parametru \\(m\\) prosta \\(y=mx+1\\) jest styczna do okręgu o równaniu \\((x+5)^2+(y-6)^2=10\\)?\n    "
     },
     {
-      "type": "spoiler",
-      "label": "rozwiązanie",
-      "body": "\n\n<style>\n            .nlist, .olist {\n                counter-reset: list-counter; /* Initialize the counter */\n                list-style: none; /* Remove default numbering */\n                padding-left: 0;\n            }\n    \n            .nlist li, .olist li {\n                counter-increment: list-counter; /* Increase counter */\n                margin: 5px 0;\n            }\n    \n            .nlist li::before {\n                content: counter(list-counter) \". (N) \"; /* Custom numbering */\n                font-weight: bold;\n            }\n\n            .olist li::before {\n                content: counter(list-counter) \". (O) \"; /* Custom numbering */\n                font-weight: bold;\n            }\n        </style>\n<div>\n<p>\n                Rozwiążemy to zadanie na dwa sposoby. A każdy sposób możesz poznać w dwóch wersjach - oglądając <strong>N</strong>agranie lub czytając <strong>O</strong>pis rozwiązania. Tak więc przed Tobą:\n            </p>\n<ol class=\"bold\">\n<li>metoda 1 - z układem równań</li>\n<li>metoda 2 - z odległością środka okręgu od stycznej</li>\n</ol>\n<p>\n                czyli\n            </p>\n<ol class=\"nlist\">\n<li>nagranie metody z układem równań</li>\n<li>nagranie metody z odległością środka okręgu od stycznej</li>\n</ol>\n<ol class=\"olist\">\n<li>opis metody z układem równań</li>\n<li>opis metody z odległością środka okręgu od stycznej</li>\n</ol>\n</div>\n<div class=\"ks_tabs\" id=\"tabs-2\">\n<ul>\n<li style=\"min-width: 10%;\">\n<a class=\"chosen\" href=\"#tabcontent-2-1\" id=\"tab-2-1\">1 (N)</a>\n</li>\n<li style=\"min-width: 10%;\">\n<a href=\"#tabcontent-2-2\" id=\"tab-2-2\">2 (N)</a>\n</li>\n<li style=\"min-width: 10%;\">\n<a href=\"#tabcontent-2-3\" id=\"tab-2-3\">1 (O)</a>\n</li>\n<li style=\"min-width: 10%;\">\n<a href=\"#tabcontent-2-4\" id=\"tab-2-4\">2 (O)</a>\n</li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-2-1\">\n<p>\n<strong>analiza zadania</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometria_analityczna_2_zadanie_1180_1.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<strong>układ równań</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometria_analityczna_2_zadanie_1180_2.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<strong>równanie kwadratowe</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometria_analityczna_2_zadanie_1180_3.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<strong>odpowiedź</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometria_analityczna_2_zadanie_1180_4.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-2-2\">\n<p>\n<strong>analiza zadania</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometria_analityczna_2_zadanie_1180_11.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<strong>odległość środka okręgu od stycznej</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometria_analityczna_2_zadanie_1180_12.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<strong>równanie kwadratowe</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometria_analityczna_2_zadanie_1180_13.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<strong>odpowiedź</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/geometria_analityczna_2_zadanie_1180_4.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-2-3\">\n<div id=\"question1184\">\n<div class=\"steps\">\n<p>\n                            Prosta ma być styczna do okręgu, czyli układ równań\n                        </p>\n<div class=\"table_wrapper\">\n                            \\[\n                            \\begin{cases}\n                            (x+5)^2+(y-6)^2=10\\\\\n                            y=mx+1\n                            \\end{cases}\n                            \\]\n                        </div>\n<p>\n                            ma <strong>dokładnie jedno</strong> rozwiązanie.\n                        </p>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Zacznijmy rozwiązywać układ równań. W tym celu podstawimy równanie prostej do równania okręgu.\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{cases}\n                                (x+5)^2+(y-6)^2=10\\\\\n                                \\color{red}{y=mx+1}\n                                \\end{cases}\n                                \\]\n                                \\[\n                                \\Downarrow\n                                \\]\n                                \\[\n                                (x+5)^2+(\\color{red}{mx+1}-6)^2=10\n                                \\]\n                            </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Uprośćmy otrzymane równanie:\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                (x+5)^2+(mx+1-6)^2&amp;=10\\\\\n                                (x+5)^2+(mx-5)^2&amp;=10\\\\\n                                x^2+10x+25+m^2x^2-10mx+25-10&amp;=0\n                                \\end{align}\n                                \\]\n                            </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Teraz pogrupujemy wyrazy wedle potęg \\(x\\)-ów:\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                x^2+10x+25+m^2x^2-10mx+25-10&amp;=0\\\\\n                                x^2+m^2x^2+10x-10mx+25+25-10&amp;=0\\\\\n                                (1+m^2)x^2+(10-10m)x+40&amp;=0\n                                \\end{align}\n                                \\]\n                            </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Otrzymaliśmy równanie kwadratowe.\n                            </p>\n<div class=\"table_wrapper\">\n<table class=\"narrow_table table_centered cells_right\">\n<tr>\n<td>\\((1+m^2)\\)</td>\n<td>\\(x^2+\\)</td>\n<td>\\((10-10m)\\)</td>\n<td>\\(x+\\)</td>\n<td>\\(40\\)</td>\n<td>\\(=0\\)</td>\n</tr>\n<tr>\n<td>\\(A\\)</td>\n<td>\\(x^2+\\)</td>\n<td>\\(B\\)</td>\n<td>\\(x+\\)</td>\n<td>\\(C\\)</td>\n<td>\\(=0\\)</td>\n</tr>\n</table>\n</div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                To równanie ma <strong>dokładnie jedno</strong> rozwiązanie, a to oznacza, że\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                \\Delta&amp;=0\\\\\n                                B^2-4AC&amp;=0\\\\\n                                (10-10m)^2-4(1+m^2)\\cdot(40)&amp;=0\n                                \\end{align}\n                                \\]\n                            </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Uprośćmy to równanie:\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                (10-10m)^2-4(1+m^2)\\cdot(40)&amp;=0\\\\\n                                100-200m+100m^2-160-160m^2&amp;=0\\\\\n                                -60m^2-200m-60&amp;=0\\\\\n                                3m^2+10m+3&amp;=0\\\\\n                                \\end{align}\n                                \\]\n                            </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Wiemy więc, że\n                            </p>\n<ul class=\"nolist\">\n<li>prosta jest styczna do okręgu</li>\n<li>czyli układ równań ma jedno rozwiązanie</li>\n<li>czyli równanie kwadratowe ma jedno rozwiązanie</li>\n</ul>\n<p>\n                                gdy \\(3m^2+10m+3=0\\).\n                            </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Rozwiążmy to równanie. Zacznijmy od obliczenia delty. Aby nie pomylić jej z deltą początkowego równania kwadratowego (\\(\\Delta\\)), oznaczmy ją małą grecką literą \\(\\delta\\).\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                \\delta&amp;=10^2-4\\cdot 3\\cdot 3=\\\\\n                                &amp;=100-36=\\\\\n                                &amp;=64\n                                \\end{align}\n                                \\]\n                            </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                I teraz możemy obliczyć wartości \\(m\\):\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                m&amp;=\\frac{-10\\pm\\sqrt{64}}{2\\cdot 3}=\\\\\n                                &amp;=\\frac{-10\\pm 8}{6}=\\\\\n                                &amp;=\\frac{-18}{6}\\text{ lub }\\frac{-2}{6}=\\\\\n                                &amp;=-3\\text{ lub }\\frac{-1}{3}\n                                \\end{align}\n                                \\]\n                            </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Prosta \\(y=mx+1\\) jest styczna do okręgu \\((x+5)^2+(y-6)^2=10\\) dla \\(m=-3\\) i dla \\(m=-\\frac{1}{3}\\).\n                            </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1184.png\" style=\"max-height: 300px;\"/>\n</figure>\n</div>\n</div>\n</div>\n</div>\n<div id=\"tabcontent-2-4\">\n<div id=\"question1186\">\n<div class=\"steps\">\n<p>\n                            Aby prosta była styczna do okręgu, <u><strong>odległość środka okręgu od tej prostej</strong> musi być równa <strong>promieniowi</strong></u>.\n                        </p>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Środek okręgu \\((x+5)^2+(y-6)^2=10\\) to punkt \\((-5,6)\\).\n                            </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Promień okręgu \\((x+5)^2+(y-6)^2=10\\) to \\(\\sqrt{10}\\).\n                            </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Chcemy więc, by\n                            </p>\n<div class=\"centered\">\n<span class=\"myequation\">odległość \\((-5,6)\\) od \\(y=mx+1\\)</span> \\(= \\sqrt{10}\\)\n                            </div>\n<details>\n<summary>pamiętasz wzór na odległość punktu od prostej?</summary>\n<div class=\"important\">\n<p>\n                                        Odległość \\(d\\) punktu o współrzędnych \\((x_0, y_0)\\) od prostej o równaniu \\(Ax+By+C=0\\) jest dana wzorem\n                                    </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_odleglosc_punktu_od_prostej_wzor.png\" style=\"max-height: 300px;\"/>\n</figure>\n<div class=\"table_wrapper\">\n                                        \\[\n                                        \\color{orange}{d}=\\frac{|\\color{blue}{A\\cdot\\color{red}{x_0}+B\\cdot\\color{red}{y_0}+C}|}{\\sqrt{A^2+B^2}}\n                                        \\]\n                                    </div>\n</div>\n<!-- INTERNAL LINK -->\n</details>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Równanie ogólne (potrzebne do wzoru) prostej \\(y=mx+1\\) to \\(mx-y+1=0\\).\n                            </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Odległość środka okręgu od prostej jest równa \\(\\sqrt{10}\\), więc:\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\frac{|m\\cdot(-5)-1\\cdot 6+1|}{\\sqrt{m^2+1^2}}=\\sqrt{10}\n                                \\]\n                            </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Uprośćmy równanie:\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\frac{|-5m-5|}{\\sqrt{m^2+1}}=\\sqrt{10}\n                                \\]\n                            </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Aby rozwiązać takie równanie, podniesiemy obie strony do kwadratu:\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                \\frac{|-5m-5|^2}{(\\sqrt{m^2+1})^2}&amp;=(\\sqrt{10})^2\\\\\n                                \\frac{(-5m-5)^2}{m^2+1}&amp;=10\n                                \\end{align}\n                                \\]\n                            </div>\n<p>\n                                Zauważ, że wartość bezwzględna wyrażenia w liczniku nie jest już nam potrzebna - wyrażenie podniesione do kwadratu i tak nie będzie ujemne. \n                            </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Pomnóżmy obie strony równania przez mianownik ułamka i uprośćmy:\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                \\frac{(-5m-5)^2}{m^2+1}&amp;=10\\\\\n                                (-5m-5)^2&amp;=10(m^2+1)\\\\\n                                25m^2+50m+25&amp;=10m^2+10\\\\\n                                15m^2+50m+15&amp;=0\\\\\n                                3m^2+10m+3&amp;=0\n                                \\end{align}\n                                \\]\n                            </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Wiemy więc, że\n                            </p>\n<ul class=\"nolist\">\n<li>prosta jest styczna do okręgu</li>\n<li>czyli odległość środka od prostej jest równa promieniowi</li>\n</ul>\n<p>\n                                gdy \\(3m^2+10m+3=0\\).\n                            </p>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Rozwiążmy to równanie. Zacznijmy od obliczenia delty \\(\\Delta\\).\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                \\Delta&amp;=10^2-4\\cdot 3\\cdot 3=\\\\\n                                &amp;=100-36=\\\\\n                                &amp;=64\n                                \\end{align}\n                                \\]\n                            </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                I teraz możemy obliczyć wartości \\(m\\):\n                            </p>\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                m&amp;=\\frac{-10\\pm\\sqrt{64}}{2\\cdot 3}=\\\\\n                                &amp;=\\frac{-10\\pm 8}{6}=\\\\\n                                &amp;=\\frac{-18}{6}\\text{ lub }\\frac{-2}{6}=\\\\\n                                &amp;=-3\\text{ lub }\\frac{-1}{3}\n                                \\end{align}\n                                \\]\n                            </div>\n</div>\n<div class=\"show_next ks_button\">pokaż dalej</div>\n<div class=\"show_step\">\n<p>\n                                Prosta \\(y=mx+1\\) jest styczna do okręgu \\((x+5)^2+(y-6)^2=10\\) dla \\(m=-3\\) i dla \\(m=-\\frac{1}{3}\\).\n                            </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_1184.png\" style=\"max-height: 300px;\"/>\n</figure>\n</div>\n</div>\n</div>\n</div>\n</div>\n"
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                Rozwiążemy to zadanie na dwa sposoby. A każdy sposób możesz poznać w dwóch wersjach - oglądając <strong>N</strong>agranie lub czytając <strong>O</strong>pis rozwiązania. Tak więc przed Tobą:\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>metoda 1 - z układem równań</li>\n<li>metoda 2 - z odległością środka okręgu od stycznej</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n                czyli\n            </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"nlist\">\n<li>nagranie metody z układem równań</li>\n<li>nagranie metody z odległością środka okręgu od stycznej</li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"olist\">\n<li>opis metody z układem równań</li>\n<li>opis metody z odległością środka okręgu od stycznej</li>\n</ol>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "1 (N)",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n<strong>analiza zadania</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_1180_1.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>układ równań</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_1180_2.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>równanie kwadratowe</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_1180_3.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>odpowiedź</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_1180_4.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "2 (N)",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n<strong>analiza zadania</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_1180_11.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>odległość środka okręgu od stycznej</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_1180_12.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>równanie kwadratowe</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_1180_13.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>odpowiedź</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/geometria_analityczna_2_zadanie_1180_4.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000002",
+          "label": "1 (O)",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                            Prosta ma być styczna do okręgu, czyli układ równań\n                        </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                            \\[\n                            \\begin{cases}\n                            (x+5)^2+(y-6)^2=10\\\\\n                            y=mx+1\n                            \\end{cases}\n                            \\]\n                        "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                            ma <strong>dokładnie jedno</strong> rozwiązanie.\n                        </p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Zacznijmy rozwiązywać układ równań. W tym celu podstawimy równanie prostej do równania okręgu.\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{cases}\n                                (x+5)^2+(y-6)^2=10\\\\\n                                \\color{red}{y=mx+1}\n                                \\end{cases}\n                                \\]\n                                \\[\n                                \\Downarrow\n                                \\]\n                                \\[\n                                (x+5)^2+(\\color{red}{mx+1}-6)^2=10\n                                \\]\n                            "
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Uprośćmy otrzymane równanie:\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                (x+5)^2+(mx+1-6)^2&amp;=10\\\\\n                                (x+5)^2+(mx-5)^2&amp;=10\\\\\n                                x^2+10x+25+m^2x^2-10mx+25-10&amp;=0\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Teraz pogrupujemy wyrazy wedle potęg \\(x\\)-ów:\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                x^2+10x+25+m^2x^2-10mx+25-10&amp;=0\\\\\n                                x^2+m^2x^2+10x-10mx+25+25-10&amp;=0\\\\\n                                (1+m^2)x^2+(10-10m)x+40&amp;=0\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Otrzymaliśmy równanie kwadratowe.\n                            </p>"
+            },
+            {
+              "type": "table",
+              "data": {
+                "header_row": false,
+                "header_col": false,
+                "border": "grid",
+                "cells": [
+                  [
+                    {
+                      "html": "\\((1+m^2)\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(x^2+\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\((10-10m)\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(x+\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(40\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=0\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ],
+                  [
+                    {
+                      "html": "\\(A\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(x^2+\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(B\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(x+\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(C\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    },
+                    {
+                      "html": "\\(=0\\)",
+                      "halign": "left",
+                      "valign": "top"
+                    }
+                  ]
+                ]
+              }
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                To równanie ma <strong>dokładnie jedno</strong> rozwiązanie, a to oznacza, że\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                \\Delta&amp;=0\\\\\n                                B^2-4AC&amp;=0\\\\\n                                (10-10m)^2-4(1+m^2)\\cdot(40)&amp;=0\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Uprośćmy to równanie:\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                (10-10m)^2-4(1+m^2)\\cdot(40)&amp;=0\\\\\n                                100-200m+100m^2-160-160m^2&amp;=0\\\\\n                                -60m^2-200m-60&amp;=0\\\\\n                                3m^2+10m+3&amp;=0\\\\\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Wiemy więc, że\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul class=\"nolist\">\n<li>prosta jest styczna do okręgu</li>\n<li>czyli układ równań ma jedno rozwiązanie</li>\n<li>czyli równanie kwadratowe ma jedno rozwiązanie</li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                gdy \\(3m^2+10m+3=0\\).\n                            </p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Rozwiążmy to równanie. Zacznijmy od obliczenia delty. Aby nie pomylić jej z deltą początkowego równania kwadratowego (\\(\\Delta\\)), oznaczmy ją małą grecką literą \\(\\delta\\).\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                \\delta&amp;=10^2-4\\cdot 3\\cdot 3=\\\\\n                                &amp;=100-36=\\\\\n                                &amp;=64\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                I teraz możemy obliczyć wartości \\(m\\):\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                m&amp;=\\frac{-10\\pm\\sqrt{64}}{2\\cdot 3}=\\\\\n                                &amp;=\\frac{-10\\pm 8}{6}=\\\\\n                                &amp;=\\frac{-18}{6}\\text{ lub }\\frac{-2}{6}=\\\\\n                                &amp;=-3\\text{ lub }\\frac{-1}{3}\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Prosta \\(y=mx+1\\) jest styczna do okręgu \\((x+5)^2+(y-6)^2=10\\) dla \\(m=-3\\) i dla \\(m=-\\frac{1}{3}\\).\n                            </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometria_analityczna_2_zadanie_1184.png",
+              "alt": "",
+              "figcaption": ""
+            }
+          ]
+        },
+        {
+          "id": "t000003",
+          "label": "2 (O)",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n                            Aby prosta była styczna do okręgu, <u><strong>odległość środka okręgu od tej prostej</strong> musi być równa <strong>promieniowi</strong></u>.\n                        </p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Środek okręgu \\((x+5)^2+(y-6)^2=10\\) to punkt \\((-5,6)\\).\n                            </p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Promień okręgu \\((x+5)^2+(y-6)^2=10\\) to \\(\\sqrt{10}\\).\n                            </p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Chcemy więc, by\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n<span class=\"myequation\">odległość \\((-5,6)\\) od \\(y=mx+1\\)</span> \\(= \\sqrt{10}\\)\n                            "
+            },
+            {
+              "type": "spoiler",
+              "label": "pamiętasz wzór na odległość punktu od prostej?",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "<p>\n                                        Odległość \\(d\\) punktu o współrzędnych \\((x_0, y_0)\\) od prostej o równaniu \\(Ax+By+C=0\\) jest dana wzorem\n                                    </p>"
+                },
+                {
+                  "type": "image",
+                  "media_src": "static/geometria_analityczna_2_odleglosc_punktu_od_prostej_wzor.png",
+                  "alt": "",
+                  "figcaption": ""
+                },
+                {
+                  "type": "text",
+                  "body": "\n                                        \\[\n                                        \\color{orange}{d}=\\frac{|\\color{blue}{A\\cdot\\color{red}{x_0}+B\\cdot\\color{red}{y_0}+C}|}{\\sqrt{A^2+B^2}}\n                                        \\]\n                                    "
+                }
+              ]
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Równanie ogólne (potrzebne do wzoru) prostej \\(y=mx+1\\) to \\(mx-y+1=0\\).\n                            </p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Odległość środka okręgu od prostej jest równa \\(\\sqrt{10}\\), więc:\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\frac{|m\\cdot(-5)-1\\cdot 6+1|}{\\sqrt{m^2+1^2}}=\\sqrt{10}\n                                \\]\n                            "
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Uprośćmy równanie:\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\frac{|-5m-5|}{\\sqrt{m^2+1}}=\\sqrt{10}\n                                \\]\n                            "
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Aby rozwiązać takie równanie, podniesiemy obie strony do kwadratu:\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                \\frac{|-5m-5|^2}{(\\sqrt{m^2+1})^2}&amp;=(\\sqrt{10})^2\\\\\n                                \\frac{(-5m-5)^2}{m^2+1}&amp;=10\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Zauważ, że wartość bezwzględna wyrażenia w liczniku nie jest już nam potrzebna - wyrażenie podniesione do kwadratu i tak nie będzie ujemne. \n                            </p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Pomnóżmy obie strony równania przez mianownik ułamka i uprośćmy:\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                \\frac{(-5m-5)^2}{m^2+1}&amp;=10\\\\\n                                (-5m-5)^2&amp;=10(m^2+1)\\\\\n                                25m^2+50m+25&amp;=10m^2+10\\\\\n                                15m^2+50m+15&amp;=0\\\\\n                                3m^2+10m+3&amp;=0\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Wiemy więc, że\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "<ul class=\"nolist\">\n<li>prosta jest styczna do okręgu</li>\n<li>czyli odległość środka od prostej jest równa promieniowi</li>\n</ul>"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                gdy \\(3m^2+10m+3=0\\).\n                            </p>"
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Rozwiążmy to równanie. Zacznijmy od obliczenia delty \\(\\Delta\\).\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                \\Delta&amp;=10^2-4\\cdot 3\\cdot 3=\\\\\n                                &amp;=100-36=\\\\\n                                &amp;=64\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                I teraz możemy obliczyć wartości \\(m\\):\n                            </p>"
+            },
+            {
+              "type": "text",
+              "body": "\n                                \\[\n                                \\begin{align}\n                                m&amp;=\\frac{-10\\pm\\sqrt{64}}{2\\cdot 3}=\\\\\n                                &amp;=\\frac{-10\\pm 8}{6}=\\\\\n                                &amp;=\\frac{-18}{6}\\text{ lub }\\frac{-2}{6}=\\\\\n                                &amp;=-3\\text{ lub }\\frac{-1}{3}\n                                \\end{align}\n                                \\]\n                            "
+            },
+            {
+              "type": "reveal_gate",
+              "label": "pokaż dalej"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n                                Prosta \\(y=mx+1\\) jest styczna do okręgu \\((x+5)^2+(y-6)^2=10\\) dla \\(m=-3\\) i dla \\(m=-\\frac{1}{3}\\).\n                            </p>"
+            },
+            {
+              "type": "image",
+              "media_src": "static/geometria_analityczna_2_zadanie_1184.png",
+              "alt": "",
+              "figcaption": ""
+            }
+          ]
+        }
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "3ee3eabe7a61a357022d346c38cdaf9eb6cca2f4a562514134afa01b8a91631f"
+  "fully_mapped": true,
+  "seed_hash": "6b013a1b9990c7481273d4261db06a39e04f66a8fca88665e46b768d5a55d44e"
 }

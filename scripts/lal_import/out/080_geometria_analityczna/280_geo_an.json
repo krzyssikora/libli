@@ -34,13 +34,26 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        W poniższym aplecie możesz przesuwać prostą oraz zmieniać położenie i wielkość okręgu. Poniżej widzisz:\n        <ul class=\"nolist\">\n<li>\n<span style=\"color: blue\">\n                    równanie okręgu\n                </span>\n                ,\n            </li>\n<li>\n<span style=\"color: red\">\n                    równanie prostej\n                </span>\n                ,\n            </li>\n<li>\n<span style=\"color: green\">\n                    równanie powstałe po podstawieniu równania prostej do równania okręgu\n                </span>\n                ,\n            </li>\n<li>\n<span style=\"color: green\">\n                    informację, czy wyróżnik równania (delta) jest dodatni, zerowy, czy ujemny\n                </span>\n</li>\n</ul>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"811px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/dnqfvvut/width/525/height/811/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"przecięcia okręgu i prostej\" width=\"525px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n        Sprawdź, jak zmienia się wyróżnik w zależności od liczby punktów wspólnych prostej i okręgu.\n    "
+      "body": "<p>W poniższym aplecie możesz przesuwać prostą oraz zmieniać położenie i wielkość okręgu. Poniżej widzisz:</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul class=\"nolist\">\n<li>\n<span style=\"color: blue\">\n                    równanie okręgu\n                </span>\n                ,\n            </li>\n<li>\n<span style=\"color: red\">\n                    równanie prostej\n                </span>\n                ,\n            </li>\n<li>\n<span style=\"color: green\">\n                    równanie powstałe po podstawieniu równania prostej do równania okręgu\n                </span>\n                ,\n            </li>\n<li>\n<span style=\"color: green\">\n                    informację, czy wyróżnik równania (delta) jest dodatni, zerowy, czy ujemny\n                </span>\n</li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/dnqfvvut/width/525/height/811/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
+    },
+    {
+      "type": "text",
+      "body": "<p>Sprawdź, jak zmienia się wyróżnik w zależności od liczby punktów wspólnych prostej i okręgu.</p>"
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "8db144f0daf470cd3f0c1e170f748970173f58ec08168b264cadf915c6173c4c"
+  "seed_hash": "028a8dffd396a0881ccf4270b9127d2e436ee45695f47b6f3c5f23ad28dd7a75"
 }

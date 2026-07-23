@@ -26,7 +26,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "math",
@@ -35,11 +35,118 @@
     {
       "type": "spoiler",
       "label": "wzór ogólny",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<th>\\(a_n\\)</th>\n</tr>\n<tr>\n<td>\\(1\\)</td>\n<td>\\(1\\)</td>\n</tr>\n<tr>\n<td>\\(2\\)</td>\n<td>\\(2\\)</td>\n</tr>\n<tr>\n<td>\\(3\\)</td>\n<td>\\(2\\cdot 2\\)</td>\n</tr>\n<tr>\n<td>\\(4\\)</td>\n<td>\\(2\\cdot 2\\cdot 2\\)</td>\n</tr>\n<tr>\n<td>\\(5\\)</td>\n<td>\\(2\\cdot 2\\cdot 2\\cdot 2\\)</td>\n</tr>\n<tr>\n<td>\\(6\\)</td>\n<td>\\(2\\cdot 2\\cdot 2\\cdot 2\\cdot 2\\)</td>\n</tr>\n</table>\n</div>\n        Zauważ, że w każdym wyrazie mnożymy przez siebie dwójki - i jest ich mnożonych o \\(1\\) mniej, niż indeks wyrazu, \\(n\\).\n        <p>\n            Mnożenie przez siebie tej samej liczby to potęgowanie i dlatego\n        </p>\n        \\[\n        a_n=2^{n-1}\\quad\\text{dla }n=1, 2, 3,\\dots\n        \\]\n    "
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\cdot 2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\cdot 2\\cdot 2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\cdot 2\\cdot 2\\cdot 2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\cdot 2\\cdot 2\\cdot 2\\cdot 2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważ, że w każdym wyrazie mnożymy przez siebie dwójki - i jest ich mnożonych o \\(1\\) mniej, niż indeks wyrazu, \\(n\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Mnożenie przez siebie tej samej liczby to potęgowanie i dlatego\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        a_n=2^{n-1}\\quad\\text{dla }n=1, 2, 3,\\dots\n        "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "math",
@@ -48,11 +155,118 @@
     {
       "type": "spoiler",
       "label": "wzór ogólny",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<th>\\(b_n\\)</th>\n</tr>\n<tr>\n<td>\\(1\\)</td>\n<td>\\(0\\)</td>\n</tr>\n<tr>\n<td>\\(2\\)</td>\n<td>\\(2\\)</td>\n</tr>\n<tr>\n<td>\\(3\\)</td>\n<td>\\(2+2\\)</td>\n</tr>\n<tr>\n<td>\\(4\\)</td>\n<td>\\(2+2+2\\)</td>\n</tr>\n<tr>\n<td>\\(5\\)</td>\n<td>\\(2+2+2+2\\)</td>\n</tr>\n<tr>\n<td>\\(6\\)</td>\n<td>\\(2+2+2+2+2\\)</td>\n</tr>\n</table>\n</div>\n        Zauważ, że w każdym wyrazie dodajemy do siebie dwójki - i jest ich dodawanych o \\(1\\) mniej, niż indeks wyrazu, \\(n\\).\n        <p>\n            Dlatego\n        </p>\n        \\[\n        b_n=2\\cdot(n-1)\\quad\\text{dla }n=1, 2, 3,\\dots\n        \\]\n    "
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(b_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2+2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2+2+2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2+2+2+2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2+2+2+2+2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Zauważ, że w każdym wyrazie dodajemy do siebie dwójki - i jest ich dodawanych o \\(1\\) mniej, niż indeks wyrazu, \\(n\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Dlatego\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        b_n=2\\cdot(n-1)\\quad\\text{dla }n=1, 2, 3,\\dots\n        "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "math",
@@ -61,11 +275,172 @@
     {
       "type": "spoiler",
       "label": "wzór ogólny",
-      "body": "\n\n        Tym razem warto obliczyć kolejne wyrazy i zastanowić się, co dostajemy.\n        <div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n<td>\\(6\\)</td>\n<td>\\(7\\)</td>\n<td>\\(8\\)</td>\n<td>\\(9\\)</td>\n<td>\\(10\\)</td>\n<td>\\(11\\)</td>\n<td>\\(12\\)</td>\n</tr>\n<tr>\n<th>\\(c_n\\)</th>\n<th>\\(1\\)</th>\n<th>\\(4\\)</th>\n<th>\\(9\\)</th>\n<th>\\(16\\)</th>\n<th>\\(25\\)</th>\n<th>\\(36\\)</th>\n<th>\\(49\\)</th>\n<th>\\(64\\)</th>\n<th>\\(81\\)</th>\n<th>\\(100\\)</th>\n<th>\\(121\\)</th>\n<th>\\(144\\)</th>\n</tr>\n</table>\n</div>\n        Czy dostrzegasz zależność między numerem wyrazu \\(n\\) a wartością wyrazu \\(c_n\\)? \n        <p>\n            Wartości wyrazów to kwadraty kolejnych liczb naturalnych. A dokładnie:\n        </p> \n        \\[\n        c_n=n^2\\quad\\text{dla }n=1, 2, 3,\\dots\n        \\]\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Tym razem warto obliczyć kolejne wyrazy i zastanowić się, co dostajemy.</p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": true,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(7\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(9\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(10\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(11\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(12\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(c_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(9\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(16\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(25\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(36\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(49\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(64\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(81\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(100\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(121\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(144\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Czy dostrzegasz zależność między numerem wyrazu \\(n\\) a wartością wyrazu \\(c_n\\)?</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Wartości wyrazów to kwadraty kolejnych liczb naturalnych. A dokładnie:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        c_n=n^2\\quad\\text{dla }n=1, 2, 3,\\dots\n        "
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"example\">\n</p>"
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -78,7 +453,118 @@
     {
       "type": "spoiler",
       "label": "wzór ogólny",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>\\(n\\)</th>\n<th>\\(d_n\\)</th>\n</tr>\n<tr>\n<td>\\(1\\)</td>\n<td>\\(1\\)</td>\n</tr>\n<tr>\n<td>\\(2\\)</td>\n<td>\\(1\\cdot 2\\)</td>\n</tr>\n<tr>\n<td>\\(3\\)</td>\n<td>\\(1\\cdot 2\\cdot 3\\)</td>\n</tr>\n<tr>\n<td>\\(4\\)</td>\n<td>\\(1\\cdot 2\\cdot 3\\cdot 4\\)</td>\n</tr>\n<tr>\n<td>\\(5\\)</td>\n<td>\\(1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\)</td>\n</tr>\n<tr>\n<td>\\(6\\)</td>\n<td>\\(1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\cdot 6\\)</td>\n</tr>\n</table>\n</div>\n        Jak widzimy, wyraz o indeksie \\(n\\) to iloczyn kolejnych liczb naturalnych od \\(1\\) do \\(n\\). Czy wiesz, jak nazywamy taki iloczyn?\n        <p>\n            Jeśli nie wiesz, nie martw się, to jeszcze przed Tobą.\n        </p>\n<p>\n            Taki iloczyn nazywamy <strong><a href=\"https://pl.wikipedia.org/wiki/Silnia\">silnią</a></strong> i zapisujemy:\n        </p>\n        \\[\n        d_n=n!\\quad\\text{dla }n=1, 2, 3,\\dots\n        \\]\n    "
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": true,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "\\(n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(d_n\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\cdot 2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\cdot 2\\cdot 3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\cdot 2\\cdot 3\\cdot 4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "\\(6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\cdot 2\\cdot 3\\cdot 4\\cdot 5\\cdot 6\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>Jak widzimy, wyraz o indeksie \\(n\\) to iloczyn kolejnych liczb naturalnych od \\(1\\) do \\(n\\). Czy wiesz, jak nazywamy taki iloczyn?</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Jeśli nie wiesz, nie martw się, to jeszcze przed Tobą.\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Taki iloczyn nazywamy <strong><a href=\"https://pl.wikipedia.org/wiki/Silnia\">silnią</a></strong> i zapisujemy:\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        d_n=n!\\quad\\text{dla }n=1, 2, 3,\\dots\n        "
+        }
+      ]
     },
     {
       "type": "text",
@@ -95,9 +581,124 @@
     {
       "type": "spoiler",
       "label": "Jeśli masz ochotę, zerknij na przykład, który pokazuje, jak łatwo można się pomylić.",
-      "body": "\n\n    Problem okręgu Mosera (ang. <em>Moser's circle problem</em>) to następujące pytanie:\n    <p>\n        Jeśli na okręgu zaznaczymy \\(n=1, 2, 3,\\dots\\) punktów i połączymy każdą parę punktó cięciwą, to na ile obszarów cięciwy podzielą koło?\n    </p>\n<figure>\n<img src=\"static/mosers_circle_problem.png\" style=\"max-width: 80%; min-width: 500px;\"/>\n<figcaption>źródło: <a href=\"https://medium.com/@Quentinromero/mosers-circle-problem-false-induction-and-a-beautiful-solution-f26684c41e61\">Quentin Romero Lauro, Moser’s Circle Problem: False Induction and A Beautiful Solution. medium.com</a></figcaption>\n</figure>\n<p>\n        Okazuje się, że dla jednego, dwóch, trzech, czterech i pięciu punktów liczby obszarów tworzą bardzo ładny ciąg liczbowy - spójrz na rysunek wyżej.\n    </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<th>punktów</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(3\\)</td>\n<td>\\(4\\)</td>\n<td>\\(5\\)</td>\n</tr>\n<tr>\n<th>obszarów</th>\n<td>\\(1\\)</td>\n<td>\\(2\\)</td>\n<td>\\(4\\)</td>\n<td>\\(8\\)</td>\n<td>\\(16\\)</td>\n</tr>\n</table>\n</div>\n<p>\n        Jeśli \\(n\\) to liczba punktów na okręgu, to czy liczba obszarów jest po prostu potęgą dwójki, \\(2^{n-1}\\)?\n    </p>\n<p>\n        Tak może się wydawać, ale tak nie jest. Po zaznaczeniu szóstego punktu i dorysowaniu wszystkich cięciw, okazuje się, że obszarów jest nie \\(32\\) (czyli \\(2^5\\)), lecz... \\(31\\).\n    </p>\n<figure>\n<img src=\"static/patterns_fool_ya.png\" style=\"max-width: 80%; min-width: 500px;\"/>\n<figcaption>źródło: <a href=\"https://www.youtube.com/watch?v=YtkIWDE36qU\">3Blue1Brown, This pattern breaks, but for a good reason.</a></figcaption>\n</figure>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Problem okręgu Mosera (ang.</p>"
+        },
+        {
+          "type": "text",
+          "body": "<em>Moser's circle problem</em>"
+        },
+        {
+          "type": "text",
+          "body": "<p>) to następujące pytanie:</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Jeśli na okręgu zaznaczymy \\(n=1, 2, 3,\\dots\\) punktów i połączymy każdą parę punktó cięciwą, to na ile obszarów cięciwy podzielą koło?\n    </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/mosers_circle_problem.png",
+          "alt": "",
+          "figcaption": "źródło:Quentin Romero Lauro, Moser’s Circle Problem: False Induction and A Beautiful Solution. medium.com"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Okazuje się, że dla jednego, dwóch, trzech, czterech i pięciu punktów liczby obszarów tworzą bardzo ładny ciąg liczbowy - spójrz na rysunek wyżej.\n    </p>"
+        },
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": true,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "punktów",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(3\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(5\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "obszarów",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(2\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(4\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(8\\)",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(16\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Jeśli \\(n\\) to liczba punktów na okręgu, to czy liczba obszarów jest po prostu potęgą dwójki, \\(2^{n-1}\\)?\n    </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n        Tak może się wydawać, ale tak nie jest. Po zaznaczeniu szóstego punktu i dorysowaniu wszystkich cięciw, okazuje się, że obszarów jest nie \\(32\\) (czyli \\(2^5\\)), lecz... \\(31\\).\n    </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/patterns_fool_ya.png",
+          "alt": "",
+          "figcaption": "źródło:3Blue1Brown, This pattern breaks, but for a good reason."
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "31a44b4cf567901bdd989af24ad94f1a6becf38ed846b1fc34016bca350d6cb2"
+  "seed_hash": "37ea7ac859e984e2d05637124d60b3f4f98a6a406112fbf1bfce70c09d7b3709"
 }

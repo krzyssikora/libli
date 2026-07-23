@@ -11,7 +11,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -20,12 +20,62 @@
     {
       "type": "spoiler",
       "label": "dużopunktów wspólnych z osią \\(x\\)",
-      "body": "\n                        Prosta ma\n                        <strong>\n                            nieskończenie wiele\n                        </strong>\n                        punktów wspólnych z osią \\(x\\), jeśli się z nią\n                        <u>\n                            pokrywa\n                        </u>\n                        , tzn. jest to prosta o równaniu:\\[\\color{orange}{y=0}\\]\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Prosta ma</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n                            nieskończenie wiele\n                        </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>punktów wspólnych z osią \\(x\\), jeśli się z nią</p>"
+        },
+        {
+          "type": "text",
+          "body": "<u>\n                            pokrywa\n                        </u>"
+        },
+        {
+          "type": "text",
+          "body": "<p>, tzn. jest to prosta o równaniu:\\[\\color{orange}{y=0}\\]</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "brakpunktów wspólnych z osią \\(x\\)",
-      "body": "\n                        Prosta\n                        <strong>\n                            nie ma wcale\n                        </strong>\n                        punktów wspólnych z osią \\(x\\), jeśli jest to do osi \\(x\\)\n                        <u>\n                            równoległa\n                        </u>\n                        , tzn. jest to prosta o równaniu:\n                        \\[\\color{green}{y=c}\\]\n                        gdzie \\(c\\) jest dowolną liczbą\n                        <strong>\n                            różną od \\(0\\)\n                        </strong>\n                        .\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Prosta</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n                            nie ma wcale\n                        </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>punktów wspólnych z osią \\(x\\), jeśli jest to do osi \\(x\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<u>\n                            równoległa\n                        </u>"
+        },
+        {
+          "type": "text",
+          "body": "<p>, tzn. jest to prosta o równaniu:\n                        \\[\\color{green}{y=c}\\]\n                        gdzie \\(c\\) jest dowolną liczbą</p>"
+        },
+        {
+          "type": "text",
+          "body": "<strong>\n                            różną od \\(0\\)\n                        </strong>"
+        },
+        {
+          "type": "text",
+          "body": "<p>.</p>"
+        }
+      ]
     },
     {
       "type": "image",
@@ -35,5 +85,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "c065343dd29a8de24c7bb0c9259080701c4339d7e5b7fcfa8bef732bfe16bc83"
+  "seed_hash": "f232da7159e5bebba1258ab376adfd39ade600fb0b13ce49a047f11a69419370"
 }

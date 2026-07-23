@@ -2,7 +2,7 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -11,11 +11,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(\\left(-1\\tfrac{1}{2},-\\tfrac{1}{4}\\right)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\left(-1\\tfrac{1}{2},-\\tfrac{1}{4}\\right)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -24,11 +29,16 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(\\left(-2,-1\\tfrac{1}{2}\\right)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\left(-2,-1\\tfrac{1}{2}\\right)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -37,22 +47,36 @@
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(\\left(-2\\tfrac{1}{2},-2\\tfrac{1}{2}\\right)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\left(-2\\tfrac{1}{2},-2\\tfrac{1}{2}\\right)\\)</p>"
+        }
+      ]
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Na odcinku \\(AB\\) leży punkt \\(P\\) taki, że \\(|AP|:|PB|=3:5\\).\n        </p>\n<p>\n            Wiedząc, że \\(A=(1,4)\\) a \\(P=(-2,-2)\\), znajdź współrzędne punktu \\(P\\).\n        </p>\n"
+      "body": "<p>\n            Na odcinku \\(AB\\) leży punkt \\(P\\) taki, że \\(|AP|:|PB|=3:5\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Wiedząc, że \\(A=(1,4)\\) a \\(P=(-2,-2)\\), znajdź współrzędne punktu \\(P\\).\n        </p>"
     },
     {
       "type": "spoiler",
       "label": "odpowiedź",
-      "body": "\n\n        \\(\\left(-7,-12\\right)\\)\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\left(-7,-12\\right)\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "16cdd97e0717623be6acfac8589531710a010f696cdc50567aaca6333671b728"
+  "seed_hash": "cb2825a7d69cad4d5807f56cca024595110978eaba10f0bd011f92dfc3eb415b"
 }

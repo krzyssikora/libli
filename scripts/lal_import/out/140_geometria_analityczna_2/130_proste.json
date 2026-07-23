@@ -2,15 +2,111 @@
   "elements": [
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Dana jest prosta o równaniu kierunkowym \\(y=ax+b\\).\n        </p>\n<p>\n            Jak wygląda równanie prostej <strong>równoległej</strong> do danej?\n        </p>\n<p>\n            Jak wygląda równanie prostej <strong>prostopadłej</strong> do danej?\n        </p>\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>prosta równoległa</td>\n<td><div class=\"show_solution ks_button\">zobacz</div></td>\n<td>\n<div class=\"question_solution hidden\">\n<p>\n                                Proste równoległe mają <strong>równe współczynniki kierunkowe</strong>.\n                            </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_250_1.png\" style=\"max-height: 250px;\"/>\n</figure>\n<p>\n<strong>Inaczej:</strong>\n</p>\n<p>\n                                Prosta równoległa do prostej o równaniu \\(y=ax+b\\) ma współczynnik kierunkowy równy \\(a\\).\n                            </p>\n<p>\n<strong>Inaczej:</strong>\n</p>\n<p>\n                                Proste o równaniach:\n                            </p>\n<ul class=\"nolist\">\n<li>\\(y=a_1x+b_1\\) oraz</li>\n<li>\\(y=a_2x+b_2\\)</li>\n</ul>\n<p>\n                                są równoległe, jeśli mają równe współczynniki kierunkowe, czyli\n                            </p>\n                            \\[a_1=a_2\\]\n                        </div>\n</td>\n<td><span class=\"question_answer\"></span></td>\n</tr>\n<tr>\n<td>prosta prostopadła</td>\n<td><div class=\"show_solution ks_button\">zobacz</div></td>\n<td>\n<div class=\"question_solution hidden\">\n<p>\n                                Współczynniki kierunkowe prostych prostopadłych są <strong>przeciwne i odwrotne</strong> jednocześnie.\n                            </p>\n<figure>\n<img src=\"static/geometria_analityczna_2_zadanie_250_2.png\" style=\"max-height: 250px;\"/>\n</figure>\n<p>\n<strong>Inaczej:</strong>\n</p>\n<p>\n                                Prosta prostopadła do prostej o równaniu \\(y=ax+b\\) ma współczynnik kierunkowy równy \\(-\\frac{1}{a}\\).\n                            </p>\n<p>\n<strong>Inaczej:</strong>\n</p>\n<p>\n                                Proste o równaniach:\n                            </p>\n<ul class=\"nolist\">\n<li>\\(y=a_1x+b_1\\) oraz</li>\n<li>\\(y=a_2x+b_2\\)</li>\n</ul>\n<p>\n                                są prostopadłe, jeśli iloczyn ich współczynników kierunkowych jest równy \\(-1\\), czyli\n                            </p>\n                            \\[a_1\\cdot a_2=-1\\]\n                        </div>\n</td>\n<td><span class=\"question_answer\"></span></td>\n</tr>\n</table>\n</div>\n"
+      "body": "<p>\n            Dana jest prosta o równaniu kierunkowym \\(y=ax+b\\).\n        </p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"example\"></p>"
+      "body": "<p>\n            Jak wygląda równanie prostej <strong>równoległej</strong> do danej?\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>\n            Jak wygląda równanie prostej <strong>prostopadłej</strong> do danej?\n        </p>"
+    },
+    {
+      "type": "spoiler",
+      "label": "prosta równoległa",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                                Proste równoległe mają <strong>równe współczynniki kierunkowe</strong>.\n                            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_250_1.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Inaczej:</strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Prosta równoległa do prostej o równaniu \\(y=ax+b\\) ma współczynnik kierunkowy równy \\(a\\).\n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Inaczej:</strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Proste o równaniach:\n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\\(y=a_1x+b_1\\) oraz</li>\n<li>\\(y=a_2x+b_2\\)</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                są równoległe, jeśli mają równe współczynniki kierunkowe, czyli\n                            </p>"
+        },
+        {
+          "type": "math",
+          "latex": "a_1=a_2"
+        }
+      ]
+    },
+    {
+      "type": "spoiler",
+      "label": "prosta prostopadła",
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\n                                Współczynniki kierunkowe prostych prostopadłych są <strong>przeciwne i odwrotne</strong> jednocześnie.\n                            </p>"
+        },
+        {
+          "type": "image",
+          "media_src": "static/geometria_analityczna_2_zadanie_250_2.png",
+          "alt": "",
+          "figcaption": ""
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Inaczej:</strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Prosta prostopadła do prostej o równaniu \\(y=ax+b\\) ma współczynnik kierunkowy równy \\(-\\frac{1}{a}\\).\n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n<strong>Inaczej:</strong>\n</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                Proste o równaniach:\n                            </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul class=\"nolist\">\n<li>\\(y=a_1x+b_1\\) oraz</li>\n<li>\\(y=a_2x+b_2\\)</li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n                                są prostopadłe, jeśli iloczyn ich współczynników kierunkowych jest równy \\(-1\\), czyli\n                            </p>"
+        },
+        {
+          "type": "math",
+          "latex": "a_1\\cdot a_2=-1"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Przykład</strong></p>"
     },
     {
       "type": "text",
@@ -26,29 +122,38 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            Czy poniższe zdania są prawdziwe?\n        </p>\n"
+      "body": "<p>\n            Czy poniższe zdania są prawdziwe?\n        </p>"
     },
     {
-      "type": "text",
-      "body": "<ul>\n<li>\n<div class=\"statement\" data-width=\"300px\">\n                Proste \\(y=2x+3\\) i \\(y=2x-2\\) są równoległe.\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"300px\">\n                Proste \\(y=2x-5\\) i \\(y=-2x+5\\) są prostopadłe.\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"300px\">\n                Proste \\(y=-\\frac{2}{3}x\\) i \\(y=\\frac{2}{3}x+2\\) są równoległe.\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n<li>\n<div class=\"statement\" data-width=\"300px\">\n                Proste \\(y=\\frac{2}{3}x+4\\) i \\(y=-\\frac{3}{2}x-2\\) są prostopadłe.\n            </div>\n<div class=\"one_choice one_choice_50 ks_button\">tak</div>\n<div class=\"one_choice one_choice_50 ks_button\">nie</div>\n</li>\n</ul>"
-    },
-    {
-      "type": "text",
-      "body": "potwierdź "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! Wszystkie odpowiedzi sa poprawne.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Zastanów się jeszcze. Poprawnych odpowiedzi: \n    "
+      "type": "choice_grid",
+      "columns": [
+        "tak",
+        "nie"
+      ],
+      "rows": [
+        {
+          "statement": "Proste \\(y=2x+3\\) i \\(y=2x-2\\) są równoległe.",
+          "correct": 0
+        },
+        {
+          "statement": "Proste \\(y=2x-5\\) i \\(y=-2x+5\\) są prostopadłe.",
+          "correct": 1
+        },
+        {
+          "statement": "Proste \\(y=-\\frac{2}{3}x\\) i \\(y=\\frac{2}{3}x+2\\) są równoległe.",
+          "correct": 1
+        },
+        {
+          "statement": "Proste \\(y=\\frac{2}{3}x+4\\) i \\(y=-\\frac{3}{2}x-2\\) są prostopadłe.",
+          "correct": 0
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "f7b38e42655ada895a31af4e4be01e983102b3bfa5eab67809a30cb7f724f2ce"
+  "seed_hash": "05b62f1cc0f440566b7c12b6d9ae45fce80e45660ec2250399858a0036b191f8"
 }

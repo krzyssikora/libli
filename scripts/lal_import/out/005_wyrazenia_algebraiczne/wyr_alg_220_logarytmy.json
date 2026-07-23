@@ -77,21 +77,122 @@
       "body": "<p>\n            Zauważ, że oba poniższe logarytmy mają stałą wartość, niezależnie od wartości \\(a\\).\n        </p>"
     },
     {
+      "type": "text",
+      "body": "<p>\\(\\log_a a=\\)</p>"
+    },
+    {
       "type": "spoiler",
       "label": "\\(\\log_a a=1\\)",
-      "body": "\n                        \\(\\log_a a=1\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\log_a a=1\\)</p>"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "body": "<p>\\(\\log_a 1=\\)</p>"
     },
     {
       "type": "spoiler",
       "label": "\\(\\log_a 1=0\\)",
-      "body": "\n                        \\(\\log_a 1=0\\)\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>\\(\\log_a 1=0\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "Kliknij, by zobaczyć kilka ważnych wzorów.",
-      "body": "\n\n<div class=\"important\">\n<div>\n<div class=\"table_wrapper\">\n<table class=\"my_table_noborder\">\n<tr>\n<td>\n                            1.\n                        </td>\n<td>\n                            \\(\\log_a a = 1\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            2.\n                        </td>\n<td>\n                            \\(\\log_a 1 = 0\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            3.\n                        </td>\n<td>\n                            \\(\\log_a a^x = x\\)\n                        </td>\n</tr>\n<tr>\n<td>\n                            4.\n                        </td>\n<td>\n                            \\(a^{\\log_a x}=x\\)\n                        </td>\n</tr>\n</table>\n</div>\n</div>\n<p>\n            Zwróć uwagę, że wzory 3. i 4. wskazują na to, że\n        </p>\n<ul>\n<li>\n                potęga o podstawie \\(a\\) oraz\n            </li>\n<li>\n                logarytm o podstawie \\(a\\)\n            </li>\n</ul>\n<p>\n            to operacje odwrotne, tzn. że dla dowolnej liczby \\(x\\), jeśli\n        </p>\n<ul>\n<li>\n                obliczymy z niej najpierw potęgę o podstawie \\(a\\)\n            </li>\n<li>\n                a potem z wyniku logarytm o podstawie \\(a\\)\n            </li>\n</ul>\n<p>\n            (lub odwrotnie) to otrzymamy spowrotem liczbę \\(x\\).\n        </p>\n        \\[\n        x\\quad\\xrightarrow{\\text{potęga o podstawie }a}\\quad a^x\\quad\\xrightarrow{\\text{logarytm po podstawie }a}\\quad \\log_a a^x=x\n        \\]\n        \\[\n        x\\quad\\xrightarrow{\\text{logarytm o podstawie }a}\\quad\\log_a x\\quad\\xrightarrow{\\text{potęga po podstawie }a}\\quad a^{\\log_a x}=x\n        \\]\n    </div>\n"
+      "elements": [
+        {
+          "type": "table",
+          "data": {
+            "header_row": false,
+            "header_col": false,
+            "border": "grid",
+            "cells": [
+              [
+                {
+                  "html": "1.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\log_a a = 1\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "2.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\log_a 1 = 0\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "3.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(\\log_a a^x = x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ],
+              [
+                {
+                  "html": "4.",
+                  "halign": "left",
+                  "valign": "top"
+                },
+                {
+                  "html": "\\(a^{\\log_a x}=x\\)",
+                  "halign": "left",
+                  "valign": "top"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            Zwróć uwagę, że wzory 3. i 4. wskazują na to, że\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                potęga o podstawie \\(a\\) oraz\n            </li>\n<li>\n                logarytm o podstawie \\(a\\)\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            to operacje odwrotne, tzn. że dla dowolnej liczby \\(x\\), jeśli\n        </p>"
+        },
+        {
+          "type": "text",
+          "body": "<ul>\n<li>\n                obliczymy z niej najpierw potęgę o podstawie \\(a\\)\n            </li>\n<li>\n                a potem z wyniku logarytm o podstawie \\(a\\)\n            </li>\n</ul>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\n            (lub odwrotnie) to otrzymamy spowrotem liczbę \\(x\\).\n        </p>"
+        },
+        {
+          "type": "math",
+          "latex": "\n        x\\quad\\xrightarrow{\\text{potęga o podstawie }a}\\quad a^x\\quad\\xrightarrow{\\text{logarytm po podstawie }a}\\quad \\log_a a^x=x\n        \\]\n        \\[\n        x\\quad\\xrightarrow{\\text{logarytm o podstawie }a}\\quad\\log_a x\\quad\\xrightarrow{\\text{potęga po podstawie }a}\\quad a^{\\log_a x}=x\n        "
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "4f20486b6e13123043125489543b51b4f7a4f29ab64c12b6f6e76c69d40186dd"
+  "seed_hash": "41261e4f672abf2079d50b4385cb334c7a8b42abfdf4c133db112176e6ceb6f3"
 }

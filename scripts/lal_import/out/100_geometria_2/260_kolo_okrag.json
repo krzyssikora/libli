@@ -54,24 +54,56 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n        Pomyśl, dlaczego\n        <blockquote>\n            jeśli\n            <u>\n                średnica\n            </u>\n            koła jest długości \\(1\\), to obwód koła ma długość \\(\\pi\\).\n        </blockquote>\n<div class=\"centered\">\n<div style=\"width: 650px;\">\n<img alt=\"okrąg o średnicy 1\" src=\"static/pi_unrolled.gif\" width=\"600\"/>\n<br/>\n<small>\n                    autor:\n                    <a href=\"https://en.wikipedia.org/wiki/User:John_Reid\" title=\"en:User:John Reid\">\n                        John Reid\n                    </a>\n                    , licencja:\n                    <a href=\"http://creativecommons.org/licenses/by-sa/3.0/\" title=\"Creative Commons Attribution-Share Alike 3.0\">\n                        CC BY-SA 3.0\n                    </a>\n                    ,\n                    <a href=\"https://commons.wikimedia.org/w/index.php?curid=1268581\">\n                        oryginalny gif\n                    </a>\n</small>\n</div>\n</div>\n"
+      "body": "<p>Pomyśl, dlaczego</p>"
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<blockquote>\n            jeśli\n            <u>\n                średnica\n            </u>\n            koła jest długości \\(1\\), to obwód koła ma długość \\(\\pi\\).\n        </blockquote>"
+    },
+    {
+      "type": "image",
+      "media_src": "static/pi_unrolled.gif",
+      "alt": "okrąg o średnicy 1",
+      "figcaption": ""
     },
     {
       "type": "text",
-      "body": "\n        W poniższym aplecie\n        <ul>\n<li>\n                najpierw wpisz\n                <u>\n                    parzystą\n                </u>\n                liczbę między \\(4\\) a \\(100\\),\n            </li>\n<li>\n                później naciśnij start - koło zostanie podzielone na ustaloną liczbę wycinków, z których zostanie złżony inny kształt.\n            </li>\n<li>\n                Zacznij od mniejszej liczby, potem ją zwiększ.\n            </li>\n<li>\n                Co dostrzegasz? Jaki (mniej-więcej) kształt tworzą wycinki? Jakie są wymiary tego kształtu?\n            </li>\n</ul>\n<div class=\"centered\">\n<figure>\n<div class=\"iframe_small hidden\">\n<small>\n                        Jeśli poniższy aplet nie wygląda lub nie działa w pełni poprawnie, użyj urządzenia o większym ekranie.\n                    </small>\n<br/>\n<small>\n                        Minimalna zalecana rozdzielczość ekranu to 800px (szerokość) na 600px (wysokość).\n                    </small>\n</div>\n<iframe height=\"397px\" scrolling=\"no\" src=\"https://www.geogebra.org/material/iframe/id/r2v3ysqu/width/633/height/397/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false\" style=\"border:0px;\" title=\"pole koła\" width=\"633px\">\n</iframe>\n<details class=\"info_iframe\">\n<summary>\n<small>\n                            aplet nie działa poprawnie?\n                        </small>\n</summary>\n<div class=\"iframe_zonk\">\n<p>\n                            Jeśli ten aplet nie działa poprawnie nawet na większym ekranie, wyślij wiadomość o treści jak niżej na\n                            <a class=\"mailto_tag\" href=\"mailto:krzysztof.sikora@lal.edu.pl?subject=[lms]iframe&amp;body=IFRAME_EMAIL_BODY\">\n                                ten email\n                            </a>\n                            .\n                        </p>\n<div class=\"iframe_telemetry\">\n</div>\n</div>\n</details>\n</figure>\n</div>\n"
+      "body": "<p><br/>\n<small>\n                    autor:\n                    <a href=\"https://en.wikipedia.org/wiki/User:John_Reid\" title=\"en:User:John Reid\">\n                        John Reid\n                    </a>\n                    , licencja:\n                    <a href=\"http://creativecommons.org/licenses/by-sa/3.0/\" title=\"Creative Commons Attribution-Share Alike 3.0\">\n                        CC BY-SA 3.0\n                    </a>\n                    ,\n                    <a href=\"https://commons.wikimedia.org/w/index.php?curid=1268581\">\n                        oryginalny gif\n                    </a>\n</small></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p><strong>Zadanie</strong></p>"
+    },
+    {
+      "type": "text",
+      "body": "<p>W poniższym aplecie</p>"
+    },
+    {
+      "type": "text",
+      "body": "<ul>\n<li>\n                najpierw wpisz\n                <u>\n                    parzystą\n                </u>\n                liczbę między \\(4\\) a \\(100\\),\n            </li>\n<li>\n                później naciśnij start - koło zostanie podzielone na ustaloną liczbę wycinków, z których zostanie złżony inny kształt.\n            </li>\n<li>\n                Zacznij od mniejszej liczby, potem ją zwiększ.\n            </li>\n<li>\n                Co dostrzegasz? Jaki (mniej-więcej) kształt tworzą wycinki? Jakie są wymiary tego kształtu?\n            </li>\n</ul>"
+    },
+    {
+      "type": "iframe",
+      "url": "https://www.geogebra.org/material/iframe/id/r2v3ysqu/width/633/height/397/border/888888/sfsb/true/smb/false/stb/false/stbh/false/ai/false/asb/false/sri/false/rc/false/ld/false/sdz/false/ctl/false",
+      "title": ""
     },
     {
       "type": "spoiler",
       "label": "komentarz",
-      "body": "\n\n        Im większa jest liczba wycinków, na które podzielimy koło, tym bardziej nowy kształt przypomina prostokąt o podstawie (linia złożona z czerwonych łuków) równej długości połowy okręgu, czyli \\(\\tfrac{1}{2}\\cdot 2\\pi r=\\pi r\\) oraz wysokości \\(r\\).\n        <br/>\n        Pole takiego prostokąta to \\(\\pi r\\cdot r=\\pi r^2\\).\n    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>Im większa jest liczba wycinków, na które podzielimy koło, tym bardziej nowy kształt przypomina prostokąt o podstawie (linia złożona z czerwonych łuków) równej długości połowy okręgu, czyli \\(\\tfrac{1}{2}\\cdot 2\\pi r=\\pi r\\) oraz wysokości \\(r\\).</p>"
+        },
+        {
+          "type": "text",
+          "body": "<p>Pole takiego prostokąta to \\(\\pi r\\cdot r=\\pi r^2\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -83,5 +115,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "bfd6217171b079705fa1729847700e4bb7d71636ab34dfe0ea8e39501e23ac0a"
+  "seed_hash": "f77c5e1af57669a5edd096ad6a33a120a9668098a4bb03e8d6f44caf9a78e142"
 }

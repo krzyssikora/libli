@@ -6,16 +6,378 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\"></p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
-      "body": "\n<p>\n            W czworokącie \\(ABCD\\) przekątne \\(AC\\) i \\(BD\\) o długościach \\(30\\) i \\(56\\) odpowiednio przecinają się pod kątem prostym w punkcie \\(E\\).\n        </p>\n<p>\n            Punkt \\(E\\) dzieli przekątną \\(AC\\) w stosunku \\(1:1\\), a przekątną \\(BD\\) w stosunku \\(BE:DE=5:9\\).\n        </p>\n<ol class=\"bold\">\n<li>\n                Udowodnij, że czworokąt \\(ABCD\\) jest deltoidem.\n            </li>\n<li>\n                Oblicz obwód czworokąta.\n            </li>\n<li>\n                Oblicz pole czworokąta.\n            </li>\n</ol>\n"
+      "body": "<p>\n            W czworokącie \\(ABCD\\) przekątne \\(AC\\) i \\(BD\\) o długościach \\(30\\) i \\(56\\) odpowiednio przecinają się pod kątem prostym w punkcie \\(E\\).\n        </p>"
     },
     {
-      "type": "spoiler",
-      "label": "rozwiązanie",
-      "body": "\n\n<div class=\"ks_tabs\" id=\"tabs-1\">\n<ul>\n<li><a class=\"chosen\" href=\"#tabcontent-1-1\" id=\"tab-1-1\">nagranie</a></li>\n<li><a href=\"#tabcontent-1-2\" id=\"tab-1-2\">krok po kroku</a></li>\n</ul>\n<div class=\"visible\" id=\"tabcontent-1-1\">\n<p>\n<strong>Dowód, że czworokąt jest deltoidem</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/czworokaty_3_zadanie_80_1.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<strong>Obwód czworokąta</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/czworokaty_3_zadanie_80_1.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n<p>\n<strong>Pole czworokąta</strong>\n</p>\n<figure>\n<video controls=\"\" width=\"100%\">\n<source src=\"static/czworokaty_3_zadanie_80_1.mp4\" type=\"video/mp4\"/>\n</video>\n</figure>\n</div>\n<div id=\"tabcontent-1-2\">\n<details id=\"question82\">\n<summary><strong>1.</strong> dowód, że czworokąt jest deltoidem</summary>\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                            Przyjrzyj się rysunkowi:\n                            <figure>\n<img src=\"static/geometria_3_zadanie_80_1.png\" style=\"max-width: 700px;\"/>\n</figure>\n                            Na rysunku długości odcinków na przekątnych są oznaczone:\n                            <ul>\n<li>\n                                    \\(AE=c\\), \\(CE=c\\), dzięki czemu \\(AE:CE=1\\),\n                                </li>\n<li>\n                                    \\(BE=5d\\), \\(DE=9d\\), dzięki czemu \\(BE:DE=5:9\\).\n                                </li>\n</ul>\n<div class=\"switch_line\">\n                                Zauważmy, że trójkąty \\(AED\\) oraz \\(CED\\) są\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">podobne</div>\n<div class=\"switch_value\">przystające</div>\n<div class=\"switch_value\">równoramienne</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            Trójkąty \\(AED\\) oraz \\(CED\\) są przystające na mocy zasady <strong>bkb</strong> (bok-kąt-bok), bo:\n                            <ul>\n<li>\n                                    mają wspólny bok \\(DE\\),\n                                </li>\n<li>\n                                    boki \\(AE\\) i \\(CE\\) są równej długości,\n                                </li>\n<li>\n                                    kąty między tymi bokami są równej miary (bo są proste).\n                                </li>\n</ul>\n<div class=\"switch_line\">\n                                Z tego wynika, że \n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">odcinki \\(AD\\) oraz \\(CD\\) są równej długości</div>\n<div class=\"switch_value\">długości odcinków \\(AD\\) i \\(CD\\) możemy obliczyć z twierdzenia Pitagorasa</div>\n<div class=\"switch_value\">długości odcinków \\(AD\\) i \\(CD\\) możemy obliczyć z twierdzenia Talesa</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            Podobnie, na mocy zasady <strong>bkb</strong> (bok-kąt-bok) możemy stwierdzić przystawanie trójkątów\n                            <div class=\"switch_line\">\n<div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(ABE\\) oraz \\(ADE\\)</div>\n<div class=\"switch_value\">\\(ABE\\) oraz \\(CBE\\)</div>\n<div class=\"switch_value\">\\(ADE\\) oraz \\(CBE\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Z przystawania trójkątów \\(ABE\\) i \\(CBE\\) wynika, że \n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">odcinki \\(AB\\) i \\(BC\\) są równej długości</div>\n<div class=\"switch_value\">\\(AB=BC=36\\)</div>\n<div class=\"switch_value\">\\(AB=\\frac{1}{2}AD\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            Ustaliliśmy, że \\(AB=BC\\) oraz \\(CD=AD\\). Oznacza to, że czworokąt \\(ABCD\\) ma dwie pary kolejnych boków równoległych, jest więc <strong>deltoidem</strong>.\n                        </div>\n</div>\n</details>\n<details id=\"question84\">\n<summary><strong>2.</strong> wyliczenie obwodu czworokąta</summary>\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n                            Zacznijmy od obliczenia długości odcinków, na jakie punkt \\(E\\) dzieli przekątne czworokąta. Ponownie przyjrzyj się rysunkowi:\n                            <figure>\n<img src=\"static/geometria_3_zadanie_80_1.png\" style=\"max-width: 700px;\"/>\n</figure>\n<div class=\"switch_line\">\n                                Przekątna \\(AC\\) jest długości \\(30\\), więc długości \\(AE\\) i \\(CE\\)\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">są obie równe \\(30\\)</div>\n<div class=\"switch_value\">są obie równe \\(15\\)</div>\n<div class=\"switch_value\">są obie równe \\(10\\)</div>\n<div class=\"switch_value\">\\(2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Przekątna \\(BD\\) jest długości \\(56\\), na co składa się \\(5d+9d=14d\\). Stąd możemy wyliczyć wartość \\(d\\) oraz długości\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(BE=36\\) oraz \\(DE=20\\)</div>\n<div class=\"switch_value\">\\(BE=20\\) oraz \\(DE=36\\)</div>\n<div class=\"switch_value\">\\(BE=28\\) oraz \\(DE=28\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            Nanieśmy wyliczone wielokości na rysunek:\n                            <figure>\n<img src=\"static/geometria_3_zadanie_80_2.png\" style=\"max-width: 700px;\"/>\n</figure>\n<div class=\"switch_line\">\n                                Z twierdzenia Pitagorasa obliczmy długość \\(AB\\) (równą długości \\(BC\\)):\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(AB^2=15^2+20^2\\)</div>\n<div class=\"switch_value\">\\(15^2=AB^2+20^2\\)</div>\n<div class=\"switch_value\">\\(20^2=AB^2+15^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                AB^2&amp;=AE^2+BE^2\\\\\n                                AB^2&amp;=15^2+20^2\\\\\n                                AB^2&amp;=225+400\\\\\n                                AB^2&amp;=625\n                                \\end{align}\n                                \\]\n                            </div>\n<div class=\"switch_line\">\n                                Długości \\(AB\\) i \\(BC\\) są równe, więc\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(AB=BC=15\\)</div>\n<div class=\"switch_value\">\\(AB=BC=25\\)</div>\n<div class=\"switch_value\">\\(AB=BC=35\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Podobnie z twierdzenia Pitagorasa obliczmy długość \\(AD\\) (równą długości \\(CD\\)):\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(36^2=AD^2+15^2\\)</div>\n<div class=\"switch_value\">\\(AD^2=15^2+36^2\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"table_wrapper\">\n                                \\[\n                                \\begin{align}\n                                AD^2&amp;=AE^2+DE^2\\\\\n                                AD^2&amp;=15^2+36^2\\\\\n                                AD^2&amp;=225+1296\\\\\n                                AD^2&amp;=1529\n                                \\end{align}\n                                \\]\n                            </div>\n<div class=\"switch_line\">\n                                Długości \\(AD\\) i \\(CD\\) są równe, więc\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(AD=CD=39\\)</div>\n<div class=\"switch_value\">\\(AD=CD=41\\)</div>\n<div class=\"switch_value\">\\(AD=CD=49\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            Dopiszmy znalezione długości boków do rysunku:\n                            <figure>\n<img src=\"static/geometria_3_zadanie_80_3.png\" style=\"max-width: 700px;\"/>\n</figure>\n<div class=\"switch_line\">\n                                Obwód czworokąta to suma długości wszystkich boków, czyli\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(128\\)</div>\n<div class=\"switch_value\">\\(64\\)</div>\n<div class=\"switch_value\">\\(214\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            Obwód czworokąta jest równy\n                            <div class=\"table_wrapper\">\n                                \\[\n                                AB+BC+CD+AD=25+25+39+39=128\n                                \\]\n                            </div>\n</div>\n</div>\n</details>\n<details id=\"question86\">\n<summary><strong>3.</strong> wyliczenie pola czworokąta</summary>\n<div class=\"switch_steps\">\n<div class=\"switch_step\">\n<p>\n                                Pole całego czworokąta jest sumą pól czterech trójkątów prostokątnych. Zacznijmy od zaznaczonego niżej na szaro.\n                            </p>\n<figure>\n<img src=\"static/geometria_3_zadanie_80_4.png\" style=\"max-width: 700px;\"/>\n</figure>\n<div class=\"switch_line\">\n                                Pole trójkąta \\(ABE\\) jest równe\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}\\cdot 25\\cdot 20\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}\\cdot 15\\cdot 20\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}\\cdot 15\\cdot 25\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Zauważmy, że pola trójkątów \\(ABE\\) i \\(BCE\\) są identyczne (bo trójkąty są przystające) i każde z nich jest równe \n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(150\\)</div>\n<div class=\"switch_value\">\\(200\\)</div>\n<div class=\"switch_value\">\\(250\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            Teraz obliczmy pole zaznaczonego niżej na szaro trójkąta \\(ADE\\).\n                            <figure>\n<img src=\"static/geometria_3_zadanie_80_5.png\" style=\"max-width: 700px;\"/>\n</figure>\n                            Zauważmy, że pola trójkątów \\(ADE\\) i \\(CDE\\) są identyczne (bo trójkąty są przystające).\n                            <div class=\"switch_line\">\n                                Każde z tych pól uzyskamy licząc\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}\\cdot 15\\cdot 39\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}\\cdot 15\\cdot 36\\)</div>\n<div class=\"switch_value\">\\(\\frac{1}{2}\\cdot 39\\cdot 36\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Więc każde z pól trójkątów \\(ADE\\) i \\(CDE\\) jest równe\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(270\\)</div>\n<div class=\"switch_value\">\\(320\\)</div>\n<div class=\"switch_value\">\\(370\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n<div class=\"switch_line\">\n                                Pole czworokąta jest sumą pól czterech trójkątów, czyli jest równe\n                                <div class=\"switch_value\">&gt;&gt; wybierz &gt;&gt;</div>\n<div class=\"switch_value\">\\(420\\)</div>\n<div class=\"switch_value\">\\(840\\)</div>\n<div class=\"switch_value\">\\(630\\)</div>\n<div class=\"switch_show_next ks_button\">zatwierdź</div>.\n                            </div>\n</div>\n<div class=\"switch_step hidden\">\n                            Pole czworokąta jest równe\n                            <div class=\"table_wrapper\">\n                                \\[\n                                P_{ABE}+P_{BCE}+P_{CDE}+P_{ADE}=150+150+270+270=840\n                                \\]\n                            </div>\n</div>\n</div>\n</details>\n</div>\n</div>\n"
+      "type": "text",
+      "body": "<p>\n            Punkt \\(E\\) dzieli przekątną \\(AC\\) w stosunku \\(1:1\\), a przekątną \\(BD\\) w stosunku \\(BE:DE=5:9\\).\n        </p>"
+    },
+    {
+      "type": "text",
+      "body": "<ol class=\"bold\">\n<li>\n                Udowodnij, że czworokąt \\(ABCD\\) jest deltoidem.\n            </li>\n<li>\n                Oblicz obwód czworokąta.\n            </li>\n<li>\n                Oblicz pole czworokąta.\n            </li>\n</ol>"
+    },
+    {
+      "type": "text",
+      "body": "<h4>rozwiązanie</h4>"
+    },
+    {
+      "type": "tabs",
+      "tabs": [
+        {
+          "id": "t000000",
+          "label": "nagranie",
+          "elements": [
+            {
+              "type": "text",
+              "body": "<p>\n<strong>Dowód, że czworokąt jest deltoidem</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/czworokaty_3_zadanie_80_1.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>Obwód czworokąta</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/czworokaty_3_zadanie_80_1.mp4"
+            },
+            {
+              "type": "text",
+              "body": "<p>\n<strong>Pole czworokąta</strong>\n</p>"
+            },
+            {
+              "type": "video",
+              "media_src": "static/czworokaty_3_zadanie_80_1.mp4"
+            }
+          ]
+        },
+        {
+          "id": "t000001",
+          "label": "krok po kroku",
+          "elements": [
+            {
+              "type": "spoiler",
+              "label": "1.dowód, że czworokąt jest deltoidem",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "<p>Przyjrzyj się rysunkowi:</p>"
+                },
+                {
+                  "type": "image",
+                  "media_src": "static/geometria_3_zadanie_80_1.png",
+                  "alt": "",
+                  "figcaption": ""
+                },
+                {
+                  "type": "text",
+                  "body": "<p>Na rysunku długości odcinków na przekątnych są oznaczone:</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<ul>\n<li>\n                                    \\(AE=c\\), \\(CE=c\\), dzięki czemu \\(AE:CE=1\\),\n                                </li>\n<li>\n                                    \\(BE=5d\\), \\(DE=9d\\), dzięki czemu \\(BE:DE=5:9\\).\n                                </li>\n</ul>"
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Zauważmy, że trójkąty \\(AED\\) oraz \\(CED\\) są\n                                \n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "podobne",
+                    "przystające",
+                    "równoramienne"
+                  ],
+                  "answer": 1
+                },
+                {
+                  "type": "text",
+                  "body": "<p>Trójkąty \\(AED\\) oraz \\(CED\\) są przystające na mocy zasady</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<strong>bkb</strong>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>(bok-kąt-bok), bo:</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<ul>\n<li>\n                                    mają wspólny bok \\(DE\\),\n                                </li>\n<li>\n                                    boki \\(AE\\) i \\(CE\\) są równej długości,\n                                </li>\n<li>\n                                    kąty między tymi bokami są równej miary (bo są proste).\n                                </li>\n</ul>"
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Z tego wynika, że \n                                \n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "odcinki \\(AD\\) oraz \\(CD\\) są równej długości",
+                    "długości odcinków \\(AD\\) i \\(CD\\) możemy obliczyć z twierdzenia Pitagorasa",
+                    "długości odcinków \\(AD\\) i \\(CD\\) możemy obliczyć z twierdzenia Talesa"
+                  ],
+                  "answer": 0
+                },
+                {
+                  "type": "text",
+                  "body": "<p>Podobnie, na mocy zasady</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<strong>bkb</strong>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>(bok-kąt-bok) możemy stwierdzić przystawanie trójkątów</p>"
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n\n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "\\(ABE\\) oraz \\(ADE\\)",
+                    "\\(ABE\\) oraz \\(CBE\\)",
+                    "\\(ADE\\) oraz \\(CBE\\)"
+                  ],
+                  "answer": 1
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Z przystawania trójkątów \\(ABE\\) i \\(CBE\\) wynika, że \n                                \n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "odcinki \\(AB\\) i \\(BC\\) są równej długości",
+                    "\\(AB=BC=36\\)",
+                    "\\(AB=\\frac{1}{2}AD\\)"
+                  ],
+                  "answer": 0
+                },
+                {
+                  "type": "text",
+                  "body": "<p>Ustaliliśmy, że \\(AB=BC\\) oraz \\(CD=AD\\). Oznacza to, że czworokąt \\(ABCD\\) ma dwie pary kolejnych boków równoległych, jest więc</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "<strong>deltoidem</strong>"
+                },
+                {
+                  "type": "text",
+                  "body": "<p>.</p>"
+                }
+              ]
+            },
+            {
+              "type": "spoiler",
+              "label": "2.wyliczenie obwodu czworokąta",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "<p>Zacznijmy od obliczenia długości odcinków, na jakie punkt \\(E\\) dzieli przekątne czworokąta. Ponownie przyjrzyj się rysunkowi:</p>"
+                },
+                {
+                  "type": "image",
+                  "media_src": "static/geometria_3_zadanie_80_1.png",
+                  "alt": "",
+                  "figcaption": ""
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Przekątna \\(AC\\) jest długości \\(30\\), więc długości \\(AE\\) i \\(CE\\)\n                                \n\n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "są obie równe \\(30\\)",
+                    "są obie równe \\(15\\)",
+                    "są obie równe \\(10\\)",
+                    "\\(2\\)"
+                  ],
+                  "answer": 1
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Przekątna \\(BD\\) jest długości \\(56\\), na co składa się \\(5d+9d=14d\\). Stąd możemy wyliczyć wartość \\(d\\) oraz długości\n                                \n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "\\(BE=36\\) oraz \\(DE=20\\)",
+                    "\\(BE=20\\) oraz \\(DE=36\\)",
+                    "\\(BE=28\\) oraz \\(DE=28\\)"
+                  ],
+                  "answer": 1
+                },
+                {
+                  "type": "text",
+                  "body": "<p>Nanieśmy wyliczone wielokości na rysunek:</p>"
+                },
+                {
+                  "type": "image",
+                  "media_src": "static/geometria_3_zadanie_80_2.png",
+                  "alt": "",
+                  "figcaption": ""
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Z twierdzenia Pitagorasa obliczmy długość \\(AB\\) (równą długości \\(BC\\)):\n                                \n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "\\(AB^2=15^2+20^2\\)",
+                    "\\(15^2=AB^2+20^2\\)",
+                    "\\(20^2=AB^2+15^2\\)"
+                  ],
+                  "answer": 0
+                },
+                {
+                  "type": "text",
+                  "body": "\n                                \\[\n                                \\begin{align}\n                                AB^2&amp;=AE^2+BE^2\\\\\n                                AB^2&amp;=15^2+20^2\\\\\n                                AB^2&amp;=225+400\\\\\n                                AB^2&amp;=625\n                                \\end{align}\n                                \\]\n                            "
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Długości \\(AB\\) i \\(BC\\) są równe, więc\n                                \n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "\\(AB=BC=15\\)",
+                    "\\(AB=BC=25\\)",
+                    "\\(AB=BC=35\\)"
+                  ],
+                  "answer": 1
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Podobnie z twierdzenia Pitagorasa obliczmy długość \\(AD\\) (równą długości \\(CD\\)):\n                                \n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "\\(36^2=AD^2+15^2\\)",
+                    "\\(AD^2=15^2+36^2\\)"
+                  ],
+                  "answer": 1
+                },
+                {
+                  "type": "text",
+                  "body": "\n                                \\[\n                                \\begin{align}\n                                AD^2&amp;=AE^2+DE^2\\\\\n                                AD^2&amp;=15^2+36^2\\\\\n                                AD^2&amp;=225+1296\\\\\n                                AD^2&amp;=1529\n                                \\end{align}\n                                \\]\n                            "
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Długości \\(AD\\) i \\(CD\\) są równe, więc\n                                \n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "\\(AD=CD=39\\)",
+                    "\\(AD=CD=41\\)",
+                    "\\(AD=CD=49\\)"
+                  ],
+                  "answer": 0
+                },
+                {
+                  "type": "text",
+                  "body": "<p>Dopiszmy znalezione długości boków do rysunku:</p>"
+                },
+                {
+                  "type": "image",
+                  "media_src": "static/geometria_3_zadanie_80_3.png",
+                  "alt": "",
+                  "figcaption": ""
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Obwód czworokąta to suma długości wszystkich boków, czyli\n                                \n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "\\(128\\)",
+                    "\\(64\\)",
+                    "\\(214\\)"
+                  ],
+                  "answer": 0
+                },
+                {
+                  "type": "text",
+                  "body": "<p>Obwód czworokąta jest równy</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "\n                                \\[\n                                AB+BC+CD+AD=25+25+39+39=128\n                                \\]\n                            "
+                }
+              ]
+            },
+            {
+              "type": "spoiler",
+              "label": "3.wyliczenie pola czworokąta",
+              "elements": [
+                {
+                  "type": "text",
+                  "body": "<p>\n                                Pole całego czworokąta jest sumą pól czterech trójkątów prostokątnych. Zacznijmy od zaznaczonego niżej na szaro.\n                            </p>"
+                },
+                {
+                  "type": "image",
+                  "media_src": "static/geometria_3_zadanie_80_4.png",
+                  "alt": "",
+                  "figcaption": ""
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Pole trójkąta \\(ABE\\) jest równe\n                                \n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "\\(\\frac{1}{2}\\cdot 25\\cdot 20\\)",
+                    "\\(\\frac{1}{2}\\cdot 15\\cdot 20\\)",
+                    "\\(\\frac{1}{2}\\cdot 15\\cdot 25\\)"
+                  ],
+                  "answer": 1
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Zauważmy, że pola trójkątów \\(ABE\\) i \\(BCE\\) są identyczne (bo trójkąty są przystające) i każde z nich jest równe \n                                \n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "\\(150\\)",
+                    "\\(200\\)",
+                    "\\(250\\)"
+                  ],
+                  "answer": 0
+                },
+                {
+                  "type": "text",
+                  "body": "<p>Teraz obliczmy pole zaznaczonego niżej na szaro trójkąta \\(ADE\\).</p>"
+                },
+                {
+                  "type": "image",
+                  "media_src": "static/geometria_3_zadanie_80_5.png",
+                  "alt": "",
+                  "figcaption": ""
+                },
+                {
+                  "type": "text",
+                  "body": "<p>Zauważmy, że pola trójkątów \\(ADE\\) i \\(CDE\\) są identyczne (bo trójkąty są przystające).</p>"
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Każde z tych pól uzyskamy licząc\n                                \n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "\\(\\frac{1}{2}\\cdot 15\\cdot 39\\)",
+                    "\\(\\frac{1}{2}\\cdot 15\\cdot 36\\)",
+                    "\\(\\frac{1}{2}\\cdot 39\\cdot 36\\)"
+                  ],
+                  "answer": 1
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Więc każde z pól trójkątów \\(ADE\\) i \\(CDE\\) jest równe\n                                \n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "\\(270\\)",
+                    "\\(320\\)",
+                    "\\(370\\)"
+                  ],
+                  "answer": 0
+                },
+                {
+                  "type": "switch_gate",
+                  "stem": "\n                                Pole czworokąta jest sumą pól czterech trójkątów, czyli jest równe\n                                \n\n\n\n￿0￿.\n                            ",
+                  "options": [
+                    "\\(420\\)",
+                    "\\(840\\)",
+                    "\\(630\\)"
+                  ],
+                  "answer": 1
+                },
+                {
+                  "type": "text",
+                  "body": "<p>Pole czworokąta jest równe</p>"
+                },
+                {
+                  "type": "text",
+                  "body": "\n                                \\[\n                                P_{ABE}+P_{BCE}+P_{CDE}+P_{ADE}=150+150+270+270=840\n                                \\]\n                            "
+                }
+              ]
+            }
+          ]
+        }
+      ]
     },
     {
       "type": "text",
@@ -42,6 +404,6 @@
       "body": "<ul>\n<li>\n        czworokąt, w którym przekątne przecinają się pod kątem prostym w taki sposób, że jedna z nich dzieli drugą na połowy.\n    </li>\n</ul>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "2c270a83906c7369a50db90dba38a818551129adaffd82ad7db32ce188cc626b"
+  "fully_mapped": true,
+  "seed_hash": "94e28dfca24429d7df2e84bf35e49345038048b7fb12a0b90c8f9839de9867ac"
 }

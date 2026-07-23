@@ -5,72 +5,31 @@
       "body": "<p>\n    Nie każda funkcja kwadratowa ma miejsca zerowe, bo nie każda parabola przecina oś \\(x\\) (lub przynajmniej ją dotyka).\n</p>"
     },
     {
-      "type": "text",
-      "body": "<p class=\"question\">\n</p>"
-    },
-    {
-      "type": "text",
-      "body": "<p class=\"question_text\">\n        Wskaż równania paraboli, które mają punkty wspólne z osią \\(x\\).\n    </p>"
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(y=\\frac{5}{2}(x+1)^2-2\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                Ramiona tej paraboli są skierowane do góry, a wierzchołek...?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(y=-3(x+2)^2-1\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                Wierzchołek tej paraboli jest\n                <strong>\n                    pod\n                </strong>\n                osią \\(x\\).\n                <br/>\n                W którą stronę są skierowane ramiona?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(y=2(x-3)^2+7\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                Ramiona tej paraboli są skierowane do góry. A wierzchołek?\n                <br/>\n                Jest nad, czy pod osią \\(x\\)?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n                \\(y=-\\frac{2}{3}(x-5)^2+3\\)\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n<input class=\"mult_choice\" type=\"checkbox\"/>\n"
-    },
-    {
-      "type": "text",
-      "body": "\n                Wierzchołek tej paraboli jest nad osią \\(x\\), a ramiona skierowane...?\n            "
-    },
-    {
-      "type": "text",
-      "body": "\n        potwierdź\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Brawo! Wybrałaś/-eś poprawnie.\n    "
-    },
-    {
-      "type": "text",
-      "body": "\n        Nie wybrałaś/-eś wszystkich odpowiedzi.\n    "
+      "type": "choice",
+      "stem": "<p>Wskaż równania paraboli, które mają punkty wspólne z osią \\(x\\).</p>",
+      "multiple": true,
+      "choices": [
+        {
+          "text": "\\(y=\\frac{5}{2}(x+1)^2-2\\)",
+          "is_correct": true,
+          "feedback": "Ramiona tej paraboli są skierowane do góry, a wierzchołek...?"
+        },
+        {
+          "text": "\\(y=-3(x+2)^2-1\\)",
+          "is_correct": false,
+          "feedback": "Wierzchołek tej paraboli jest pod osią \\(x\\). W którą stronę są skierowane ramiona?"
+        },
+        {
+          "text": "\\(y=2(x-3)^2+7\\)",
+          "is_correct": false,
+          "feedback": "Ramiona tej paraboli są skierowane do góry. A wierzchołek? Jest nad, czy pod osią \\(x\\)?"
+        },
+        {
+          "text": "\\(y=-\\frac{2}{3}(x-5)^2+3\\)",
+          "is_correct": true,
+          "feedback": "Wierzchołek tej paraboli jest nad osią \\(x\\), a ramiona skierowane...?"
+        }
+      ]
     },
     {
       "type": "text",
@@ -98,5 +57,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "f0fa0e170c4be313490bbbd536bba779043975bbe2bb7122558ab0be93745c7d"
+  "seed_hash": "c743e8a023b365f3aef7179e33ce8db6bb5f426c50325822ecc7db02c4d7fa60"
 }

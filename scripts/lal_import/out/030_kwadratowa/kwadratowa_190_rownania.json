@@ -10,7 +10,7 @@
     },
     {
       "type": "text",
-      "body": "<p class=\"question\">\n</p>"
+      "body": "<p><strong>Zadanie</strong></p>"
     },
     {
       "type": "text",
@@ -19,29 +19,474 @@
     {
       "type": "spoiler",
       "label": "przykłady 1 - 15",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n<strong>\n                            (1)\n                        </strong>\n</td>\n<td>\n                        \\(x^2-3x+2=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(2\\), \\(1\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (2)\n                        </strong>\n</td>\n<td>\n                        \\(x^2-9=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(3\\), \\(-3\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (3)\n                        </strong>\n</td>\n<td>\n                        \\(x^2-2x=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(0\\), \\(2\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (4)\n                        </strong>\n</td>\n<td>\n                        \\(4x^2-12x+9=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{3}{2}\\), \\(\\frac{3}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (5)\n                        </strong>\n</td>\n<td>\n                        \\(5x^2-4x=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{4}{5}\\), \\(0\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (6)\n                        </strong>\n</td>\n<td>\n                        \\(x^2+5x+6=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(-2\\), \\(-3\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (7)\n                        </strong>\n</td>\n<td>\n                        \\(x^2-x-6=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(3\\), \\(-2\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (8)\n                        </strong>\n</td>\n<td>\n                        \\(x^2+x-12=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(-4\\), \\(3\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (9)\n                        </strong>\n</td>\n<td>\n                        \\(x^2+4x-12=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(2\\), \\(-6\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (10)\n                        </strong>\n</td>\n<td>\n                        \\(4x^2-8x+3=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{1}{2}\\), \\(\\frac{3}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (11)\n                        </strong>\n</td>\n<td>\n                        \\(4x^2-4x-3=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(-\\frac{1}{2}\\), \\(\\frac{3}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (12)\n                        </strong>\n</td>\n<td>\n                        \\(6x^2-7x-3=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(-\\frac{1}{3}\\), \\(\\frac{3}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (13)\n                        </strong>\n</td>\n<td>\n                        \\(6x^2+x-2=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(-\\frac{2}{3}\\), \\(\\frac{1}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (14)\n                        </strong>\n</td>\n<td>\n                        \\(10x^2+11x-6=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{2}{5}\\), \\(-\\frac{3}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (15)\n                        </strong>\n</td>\n<td>\n                        \\(15x^2-x-6=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(-\\frac{3}{5}\\), \\(\\frac{2}{3}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(1)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(2\\), \\(1\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(2)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(3\\), \\(-3\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(3)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(0\\), \\(2\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(4)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{3}{2}\\), \\(\\frac{3}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(5)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{4}{5}\\), \\(0\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(6)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-2\\), \\(-3\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(7)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(3\\), \\(-2\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(8)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-4\\), \\(3\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(9)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(2\\), \\(-6\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(10)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{1}{2}\\), \\(\\frac{3}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(11)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-\\frac{1}{2}\\), \\(\\frac{3}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(12)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-\\frac{1}{3}\\), \\(\\frac{3}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(13)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-\\frac{2}{3}\\), \\(\\frac{1}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(14)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{2}{5}\\), \\(-\\frac{3}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(15)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-\\frac{3}{5}\\), \\(\\frac{2}{3}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "przykłady 16 - 25",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n<strong>\n                            (16)\n                        </strong>\n</td>\n<td>\n                        \\(x^2+3x+1=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-3-\\sqrt{5}}{2}\\), \\(\\frac{-3+\\sqrt{5}}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (17)\n                        </strong>\n</td>\n<td>\n                        \\(x^2-2x+2=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            brak rozwiązania\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (18)\n                        </strong>\n</td>\n<td>\n                        \\(x^2+8x+6=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(-4-\\sqrt{10}\\), \\(-4+\\sqrt{10}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (19)\n                        </strong>\n</td>\n<td>\n                        \\(x^2-6x+4=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(3-\\sqrt{5}\\), \\(3+\\sqrt{5}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (20)\n                        </strong>\n</td>\n<td>\n                        \\(x^2+4x+2=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(-2-\\sqrt{2}\\), \\(-2+\\sqrt{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (21)\n                        </strong>\n</td>\n<td>\n                        \\(x^2+5x+5=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-5-\\sqrt{5}}{2}\\), \\(\\frac{-5+\\sqrt{5}}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (22)\n                        </strong>\n</td>\n<td>\n                        \\(2x^2-7x-4=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-1}{2}\\), \\(\\frac{8}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (23)\n                        </strong>\n</td>\n<td>\n                        \\(2x^2+x-6=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-4}{2}\\), \\(\\frac{3}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (24)\n                        </strong>\n</td>\n<td>\n                        \\(2x^2+6x-7=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-3-\\sqrt{23}}{2}\\), \\(\\frac{-3+\\sqrt{23}}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (25)\n                        </strong>\n</td>\n<td>\n                        \\(2x^2-6x-11=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{3-\\sqrt{31}}{2}\\), \\(\\frac{3+\\sqrt{31}}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(16)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-3-\\sqrt{5}}{2}\\), \\(\\frac{-3+\\sqrt{5}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(17)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>brak rozwiązania</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(18)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-4-\\sqrt{10}\\), \\(-4+\\sqrt{10}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(19)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(3-\\sqrt{5}\\), \\(3+\\sqrt{5}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(20)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-2-\\sqrt{2}\\), \\(-2+\\sqrt{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(21)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-5-\\sqrt{5}}{2}\\), \\(\\frac{-5+\\sqrt{5}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(22)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-1}{2}\\), \\(\\frac{8}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(23)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-4}{2}\\), \\(\\frac{3}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(24)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-3-\\sqrt{23}}{2}\\), \\(\\frac{-3+\\sqrt{23}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(25)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{3-\\sqrt{31}}{2}\\), \\(\\frac{3+\\sqrt{31}}{2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "przykłady 26 - 35",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n<strong>\n                            (26)\n                        </strong>\n</td>\n<td>\n                        \\(3x^2+4x-8=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-2-2\\sqrt{7}}{3}\\), \\(\\frac{-2+2\\sqrt{7}}{3}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (27)\n                        </strong>\n</td>\n<td>\n                        \\(-2x^2-3x-4=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            brak rozwiązania\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (28)\n                        </strong>\n</td>\n<td>\n                        \\(-2x^2-3x-4=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            brak rozwiązania\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (29)\n                        </strong>\n</td>\n<td>\n                        \\(-2x^2-11x+6=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-12}{2}\\), \\(\\frac{1}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (30)\n                        </strong>\n</td>\n<td>\n                        \\(-3x^2-7x+6=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-9}{3}\\), \\(\\frac{2}{3}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (31)\n                        </strong>\n</td>\n<td>\n                        \\(3x^2-6x+8=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            brak rozwiązania\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (32)\n                        </strong>\n</td>\n<td>\n                        \\(-2x^2-9x+5=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-10}{2}\\), \\(\\frac{1}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (33)\n                        </strong>\n</td>\n<td>\n                        \\(-4x^2-7x+1=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-7-\\sqrt{65}}{8}\\), \\(\\frac{-7+\\sqrt{65}}{8}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (34)\n                        </strong>\n</td>\n<td>\n                        \\(5x^2+2x-1=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-1-\\sqrt{6}}{5}\\), \\(\\frac{-1+\\sqrt{6}}{5}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (35)\n                        </strong>\n</td>\n<td>\n                        \\(-3x^2+4x+1=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{2-\\sqrt{7}}{3}\\), \\(\\frac{2+\\sqrt{7}}{3}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(26)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-2-2\\sqrt{7}}{3}\\), \\(\\frac{-2+2\\sqrt{7}}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(27)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>brak rozwiązania</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(28)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>brak rozwiązania</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(29)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-12}{2}\\), \\(\\frac{1}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(30)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-9}{3}\\), \\(\\frac{2}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(31)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>brak rozwiązania</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(32)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-10}{2}\\), \\(\\frac{1}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(33)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-7-\\sqrt{65}}{8}\\), \\(\\frac{-7+\\sqrt{65}}{8}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(34)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-1-\\sqrt{6}}{5}\\), \\(\\frac{-1+\\sqrt{6}}{5}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(35)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{2-\\sqrt{7}}{3}\\), \\(\\frac{2+\\sqrt{7}}{3}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "przykłady 36 - 45",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n<strong>\n                            (36)\n                        </strong>\n</td>\n<td>\n                        \\(2x^2+9x-1=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-9-\\sqrt{89}}{4}\\), \\(\\frac{-9+\\sqrt{89}}{4}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (37)\n                        </strong>\n</td>\n<td>\n                        \\(-3x^2-5x+1=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-5-\\sqrt{37}}{6}\\), \\(\\frac{-5+\\sqrt{37}}{6}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (38)\n                        </strong>\n</td>\n<td>\n                        \\(4x^2+10x+3=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-5-\\sqrt{13}}{4}\\), \\(\\frac{-5+\\sqrt{13}}{4}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (39)\n                        </strong>\n</td>\n<td>\n                        \\(4x^2-8x-3=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{2-\\sqrt{7}}{2}\\), \\(\\frac{2+\\sqrt{7}}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (40)\n                        </strong>\n</td>\n<td>\n                        \\(x^2-4x+5=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            brak rozwiązania\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (41)\n                        </strong>\n</td>\n<td>\n                        \\(x^2+8x+8=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(-4-2\\sqrt{2}\\), \\(-4+2\\sqrt{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (42)\n                        </strong>\n</td>\n<td>\n                        \\(x^2+5x+5=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-5-\\sqrt{5}}{2}\\), \\(\\frac{-5+\\sqrt{5}}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (43)\n                        </strong>\n</td>\n<td>\n                        \\(2x^2-8x+4=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(2-\\sqrt{2}\\), \\(2+\\sqrt{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (44)\n                        </strong>\n</td>\n<td>\n                        \\(2x^2-8x+5=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{4-\\sqrt{6}}{2}\\), \\(\\frac{4+\\sqrt{6}}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (45)\n                        </strong>\n</td>\n<td>\n                        \\(2x^2+6x+3=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-3-\\sqrt{3}}{2}\\), \\(\\frac{-3+\\sqrt{3}}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(36)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-9-\\sqrt{89}}{4}\\), \\(\\frac{-9+\\sqrt{89}}{4}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(37)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-5-\\sqrt{37}}{6}\\), \\(\\frac{-5+\\sqrt{37}}{6}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(38)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-5-\\sqrt{13}}{4}\\), \\(\\frac{-5+\\sqrt{13}}{4}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(39)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{2-\\sqrt{7}}{2}\\), \\(\\frac{2+\\sqrt{7}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(40)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>brak rozwiązania</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(41)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(-4-2\\sqrt{2}\\), \\(-4+2\\sqrt{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(42)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-5-\\sqrt{5}}{2}\\), \\(\\frac{-5+\\sqrt{5}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(43)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(2-\\sqrt{2}\\), \\(2+\\sqrt{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(44)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{4-\\sqrt{6}}{2}\\), \\(\\frac{4+\\sqrt{6}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(45)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-3-\\sqrt{3}}{2}\\), \\(\\frac{-3+\\sqrt{3}}{2}\\)</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "przykłady 46 - 55",
-      "body": "\n\n<div class=\"table_wrapper\">\n<table class=\"my_table_TL\">\n<tr>\n<td>\n<strong>\n                            (46)\n                        </strong>\n</td>\n<td>\n                        \\(2x^2+6x-9=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-3-3\\sqrt{3}}{2}\\), \\(\\frac{-3+3\\sqrt{3}}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (47)\n                        </strong>\n</td>\n<td>\n                        \\(3x^2-6x-5=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{3-2\\sqrt{6}}{3}\\), \\(\\frac{3+2\\sqrt{6}}{3}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (48)\n                        </strong>\n</td>\n<td>\n                        \\(9x^2-24x+16=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{4}{3}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (49)\n                        </strong>\n</td>\n<td>\n                        \\(4x^2+12x+9=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-3}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (50)\n                        </strong>\n</td>\n<td>\n                        \\(3x^2+3x-3=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-1-\\sqrt{5}}{2}\\), \\(\\frac{-1+\\sqrt{5}}{2}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (51)\n                        </strong>\n</td>\n<td>\n                        \\(2x^2+5x-1=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-5-\\sqrt{33}}{4}\\), \\(\\frac{-5+\\sqrt{33}}{4}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (52)\n                        </strong>\n</td>\n<td>\n                        \\(4x^2+6x-3=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-3-\\sqrt{21}}{4}\\), \\(\\frac{-3+\\sqrt{21}}{4}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (53)\n                        </strong>\n</td>\n<td>\n                        \\(3x^2+2x-3=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-1-\\sqrt{10}}{3}\\), \\(\\frac{-1+\\sqrt{10}}{3}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (54)\n                        </strong>\n</td>\n<td>\n                        \\(4x^2+6x-5=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{-3-\\sqrt{29}}{4}\\), \\(\\frac{-3+\\sqrt{29}}{4}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n<tr>\n<td>\n<strong>\n                            (55)\n                        </strong>\n</td>\n<td>\n                        \\(-3x^2+2x+9=0\\)\n                    </td>\n<td>\n<div class=\"show_solution ks_button\">\n                            zobacz\n                        </div>\n</td>\n<td>\n<div class=\"question_solution hidden\">\n                            \\(\\frac{1-2\\sqrt{7}}{3}\\), \\(\\frac{1+2\\sqrt{7}}{3}\\)\n                        </div>\n</td>\n<td>\n<div class=\"question_answer\">\n</div>\n</td>\n</tr>\n</table>\n</div>\n"
+      "elements": [
+        {
+          "type": "text",
+          "body": "<h4>(46)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-3-3\\sqrt{3}}{2}\\), \\(\\frac{-3+3\\sqrt{3}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(47)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{3-2\\sqrt{6}}{3}\\), \\(\\frac{3+2\\sqrt{6}}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(48)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{4}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(49)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-3}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(50)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-1-\\sqrt{5}}{2}\\), \\(\\frac{-1+\\sqrt{5}}{2}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(51)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-5-\\sqrt{33}}{4}\\), \\(\\frac{-5+\\sqrt{33}}{4}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(52)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-3-\\sqrt{21}}{4}\\), \\(\\frac{-3+\\sqrt{21}}{4}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(53)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-1-\\sqrt{10}}{3}\\), \\(\\frac{-1+\\sqrt{10}}{3}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(54)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{-3-\\sqrt{29}}{4}\\), \\(\\frac{-3+\\sqrt{29}}{4}\\)</p>"
+        },
+        {
+          "type": "text",
+          "body": "<h4>(55)</h4>"
+        },
+        {
+          "type": "text",
+          "body": "<p>\\(\\frac{1-2\\sqrt{7}}{3}\\), \\(\\frac{1+2\\sqrt{7}}{3}\\)</p>"
+        }
+      ]
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "bf557c9a343ecd3a65a319ee81c65f87abf50bf50ea6d3326edee68690f97579"
+  "seed_hash": "fdb990f01bb338005d33173dc7ca59d27e402eeecb2a389b89ddda0e84ada1a0"
 }

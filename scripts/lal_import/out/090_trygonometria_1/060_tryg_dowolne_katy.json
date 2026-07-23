@@ -5,8 +5,10 @@
       "body": "<p>\n    Przypomnijmy sobie krótko, jak obliczamy funkcje trygonometryczne kąta ostrego w trójkącie prostokątnym.\n</p>"
     },
     {
-      "type": "text",
-      "body": "\n<img alt=\"definicje stosunków trygonometrycznych\" src=\"static/trojkaty_definicje.png\" width=\"600\"/>\n"
+      "type": "image",
+      "media_src": "static/trojkaty_definicje.png",
+      "alt": "definicje stosunków trygonometrycznych",
+      "figcaption": ""
     },
     {
       "type": "text",
@@ -22,5 +24,5 @@
     }
   ],
   "fully_mapped": true,
-  "seed_hash": "88f0f9eea8412f35dfce2b7ea1d8d063a059883e650a79c64df27f6e49433e0a"
+  "seed_hash": "2261de8352182cf7fdeedb91a68cedd565817667a77f9948ccdc132c1e2b6796"
 }

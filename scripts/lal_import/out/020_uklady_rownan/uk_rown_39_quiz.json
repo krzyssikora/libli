@@ -1,12 +1,10 @@
 {
   "elements": [
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<p>Przyjrzyj się poniższym wykresom i na ich podstawie połącz układy równań z ich rozwiązaniami.</p>",
-      "reason": "stem had no answer DSL"
+      "type": "text",
+      "body": "<p>Przyjrzyj się poniższym wykresom i na ich podstawie połącz układy równań z ich rozwiązaniami.</p>"
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "4b1e2d861d24900dfcdeb235bc6838bb5253a3a5e91491062336adc3d68056b0"
+  "fully_mapped": true,
+  "seed_hash": "245caeeadd14bcb212d494c9e6e7f20d85f749614abae82ab7d0a04818a5b9b8"
 }

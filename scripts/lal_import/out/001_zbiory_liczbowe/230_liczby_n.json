@@ -11,52 +11,102 @@
     {
       "type": "spoiler",
       "label": "\\(2\\)",
-      "body": "\n                        jej ostatnia cyfra to \\(0\\), \\(2\\), \\(4\\), \\(6\\) lub \\(8\\).\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>jej ostatnia cyfra to \\(0\\), \\(2\\), \\(4\\), \\(6\\) lub \\(8\\).</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "\\(3\\)",
-      "body": "\n                        suma jej cyfr jest podzielna przez \\(3\\).\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>suma jej cyfr jest podzielna przez \\(3\\).</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "\\(4\\)",
-      "body": "\n                        jej dwie ostatnie cyfry tworzą liczbę podzielną przez 4.\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>jej dwie ostatnie cyfry tworzą liczbę podzielną przez 4.</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "\\(5\\)",
-      "body": "\n                        jej ostatnia cyfra to \\(0\\) lub \\(5\\).\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>jej ostatnia cyfra to \\(0\\) lub \\(5\\).</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "\\(6\\)",
-      "body": "\n                        jest jednocześnie podzielna przez \\(2\\) i przez \\(3\\).\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>jest jednocześnie podzielna przez \\(2\\) i przez \\(3\\).</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "\\(7\\)",
-      "body": "\n                        różnica między liczbą złożoną z jej trzech ostatnich cyfr, a liczbą stworzoną z pozostałych cyfr tej liczby dzieli się przez \\(7\\).\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>różnica między liczbą złożoną z jej trzech ostatnich cyfr, a liczbą stworzoną z pozostałych cyfr tej liczby dzieli się przez \\(7\\).</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "\\(8\\)",
-      "body": "\n                        jej trzy ostatnie cyfry tworzą liczbę podzielną przez \\(8\\).\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>jej trzy ostatnie cyfry tworzą liczbę podzielną przez \\(8\\).</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "\\(9\\)",
-      "body": "\n                        suma jej cyfr jest podzielna przez \\(9\\).\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>suma jej cyfr jest podzielna przez \\(9\\).</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "\\(10\\)",
-      "body": "\n                        jej ostatnia cyfra to \\(0\\).\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>jej ostatnia cyfra to \\(0\\).</p>"
+        }
+      ]
     },
     {
       "type": "spoiler",
       "label": "\\(11\\)",
-      "body": "\n                        różnica sumy cyfr z miesjc parzystych tej liczby oraz sumy cyfr z miejsc nieparzystych tej liczby dzieli się przez \\(11\\).\n                    "
+      "elements": [
+        {
+          "type": "text",
+          "body": "<p>różnica sumy cyfr z miesjc parzystych tej liczby oraz sumy cyfr z miejsc nieparzystych tej liczby dzieli się przez \\(11\\).</p>"
+        }
+      ]
     },
     {
       "type": "text",
@@ -67,10 +117,43 @@
       "body": "\n        Wybierz wszystkie liczby będące dzielnikami liczb wskazanych w pierwszej kolumnie.\n    "
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\(432\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(3\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(4\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(5\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(6\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(9\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(10\\)\n        </div>\n</div>\n<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\(250\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(3\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(4\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(5\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(6\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(9\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(10\\)\n        </div>\n</div>\n<div>\n<div class=\"multi_many_option statement\" data-width=\"150px\">\n            \\(255\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(2\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(3\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(4\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(5\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(6\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(9\\)\n        </div>\n<div class=\"multi_many_ans ks_button\" style=\"width: 50px;\">\n            \\(10\\)\n        </div>\n</div>\n<div class=\"confirm_multiple ks_button\">\n        potwierdź\n    </div>",
-      "reason": "interactive_widget (Group B): confirm_multiple,multi_many_ans,multi_many_option"
+      "type": "multi_grid",
+      "columns": [
+        "\\(2\\)",
+        "\\(3\\)",
+        "\\(4\\)",
+        "\\(5\\)",
+        "\\(6\\)",
+        "\\(9\\)",
+        "\\(10\\)"
+      ],
+      "rows": [
+        {
+          "statement": "\\(432\\)",
+          "correct": [
+            0,
+            1,
+            2,
+            4,
+            5
+          ]
+        },
+        {
+          "statement": "\\(250\\)",
+          "correct": [
+            0,
+            3,
+            6
+          ]
+        },
+        {
+          "statement": "\\(255\\)",
+          "correct": [
+            1,
+            3
+          ]
+        }
+      ]
     },
     {
       "type": "text",
@@ -81,10 +164,35 @@
       "body": "\n        Sprawdź, czy liczba \\(16492\\) jest podzielna przez \\(7\\).\n    "
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"fill_steps\">\n<p>\n            W tym celu najpierw oddziel 3 ostatnie cyfry od reszty liczby\n        </p>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                Otrzymamy \\(16\\) i \\(492\\).\n            </p>\n<p>\n                Oblicz różnicę tych liczb. Dla wygody odejmij mniejszą od większej:\n            </p>\n<span class=\"myequation\">\n                \\(492-16=\\)\n                <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</span>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                Czy liczba \\(476\\) jest podzielna przez \\(7\\)?\n                <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</p>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n<p>\n                Czy liczba \\(16492\\) jest podzielna przez \\(7\\)?\n                <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</p>\n</div>\n</div>",
-      "reason": "interactive_widget (Group B): fill_answer,fill_show_next,fill_step"
+      "type": "text",
+      "body": "<p>\n            W tym celu najpierw oddziel 3 ostatnie cyfry od reszty liczby\n        </p>"
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Otrzymamy \\(16\\) i \\(492\\).\n            </p>\n<p>\n                Oblicz różnicę tych liczb. Dla wygody odejmij mniejszą od większej:\n            </p>\n<span class=\"myequation\">\n                \\(492-16=\\)\n                <span>\n￿0￿\n</span>\n</span>\n",
+      "answers": [
+        [
+          "476"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Czy liczba \\(476\\) jest podzielna przez \\(7\\)?\n                <span>\n￿0￿\n</span>\n</p>\n",
+      "answers": [
+        [
+          "tak"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n<p>\n                Czy liczba \\(16492\\) jest podzielna przez \\(7\\)?\n                <span>\n￿0￿\n</span>\n</p>\n",
+      "answers": [
+        [
+          "tak"
+        ]
+      ]
     },
     {
       "type": "text",
@@ -95,12 +203,41 @@
       "body": "\n        Sprawdź, czy liczba \\(104139\\) jest podzielna przez \\(11\\).\n    "
     },
     {
-      "type": "html",
-      "flagged": true,
-      "raw": "<div class=\"fill_steps\">\n<p>\n            W tym celu musimy oddzielnie rozpatrzeć cyfry na miejscach\n            <span style=\"color: red;\">\n                nieparzystych\n            </span>\n            i\n            <span style=\"color: blue;\">\n                parzystych\n            </span>\n            .\n        </p>\n        \\[\\color{red}{1}\\color{blue}{0}\\color{red}{4}\\color{blue}{1}\\color{red}{3}\\color{blue}{9}\\]\n        <div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n            Jaka jest suma cyfr na miejscach\n            <span style=\"color: red;\">\n                nieparzystych\n            </span>\n            ?\n            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n            Jaka jest suma cyfr na miejscach\n            <span style=\"color: blue;\">\n                parzystych\n            </span>\n            ?\n            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</div>\n<div class=\"fill_show_next\">\n            pokaż dalej\n        </div>\n<div class=\"fill_step\">\n            Teraz oblicz różnicę między tymi dwoma wynikami, i wpisz, czy liczba \\(104139\\) jest podzielna przez \\(11\\)?\n            <span>\n<input class=\"fill_answer\" placeholder=\"wpisz\" type=\"text\"/>\n</span>\n</div>\n</div>",
-      "reason": "interactive_widget (Group B): fill_answer,fill_show_next,fill_step"
+      "type": "text",
+      "body": "<p>\n            W tym celu musimy oddzielnie rozpatrzeć cyfry na miejscach\n            <span style=\"color: red;\">\n                nieparzystych\n            </span>\n            i\n            <span style=\"color: blue;\">\n                parzystych\n            </span>\n            .\n        </p>"
+    },
+    {
+      "type": "math",
+      "latex": "\\color{red}{1}\\color{blue}{0}\\color{red}{4}\\color{blue}{1}\\color{red}{3}\\color{blue}{9}"
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n            Jaka jest suma cyfr na miejscach\n            <span style=\"color: red;\">\n                nieparzystych\n            </span>\n            ?\n            <span>\n￿0￿\n</span>\n",
+      "answers": [
+        [
+          "8"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n            Jaka jest suma cyfr na miejscach\n            <span style=\"color: blue;\">\n                parzystych\n            </span>\n            ?\n            <span>\n￿0￿\n</span>\n",
+      "answers": [
+        [
+          "10"
+        ]
+      ]
+    },
+    {
+      "type": "fill_gate",
+      "stem": "\n            Teraz oblicz różnicę między tymi dwoma wynikami, i wpisz, czy liczba \\(104139\\) jest podzielna przez \\(11\\)?\n            <span>\n￿0￿\n</span>\n",
+      "answers": [
+        [
+          "nie"
+        ]
+      ]
     }
   ],
-  "fully_mapped": false,
-  "seed_hash": "63562d9de8c00d95719200ac21456ef602e4ca1c0aa93c9e2e81cc3d997e0f93"
+  "fully_mapped": true,
+  "seed_hash": "00255b1865d2938d752f045e6dc93b088f2a77c8aa76a18b44298a76ccdfef14"
 }
