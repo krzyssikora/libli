@@ -542,7 +542,8 @@ test, so `client.get(...)` renders the **real** templates — no `override_setti
 `test_i18n_*` / `test_*_styles` / `test_e2e_*` split. The i18n file's naming is what makes the
 `#~`/fuzzy guard discoverable next to its siblings.
 
-**The no-access 403 fixture shape**, used by tests 4, 5, 6 and both 403 screenshots.
+**The no-access 403 fixture shape**, used by tests 4, 5, 6 and all **three** 403 screenshots (shots
+2, 4 and 6 — the matrix below is authoritative).
 `courses/access.py` grants access if the user `is_staff` **or** owns the course **or** is enrolled
 **or** teaches a non-archived group attached to it — "no access" is four negatives, not one, and the
 project's factories do not all produce a prod-shaped non-staff user. Pin it explicitly: a user who is
