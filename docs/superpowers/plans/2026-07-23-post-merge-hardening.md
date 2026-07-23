@@ -389,6 +389,10 @@ ROOT = Path(__file__).resolve().parent.parent
 PL_PO = ROOT / "locale" / "pl" / "LC_MESSAGES" / "django.po"
 EN_PO = ROOT / "locale" / "en" / "LC_MESSAGES" / "django.po"
 
+# Keyed by locale code, because both files are named "django.po" -- a failure
+# message built from path.name could not tell you which catalog broke.
+CATALOGS = {"pl": PL_PO, "en": EN_PO}
+
 # Failure-message formatting, shared by all three guards: every one of them can
 # have many offenders at once (a bad sweep reintroduces dozens).
 MAX_MSGID_CHARS = 80
@@ -507,19 +511,19 @@ def _untranslated(path):
 
 
 def test_no_fuzzy_entries():
-    for path in (PL_PO, EN_PO):
+    for locale, path in CATALOGS.items():
         bad = [e["msgid"] for e in _entries(path) if e["fuzzy"]]
         assert not bad, (
-            f"{path.name}: fuzzy entries present — review and clear the flag:\n"
+            f"locale/{locale}: fuzzy entries present — review and clear the flag:\n"
             + _format_offenders(bad)
         )
 
 
 def test_no_obsolete_entries():
-    for path in (PL_PO, EN_PO):
+    for locale, path in CATALOGS.items():
         bad = [e["msgid"] for e in _entries(path) if e["obsolete"]]
         assert not bad, (
-            f"{path.name}: obsolete entries present — delete them:\n"
+            f"locale/{locale}: obsolete entries present — delete them:\n"
             + _format_offenders(bad)
         )
 
