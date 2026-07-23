@@ -203,30 +203,175 @@
     // JSON in the hidden field, so it is skipped here.
     if (hidden.value === "") serialize();
 
-    var focusedCell = null;
+    // focusCell (the existing declaration, renamed) is the SINGLE authority for
+    // what the toolbar acts on. It is set on plain click/focusin and
+    // deliberately NOT moved by Shift+click: suppressing the Shift mousedown
+    // also suppresses focus movement, so document.activeElement is unusable.
+    var focusCell = null;
+    var rangeAnchor = null;   // a cell node
+    var rangeEnd = null;      // a LAYOUT {r, c} coordinate, not a node
+
+    function clearRange(announce) {
+      rangeEnd = null;
+      Array.prototype.forEach.call(
+        grid.querySelectorAll(".is-range"),
+        function (c) { c.classList.remove("is-range"); }
+      );
+      if (announce) say("range-cleared");
+      refreshToolbarState();
+    }
+
+    // Every client-built string rides on a data-msg-* attribute, because this
+    // markup is created in JS where {% trans %} is unavailable.
+    function msg(key) {
+      return editor.getAttribute("data-msg-" + key) || "";
+    }
+
+    function say(key) {
+      var region = editor.querySelector("[data-range-status]");
+      if (region) region.textContent = msg(key);
+    }
+
+    // A range that is legal in SHAPE but larger than a table may be -- e.g.
+    // all 26 columns of the grandfathered table. canMerge already refuses it;
+    // this is only so the button can say WHY instead of greying out silently.
+    function tooBig() {
+      if (!rangeAnchor || !rangeEnd) return false;
+      var rg = libliTableGrid.rangeCells(desc, rangeAnchor, rangeEnd);
+      if (!rg) return false;
+      return (rg.c1 - rg.c0 + 1) > desc.maxCols ||
+             (rg.r1 - rg.r0 + 1) > desc.maxRows;
+    }
+
+    function paintRange() {
+      Array.prototype.forEach.call(
+        grid.querySelectorAll(".is-range"),
+        function (c) { c.classList.remove("is-range"); }
+      );
+      if (!rangeAnchor || !rangeEnd) return;
+      var rg = libliTableGrid.rangeCells(desc, rangeAnchor, rangeEnd);
+      if (!rg) return;
+      rg.cells.forEach(function (c) { c.classList.add("is-range"); });
+      say("range-selected");
+      refreshToolbarState();
+    }
 
     function refreshAlignButtons() {
-      if (!toolbar || !focusedCell) return;
+      if (!toolbar || !focusCell) return;
       Array.prototype.forEach.call(toolbar.querySelectorAll("[data-halign]"), function (btn) {
         btn.classList.toggle(
           "is-on",
-          btn.getAttribute("data-halign") === (focusedCell.dataset.halign || "left")
+          btn.getAttribute("data-halign") === (focusCell.dataset.halign || "left")
         );
       });
       Array.prototype.forEach.call(toolbar.querySelectorAll("[data-valign]"), function (btn) {
         btn.classList.toggle(
           "is-on",
-          btn.getAttribute("data-valign") === (focusedCell.dataset.valign || "top")
+          btn.getAttribute("data-valign") === (focusCell.dataset.valign || "top")
         );
       });
+    }
+
+    function refreshToolbarState() {
+      if (!toolbar) return;
+      var mergeBtn = toolbar.querySelector("[data-merge]");
+      var splitBtn = toolbar.querySelector("[data-split]");
+      var headerBtn = toolbar.querySelector("[data-header-toggle]");
+      // These three must be settled even when focusCell is null -- a delete
+      // that nulls it would otherwise leave Merge enabled. "Toolbar hidden" is
+      // a different mechanism and does not substitute.
+      if (mergeBtn) {
+        var ok = rangeAnchor && rangeEnd &&
+                 libliTableGrid.canMerge(desc, rangeAnchor, rangeEnd);
+        mergeBtn.disabled = !ok;
+        mergeBtn.title = tooBig() ? msg("merge-too-big") : msg("merge");
+      }
+      if (splitBtn) {
+        splitBtn.disabled = !(focusCell &&
+          (libliTableGrid.colspanOf(focusCell) > 1 ||
+           libliTableGrid.rowspanOf(focusCell) > 1));
+      }
+      // Task 12 already renders [data-header-toggle], so headerBtn is non-null
+      // throughout Task 13 -- but refreshHeaderButton only exists from Task 14.
+      // Ship the stub below in THIS task so refreshToolbarState cannot throw a
+      // ReferenceError (which would take paintRange, clearRange and the whole
+      // merge/split enablement down with it); Task 14 replaces its body.
+      if (headerBtn) refreshHeaderButton(headerBtn);
+      refreshAlignButtons();
+    }
+
+    // Replaced wholesale in Task 14.
+    function refreshHeaderButton(btn) {
+      btn.disabled = true;
+    }
+
+    // Non-empty means: static html that is not blank, OR any answer cell, OR
+    // any image cell -- so a merge can never silently lose an accepted answer
+    // or an image's media pk. (table_editor.js has no kinds; the kind clauses
+    // live in filltable_editor.js's override.)
+    function absorbedNonEmpty(rg) {
+      for (var i = 0; i < rg.cells.length; i++) {
+        var c = rg.cells[i];
+        if (c === rg.anchor) continue;
+        if (cellIsNonEmpty(c)) return true;
+      }
+      return false;
+    }
+
+    function cellIsNonEmpty(c) {
+      return c.textContent.trim() !== "" || c.querySelector("img") !== null;
     }
 
     grid.addEventListener("focusin", function (e) {
       var td = e.target.closest("td[contenteditable], th[contenteditable]");
       if (!td) return;
-      focusedCell = td;
+      focusCell = td;
+      rangeAnchor = td;   // a plain click ALWAYS re-seats the anchor, so a
+                          // stale anchor from an earlier merge can never
+                          // silently re-appear in the next range
+      clearRange(false);  // ... and drops any live range
       if (toolbar) toolbar.hidden = false;
-      refreshAlignButtons();
+      refreshToolbarState();   // replaces the bare refreshAlignButtons() call:
+                               // Split and Header enablement both read
+                               // focusCell, so the toolbar must recompute
+                               // whenever focus moves
+    });
+
+    // Chrome and genuine multi-line controls are excluded, but the fill-table's
+    // ANSWER INPUT is not: it is styled full-cell, so it covers essentially the
+    // whole answer cell. Excluding it would leave an author with no way to make
+    // an answer cell a range endpoint at all -- which Task 16's first test
+    // requires. Shift+click text-selection inside a one-line input is the
+    // (marginal) thing traded away; the caret still lands there on a plain click.
+    var SHIFT_EXEMPT = "textarea, select, button, [data-control]";
+
+    grid.addEventListener("mousedown", function (e) {
+      if (!e.shiftKey) return;
+      if (e.target.closest(SHIFT_EXEMPT)) return;
+      e.preventDefault();   // stop contenteditable starting a text selection
+    });
+
+    grid.addEventListener("click", function (e) {
+      if (!e.shiftKey) return;
+      if (e.target.closest(SHIFT_EXEMPT)) return;
+      var td = e.target.closest("td, th");
+      if (!td || td.hasAttribute("data-control")) return;
+      // First gesture in a fresh editor: no focusin has fired, so there is no
+      // anchor yet. Behave exactly like a plain click -- never reach
+      // rangeCells with a null anchor.
+      if (!rangeAnchor) {
+        rangeAnchor = td;
+        focusCell = td;
+        // Focus explicitly: the mousedown above already preventDefault'ed, so
+        // nothing in the grid has DOM focus and the grid-scoped keyboard chord
+        // would stay unreachable until the author clicked again.
+        td.focus();
+        refreshToolbarState();
+        return;
+      }
+      var sm = libliTableGrid.slotMap(desc);
+      rangeEnd = libliTableGrid.anchorOf(sm, td);
+      paintRange();
     });
 
     // Enter inserts a <br> instead of a new block element, so a cell's only
@@ -246,11 +391,12 @@
       serialize();
     });
 
-    // Every structural edit ends the same way. Slices 3-4 add range clearing
-    // and toolbar refresh here.
+    // Every structural edit ends the same way.
     function afterStructuralEdit() {
+      clearRange(false);
       rebuildColControls(grid, desc);
       refreshControlState(grid, desc);
+      refreshToolbarState();
       serialize();
     }
 
@@ -308,9 +454,9 @@
 
       toolbar.addEventListener("click", function (e) {
         var cmdBtn = e.target.closest("[data-cmd]");
-        if (cmdBtn && focusedCell) {
+        if (cmdBtn && focusCell) {
           var cmd = cmdBtn.getAttribute("data-cmd");
-          focusedCell.focus();
+          focusCell.focus();
           if (cmd === "bold" || cmd === "italic" || cmd === "underline") {
             // styleWithCSS=false forces execCommand to emit <b>/<i>/<u> tags
             // rather than inline style="" attributes (CELL_TAGS has no
@@ -322,7 +468,7 @@
             if (!window.libliMathInput) return;
             var sel = window.getSelection();
             var range = sel && sel.rangeCount ? sel.getRangeAt(0) : null;
-            var cell = focusedCell;
+            var cell = focusCell;
             window.libliMathInput.open(function (latex) {
               cell.focus();
               var node = document.createTextNode("\\(" + latex + "\\)");
@@ -342,23 +488,55 @@
           return;
         }
         var halignBtn = e.target.closest("[data-halign]");
-        if (halignBtn && focusedCell) {
+        if (halignBtn && focusCell) {
           var h = halignBtn.getAttribute("data-halign");
-          focusedCell.dataset.halign = h;
-          HALIGNS.forEach(function (v) { focusedCell.classList.remove("ta-" + v); });
-          focusedCell.classList.add("ta-" + h);
+          focusCell.dataset.halign = h;
+          HALIGNS.forEach(function (v) { focusCell.classList.remove("ta-" + v); });
+          focusCell.classList.add("ta-" + h);
           refreshAlignButtons();
           serialize();
           return;
         }
         var valignBtn = e.target.closest("[data-valign]");
-        if (valignBtn && focusedCell) {
+        if (valignBtn && focusCell) {
           var v = valignBtn.getAttribute("data-valign");
-          focusedCell.dataset.valign = v;
-          VALIGNS.forEach(function (vv) { focusedCell.classList.remove("va-" + vv); });
-          focusedCell.classList.add("va-" + v);
+          focusCell.dataset.valign = v;
+          VALIGNS.forEach(function (vv) { focusCell.classList.remove("va-" + vv); });
+          focusCell.classList.add("va-" + v);
           refreshAlignButtons();
           serialize();
+          return;
+        }
+        var mergeBtn = e.target.closest("[data-merge]");
+        if (mergeBtn && !mergeBtn.disabled) {
+          var rg = libliTableGrid.rangeCells(desc, rangeAnchor, rangeEnd);
+          if (rg && absorbedNonEmpty(rg)) {
+            if (!window.confirm(msg("merge-confirm"))) return;   // cancel: no change
+          }
+          var kept = libliTableGrid.merge(desc, rangeAnchor, rangeEnd);
+          if (kept) {
+            focusCell = kept;
+            rangeAnchor = kept;
+            // Not decoration: the toolbar's mousedown handler above already
+            // preventDefault'ed, so the button never took focus. If focusCell
+            // was an ABSORBED cell, merge just detached that node and DOM
+            // focus fell to <body> -- without this, the grid-scoped keyboard
+            // chord (Alt+Shift+Arrow, Task 15) would go dead until the author
+            // clicked a cell again.
+            kept.focus();
+          }
+          afterStructuralEdit();   // owns range clearing; do not clear here too
+          return;
+        }
+        var splitBtn = e.target.closest("[data-split]");
+        if (splitBtn && !splitBtn.disabled && focusCell) {
+          var anchor = focusCell;
+          libliTableGrid.split(desc, anchor);
+          // The anchor survives a split, so focus simply stays on it.
+          focusCell = anchor;
+          rangeAnchor = anchor;
+          anchor.focus();
+          afterStructuralEdit();
           return;
         }
       });

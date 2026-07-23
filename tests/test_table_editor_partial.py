@@ -119,6 +119,9 @@ def test_table_editor_exposes_merge_split_and_header_controls():
         "data-msg-merge-too-big",
         "data-msg-header-locked",
         "data-msg-range-selected",
+        "data-msg-merge",
+        "data-msg-header",
+        "data-msg-range-cleared",
     ):
         assert msg in html
     assert 'aria-live="polite"' in html

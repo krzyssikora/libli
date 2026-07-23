@@ -100,3 +100,211 @@ def test_column_delete_inside_a_colspan_shrinks_it(page, live_server):
     cells = _cells(TableElement, element)
     assert cells[0][0]["colspan"] == 2
     assert len(cells[1]) == 2
+
+
+def _cell(page, root, row, col):
+    """The (row, col)-th DATA cell of the editor grid, by sibling position."""
+    return (
+        page.locator(f"{root} [data-table-grid] tr")
+        .nth(row)
+        .locator("td:not([data-control]), th:not([data-control])")
+        .nth(col)
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_shift_click_range_then_merge_persists_the_span(page, live_server):
+    """Real gestures only: click a cell, Shift+click another, press Merge,
+    Save -- the span must reach the database."""
+    from courses.models import TableElement
+    from tests.test_e2e_table_editor import _login
+    from tests.test_e2e_table_editor import _make_pa_user
+    from tests.test_e2e_table_editor import _unit
+
+    _make_pa_user("merge_ok")
+    _login(page, live_server, "merge_ok")
+    unit = _unit("merge_ok", "merge-ok")
+    element = _seed(
+        unit,
+        TableElement,
+        [[{"html": ""} for _ in range(3)] for _ in range(3)],
+    )
+
+    _reopen(page, live_server, unit, element, TABLE_ROOT)
+    _cell(page, TABLE_ROOT, 0, 0).click()
+    _cell(page, TABLE_ROOT, 1, 1).click(modifiers=["Shift"])
+    page.locator(f"{TABLE_ROOT} [data-merge]").click()
+    assert _save_and_report(page, TABLE_ROOT), "save was rejected"
+
+    cells = _cells(TableElement, element)
+    assert cells[0][0]["colspan"] == 2
+    assert cells[0][0]["rowspan"] == 2
+    assert len(cells[0]) == 2  # 3 cells -> merged one + the survivor
+    assert len(cells[1]) == 1  # row 1 lost the absorbed cell
+    assert len(cells[2]) == 3  # untouched
+
+
+@pytest.mark.django_db(transaction=True)
+def test_split_returns_the_freed_cells(page, live_server):
+    """A merged cell, split, must free the covered slots back as plain cells."""
+    from courses.models import TableElement
+    from tests.test_e2e_table_editor import _login
+    from tests.test_e2e_table_editor import _make_pa_user
+    from tests.test_e2e_table_editor import _unit
+
+    _make_pa_user("split_ok")
+    _login(page, live_server, "split_ok")
+    unit = _unit("split_ok", "split-ok")
+    element = _seed(
+        unit,
+        TableElement,
+        [[{"colspan": 2, "rowspan": 2, "html": "m"}], []],
+    )
+
+    _reopen(page, live_server, unit, element, TABLE_ROOT)
+    _cell(page, TABLE_ROOT, 0, 0).click()
+    page.locator(f"{TABLE_ROOT} [data-split]").click()
+    assert _save_and_report(page, TABLE_ROOT), "save was rejected"
+
+    cells = _cells(TableElement, element)
+    assert [len(r) for r in cells] == [2, 2]
+    for row in cells:
+        for c in row:
+            assert "colspan" not in c
+            assert "rowspan" not in c
+
+
+@pytest.mark.django_db(transaction=True)
+def test_merge_then_split_all_returns_the_original_rectangle(page, live_server):
+    """The normalize_data BRANCH FLIP, pinned end to end.
+
+    normalize_data picks its branch from "does any cell carry a span", so
+    splitting the last merge flips a grid from keep-ragged-verbatim to
+    rectangularising (pad-to-max-width, plus the 2x2 collapse guard). That is
+    only safe because the editor never posts a layout-inconsistent grid.
+    """
+    from courses.models import TableElement
+    from tests.test_e2e_table_editor import _login
+    from tests.test_e2e_table_editor import _make_pa_user
+    from tests.test_e2e_table_editor import _unit
+
+    _make_pa_user("flip")
+    _login(page, live_server, "flip")
+    unit = _unit("flip", "flip")
+    # Only the ANCHOR carries content: the absorbed cells must be blank, or
+    # absorbedNonEmpty fires the confirm and Playwright auto-dismisses it (see
+    # the dialog note in this file's header), silently cancelling the merge.
+    element = _seed(
+        unit,
+        TableElement,
+        [
+            [{"html": "keep"}, {"html": ""}, {"html": ""}],
+            [{"html": ""}, {"html": ""}, {"html": ""}],
+            [{"html": ""}, {"html": ""}, {"html": ""}],
+        ],
+    )
+    before = _cells(TableElement, element)
+
+    # merge (0,0)..(1,1)
+    _reopen(page, live_server, unit, element, TABLE_ROOT)
+    _cell(page, TABLE_ROOT, 0, 0).click()
+    _cell(page, TABLE_ROOT, 1, 1).click(modifiers=["Shift"])
+    page.locator(f"{TABLE_ROOT} [data-merge]").click()
+    assert _save_and_report(page, TABLE_ROOT), "merge save was rejected"
+    assert _cells(TableElement, element)[0][0]["colspan"] == 2
+
+    # split it again -- the grid flips back to the rectangularising branch
+    _reopen(page, live_server, unit, element, TABLE_ROOT)
+    _cell(page, TABLE_ROOT, 0, 0).click()
+    page.locator(f"{TABLE_ROOT} [data-split]").click()
+    assert _save_and_report(page, TABLE_ROOT), "split save was rejected"
+
+    after = _cells(TableElement, element)
+    assert [len(r) for r in after] == [3, 3, 3]
+    for row in after:
+        for c in row:
+            assert "colspan" not in c
+            assert "rowspan" not in c
+            assert "header" not in c
+    # The surviving anchor keeps its content; the re-created cells are empty.
+    assert after[0][0]["html"] == before[0][0]["html"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_merge_over_content_asks_before_discarding(page, live_server):
+    """A non-empty absorbed cell triggers window.confirm; dismissing it must
+    leave the grid unchanged, accepting it must merge."""
+    from courses.models import TableElement
+    from tests.test_e2e_table_editor import _login
+    from tests.test_e2e_table_editor import _make_pa_user
+    from tests.test_e2e_table_editor import _unit
+
+    _make_pa_user("confirm_ok")
+    _login(page, live_server, "confirm_ok")
+    unit = _unit("confirm_ok", "confirm-ok")
+    element = _seed(
+        unit,
+        TableElement,
+        [
+            [{"html": "keep"}, {"html": "lose"}],
+            [{"html": "a"}, {"html": "b"}],
+        ],
+    )
+
+    _reopen(page, live_server, unit, element, TABLE_ROOT)
+    page.once("dialog", lambda d: d.dismiss())
+    _cell(page, TABLE_ROOT, 0, 0).click()
+    _cell(page, TABLE_ROOT, 0, 1).click(modifiers=["Shift"])
+    page.locator(f"{TABLE_ROOT} [data-merge]").click()
+    # Dismissed confirm -> no merge happened, so [data-merge] should still be
+    # sitting there enabled (range untouched) and the grid unchanged on save.
+    assert _save_and_report(page, TABLE_ROOT), "save was rejected"
+    cells = _cells(TableElement, element)
+    assert "colspan" not in cells[0][0]
+    assert len(cells[0]) == 2
+
+    # Now accept: re-open, redo the gesture, accept the dialog.
+    _reopen(page, live_server, unit, element, TABLE_ROOT)
+    page.once("dialog", lambda d: d.accept())
+    _cell(page, TABLE_ROOT, 0, 0).click()
+    _cell(page, TABLE_ROOT, 0, 1).click(modifiers=["Shift"])
+    page.locator(f"{TABLE_ROOT} [data-merge]").click()
+    assert _save_and_report(page, TABLE_ROOT), "save was rejected"
+    cells = _cells(TableElement, element)
+    assert cells[0][0]["colspan"] == 2
+
+
+@pytest.mark.django_db(transaction=True)
+def test_merge_while_focus_sits_on_an_absorbed_cell_refocuses_the_survivor(
+    page, live_server
+):
+    """Click cell B, shift-click A so the range covers both but focusCell is B
+    (an absorbed cell). Merge. The kept cell must hold DOM focus -- otherwise
+    the toolbar's mousedown preventDefault leaves focus on <body> after the
+    absorbed node is detached."""
+    from courses.models import TableElement
+    from tests.test_e2e_table_editor import _login
+    from tests.test_e2e_table_editor import _make_pa_user
+    from tests.test_e2e_table_editor import _unit
+
+    _make_pa_user("refocus")
+    _login(page, live_server, "refocus")
+    unit = _unit("refocus", "refocus")
+    element = _seed(
+        unit,
+        TableElement,
+        [[{"html": ""} for _ in range(2)] for _ in range(2)],
+    )
+
+    _reopen(page, live_server, unit, element, TABLE_ROOT)
+    # Click B (0,1) first -- becomes focusCell and rangeAnchor.
+    _cell(page, TABLE_ROOT, 0, 1).click()
+    # Shift+click A (0,0) -- range now covers both, anchor stays B, so B (the
+    # click-anchor) is the ABSORBED cell after merge: rangeCells sorts by
+    # layout position, and the top-left slot (0,0) becomes the survivor.
+    _cell(page, TABLE_ROOT, 0, 0).click(modifiers=["Shift"])
+    page.locator(f"{TABLE_ROOT} [data-merge]").click()
+
+    focused = page.locator(f"{TABLE_ROOT} td:focus, {TABLE_ROOT} th:focus")
+    assert focused.count() == 1
+    assert focused.get_attribute("colspan") == "2"
