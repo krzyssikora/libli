@@ -89,11 +89,13 @@ One optional parameter, threaded from the only callers that know a course.
 and build `ids` from. `MediaAsset.kind` is a property of the *asset* and is what the new lookup filters
 on. They coincidentally share the string `"image"`; they are different fields on different objects.
 
-The asymmetry is deliberate and worth recording. `FillTableElement.render(self, unit, course, ...)`
-receives its course as an *argument*; the element does not own one, so `resolved_cells` — a no-arg
-property — has no course to scope against. Read-time scoping is therefore impossible on the student
-path. The guarantee there is **validated-at-write**: stored data passed `clean_data`, which enforces
-course and kind at save time.
+The asymmetry is deliberate and worth recording. `FillTableElement.render` (`courses/models.py:1141`)
+has the signature `render(self, *, element=None, state=None, slug=None, node_pk=None)`, matching the
+contract inherited from `ElementBase.render` (`courses/models.py:371`). **No course and no unit is
+passed at any point in the render chain**, and the element owns no course field of its own — so
+`resolved_cells`, a no-arg property, has nothing to scope against. Read-time scoping is therefore
+impossible on the student path, and not merely inconvenient. The guarantee there is
+**validated-at-write**: stored data passed `clean_data`, which enforces course and kind at save time.
 
 `course=None` preserving unscoped behaviour is not an oversight either — it mirrors `clean_data`,
 which already skips its own check with `if img_ids and self.course is not None`. A form without a
@@ -146,14 +148,37 @@ On the student path nothing changes: `resolved_cells` → `resolve_image_cells(c
 identical query, identical output. Gallery has no student-render twin of `editor_rows` to change.
 
 **Issue C** is a static analysis of two files on disk. `_entries(path)` parses a `.po` into entries;
-each test asserts a property over them. No database, no request cycle.
+all three tests consume that **same** list. No database, no request cycle.
+
+The per-entry shape must be pinned, because two of the tests need opposite things from obsolete
+entries. Each entry carries at least:
+
+```
+{msgid: str, msgstrs: list[str], fuzzy: bool, obsolete: bool}
+```
+
+`msgstrs` holds one string for a singular entry and `nplurals` strings for a plural one, so emptiness
+is judged uniformly across both. Crucially, `_entries()` **retains** obsolete entries and marks them
+`obsolete=True` rather than dropping them at parse time: `test_no_obsolete_entries` needs to see them
+in order to flag them, while `test_pl_has_no_untranslated_msgid` filters them out. A parse-time drop
+would leave the obsolete test asserting over a list from which its own subject had already been
+removed — passing vacuously.
 
 ## Error handling
 
-**Issue B.** `course=None` is the documented no-scoping path, not an error. An unresolvable pk —
-whether dangling, foreign, or of the wrong kind — is not an exception: it degrades to an empty static
-cell, exactly as a dangling pk already does. The author still sees the real `clean_data` validation
-error explaining what was actually wrong; the blank cell is not the only feedback they get.
+**Issue B1 (fill-table).** `course=None` is the documented no-scoping path on
+`resolve_image_cells`, not an error — it is what the student-render caller passes. An unresolvable pk
+— whether dangling, foreign, or of the wrong kind — is not an exception: it degrades to an empty
+static cell, exactly as a dangling pk already does.
+
+**Issue B2 (gallery).** The fallback is different and stays different: an unresolvable pk leaves
+`asset is None`, and `editor_rows` **omits the row entirely**. `editor_rows` gains no `course=None`
+path at all — it is a form property that always has `self.course` available, so it scopes
+unconditionally. If `self.course` is somehow `None`, it must behave as `clean_data` does in the same
+situation and skip scoping rather than silently resolving nothing.
+
+In both cases the author still sees the real `clean_data` validation error explaining what was
+actually wrong; the missing image is not the only feedback they get.
 
 **Issue C.** The parser must fail loudly rather than silently under-report, since a guard that misses
 entries is worse than no guard. Four parsing hazards must be handled explicitly:
@@ -195,13 +220,18 @@ video pk does the same. Each falsified by unscoping the lookup. Assert on galler
 the row is dropped entirely — not on the fill-table's degrade-to-static, since the two forms
 deliberately differ here.
 
-**Issue C.** The hand-rolled parser is itself the risk, so it must be proven red **twice**, not once:
+**Issue C.** The hand-rolled parser is itself the risk, so it must be proven against **three** scenarios,
+each as concrete as the others — two proving it fires, one proving it does not:
 
-- blank a real Polish `msgstr` → the guard fails, naming that msgid;
-- blank **one form** of a plural entry → the guard also fails.
+- blank a real Polish `msgstr` → `test_pl_has_no_untranslated_msgid` fails, naming that msgid;
+- blank **one form** of a plural entry → it also fails (a single scalar falsification would leave the
+  plural path, the subtlest branch, unproven);
+- inject an obsolete entry with an empty translation (`#~ msgid "..."` / `#~ msgstr ""`) → it must
+  **not** fire. This is the false-positive direction, and without it "excluded from the untranslated
+  scan" could be satisfied by a shallow assertion that never exercises an obsolete entry carrying a
+  blank `msgstr` at all.
 
-Both falsifications are reverted afterwards. A single scalar falsification would leave the plural path
-— the subtlest branch — unproven.
+All three edits are reverted afterwards.
 
 The full non-e2e suite must pass, and both `uv run ruff check .` and `uv run ruff format --check .`
 must be clean; CI gates on them separately.
