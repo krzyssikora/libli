@@ -1625,13 +1625,22 @@ class GalleryElementForm(_CourseScopedMediaForm):
     def editor_rows(self):
         """Resolved [{id, thumb_url, desc}] for the editor: from submitted data
         when bound (so an invalid re-render keeps the author's picks), else from
-        the instance. Unresolved ids are dropped."""
+        the instance. Unresolved ids are dropped.
+
+        The lookup is scoped to this course's IMAGE assets, matching what
+        clean_data validates -- without it, a rejected save carrying another
+        course's pk re-renders that asset's URL. Scoping is unconditional here,
+        with no course=None carve-out, because clean_data in this same form
+        filters unconditionally too (unlike FillTableElementForm's, which has an
+        `is not None` guard). Resolver and validator agree by construction."""
         if self.is_bound:
             source = GalleryElement.normalize_data(self._raw_data_json())
         else:
             source = GalleryElement.normalize_data(getattr(self.instance, "data", {}))
         ids = [img["media"] for img in source["images"]]
-        assets = MediaAsset.objects.in_bulk(ids)
+        assets = MediaAsset.objects.filter(
+            course=self.course, kind="image", pk__in=ids
+        ).in_bulk()
         rows = []
         for img in source["images"]:
             asset = assets.get(img["media"])
