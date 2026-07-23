@@ -11,6 +11,8 @@ catch a blank msgstr, and a msgid once shipped untranslated as a result.
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 PL_PO = ROOT / "locale" / "pl" / "LC_MESSAGES" / "django.po"
 EN_PO = ROOT / "locale" / "en" / "LC_MESSAGES" / "django.po"
@@ -126,10 +128,16 @@ def _format_offenders(msgids):
 def _flagged(path, key):
     """msgids of entries carrying a given flag ("fuzzy" or "obsolete").
 
-    Shared by the guards AND their falsification fixtures, so the fixtures
-    exercise the guards' own predicate rather than a parallel copy of it --
-    otherwise a guard filtering on the wrong key would stay green forever,
-    the real catalogs having zero of both.
+    Shared by the two guards below (test_no_fuzzy_entries,
+    test_no_obsolete_entries) and by the parser-level fixtures further down
+    (test_entries_marks_a_fuzzy_entry, test_entries_marks_an_obsolete_entry),
+    which call _flagged() directly to prove the parsing and filtering it does
+    is correct. That does NOT exercise the guards' own bodies -- each guard
+    still hardcodes its own literal key ("fuzzy" / "obsolete"), and nothing
+    pins that it is the right one. That coverage lives in
+    test_fuzzy_guard_itself_fires_on_a_fuzzy_entry and
+    test_obsolete_guard_itself_fires_on_an_obsolete_entry, which call the
+    guard functions themselves.
     """
     return [e["msgid"] for e in _entries(path) if e[key]]
 
@@ -278,3 +286,36 @@ def test_entries_marks_an_obsolete_entry(tmp_path):
     only because _entries() retains and marks them rather than dropping them."""
     p = _po(tmp_path, '#~ msgid "Gone"\n#~ msgstr "Zniknęło"\n')
     assert _flagged(p, "obsolete") == ["Gone"]
+
+
+# --- guard-body coverage -----------------------------------------------------
+# The scenarios above prove _flagged() itself parses and filters correctly,
+# but each guard still hardcodes its own literal key ("fuzzy" / "obsolete")
+# and nothing calls the guard to prove THAT key is the right one. With zero
+# fuzzy and zero obsolete entries in both real catalogs, a guard filtering on
+# the wrong flag -- or the right flag with the sense inverted -- would stay
+# green forever. These two call the guard functions themselves against a
+# fixture catalog so their bodies actually execute and can fail.
+
+
+def test_fuzzy_guard_itself_fires_on_a_fuzzy_entry(tmp_path, monkeypatch):
+    """Exercises test_no_fuzzy_entries' OWN body, not just _flagged.
+
+    monkeypatch.setitem leaves CATALOGS["en"] pointing at the real (clean)
+    catalog, so only the "pl" fixture can trigger the failure -- the loop
+    still walks both locales, but "en" is inert by construction here."""
+    p = _po(tmp_path, '#, fuzzy\nmsgid "Save"\nmsgstr "Zapisz"\n')
+    monkeypatch.setitem(CATALOGS, "pl", p)
+    with pytest.raises(AssertionError, match="fuzzy entries present"):
+        test_no_fuzzy_entries()
+
+
+def test_obsolete_guard_itself_fires_on_an_obsolete_entry(tmp_path, monkeypatch):
+    """Exercises test_no_obsolete_entries' OWN body, not just _flagged.
+
+    Same shape as the fuzzy case above: CATALOGS["en"] is left pointing at
+    the real (clean) catalog, so only the "pl" fixture can trigger it."""
+    p = _po(tmp_path, '#~ msgid "Gone"\n#~ msgstr "Zniknęło"\n')
+    monkeypatch.setitem(CATALOGS, "pl", p)
+    with pytest.raises(AssertionError, match="obsolete entries present"):
+        test_no_obsolete_entries()
