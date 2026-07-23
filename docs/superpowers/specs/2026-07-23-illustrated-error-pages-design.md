@@ -13,11 +13,27 @@ This work replaces both with an illustrated, bilingual (EN/PL) treatment that:
 - shares one decorative learner artwork rendered as a faint full-bleed watermark, tinted from the
   theme token so light and dark both work from a single asset.
 
-**The artwork is a composed scene, not an isolated figure** — a seated person at roughly the left
-quarter (source x ≈ 150–520), an open laptop at roughly the right quarter (x ≈ 1000–1400), and a
-desk/foreground band spanning the full width across the bottom fifth (y ≈ 520–672). Every one of
-those three regions is load-bearing, which is what makes the cropping and fading decisions below
-non-optional rather than cosmetic.
+### The artwork, measured
+
+It is a composed scene, not an isolated figure. Measured from the source (ink = luminance < 128):
+
+| Region | x extent | y extent |
+|---|---|---|
+| seated person | ≈ 150–560 | **6 – 671** (head starts at 1% of height) |
+| open laptop | ≈ 950–1450 | 234 – 671 |
+| whole composition | 0 – 1600 | 6 – 671 |
+
+Row ink density climbs from ~9–17% across the upper two thirds to **68% at y≈504, 90% at y≈560, and
+94% at y≈616** — the desk/foreground band occupies the bottom quarter and is very nearly solid.
+
+These two measurements drive the entire CSS design below and are the reason it is not the obvious
+one:
+
+- **The head sits at the very top of the frame (y=6).** Any vertical crop removes it. This rules out
+  `mask-size: cover` in a short box, which would have cropped 22–38% off the top at desktop widths
+  and decapitated the figure on every render.
+- **The bottom quarter is nearly solid ink.** Painted unmodified it is a full-width tinted rectangle
+  with a hard horizontal top edge — the exact artifact the `@supports` guard below exists to prevent.
 
 **Out of scope.** `templates/500.html` is deliberately dependency-free — no base template, no
 collected static, literal brand colours duplicated inline — because a broken static pipeline is
@@ -42,13 +58,18 @@ a CSS mask consumes, so storing anything else is waste. Two steps:
 1. **Alpha from luminance, not a hard threshold:** `alpha = 255 - L`. A hard threshold would throw
    away the source's anti-aliased edge pixels and produce a jagged silhouette; the inversion gives
    the same shape with smooth edges at the same file size.
-2. **Bottom fade baked into the alpha.** Multiply alpha by a vertical ramp: `1.0` for `y < 0.55·H`,
-   falling linearly to `0.0` at `y = H`. Without this, the near-solid desk band (see §Purpose)
-   renders as a full-width tinted rectangle with a hard horizontal top edge across the bottom of
-   every page — the exact appearance the `@supports` guard below exists to prevent. The ramp
-   dissolves the band and lets the figure and laptop rise out of the page instead.
+2. **Bottom fade baked into the alpha.** Multiply alpha by a vertical ramp: `1.0` for `y < 0.72·H`,
+   falling linearly to `0.0` at `y = H`. The 0.72 threshold is taken from the density ladder above —
+   it sits just above the y≈504 row where ink jumps from 25% to 68% — so the ramp dissolves the desk
+   band while leaving the person and the laptop at full strength. A ramp starting earlier (e.g.
+   0.55·H) would begin fading the figure's torso for no benefit.
 
-No generation script is committed. The derivation (source path, `alpha = 255 - L`, the ramp) is
+**Size budget: ≤ 60 KB.** Measured, the derived file is **17 KB** at native 1600×672 with
+`optimize=True`. Downscaling is counterproductive and must not be done "for weight": the same image
+resampled to 1280×538 measures **26 KB**, because resampling introduces gradients in what is
+otherwise a flat two-tone alpha channel. Test 8 asserts the ceiling.
+
+No generation script is committed. The derivation (source path, `alpha = 255 - L`, the 0.72 ramp) is
 recorded in a comment in `error.css`, which is where a maintainer would look.
 
 `learner_wb.png` (the white-on-black inverse) is **not** used — the mask technique makes a second
@@ -60,19 +81,22 @@ Follows the established per-page CSS pattern (`auth.css`, `doc-page.css`, `setti
 standalone sheet linked from the two templates via `{% block extra_css %}`, never appended to the
 global `app.css`.
 
-**The watermark.** A decorative `::after` on `body.error-page`:
+**The watermark.** A decorative `::after` on `body.error-page`. The box is sized by
+**`aspect-ratio`, not by a height guess**, so the mask never has to crop:
 
 ```css
 @supports (mask-image: url("")) or (-webkit-mask-image: url("")) {
   body.error-page::after {
     content: "";
-    position: fixed; inset: auto 0 0 0;     /* bottom-anchored, bleeds off both edges */
-    height: min(46vh, 420px);
-    background-color: var(--text-primary);  /* the tint — theme token, not a literal */
-    mask-image: url("../img/learner.png");
-    mask-repeat: no-repeat;
-    mask-position: center bottom;
-    mask-size: cover;
+    position: fixed; left: 0; right: 0; bottom: 0;  /* bleeds off both edges */
+    aspect-ratio: 1600 / 672;                       /* box matches the artwork */
+    max-height: 60vh;                               /* never dominates a short window */
+    background-color: var(--text-primary);          /* the tint — token, not a literal */
+    -webkit-mask-image: url("../img/learner.png");
+            mask-image: url("../img/learner.png");
+    -webkit-mask-repeat: no-repeat;    mask-repeat: no-repeat;
+    -webkit-mask-position: center bottom; mask-position: center bottom;
+    -webkit-mask-size: contain;        mask-size: contain;
     opacity: .07;
     z-index: 0;
     pointer-events: none;
@@ -81,12 +105,22 @@ global `app.css`.
 }
 ```
 
-**Every `mask-*` longhand is duplicated with the `-webkit-` prefix** — all four, not just
-`mask-image`. This is load-bearing: the `or (-webkit-mask-image: …)` arm of the `@supports` query
-deliberately admits pre-15.4 Safari, and those engines ignore unprefixed `mask-repeat`,
-`mask-position` and `mask-size`. Prefixing only `mask-image` would let them through the guard and
-then paint the mask tiled, at its natural 1600×672, anchored top-left — worse than no watermark at
-all.
+**Why `aspect-ratio` + `contain` and no breakpoint.** Full-bleed width and a fixed short height are
+incompatible with a 2.38:1 artwork whose subject reaches the top edge — one of the three has to give,
+and cropping is the one that destroys the picture. Letting width drive height keeps the whole
+composition in frame at every width with no breakpoint at all: at 390 px the box is 390×164 and the
+scene is a thin full-width band; at 1280 px it is 1280×538. `max-height: 60vh` is the one clamp, and
+because `mask-size` is `contain` (not `100% 100%`), a clamped box letterboxes horizontally rather than
+distorting the figure. This replaces an earlier `cover` + `max-width: 900px` scheme that cropped the
+subject out of frame on phones and cropped the head off on desktops.
+
+**Every `mask-*` longhand is duplicated with the `-webkit-` prefix** — all four, as written above,
+and any `mask-*` in any future rule. This is load-bearing: the `or (-webkit-mask-image: …)` arm of
+the `@supports` query deliberately admits pre-15.4 Safari, and those engines ignore unprefixed
+`mask-repeat`, `mask-position` and `mask-size`. Prefixing only `mask-image` would let them through
+the guard and then paint the mask tiled, at its natural 1600×672, anchored top-left — worse than no
+watermark at all. There is exactly one `mask-*` rule (no media-query override), so there is one place
+to keep consistent.
 
 Because the fill is `background-color: var(--text-primary)`, the silhouette is warm ink `#1E1C18` in
 light and warm parchment `#F2EFE9` in dark — it re-tints itself from the theme with no swap logic, no
@@ -99,32 +133,32 @@ for an empty path).
 It is a CSS pseudo-element, not an `<img>`: purely decorative, absent from the accessibility tree, no
 alt text to translate, and `pointer-events: none` so it can never intercept a click.
 
-**Narrow viewports.** `mask-size: cover` is correct only while the box is wider than the source's
-2.38:1. On a 390 px phone the box is roughly square, `cover` scales the source by ~0.58, and the
-visible window falls between the person and the laptop — the watermark degrades to a blank tinted
-band containing no figure whatsoever. Therefore:
+**Stacking — the ordering invariant is `watermark 0 < .app-main 1 < .app-header 2`.** Both must be
+raised above the watermark, but they must **not** share a layer. Giving `.app-header` a `z-index`
+turns it into a stacking context, re-scoping its descendants' `z-index: 50` (`.menu__panel` — account
+menu, bell panel) and `z-index: 40` (`.app-nav` mobile panel) inside it. If `.app-main` then sat at
+the same `z-index: 1`, DOM order would decide and the later `.app-main` would paint *and hit-test*
+above the header's whole subtree — including the dropdown panels, which hang down over main.
+`app.css` carries a comment recording that this precise regression has already happened once ("`Log
+out` looks see-through and can't be tapped"). So: `.app-header { z-index: 2 }` (it is **already**
+`position: relative` in `app.css`, anchoring the mobile nav dropdown, so only the `z-index` is new)
+and `.app-main { position: relative; z-index: 1 }` (needs both). A negative `z-index` on the
+watermark is deliberately *not* used — it risks disappearing behind `body`'s own background.
 
-```css
-@media (max-width: 900px) {
-  body.error-page::after { mask-size: contain; height: min(32vh, 260px); }
-}
-```
+**Page structure.** The markup goes in `{% block content %}`, which `base.html` renders inside
+`<main>`; `{% block main_class %}` only re-classes that inherited `<main>` to
+`app-main error-page__main`. The `.card` wrapper is dropped — the watermark treatment wants an open
+page, not a boxed panel.
 
-`contain` keeps the whole composition in frame at the cost of the edge-to-edge bleed, which is the
-right trade at that width. The 900 px breakpoint is where a full-width box stops exceeding the
-source's aspect ratio at typical heights.
+`.error-page__main` sets `min-height: calc(100vh - 2 * var(--space-6))` with flex column centring,
+mirroring `.auth-main`. Note the difference from that precedent: `.auth-main` is used *instead of*
+`.app-main`, whereas here both classes apply, so `.app-main`'s `max-width: 960px; margin: 0 auto;
+padding: var(--space-8) var(--space-5)` **stays in force and is deliberately kept** — 960px is a fine
+outer bound and the inner column is narrower anyway. The `{% if messages %}` alerts `base.html`
+renders inside `<main>` become flex children; they are given `width: 100%` so a stray alert spans the
+column rather than shrink-wrapping.
 
-**Stacking.** The watermark takes `z-index: 0`; `body.error-page .app-header` and
-`body.error-page .app-main` are raised to `z-index: 1` so content always paints above it. `.app-header`
-is **already** `position: relative` (`app.css`, anchoring the mobile nav dropdown) so it needs only
-the `z-index`; `.app-main` needs both. A negative `z-index` is deliberately *not* used — it risks
-disappearing behind `body`'s own background, and the failure would be invisible in code review but
-obvious on screen.
-
-**Page structure.** The `.card` wrapper is dropped: the watermark treatment wants an open page, not a
-boxed panel. Both templates override `{% block main_class %}` to `app-main error-page__main`, where
-`.error-page__main` adds `min-height` and flex centring so the column sits optically centred rather
-than jammed under the header (mirroring what `auth.css` does with `.auth-main`). Inside it:
+Inside, wrapped in `<div class="error-page__inner">` at `max-width: 40rem`:
 
 | Element | Tag | Class |
 |---|---|---|
@@ -135,26 +169,28 @@ than jammed under the header (mirroring what `auth.css` does with `.auth-main`).
 | attempted path (404 only) | `<p>` wrapping a `<code>` | `.error-page__path` |
 | actions row | `<p>` | `.error-page__actions` |
 
-wrapped in `<div class="error-page__inner">` at `max-width: 40rem`. The actions row is a flex row
-with `flex-wrap: wrap` and a gap, so a second button drops to its own line on narrow screens.
-`.error-page__path` sets `overflow-wrap: anywhere` — `request.path` is attacker-controlled in
-*length* as well as content, and a 2 000-character unbroken path would otherwise blow out the measure
-or force horizontal page scroll.
+The actions row is a flex row with `flex-wrap: wrap` and a gap, so a second button drops to its own
+line on narrow screens. `.error-page__path` sets `overflow-wrap: anywhere` — `request.path` is
+attacker-controlled in *length* as well as content, and a 2 000-character unbroken path would
+otherwise blow out the measure or force horizontal page scroll.
 
 ### 3. `templates/404.html` (rewritten)
 
 Continues to `{% extends "base.html" %}` — the header, nav, language switch and theme toggle all stay,
 so a lost user always has a way out. Opens with `{% load static i18n %}` (the current file loads only
 `i18n`, and a bare `{% static %}` without the load tag is a `TemplateSyntaxError`; `base.html`'s own
-load tag does not propagate to child templates). Adds `{% block body_class %}error-page{% endblock %}`,
-the `{% block main_class %}` override, and the `error.css` link in `{% block extra_css %}`.
+load tag does not propagate to child templates). Keeps
+`{% block head_title %}{% trans "Page not found" %} · libli{% endblock %}` **unchanged** — the title
+msgid survives as the tab title and does not migrate into the visible `<h1>`. Adds
+`{% block body_class %}error-page{% endblock %}`, the `{% block main_class %}` override, and the
+`error.css` link in `{% block extra_css %}`.
 
 **The action button points at `{% url 'landing' %}`, not `{% url 'home' %}`.** `home` is
 `@login_required`, so an anonymous visitor clicking a `home`-targeted button would be bounced to
 `/accounts/login/?next=/home/` — neither "the main page" nor the warm way out the Purpose promises.
 `landing` is the public entry mapped at `""`, and it redirects authenticated users to `home` itself,
 so a single URL is correct for both audiences. (The current templates' bare `href="/"` reaches the
-same place; this keeps that behaviour while naming the route.)
+same place; this keeps that behaviour while naming the route.) It is a single `.btn`.
 
 **The path line** renders `{{ request_path }}` — Django's `page_not_found` view puts `quote(request.path)`
 in the 404 template context — inside `{% if request_path %}`, so the block disappears when the
@@ -162,8 +198,9 @@ template is rendered without that context.
 
 ### 4. `templates/403.html` (rewritten)
 
-The same shell, the same CSS, the same `landing` button, different copy, and two structural
-differences. Where 404 says "nothing here", 403 says "here, but not yours".
+The same shell, the same CSS, the same `landing` target, different copy, and two structural
+differences. Where 404 says "nothing here", 403 says "here, but not yours". Keeps
+`{% block head_title %}{% trans "Access denied" %} · libli{% endblock %}` unchanged.
 
 - **No path line.** Django's `permission_denied` view passes only `{"exception": ...}` — there is no
   `request_path` to show, and synthesising one from `request.path` would diverge from the 404's
@@ -171,14 +208,20 @@ differences. Where 404 says "nothing here", 403 says "here, but not yours".
 - **A conditional Log in action**, shown when `user.is_authenticated` is false, pointing at
   `{% url 'account_login' %}?next={{ request.get_full_path|urlencode }}`. `get_full_path`, not
   `path`: the latter drops the query string, so a forbidden `/course/x/?tab=notes` would return the
-  user to a different page after login.
-- **The header's own Log in CTA is suppressed on this page.** `base.html` already renders a
-  `btn--ghost` "Log in" for every anonymous request unless `hide_auth_cta` is set. Without
-  suppression an anonymous 403 would show two controls with the identical label. Because Django's
-  built-in `permission_denied` view renders with a fixed context that the template cannot extend, the
-  template sets the flag around the inherited header instead:
+  user to a different page after login. **Button hierarchy:** in the anonymous case `Log in` comes
+  **first** as the `.btn` and `Back to main page` follows as `.btn--ghost`, because logging in is the
+  likely fix; when authenticated, `Back to main page` is the lone `.btn`.
+- **The header's own Log in CTA is suppressed on this page.** `base.html` renders a `btn--ghost`
+  "Log in" for every anonymous request unless `hide_auth_cta` is set, which would put two controls
+  with the identical label on the page. `hide_auth_cta` is **not** a view-supplied flag: it is
+  computed on every request by `core/context_processors.py::ui_prefs` from
+  `request.resolver_match.view_name`, and is true only for `account_*` / `accounts:*` / `landing` —
+  so on a 403 raised by `courses:course_outline` it is `False`. Because Django's built-in
+  `permission_denied` view renders with a fixed context the template cannot extend, the template
+  shadows the context-processor value around the inherited header:
   `{% block header %}{% with hide_auth_cta=1 %}{{ block.super }}{% endwith %}{% endblock %}` —
-  `block.super` renders the parent block in the current context, so the `{% with %}` applies.
+  `BlockNode.super()` re-renders the parent block against the same mutable `Context`, so the pushed
+  `{% with %}` layer is visible to it.
 
 **Reachability, stated honestly.** Every `raise PermissionDenied` in the project sits behind
 `@login_required` (`courses/views.py` and peers), so an anonymous request to those URLs gets a 302 to
@@ -263,9 +306,14 @@ reused.
 **Compiled catalogs are part of the diff.** `locale/en/LC_MESSAGES/django.mo` and
 `locale/pl/LC_MESSAGES/django.mo` are both tracked in git, and `docs/development/conventions.md`
 documents the `makemessages` → translate → `compilemessages` cycle. The `.po` edits alone would leave
-the runtime reading a stale catalog and the Polish render test failing. The known `makemessages`
-fuzzy-flag gotcha applies: newly added strings that resemble deleted ones come back marked `#, fuzzy`
-and are ignored at runtime until the flag is removed.
+the runtime reading a stale catalog and the Polish render test failing.
+
+**One fuzzy match is near-certain and must be cleared.** The retired `Back to home` already carries
+the Polish msgstr `Powrót do strony głównej` — byte-identical to the Polish this spec assigns the new
+`Back to main page`. `makemessages` will almost certainly resurrect it as a `#, fuzzy` match, and a
+fuzzy entry is **ignored at runtime**, so test 6 would fail with a perfectly correct translation
+sitting in the file. Strip the `#, fuzzy` flag from `Back to main page` in both catalogs before
+running `compilemessages`.
 
 ## Error handling
 
@@ -279,10 +327,16 @@ when something has already gone wrong:
   is forbidden. See §Testing for what the corresponding test can and cannot prove.
 - **Missing context.** `{% if request_path %}` means the 404 template renders correctly when included
   or rendered directly without the view's context, rather than emitting an empty `You tried:` label.
-- **Missing static.** If `learner.png` fails to load, `mask-image` resolves to nothing and — per the
-  CSS mask model — the masked element paints nothing. The page loses its decoration and keeps every
-  word. No layout depends on the asset's presence.
-- **No mask support.** Handled by the `@supports` guard; degrades to no watermark.
+- **A missing or misnamed `learner.png` is a build failure, not a soft one.** Production uses
+  `whitenoise.storage.CompressedManifestStaticFilesStorage`, whose post-processing rewrites `url()`
+  references in CSS and, with `manifest_strict` at its default, **raises** on an absent target — so
+  `collectstatic` aborts and the deploy stops. That is the realistic failure and the reason test 8's
+  asset assertion is a build guard rather than a nicety. The genuinely graceful case is narrower: an
+  asset deleted from disk *after* a successful collect resolves `mask-image` to nothing and the
+  masked element paints nothing, so the page loses its decoration and keeps every word. No layout
+  depends on the asset's presence.
+- **No mask support.** Handled by the `@supports` guard; degrades to no watermark. (Engines without
+  `aspect-ratio` — Safari 14 and older — get a zero-height box, which is the same degradation.)
 - **A 403 for an anonymous user.** Handled structurally by the conditional Log in action, with the
   reachability caveat stated above.
 
@@ -291,46 +345,61 @@ when something has already gone wrong:
 `pytest` with `pytest-django`, per the repo's existing conventions. Django forces `DEBUG=False` under
 test, so `client.get(...)` renders the **real** templates — no `override_settings` gymnastics needed.
 
+**The shared 403 fixture**, used by tests 4, 5, 6 and both 403 screenshots. `courses/access.py`
+grants access if the user `is_staff` **or** owns the course **or** is enrolled **or** teaches a
+non-archived group attached to it — "no access" is four negatives, not one, and the project's factories
+do not all produce a prod-shaped non-staff user. Pin it explicitly: a user who is **not** `is_staff`,
+**not** `is_superuser`, **not** the course's `owner`, has **no** `Enrollment` on it, and teaches **no**
+group attached to it; plus a course owned by somebody else. Name the factory calls in the test.
+
 1. **404 renders the new page.** `client.get("/no-such-page/")` → status 404, the new heading and both
    prose strings present, the old `We couldn't find that page.` absent.
 2. **404 echoes the attempted path.** The requested path appears in the response body.
-3. **404 never emits a raw tag from the path.** Request a path containing `<script>`; assert
-   `b"<script>"` is **absent** and the percent-encoded `%3Cscript%3E` is **present**. Note honestly
-   what this does and does not prove: because `quote()` has already stripped every HTML-special
-   character, the rendered bytes are identical with and without `|safe`, so this test cannot catch a
-   stray `|safe`. What it *does* catch — and what makes it non-vacuous — is a future edit that swaps
-   `{{ request_path }}` for the un-quoted `{{ request.path }}`, which would emit the raw tag and turn
-   the page red.
-4. **403 renders the new page**, driven through a real permission-denied surface: log in as a user
-   with no access to a course, `GET` that course's `courses:course_outline` URL
-   (`courses/views.py`, `if not can_access_course(...): raise PermissionDenied`), assert 403 and the
-   new copy.
+3. **404 never emits a raw tag from the path.** Request `/<script>alert(1)</script>/` and assert the
+   **payload** `b"<script>alert"` is absent while `b"%3Cscript%3Ealert"` is present. Asserting on the
+   bare `b"<script>"` would be wrong: `base.html` emits three literal `<script>` tags of its own (the
+   two pre-paint blocks and the deferred `ui.js`), so that assertion fails unconditionally on every
+   response from these pages. Note honestly what this test does and does not prove: because `quote()`
+   has already stripped every HTML-special character, the rendered bytes are identical with and
+   without `|safe`, so it cannot catch a stray `|safe`. What it *does* catch — and what makes it
+   non-vacuous — is a future edit swapping `{{ request_path }}` for the un-quoted `{{ request.path }}`,
+   which would emit the raw payload and turn the page red.
+4. **403 renders the new page**, driven through a real permission-denied surface: log in as the
+   fixture user above and `GET` the course's `courses:course_outline` URL (`courses/views.py`,
+   `if not can_access_course(...): raise PermissionDenied`). Assert 403 and the new copy.
 5. **403 Log in action, split in two** because the surface in test 4 is `@login_required` and so can
    never produce an anonymous 403:
-   - *authenticated:* on the response from test 4's surface, assert the login `?next=` href is
-     **absent**.
-   - *anonymous:* render `templates/403.html` directly (`RequestFactory` + `AnonymousUser`, through
-     a `RequestContext` so the context processors run) and assert the login href **is** present.
+   - *authenticated:* on test 4's response, assert the login `?next=` href is **absent**.
+   - *anonymous:* render `templates/403.html` directly (`RequestFactory` + `AnonymousUser`, through a
+     `RequestContext` so the context processors run) and assert the login href **is** present.
+   - *no duplicate:* on that anonymous render, assert `Log in` occurs **exactly once**, which is what
+     pins the `hide_auth_cta` header suppression.
+
    Both halves assert on the `?next=` href, never on the bare string `Log in` — `base.html` renders
    its own `Log in` CTA for anonymous visitors, so a bare-substring assertion would pass whether or
    not the conditional action was ever implemented.
-   - *no duplicate:* on the anonymous render, assert `Log in` occurs **exactly once**, which is what
-     pins the `hide_auth_cta` header suppression.
-6. **Polish renders on both pages.** Following the proven pattern in `tests/test_i18n_catalog.py`
-   (set `session["_language"] = "pl"` *and* send `HTTP_ACCEPT_LANGUAGE="pl"` — `translation.override`
-   alone does not control what the test client renders): assert the PL strings appear and the EN
-   source strings do not. This is the test that catches the realistic failure — a msgid added to the
-   template but not to the catalog.
+6. **Polish renders on both pages.** Follow the proven pattern in `tests/test_i18n_catalog.py`: write
+   `session["_language"] = "pl"` and `.save()` **after** `make_login` (login cycles the session, so an
+   earlier write is discarded), and also send `HTTP_ACCEPT_LANGUAGE="pl"` — `translation.override`
+   alone does not control what the test client renders. The 404 half is `GET /no-such-page/`; the 403
+   half reuses test 4's fixture and surface. Assert the PL strings appear and the EN source strings do
+   not. This is the test that catches the realistic failure — a msgid added to the template but not to
+   the catalog, or left `#, fuzzy`.
 7. **Both catalogs are free of obsolete entries.** The three existing `#~` assertions
    (`tests/test_i18n_auth.py`, `tests/test_i18n_notes.py`, `tests/test_tags_i18n.py`) read **only**
-   `locale/pl/LC_MESSAGES/django.po`, so they cover half this change. Add the matching
-   `#~`-absence assertion for `locale/en/LC_MESSAGES/django.po`.
+   `locale/pl/LC_MESSAGES/django.po`, so they cover half this change. Add the matching `#~`-absence
+   assertion for `locale/en/LC_MESSAGES/django.po`.
 8. **Static and template wiring guard**, per the repo's standing convention for a new per-page sheet
-   (`tests/test_auth_styles.py`, `test_settings_styles.py`, `test_tags_static.py`, `test_callout_css.py`):
-   assert `core/static/core/css/error.css` exists and defines the `.error-page` vocabulary, that both
-   templates emit the stylesheet link and the `error-page` body class, and that
-   `core/static/core/img/learner.png` exists and opens as an `LA`-mode image. Without this a deleted
-   `{% block extra_css %}` line or a missing asset would ship green.
+   (`tests/test_auth_styles.py`, `test_settings_styles.py`, `test_tags_static.py`,
+   `test_callout_css.py`). Assert that:
+   - `error.css` exists and defines the `.error-page` vocabulary (`.error-page__main`, `__inner`,
+     `__code`, `__title`, `__lead`, `__note`, `__path`, `__actions`);
+   - it contains `@supports` and **all four** `-webkit-mask-*` longhands — §2 calls these load-bearing,
+     so a future "cleanup" of the prefixes must not ship green;
+   - the tint is `background-color: var(--text-primary)` and the sheet is token-only with no raw hex,
+     mirroring `test_auth_styles.py`'s rule for a new per-page sheet;
+   - both templates emit the stylesheet link and the `error-page` body class;
+   - `core/static/core/img/learner.png` exists, opens as an `LA`-mode image, and is **≤ 60 KB**.
 
 **Falsification.** Every test above is written to fail first: delete the thing it guards and confirm
 it goes red before keeping it. A passing test that has never been seen to fail proves nothing — this
@@ -339,20 +408,28 @@ project has shipped vacuous tests before.
 **Visual verification is part of "done", not optional**, per the standing `verify-ui-with-screenshots`
 convention. Four Playwright shots: 404 and 403, each in light and dark.
 
-- *Reaching the 404:* `live_server.url + "/no-such-page/"`.
-- *Reaching the 403:* log in as a user with no access to a seeded course, then navigate to that
-  course's outline URL — the same surface as test 4.
-- *Forcing the theme:* set the `libli_theme` cookie to `light` / `dark` before navigating.
-  `base.html`'s pre-paint script reads `data-theme-pref` and falls back to that cookie, so a naive
-  `goto` renders light every time.
-- *Widths:* one desktop (1280) and one phone (390) pass, because the phone width is where
-  `mask-size` switches and where the composition is most at risk.
+- *Reaching the 404:* `live_server.url + "/no-such-page/"` (anonymous is fine).
+- *Reaching the 403:* log in as the fixture user, then navigate to the course outline URL — the same
+  surface as test 4.
+- *Forcing the theme:* **the mechanism differs by page and getting it wrong silently produces the
+  wrong pixels.** `core/context_processors.py::_resolve_theme_pref` gives `User.theme` absolute
+  precedence for an authenticated user (its docstring: "User.theme is never empty, so for an authed
+  user the later rungs are unreachable"), so `data-theme-pref` renders non-empty and `base.html`'s
+  pre-paint `if (!pref)` branch never consults the cookie. Therefore: set the `libli_theme` cookie for
+  the **anonymous 404** shots, and set `user.theme = "light" / "dark"` on the fixture user for the
+  **authenticated 403** shots. `tests/test_e2e_html_element.py` already encodes the latter technique.
+- *Widths:* one desktop (1280) and one phone (390) pass — the phone width is where the composition is
+  most at risk.
 
 Self-critique the shots before calling the work done, specifically checking: the watermark reads as
 atmosphere rather than as a picture; it never fights the text for contrast in either theme; **no hard
-horizontal edge appears across the bottom of the page** (the bottom-fade ramp is doing its job); the
-figure is actually in frame at 390 px; and content genuinely paints above the watermark.
+horizontal edge appears across the bottom of the page** (the 0.72 ramp is doing its job); **the
+figure's head is in frame** (the measurement above says it sits at y=6, so a crop would be immediately
+visible); the whole scene is present at 390 px; content paints above the watermark; and the header's
+account / bell / mobile-nav dropdowns still overlay page content on both pages (the `z-index` ordering
+invariant in §2).
 
-**Worktree DB isolation.** This work runs in a git worktree alongside others, and concurrent worktrees
-collide on the Postgres `test_libli` database. The worktree needs its own `.env` with a unique
-`DATABASE_URL` before any test run — a known, previously-hit failure mode, not a speculative one.
+**Worktree DB isolation.** Concurrent worktrees collide on the Postgres `test_libli` database. This
+worktree's `.env` already names a unique database (`libli_errpages`, so the test DB is
+`test_libli_errpages`). **Verify it, do not overwrite it** — `.env` is untracked, so a clobber is
+unrecoverable.
