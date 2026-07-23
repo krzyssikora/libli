@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: libli\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-22 21:32+0200\n"
+"POT-Creation-Date: 2026-07-23 15:49+0200\n"
 "PO-Revision-Date: 2026-06-14 20:01+0200\n"
 "Last-Translator: libli <noreply@libli.invalid>\n"
 "Language-Team: English\n"
@@ -2983,24 +2983,51 @@ msgstr ""
 msgid "Enter a tag name or pick a tag."
 msgstr ""
 
-#: .\templates\403.html:3 .\templates\403.html:6
+#: .\templates\403.html:3
 msgid "Access denied"
 msgstr ""
 
-#: .\templates\403.html:7
-msgid "You don't have permission to view this page."
+#: .\templates\403.html:19
+msgid "Not for you"
 msgstr ""
 
-#: .\templates\403.html:8 .\templates\404.html:8
-msgid "Back to home"
+#: .\templates\403.html:20
+msgid ""
+"This page exists, but your account doesn't have permission to open it. If "
+"you think you should have access, ask your administrator."
 msgstr ""
 
-#: .\templates\404.html:3 .\templates\404.html:6
+#: .\templates\403.html:23 .\templates\403.html:26 .\templates\404.html:17
+msgid "Back to main page"
+msgstr ""
+
+#: .\templates\403.html:25 .\templates\base.html:142
+#: .\templates\core\landing.html:12
+msgid "Log in"
+msgstr ""
+
+#: .\templates\404.html:3
 msgid "Page not found"
 msgstr ""
 
-#: .\templates\404.html:7
-msgid "We couldn't find that page."
+#: .\templates\404.html:10
+msgid "Nothing here"
+msgstr ""
+
+#: .\templates\404.html:11
+msgid ""
+"We appreciate your eagerness to discover, but there's nothing at this "
+"address. Check the address you entered, or go back to the main page."
+msgstr ""
+
+#: .\templates\404.html:13
+msgid "You tried:"
+msgstr ""
+
+#: .\templates\404.html:15
+msgid ""
+"If a link inside the app brought you here, please report it to your "
+"administrator, describing the steps that led to this page."
 msgstr ""
 
 #: .\templates\_groups_tabs.html:3
@@ -3380,10 +3407,6 @@ msgstr ""
 
 #: .\templates\base.html:137
 msgid "Log out"
-msgstr ""
-
-#: .\templates\base.html:142 .\templates\core\landing.html:12
-msgid "Log in"
 msgstr ""
 
 #: .\templates\core\home.html:3
@@ -4014,7 +4037,7 @@ msgstr ""
 msgid "Force-submit"
 msgstr ""
 
-#: .\templates\courses\manage\_scope.html:6
+#: .\templates\courses\manage\_scope.html:11
 msgid "No children yet."
 msgstr ""
 
