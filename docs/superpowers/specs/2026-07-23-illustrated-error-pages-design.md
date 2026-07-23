@@ -69,8 +69,12 @@ a CSS mask consumes, so storing anything else is waste. Two steps:
 resampled to 1280×538 measures **26 KB**, because resampling introduces gradients in what is
 otherwise a flat two-tone alpha channel. Test 8 asserts the ceiling.
 
-No generation script is committed. The derivation (source path, `alpha = 255 - L`, the 0.72 ramp) is
-recorded in a comment in `error.css`, which is where a maintainer would look.
+No generation script is committed. The **recipe** is recorded in a comment in `error.css`, which is
+where a maintainer would look: `LA` mode, 1600×672, `alpha = 255 - L`, linear ramp to zero from
+`0.72·H`, `optimize=True`. The comment records that the input was a one-off local file and
+deliberately **does not** contain the literal `C:/Users/krzys/...` path — `error.css` is committed and
+served publicly as static content, and a machine-specific home directory is both a leak and useless
+to anyone else.
 
 `learner_wb.png` (the white-on-black inverse) is **not** used — the mask technique makes a second
 asset unnecessary.
@@ -109,10 +113,17 @@ global `app.css`.
 incompatible with a 2.38:1 artwork whose subject reaches the top edge — one of the three has to give,
 and cropping is the one that destroys the picture. Letting width drive height keeps the whole
 composition in frame at every width with no breakpoint at all: at 390 px the box is 390×164 and the
-scene is a thin full-width band; at 1280 px it is 1280×538. `max-height: 60vh` is the one clamp, and
-because `mask-size` is `contain` (not `100% 100%`), a clamped box letterboxes horizontally rather than
-distorting the figure. This replaces an earlier `cover` + `max-width: 900px` scheme that cropped the
-subject out of frame on phones and cropped the head off on desktops.
+scene is a thin full-width band; at 1280 px it is 1280×538. This replaces an earlier
+`cover` + `max-width: 900px` scheme that cropped the subject out of frame on phones and cropped the
+head off on desktops.
+
+`max-height: 60vh` is the one clamp, and when it bites the box **pillarboxes** — not letterboxes.
+Width is pinned by `left: 0; right: 0`, so a height clamp shrinks the `contain`-fitted mask and leaves
+empty space at the **left and right** edges. Concretely, on a 1280×800 window the box wants 537 px but
+is clamped to 480 px, so the watermark renders 1143 px wide and centred with ≈68 px gaps either side —
+it stops being full-bleed. **This is expected on short windows, not a bug**, and the screenshot
+self-critique should not chase it. `contain` (rather than `100% 100%`) is what keeps the clamped case
+proportional instead of squashing the figure.
 
 **Every `mask-*` longhand is duplicated with the `-webkit-` prefix** — all four, as written above,
 and any `mask-*` in any future rule. This is load-bearing: the `or (-webkit-mask-image: …)` arm of
@@ -140,39 +151,77 @@ menu, bell panel) and `z-index: 40` (`.app-nav` mobile panel) inside it. If `.ap
 the same `z-index: 1`, DOM order would decide and the later `.app-main` would paint *and hit-test*
 above the header's whole subtree — including the dropdown panels, which hang down over main.
 `app.css` carries a comment recording that this precise regression has already happened once ("`Log
-out` looks see-through and can't be tapped"). So: `.app-header { z-index: 2 }` (it is **already**
-`position: relative` in `app.css`, anchoring the mobile nav dropdown, so only the `z-index` is new)
-and `.app-main { position: relative; z-index: 1 }` (needs both). A negative `z-index` on the
-watermark is deliberately *not* used — it risks disappearing behind `body`'s own background.
+out` looks see-through and can't be tapped").
+
+**Both rules live in `error.css`, scoped to `body.error-page`, and outside the `@supports` block**
+(they are about the page's own chrome, not about mask support):
+
+```css
+body.error-page .app-header { z-index: 2; }                    /* already position:relative in app.css */
+body.error-page .app-main   { position: relative; z-index: 1; } /* needs both */
+```
+
+The scoping is not stylistic — it is a hard requirement. Written globally in `app.css`,
+`.app-main { position: relative; z-index: 1 }` would turn every `<main>` in the app into a stacking
+context and trap the `position: fixed` overlays that live inside `{% block content %}` beneath the
+newly-raised header: `.modal` (`app.css`, used by `templates/courses/catalog.html`), `.unit-drawer`
+and the editor overlay (`courses/css/courses.css`, `editor.css`), and `.math-modal` at `z-index: 1000`.
+All of them would paint and hit-test under the opaque header band — the same bug the `app.css` comment
+memorialises, inverted. The error pages have no such overlays, so the scoped form is safe.
+
+A negative `z-index` on the watermark is deliberately *not* used — it risks disappearing behind
+`body`'s own background.
 
 **Page structure.** The markup goes in `{% block content %}`, which `base.html` renders inside
 `<main>`; `{% block main_class %}` only re-classes that inherited `<main>` to
 `app-main error-page__main`. The `.card` wrapper is dropped — the watermark treatment wants an open
 page, not a boxed panel.
 
-`.error-page__main` sets `min-height: calc(100vh - 2 * var(--space-6))` with flex column centring,
-mirroring `.auth-main`. Note the difference from that precedent: `.auth-main` is used *instead of*
-`.app-main`, whereas here both classes apply, so `.app-main`'s `max-width: 960px; margin: 0 auto;
-padding: var(--space-8) var(--space-5)` **stays in force and is deliberately kept** — 960px is a fine
-outer bound and the inner column is narrower anyway. The `{% if messages %}` alerts `base.html`
-renders inside `<main>` become flex children; they are given `width: 100%` so a stray alert spans the
-column rather than shrink-wrapping.
+**Vertical centring is derived, never guessed.** The tempting
+`min-height: calc(100vh - 2 * var(--space-6))` copied from `.auth-main` is *wrong here*: that
+precedent works because `templates/allauth/layouts/entrance.html` **replaces** `{% block header %}`, so
+auth pages have no `.app-header` at all. The error pages deliberately keep the header (≈57 px:
+`var(--space-3)` padding × 2 + a 32 px control row + 1 px border, and more below 640 px where the
+header wraps), so subtracting only the main padding overshoots and every error page would render a
+stray vertical scrollbar. Instead, let layout do the arithmetic:
 
-Inside, wrapped in `<div class="error-page__inner">` at `max-width: 40rem`:
+```css
+body.error-page      { display: flex; flex-direction: column; min-height: 100dvh; }
+body.error-page .app-main { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+```
 
-| Element | Tag | Class |
-|---|---|---|
-| eyebrow (`404` / `403`) | `<p>` | `.error-page__code` |
-| heading | `<h1>` | `.error-page__title` |
-| lead paragraph | `<p>` | `.error-page__lead` |
-| report / advice paragraph | `<p>` | `.error-page__note` |
-| attempted path (404 only) | `<p>` wrapping a `<code>` | `.error-page__path` |
-| actions row | `<p>` | `.error-page__actions` |
+No hard-coded header height, and `100dvh` rather than `100vh` so a mobile browser's collapsing URL bar
+does not overshoot either.
 
-The actions row is a flex row with `flex-wrap: wrap` and a gap, so a second button drops to its own
-line on narrow screens. `.error-page__path` sets `overflow-wrap: anywhere` — `request.path` is
-attacker-controlled in *length* as well as content, and a 2 000-character unbroken path would
-otherwise blow out the measure or force horizontal page scroll.
+Both classes apply to `<main>` (`app-main error-page__main`), so `.app-main`'s
+`max-width: 960px; margin: 0 auto; padding: var(--space-8) var(--space-5)` **stays in force and is
+deliberately kept** — 960 px is a fine outer bound and the inner column is narrower anyway. The
+`{% if messages %}` alerts `base.html` renders inside `<main>` become flex children; they are given
+`width: 100%` so a stray alert spans the column rather than shrink-wrapping.
+
+Inside, wrapped in `<div class="error-page__inner">` at `max-width: 40rem`. **The table is DOM
+order.** The path line sits directly under the lead, because the lead's own advice is "check the
+address you entered" — the address must be the next thing the eye meets, with the report-it sentence
+after it.
+
+| # | Element | Tag | Class | Type / colour |
+|---|---|---|---|---|
+| 1 | eyebrow (`404` / `403`) | `<p>` | `.error-page__code` | `3rem`, weight 700, `var(--accent)`, `--heading-letter-spacing`, tight bottom margin |
+| 2 | heading | `<h1>` | `.error-page__title` | `1.75rem`, weight 600, `var(--text-primary)` |
+| 3 | lead paragraph | `<p>` | `.error-page__lead` | `1.0625rem`, `var(--text-primary)`, line-height 1.6 |
+| 4 | attempted path (**404 only**) | `<p>` wrapping a `<code>` | `.error-page__path` | label `0.875rem` `var(--text-tertiary)`; `<code>` in `--font-mono`, `0.875rem`, `var(--surface-sunken)` chip with `--radius-sm` and `--border-subtle` |
+| 5 | report / advice paragraph (**404 only**) | `<p>` | `.error-page__note` | `0.9375rem`, `var(--text-secondary)` |
+| 6 | actions row | `<p>` | `.error-page__actions` | — |
+
+Left-aligned, not centred: the lead and note are multi-line prose, and centred ragged prose is harder
+to read. Vertical rhythm is `var(--space-4)` between blocks and `var(--space-6)` above the actions row.
+Colours are tokens only — no raw hex anywhere in the sheet, per `test_auth_styles.py`'s rule for a new
+per-page sheet.
+
+The actions row is a flex row with `flex-wrap: wrap` and `gap: var(--space-3)`, so a second button
+drops to its own line on narrow screens. `.error-page__path` sets `overflow-wrap: anywhere` —
+`request.path` is attacker-controlled in *length* as well as content, and a 2 000-character unbroken
+path would otherwise blow out the measure or force horizontal page scroll.
 
 ### 3. `templates/404.html` (rewritten)
 
@@ -201,6 +250,11 @@ template is rendered without that context.
 The same shell, the same CSS, the same `landing` target, different copy, and two structural
 differences. Where 404 says "nothing here", 403 says "here, but not yours". Keeps
 `{% block head_title %}{% trans "Access denied" %} · libli{% endblock %}` unchanged.
+
+**Element sequence: `__code`, `__title`, `__lead`, `__actions` — four of the six.** `.error-page__note`
+and `.error-page__path` are **404-only**: the 403 has no path to show (below), and its "ask your
+administrator" advice is already folded into the lead sentence rather than split into a second
+paragraph. An implementer should not invent a fourth paragraph to fill `__note`.
 
 - **No path line.** Django's `permission_denied` view passes only `{"exception": ...}` — there is no
   `request_path` to show, and synthesising one from `request.path` would diverge from the 404's
@@ -303,10 +357,14 @@ does the helpful work. Recorded here so review does not relitigate it.
 superseded and get the same treatment. `Page not found`, `Access denied` and `Log in` survive and are
 reused.
 
-**Compiled catalogs are part of the diff.** `locale/en/LC_MESSAGES/django.mo` and
-`locale/pl/LC_MESSAGES/django.mo` are both tracked in git, and `docs/development/conventions.md`
-documents the `makemessages` → translate → `compilemessages` cycle. The `.po` edits alone would leave
-the runtime reading a stale catalog and the Polish render test failing.
+**Both locales must be regenerated, and both compiled catalogs are part of the diff.**
+`locale/en/LC_MESSAGES/django.mo` and `locale/pl/LC_MESSAGES/django.mo` are both tracked in git.
+`docs/development/conventions.md` documents the cycle as `makemessages -l pl` **only** — following
+that literally would never touch `locale/en/LC_MESSAGES/django.po`, so the retired msgids would stay
+live rather than becoming obsolete, the three new msgids would never appear, and test 7's brand-new
+`locale/en` `#~`-absence assertion would pass **vacuously against a file nobody regenerated**. Run
+`makemessages -l pl -l en`, then the manual `#~` / fuzzy cleanup, then `compilemessages`. The `.po`
+edits alone would leave the runtime reading a stale catalog and the Polish render test failing.
 
 **One fuzzy match is near-certain and must be cleared.** The retired `Back to home` already carries
 the Polish msgstr `Powrót do strony głównej` — byte-identical to the Polish this spec assigns the new
@@ -345,16 +403,36 @@ when something has already gone wrong:
 `pytest` with `pytest-django`, per the repo's existing conventions. Django forces `DEBUG=False` under
 test, so `client.get(...)` renders the **real** templates — no `override_settings` gymnastics needed.
 
-**The shared 403 fixture**, used by tests 4, 5, 6 and both 403 screenshots. `courses/access.py`
-grants access if the user `is_staff` **or** owns the course **or** is enrolled **or** teaches a
-non-archived group attached to it — "no access" is four negatives, not one, and the project's factories
-do not all produce a prod-shaped non-staff user. Pin it explicitly: a user who is **not** `is_staff`,
-**not** `is_superuser`, **not** the course's `owner`, has **no** `Enrollment` on it, and teaches **no**
-group attached to it; plus a course owned by somebody else. Name the factory calls in the test.
+**Test files.** Tests 1–5 in `tests/test_error_pages.py`, tests 6–7 in
+`tests/test_i18n_error_pages.py`, test 8 in `tests/test_error_page_styles.py`, the screenshots in
+`tests/test_e2e_error_pages.py` — one narrow file per concern, matching the repo's existing
+`test_i18n_*` / `test_*_styles` / `test_e2e_*` split. The i18n file's naming is what makes the
+`#~`/fuzzy guard discoverable next to its siblings.
+
+**The no-access 403 fixture shape**, used by tests 4, 5, 6 and both 403 screenshots.
+`courses/access.py` grants access if the user `is_staff` **or** owns the course **or** is enrolled
+**or** teaches a non-archived group attached to it — "no access" is four negatives, not one, and the
+project's factories do not all produce a prod-shaped non-staff user. Pin it explicitly: a user who is
+**not** `is_staff`, **not** `is_superuser`, **not** the course's `owner`, has **no** `Enrollment` on
+it, and teaches **no** group attached to it; plus a course owned by somebody else. Name the factory
+calls in the test.
+
+**It is a shared *shape*, not a shared fixture object** — the two harnesses cannot use one.
+`tests/factories.py`'s `make_login(client, username)` calls `client.force_login()`, which authenticates
+a *Django test client*; a Playwright `page` has no visibility into that session. So tests 4–6 use the
+`client`-based fixture, and the e2e module re-seeds the same user/course shape and logs in by driving
+the real form at `/accounts/login/` with `tests.factories.TEST_PASSWORD`, per the precedent in
+`tests/test_e2e_html_element.py`. The e2e user additionally needs a verified email
+(`make_verified_user`) for that form to succeed.
 
 1. **404 renders the new page.** `client.get("/no-such-page/")` → status 404, the new heading and both
    prose strings present, the old `We couldn't find that page.` absent.
-2. **404 echoes the attempted path.** The requested path appears in the response body.
+2. **404 echoes the attempted path — asserted on the new markup, not on a bare substring.**
+   `base.html`'s language-switch form renders `<input type="hidden" name="next" value="{{ request.path }}">`
+   on every page, so for `GET /no-such-page/` the substring `/no-such-page/` is **already** in the body
+   before a single line of `.error-page__path` exists. A bare-substring assertion is therefore vacuous
+   — the same trap test 5 avoids for `Log in`. Assert the rendered element instead:
+   `f"<code>{path}</code>"` (or the `You tried:` label and the path within one fragment).
 3. **404 never emits a raw tag from the path.** Request `/<script>alert(1)</script>/` and assert the
    **payload** `b"<script>alert"` is absent while `b"%3Cscript%3Ealert"` is present. Asserting on the
    bare `b"<script>"` would be wrong: `base.html` emits three literal `<script>` tags of its own (the
@@ -398,15 +476,27 @@ group attached to it; plus a course owned by somebody else. Name the factory cal
      so a future "cleanup" of the prefixes must not ship green;
    - the tint is `background-color: var(--text-primary)` and the sheet is token-only with no raw hex,
      mirroring `test_auth_styles.py`'s rule for a new per-page sheet;
+   - **the stacking invariant holds**: parse the three `z-index` values out of `error.css` and assert
+     `watermark < .app-main < .app-header`. §2 argues this reproduces an already-shipped regression if
+     inverted, so leaving it to a human eyeballing screenshots is not enough — a later edit that drops
+     `z-index: 1` from `.app-main` or swaps the two must go red;
    - both templates emit the stylesheet link and the `error-page` body class;
-   - `core/static/core/img/learner.png` exists, opens as an `LA`-mode image, and is **≤ 60 KB**.
+   - `core/static/core/img/learner.png` exists, opens as an `LA`-mode image, is **exactly 1600×672**,
+     and is **≤ 60 KB**. The dimensions assertion is not decoration: §2 hard-codes
+     `aspect-ratio: 1600 / 672`, and §1 explicitly contemplates the PNG being re-derived later — a
+     re-derivation at another size would silently pillarbox or float the watermark with nothing going
+     red. Assert the matching `aspect-ratio: 1600 / 672` string in `error.css` too, so the asset and
+     the stylesheet fail *together*. (The project has learned this once already, via the help-shot
+     dims guard.)
 
 **Falsification.** Every test above is written to fail first: delete the thing it guards and confirm
 it goes red before keeping it. A passing test that has never been seen to fail proves nothing — this
 project has shipped vacuous tests before.
 
 **Visual verification is part of "done", not optional**, per the standing `verify-ui-with-screenshots`
-convention. Four Playwright shots: 404 and 403, each in light and dark.
+convention. **Six Playwright shots, countable:** `{404, 403} × {light, dark}` at 1280 (four), plus
+`{404, 403}` at 390 in **light only** (two). The phone width is a composition/layout risk, not a
+colour one, so it does not need a second theme sweep.
 
 - *Reaching the 404:* `live_server.url + "/no-such-page/"` (anonymous is fine).
 - *Reaching the 403:* log in as the fixture user, then navigate to the course outline URL — the same
@@ -418,8 +508,7 @@ convention. Four Playwright shots: 404 and 403, each in light and dark.
   pre-paint `if (!pref)` branch never consults the cookie. Therefore: set the `libli_theme` cookie for
   the **anonymous 404** shots, and set `user.theme = "light" / "dark"` on the fixture user for the
   **authenticated 403** shots. `tests/test_e2e_html_element.py` already encodes the latter technique.
-- *Widths:* one desktop (1280) and one phone (390) pass — the phone width is where the composition is
-  most at risk.
+- *Widths:* 1280 and 390, per the matrix above.
 
 Self-critique the shots before calling the work done, specifically checking: the watermark reads as
 atmosphere rather than as a picture; it never fights the text for contrast in either theme; **no hard
