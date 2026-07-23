@@ -123,6 +123,17 @@ def _format_offenders(msgids):
     return out
 
 
+def _flagged(path, key):
+    """msgids of entries carrying a given flag ("fuzzy" or "obsolete").
+
+    Shared by the guards AND their falsification fixtures, so the fixtures
+    exercise the guards' own predicate rather than a parallel copy of it --
+    otherwise a guard filtering on the wrong key would stay green forever,
+    the real catalogs having zero of both.
+    """
+    return [e["msgid"] for e in _entries(path) if e[key]]
+
+
 def _untranslated(path):
     """Live entries whose translation is missing or partially missing."""
     required = _nplurals(path)
@@ -138,7 +149,7 @@ def _untranslated(path):
 
 def test_no_fuzzy_entries():
     for locale, path in CATALOGS.items():
-        bad = [e["msgid"] for e in _entries(path) if e["fuzzy"]]
+        bad = _flagged(path, "fuzzy")
         assert not bad, (
             f"locale/{locale}: fuzzy entries present — review and clear the flag:\n"
             + _format_offenders(bad)
@@ -147,7 +158,7 @@ def test_no_fuzzy_entries():
 
 def test_no_obsolete_entries():
     for locale, path in CATALOGS.items():
-        bad = [e["msgid"] for e in _entries(path) if e["obsolete"]]
+        bad = _flagged(path, "obsolete")
         assert not bad, (
             f"locale/{locale}: obsolete entries present — delete them:\n"
             + _format_offenders(bad)
@@ -166,6 +177,28 @@ def test_pl_has_no_untranslated_msgid():
         "untranslated Polish msgid(s) — add a msgstr for each:\n"
         + _format_offenders(bad)
     )
+
+
+# --- _format_offenders behaviour --------------------------------------------
+# All three guards pass against the real catalogs, so nothing in the suite
+# ever exercises the formatter itself. Pin its spec-mandated numbers directly.
+
+
+def test_format_offenders_pins_truncation_cap_and_empty_cases():
+    # A long msgid is truncated to MAX_MSGID_CHARS plus an ellipsis.
+    msgid = "x" * 90
+    truncated = msgid[:MAX_MSGID_CHARS] + "…"
+    assert _format_offenders([msgid]) == f"  - {truncated!r}"
+
+    # More than MAX_LISTED offenders: show the cap, then an "and N more" line.
+    msgids = [f"id{i}" for i in range(25)]
+    result = _format_offenders(msgids).split("\n")
+    assert len(result) == MAX_LISTED + 1
+    assert result[:MAX_LISTED] == [f"  - {m!r}" for m in msgids[:MAX_LISTED]]
+    assert result[-1] == "  … and 5 more"
+
+    # No offenders: nothing to report.
+    assert _format_offenders([]) == ""
 
 
 # --- falsification fixtures -------------------------------------------------
@@ -235,7 +268,7 @@ def test_entries_marks_a_fuzzy_entry(tmp_path):
     asserts over an empty set and would stay green even if fuzzy parsing were
     broken entirely."""
     p = _po(tmp_path, '#, fuzzy\nmsgid "Save"\nmsgstr "Zapisz"\n')
-    assert [e["msgid"] for e in _entries(p) if e["fuzzy"]] == ["Save"]
+    assert _flagged(p, "fuzzy") == ["Save"]
 
 
 def test_entries_marks_an_obsolete_entry(tmp_path):
@@ -244,4 +277,4 @@ def test_entries_marks_an_obsolete_entry(tmp_path):
     must skip obsolete entries while this guard must detect them. Both hold
     only because _entries() retains and marks them rather than dropping them."""
     p = _po(tmp_path, '#~ msgid "Gone"\n#~ msgstr "Zniknęło"\n')
-    assert [e["msgid"] for e in _entries(p) if e["obsolete"]] == ["Gone"]
+    assert _flagged(p, "obsolete") == ["Gone"]
