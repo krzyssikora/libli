@@ -599,6 +599,21 @@ button.asset-cell:hover { border-color: var(--primary); }
 }
 .table-editor__grid td:focus, .table-editor__grid th:focus { outline: 2px solid var(--primary); outline-offset: -2px; }
 
+/* Selected merge range. Outline + tint rather than a background swap, so a
+   cell's own alignment/border styling still reads through. The dark variant
+   keys off [data-theme="dark"] -- this app themes with a root ATTRIBUTE
+   (core/static/core/css/tokens.css), not prefers-color-scheme. A media query
+   here would tint wrongly whenever the OS is dark but the app is light, and
+   miss the case where the author toggles the app dark on a light OS. */
+.table-editor__grid .is-range {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+[data-theme="dark"] .table-editor__grid .is-range {
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
 /* Row/column insert-delete handles. table_editor.js injects them into extra control
    cells (td[data-control] per row, plus a trailing tr[data-control-row] for columns).
    They are chrome, not content: no cell border or min-width, and they stay out of the

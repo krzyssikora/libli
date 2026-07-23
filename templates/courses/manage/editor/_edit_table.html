@@ -9,7 +9,14 @@ row/column handles client-side and cannot call {% templatetag openblock %} trans
 {% templatetag closeblock %} itself.{% endcomment %}
 <div class="el-editor el-editor--table" data-table-editor
      data-msg-row-insert="{% trans 'Insert row below' %}" data-msg-row-delete="{% trans 'Delete row' %}"
-     data-msg-col-insert="{% trans 'Insert column right' %}" data-msg-col-delete="{% trans 'Delete column' %}">
+     data-msg-col-insert="{% trans 'Insert column right' %}" data-msg-col-delete="{% trans 'Delete column' %}"
+     data-msg-merge="{% trans 'Merge cells' %}"
+     data-msg-header="{% trans 'Header cell' %}"
+     data-msg-merge-confirm="{% trans 'Merging will discard the content of the other selected cells.' %}"
+     data-msg-merge-too-big="{% trans 'The selection is larger than a table may be.' %}"
+     data-msg-header-locked="{% trans 'Unavailable while the row or column header option covers this cell.' %}"
+     data-msg-range-selected="{% trans 'Range selected' %}"
+     data-msg-range-cleared="{% trans 'Range cleared' %}">
   <input type="hidden" name="data" value="{{ form.data.data|default:'' }}">
 
   <div class="table-editor__controls">
@@ -40,6 +47,13 @@ row/column handles client-side and cannot call {% templatetag openblock %} trans
       <button type="button" class="rte-btn" data-valign="middle" title="{% trans 'Align middle' %}" aria-label="{% trans 'Align middle' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-middle"/></svg></button>
       <button type="button" class="rte-btn" data-valign="bottom" title="{% trans 'Align bottom' %}" aria-label="{% trans 'Align bottom' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-valign-bottom"/></svg></button>
     </span>
+    <span class="rte-sep"></span>
+    <button type="button" class="rte-btn" data-merge disabled
+            title="{% trans 'Merge cells' %}" aria-label="{% trans 'Merge cells' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-merge"/></svg></button>
+    <button type="button" class="rte-btn" data-split disabled
+            title="{% trans 'Split cell' %}" aria-label="{% trans 'Split cell' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-split"/></svg></button>
+    <button type="button" class="rte-btn" data-header-toggle disabled aria-pressed="false"
+            title="{% trans 'Header cell' %}" aria-label="{% trans 'Header cell' %}"><svg class="ic" aria-hidden="true" focusable="false"><use href="#ed-header"/></svg></button>
   </div>
 
   {% comment %}Cells carry their spans so the browser lays the EDITING grid out
@@ -66,5 +80,11 @@ row/column handles client-side and cannot call {% templatetag openblock %} trans
       {% endfor %}
     </table>
   </div>
+
+  {% comment %}Range membership is announced here rather than with aria-selected,
+  which is only meaningful on gridcell/option/row roles and is ignored (and
+  axe-flagged) on a bare <td>. Giving the editing table role="grid" would mean
+  owning full grid keyboard semantics -- out of scope.{% endcomment %}
+  <p class="visually-hidden" data-range-status aria-live="polite"></p>
 </div>
 {% endwith %}

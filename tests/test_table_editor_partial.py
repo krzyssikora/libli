@@ -106,3 +106,19 @@ def test_editor_grid_does_not_promote_header_row_or_col_cells_to_th():
     # the border preset renders <option value="header"> unconditionally, so that
     # substring is present in every render, before and after this change.
     assert "<th" not in html
+
+
+def test_table_editor_exposes_merge_split_and_header_controls():
+    html = _render(TableElement())
+    for attr in ("data-merge", "data-split", "data-header-toggle"):
+        assert attr in html
+    # Client-built markup cannot call {% trans %}, so every string rides on a
+    # data-msg-* attribute (the established convention in this editor).
+    for msg in (
+        "data-msg-merge-confirm",
+        "data-msg-merge-too-big",
+        "data-msg-header-locked",
+        "data-msg-range-selected",
+    ):
+        assert msg in html
+    assert 'aria-live="polite"' in html
