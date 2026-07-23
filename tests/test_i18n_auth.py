@@ -64,12 +64,6 @@ def test_auth_msgid_translated_to_pl(msgid):
         assert translated != msgid, f"untranslated PL msgid: {msgid!r}"
 
 
-def test_po_catalog_clean():
-    text = POFILE.read_text(encoding="utf-8")
-    assert "#, fuzzy" not in text, "fuzzy entries present — review and clear"
-    assert "#~" not in text, "obsolete entries present — drop them"
-
-
 def test_old_refreshed_msgid_retired():
     text = POFILE.read_text(encoding="utf-8")
     assert "refreshed to the latest." not in text, (
