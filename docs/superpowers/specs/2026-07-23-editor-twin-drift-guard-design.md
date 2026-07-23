@@ -80,7 +80,7 @@ Each carries its reason in the `DIVERGENT` list, so a reader learns *why* rather
 |---|---|
 | `label` | closes over a different editor root attribute (`[data-table-editor]` vs `[data-filltable-editor]`) |
 | `wire` | the container itself; its nested helpers are classified individually, so comparing the two bodies (368 vs 528 lines *after normalisation*) would be meaningless |
-| `serialize` | fill-table emits three cell kinds (static / answer / image), the plain table one |
+| `serialize` | two differences: fill-table emits three cell kinds (static / answer / image) where the plain table emits one, and its payload carries two extra document-level fields, `case_sensitive` and `prompt`, which the plain table has no equivalent for |
 | `refreshToolbarState` | fill-table adds an `if (!focusCell) return` gate *after* the merge/split/header block, so the kind-specific refresh (disabling `[data-cmd]` on answer/image cells, the answer-toggle state, hiding the alt input) is skipped when nothing is focused; that gate also moves its `refreshAlignButtons()` call behind it |
 | `toggleHeaderCell` | two differences: fill-table re-keys the live `cellStash` Map from old node to new, and focuses the cell's answer input rather than the cell — `.focus()` is a no-op on a `<td data-answer>`, which would strand the Alt+Shift+Arrow chord |
 | `cellIsNonEmpty` | **both** files are image-aware, by different mechanisms: the plain table queries for a nested `<img>`, fill-table checks the `data-image` attribute. Fill-table additionally treats answer cells as always non-empty |
