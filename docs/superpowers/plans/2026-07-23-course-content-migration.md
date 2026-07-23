@@ -16,6 +16,14 @@
 - **Tests:** `uv run pytest <paths> -vv`. `ruff` / `pytest` / `python` are **not on PATH** — always `uv run`.
 - **Never** set `DJANGO_SETTINGS_MODULE` on a pytest invocation. **Never add `-q`** (`addopts` already has it; one `-v` only cancels it back to default, so use `-vv`). Never pipe pytest through `tail`/`head`. Never run a bare `-m e2e` sweep.
 - **Lint:** `uv run ruff check .` and `uv run ruff format --check .` must both be clean.
+- **The code blocks below are NOT ruff-formatted.** They are written for readability — grouped
+  arguments, compact `call_command(...)` calls — and ruff's magic-trailing-comma rule will reflow
+  most of them onto one argument per line. This is expected and is not a defect to puzzle over.
+  **Run `uv run ruff format .` after pasting and before every commit**, then `ruff format --check`
+  to confirm. Do not hand-reflow the snippets to guess ruff's output.
+- `MediaAsset` is imported in the command's top-of-file block from Task 1 onward even though only
+  `verify` (Task 3) uses it — declaring it once up front avoids a `NameError` surfacing three tasks
+  later.
 - **Stage explicitly by path.** Never `git add -A` / `git add .`.
 - No model changes, no migration. If one seems needed, stop and surface it.
 - **Every task is TDD:** write the failing test, verify it fails *for the stated reason*, implement, verify green.
@@ -173,7 +181,7 @@ def test_export_writes_the_media_side_table_keyed_by_source_pk(tmp_path):
 
 
 def test_export_rejects_an_unknown_source_slug(tmp_path):
-    with pytest.raises(CommandError):
+    with pytest.raises(CommandError, match="no course with slug"):
         call_command(
             "migrate_course_content", "export",
             "--source-slug", "nope", "--bundle-dir", str(tmp_path / "b"),
@@ -182,7 +190,7 @@ def test_export_rejects_an_unknown_source_slug(tmp_path):
 
 def test_export_refuses_import_only_flags(tmp_path):
     _mk_source()
-    with pytest.raises(CommandError):
+    with pytest.raises(CommandError, match="not valid for"):
         call_command(
             "migrate_course_content", "export",
             "--source-slug", "src", "--bundle-dir", str(tmp_path / "b"),
@@ -223,6 +231,7 @@ from django.core.management.base import CommandError
 
 from courses.models import ContentNode
 from courses.models import Course
+from courses.models import MediaAsset
 from courses.transfer.export import build_export
 from courses.transfer.export import write_archive_from
 
@@ -350,6 +359,7 @@ Expected: 4 passed.
 - [ ] **Step 6: Lint and commit**
 
 ```bash
+uv run ruff format .          # the plan's snippets are not pre-formatted
 uv run ruff check . && uv run ruff format --check .
 git add courses/management/commands/migrate_course_content.py tests/test_migrate_course_content.py
 git commit -m "feat(transfer): migrate_course_content export phase"
@@ -436,7 +446,7 @@ def test_import_stamps_uploaded_by_from_as_user(tmp_path):
 def test_import_rejects_an_unknown_as_user(tmp_path):
     bundle = _export_bundle(tmp_path, parts=("Only",))
     _mk_target()
-    with pytest.raises(CommandError):
+    with pytest.raises(CommandError, match="no user with email"):
         call_command(
             "migrate_course_content", "import",
             "--target-slug", "dst", "--bundle-dir", str(bundle),
@@ -449,7 +459,7 @@ def test_import_refuses_a_non_empty_target_without_force(tmp_path):
     target = _mk_target()
     _user()
     ContentNode.objects.create(course=target, kind="part", title="Squatter")
-    with pytest.raises(CommandError):
+    with pytest.raises(CommandError, match="already has"):
         call_command(
             "migrate_course_content", "import",
             "--target-slug", "dst", "--bundle-dir", str(bundle),
@@ -515,7 +525,7 @@ def test_start_at_aborts_when_the_target_node_count_disagrees(tmp_path, bad):
     ContentNode.objects.filter(
         course=target, parent__isnull=True
     ).exclude(title="P0").delete()
-    with pytest.raises(CommandError):
+    with pytest.raises(CommandError, match="expects the target to hold"):
         call_command(
             "migrate_course_content", "import",
             "--target-slug", "dst", "--bundle-dir", str(bundle),
@@ -528,7 +538,7 @@ def test_import_rejects_an_empty_bundle_directory(tmp_path):
     empty.mkdir()
     _mk_target()
     _user()
-    with pytest.raises(CommandError):
+    with pytest.raises(CommandError, match="no archives"):
         call_command(
             "migrate_course_content", "import",
             "--target-slug", "dst", "--bundle-dir", str(empty),
@@ -668,7 +678,7 @@ Replace the `else:` placeholder branch in `handle` with `elif action == "import"
 uv run pytest tests/test_migrate_course_content.py -vv
 ```
 
-Expected: all pass (Task 1's 4 plus this task's 9).
+Expected: **14 passed** — Task 1's 4 plus this task's 10 collected (9 named, but `test_start_at_aborts_when_the_target_node_count_disagrees` is parametrized ×2).
 
 - [ ] **Step 5: Falsify the three guards that protect the real database**
 
@@ -681,6 +691,7 @@ Run each, confirm the named test goes RED, then restore:
 - [ ] **Step 6: Lint and commit**
 
 ```bash
+uv run ruff format .
 uv run ruff check . && uv run ruff format --check .
 git add courses/management/commands/migrate_course_content.py tests/test_migrate_course_content.py
 git commit -m "feat(transfer): migrate_course_content import phase with guards"
@@ -728,7 +739,7 @@ def test_verify_fails_when_a_part_is_missing(tmp_path):
     ContentNode.objects.filter(
         course=target, parent__isnull=True, title="P2"
     ).delete()
-    with pytest.raises(CommandError):
+    with pytest.raises(CommandError, match="node count mismatch"):
         call_command(
             "migrate_course_content", "verify",
             "--target-slug", "dst", "--bundle-dir", str(bundle),
@@ -739,7 +750,7 @@ def test_verify_refuses_a_bundle_with_no_side_table(tmp_path):
     bundle = _export_bundle(tmp_path)
     _mk_target()
     (bundle / "media-parts.json").unlink()
-    with pytest.raises(CommandError):
+    with pytest.raises(CommandError, match="is missing from"):
         call_command(
             "migrate_course_content", "verify",
             "--target-slug", "dst", "--bundle-dir", str(bundle),
@@ -867,6 +878,7 @@ Expected: this file's tests all pass, and the full non-e2e suite has no new fail
 - [ ] **Step 6: Lint and commit**
 
 ```bash
+uv run ruff format .
 uv run ruff check . && uv run ruff format --check .
 git add courses/management/commands/migrate_course_content.py tests/test_migrate_course_content.py
 git commit -m "feat(transfer): migrate_course_content verify phase"
