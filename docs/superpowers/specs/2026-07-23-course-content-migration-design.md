@@ -187,11 +187,12 @@ itself:
   first decision justifies.
 - **Per-part transaction, and what it does *not* buy.** `importer._run_import` wraps each
   `import_subtree` call in its own `transaction.atomic()`. So a part is never half-grafted — but 21
-  sequential grafts are 21 **independent** transactions, and a failure at part 12 leaves parts 1–11
-  durably committed. Atomicity is per part, not per migration; the spec must not imply otherwise.
+  sequential grafts are 21 **independent** transactions, and a failure while grafting the part with
+  `order == 11` leaves parts `0 … 10` durably committed. Atomicity is per part, not per migration;
+  the spec must not imply otherwise.
 - **Resume by index, because of the above.** A partial failure is a likely outcome over 21 grafts
   against a real database, and the double-run override is the wrong recovery lever — re-running with
-  it would iterate the bundle from the start and graft parts 1–11 a *second* time. The import phase
+  it would iterate the bundle from the start and graft parts `0 … 10` a *second* time. The import phase
   therefore reports the `order` of the last part committed, and accepts `--start-at K` to resume from
   the next one. For any `K > 0` the target is non-empty by construction, so `--start-at` bypasses the
   double-run guard by design.
@@ -274,7 +275,7 @@ phase already receives `media_assets` as `(mid, asset, is_placeholder)` triples,
 **It is accumulated in memory and written once, only on a fully successful export.** Each
 `build_export` call sees one part's assets, so the pk→parts mapping only exists as cross-part state
 held by the export loop. Writing it incrementally would leave a stale, partial table behind after a
-problems-abort at part 12 — and `verify` reading that table would silently under-report cross-part
+problems-abort partway through — and `verify` reading that table would silently under-report cross-part
 sharing, turning a legitimate media delta back into an apparent fault. Exactly the hazard the archives
 already handle via deterministic overwrite, which this artifact must not be exempt from: a re-run
 overwrites the table wholesale, and an aborted run leaves none at all, so `verify` either finds a
